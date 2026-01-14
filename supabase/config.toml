@@ -1,1 +1,4 @@
 project_id = "orbygspxutudncbyipst"
+
+[functions.fetch-auctions]
+verify_jwt = false
