@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
 import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
+import { usePatterns } from "@/hooks/usePatterns";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { SyncAllDialog } from "@/components/dashboard/SyncAllDialog";
+import { PatternDialog } from "@/components/dashboard/PatternDialog";
 
 interface AuctionDomain {
   id: string;
@@ -109,6 +111,7 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
+  const { patterns, addPattern, removePattern, matchesDomain, hasPatterns } = usePatterns();
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -280,7 +283,8 @@ export default function Dashboard() {
   const filtered = auctions.filter(d => {
     const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
     const matchesFavorites = viewMode === "all" || isFavorite(d.domain);
-    return matchesSearch && matchesFavorites;
+    const matchesPattern = matchesDomain(d.domain);
+    return matchesSearch && matchesFavorites && matchesPattern;
   });
 
   return (
@@ -408,7 +412,7 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
             <SyncAllDialog onSyncComplete={fetchAuctionsFromDb} />
-            <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
+            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} />
           </motion.div>
 
           {/* Filters Panel */}
