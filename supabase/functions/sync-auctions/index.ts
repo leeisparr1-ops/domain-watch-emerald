@@ -8,8 +8,16 @@ const corsHeaders = {
 
 const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
 
-// Use smaller inventory file that fits in edge function memory limits
-const INVENTORY_FILE = '5_letter_auctions.json.zip';
+// Inventory files - only smaller files work within edge function memory limits (~150MB)
+// Files over ~2-3MB compressed tend to fail due to decompression memory requirements
+const INVENTORY_FILES: Record<string, string> = {
+  fiveLetter: '5_letter_auctions.json.zip',        // ~574KB - works
+  endingTomorrow: 'all_listings_ending_tomorrow.json.zip', // ~1.2MB - works
+  // These files are too large (8-10MB+) and will hit memory limits:
+  // closeout: 'closeout_listings.json.zip',       // ~8.7MB - too large
+  // expiring: 'expiring_listings.json.zip',       // ~9MB - too large  
+  // endingToday: 'all_listings_ending_today.json.zip', // ~6MB - too large
+};
 
 async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
   const view = new DataView(zipData.buffer);
@@ -84,8 +92,9 @@ serve(async (req) => {
     const url = new URL(req.url);
     const inventoryType = url.searchParams.get('type') || 'fiveLetter';
     
-    const inventoryUrl = `${INVENTORY_BASE}/${INVENTORY_FILE}`;
-    console.log(`Syncing auctions from: ${inventoryUrl}`);
+    const inventoryFile = INVENTORY_FILES[inventoryType] || INVENTORY_FILES.fiveLetter;
+    const inventoryUrl = `${INVENTORY_BASE}/${inventoryFile}`;
+    console.log(`Syncing auctions from: ${inventoryUrl} (type: ${inventoryType})`);
 
     const response = await fetch(inventoryUrl, {
       headers: {
