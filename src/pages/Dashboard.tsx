@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { SyncAllDialog } from "@/components/dashboard/SyncAllDialog";
+
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 
 interface AuctionDomain {
@@ -216,9 +216,21 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [filters, sortBy, viewMode]);
   
+  // Trigger background sync on mount (runs silently in backend)
   useEffect(() => {
     if (user) {
       fetchAuctionsFromDb();
+      
+      // Trigger a background sync on first load (non-blocking)
+      const triggerBackgroundSync = async () => {
+        try {
+          await supabase.functions.invoke('cron-sync-auctions');
+        } catch (err) {
+          // Silent fail - sync runs in background
+          console.debug('Background sync triggered');
+        }
+      };
+      triggerBackgroundSync();
     }
   }, [user, fetchAuctionsFromDb]);
   
@@ -411,7 +423,6 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
-            <SyncAllDialog onSyncComplete={fetchAuctionsFromDb} />
             <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} />
           </motion.div>
 
