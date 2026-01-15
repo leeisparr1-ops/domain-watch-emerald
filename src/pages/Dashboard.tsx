@@ -152,10 +152,10 @@ export default function Dashboard() {
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
       
       // Query from database with filters, sorting, and pagination
+      // Skip count entirely to avoid timeout on large datasets
       let query = supabase
         .from('auctions')
-        // Avoid `count=exact` (can time out on large datasets). We'll use estimated count.
-        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld', { count: 'estimated' })
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
         .gte('end_time', new Date().toISOString())
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
@@ -172,7 +172,7 @@ export default function Dashboard() {
         query = query.eq('auction_type', filters.auctionType);
       }
       
-      const { data, error, count } = await query;
+      const { data, error } = await query;
       
       if (error) throw error;
       
@@ -189,7 +189,7 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        setTotalCount(typeof count === "number" ? count : from + mapped.length);
+        setTotalCount(from + mapped.length + (mapped.length === itemsPerPage ? itemsPerPage : 0));
         setLastRefresh(new Date());
       }
     } catch (err) {
