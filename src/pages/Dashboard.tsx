@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { SyncAllDialog } from "@/components/dashboard/SyncAllDialog";
 
 interface AuctionDomain {
   id: string;
@@ -227,10 +227,7 @@ export default function Dashboard() {
                 </Badge>
               )}
             </Button>
-            <Button variant="outline" onClick={triggerSync} disabled={syncing}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
+            <SyncAllDialog onSyncComplete={fetchAuctionsFromDb} />
             <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
           </motion.div>
 
