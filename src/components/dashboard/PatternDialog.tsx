@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +115,20 @@ const PATTERN_PRESETS = [
   },
 ];
 
+const TLD_OPTIONS = [
+  { value: "any", label: "Any TLD" },
+  { value: ".com", label: ".com" },
+  { value: ".net", label: ".net" },
+  { value: ".org", label: ".org" },
+  { value: ".io", label: ".io" },
+  { value: ".co", label: ".co" },
+  { value: ".ai", label: ".ai" },
+  { value: ".xyz", label: ".xyz" },
+  { value: ".info", label: ".info" },
+  { value: ".dev", label: ".dev" },
+  { value: ".app", label: ".app" },
+];
+
 export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClearPatterns }: PatternDialogProps) {
   const [open, setOpen] = useState(false);
   const [customPattern, setCustomPattern] = useState("");
@@ -123,22 +137,32 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [presetMaxPrice, setPresetMaxPrice] = useState<string>("");
+  const [presetTld, setPresetTld] = useState<string>("any");
+  const [customTld, setCustomTld] = useState<string>("any");
 
   const handleAddPreset = (preset: typeof PATTERN_PRESETS[0]) => {
-    if (patterns.some(p => p.pattern === preset.pattern)) {
-      toast.error("Pattern already exists");
+    if (patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))) {
+      toast.error("Pattern already exists with this TLD");
       return;
     }
     const parsedMaxPrice = presetMaxPrice ? parseFloat(presetMaxPrice) : null;
+    const tldFilter = presetTld === "any" ? null : presetTld;
+    
+    let desc = preset.description;
+    if (parsedMaxPrice) desc += ` (max $${parsedMaxPrice})`;
+    if (tldFilter) desc += ` [${tldFilter}]`;
+    
     onAddPattern({
       pattern: preset.pattern,
       pattern_type: preset.pattern_type,
-      description: preset.description + (parsedMaxPrice ? ` (max $${parsedMaxPrice})` : ""),
+      description: desc,
       max_price: parsedMaxPrice,
       min_price: 0,
+      tld_filter: tldFilter,
     });
-    toast.success(`Added pattern: ${preset.label}`);
+    toast.success(`Added pattern: ${preset.label}${tldFilter ? ` for ${tldFilter}` : ""}`);
     setPresetMaxPrice("");
+    setPresetTld("any");
   };
 
   const handleAddCustom = () => {
@@ -155,8 +179,9 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
       return;
     }
     
-    if (patterns.some(p => p.pattern === customPattern)) {
-      toast.error("Pattern already exists");
+    const tldFilter = customTld === "any" ? null : customTld;
+    if (patterns.some(p => p.pattern === customPattern && p.tld_filter === tldFilter)) {
+      toast.error("Pattern already exists with this TLD");
       return;
     }
     
@@ -172,6 +197,9 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
           : `min $${parsedMinPrice}`;
       finalDescription += ` (${priceRange})`;
     }
+    if (tldFilter) {
+      finalDescription += ` [${tldFilter}]`;
+    }
     
     onAddPattern({
       pattern: customPattern,
@@ -179,13 +207,15 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
       description: finalDescription,
       max_price: parsedMaxPrice,
       min_price: parsedMinPrice,
+      tld_filter: tldFilter,
     });
     
-    toast.success("Custom pattern added");
+    toast.success(`Custom pattern added${tldFilter ? ` for ${tldFilter}` : ""}`);
     setCustomPattern("");
     setDescription("");
     setMinPrice("");
     setMaxPrice("");
+    setCustomTld("any");
   };
 
   return (
@@ -254,18 +284,36 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
           <div className="space-y-3">
             <h4 className="font-medium text-sm">Quick Add Patterns</h4>
             
-            {/* Price filter for presets */}
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Max price:</span>
-              <Input
-                type="number"
-                placeholder="No limit"
-                value={presetMaxPrice}
-                onChange={(e) => setPresetMaxPrice(e.target.value)}
-                className="w-28 h-8"
-                min="0"
-              />
+            {/* Filters for presets */}
+            <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">TLD:</span>
+                <Select value={presetTld} onValueChange={setPresetTld}>
+                  <SelectTrigger className="w-24 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TLD_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Max:</span>
+                <Input
+                  type="number"
+                  placeholder="No limit"
+                  value={presetMaxPrice}
+                  onChange={(e) => setPresetMaxPrice(e.target.value)}
+                  className="w-24 h-8"
+                  min="0"
+                />
+              </div>
               <span className="text-xs text-muted-foreground">(applies to preset you click)</span>
             </div>
             
@@ -277,7 +325,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                   size="sm"
                   className="justify-start h-auto py-2 px-3"
                   onClick={() => handleAddPreset(preset)}
-                  disabled={patterns.some(p => p.pattern === preset.pattern)}
+                  disabled={patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))}
                 >
                   <div className="text-left">
                     <div className="font-medium">{preset.label}</div>
@@ -316,27 +364,45 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                 onChange={(e) => setDescription(e.target.value)}
               />
               
-              {/* Price Range for Custom Pattern */}
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Price range:</span>
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-24 h-8"
-                  min="0"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-24 h-8"
-                  min="0"
-                />
+              {/* Filters for Custom Pattern */}
+              <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">TLD:</span>
+                  <Select value={customTld} onValueChange={setCustomTld}>
+                    <SelectTrigger className="w-24 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TLD_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Price:</span>
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    className="w-20 h-8"
+                    min="0"
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    className="w-20 h-8"
+                    min="0"
+                  />
+                </div>
               </div>
               
               <Button onClick={handleAddCustom} className="w-full">
