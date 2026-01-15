@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -35,6 +35,24 @@ interface Filters {
   minPrice: number;
   maxPrice: number;
 }
+
+interface SortOption {
+  value: string;
+  label: string;
+  column: string;
+  ascending: boolean;
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
+  { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
+  { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
+  { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
+  { value: "bid_count_desc", label: "Most Bids", column: "bid_count", ascending: false },
+  { value: "bid_count_asc", label: "Least Bids", column: "bid_count", ascending: true },
+  { value: "domain_name_asc", label: "Domain: A-Z", column: "domain_name", ascending: true },
+  { value: "domain_name_desc", label: "Domain: Z-A", column: "domain_name", ascending: false },
+];
 
 const TLD_OPTIONS = [
   { value: "all", label: "All TLDs" },
@@ -100,6 +118,7 @@ export default function Dashboard() {
     minPrice: 0,
     maxPrice: 1000000,
   });
+  const [sortBy, setSortBy] = useState("end_time_asc");
   
   const activeFilterCount = [
     filters.tld !== "all",
@@ -115,14 +134,17 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      // Query from database with filters and pagination
+      // Get current sort option
+      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+      
+      // Query from database with filters, sorting, and pagination
       let query = supabase
         .from('auctions')
         .select('*', { count: 'exact' })
         .gte('end_time', new Date().toISOString())
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
-        .order('end_time', { ascending: true })
+        .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to);
       
       // Apply TLD filter
@@ -174,16 +196,16 @@ export default function Dashboard() {
     setCurrentPage(1);
   }
   
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or sort change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters]);
+  }, [filters, sortBy]);
   
   useEffect(() => {
     if (user) {
       fetchAuctionsFromDb();
     }
-  }, [user, filters, currentPage]);
+  }, [user, filters, sortBy, currentPage]);
   
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   
@@ -248,6 +270,19 @@ export default function Dashboard() {
                 </Badge>
               )}
             </Button>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px] bg-background">
+                <ArrowUpDown className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border border-border z-50">
+                {SORT_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <SyncAllDialog onSyncComplete={fetchAuctionsFromDb} />
             <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
           </motion.div>
