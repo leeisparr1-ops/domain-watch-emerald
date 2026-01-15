@@ -154,9 +154,9 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
           <Button variant="hero" className="relative">
             <Plus className="w-4 h-4 mr-2" />
             Add Pattern
@@ -169,23 +169,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
               </Badge>
             )}
           </Button>
-          {patterns.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClearPatterns();
-                toast.success("All patterns cleared");
-              }}
-              title="Clear all patterns"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </DialogTrigger>
+        </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -305,6 +289,21 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      {patterns.length > 0 && (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="h-9 w-9 text-muted-foreground hover:text-destructive"
+          onClick={() => {
+            onClearPatterns();
+            toast.success("All patterns cleared");
+          }}
+          title="Clear all patterns"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      )}
+    </div>
   );
 }
