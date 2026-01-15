@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
+import { useFavorites } from "@/hooks/useFavorites";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { SyncAllDialog } from "@/components/dashboard/SyncAllDialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AuctionDomain {
   id: string;
@@ -104,6 +106,7 @@ function formatTimeRemaining(endTime: string): string {
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +114,7 @@ export default function Dashboard() {
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
   const itemsPerPage = 50;
   const [filters, setFilters] = useState<Filters>({
     tld: "all",
@@ -196,10 +200,10 @@ export default function Dashboard() {
     setCurrentPage(1);
   }
   
-  // Reset to page 1 when filters or sort change
+  // Reset to page 1 when filters, sort, or view mode change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sortBy]);
+  }, [filters, sortBy, viewMode]);
   
   useEffect(() => {
     if (user) {
@@ -237,7 +241,11 @@ export default function Dashboard() {
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
-  const filtered = auctions.filter(d => d.domain.toLowerCase().includes(search.toLowerCase()));
+  const filtered = auctions.filter(d => {
+    const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
+    const matchesFavorites = viewMode === "all" || isFavorite(d.domain);
+    return matchesSearch && matchesFavorites;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -251,6 +259,24 @@ export default function Dashboard() {
             </p>
           </motion.div>
           
+          {/* View Mode Tabs */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "all" | "favorites")}>
+              <TabsList>
+                <TabsTrigger value="all">All Auctions</TabsTrigger>
+                <TabsTrigger value="favorites" className="flex items-center gap-2">
+                  <Heart className="w-4 h-4" />
+                  Favorites
+                  {favoritesCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {favoritesCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </motion.div>
+
           {/* Search and Actions Bar */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
@@ -410,10 +436,10 @@ export default function Dashboard() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
                 {filtered.map((d, i) => (
-                  <motion.a key={d.id || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
+                  <motion.div key={d.id || i}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
                     className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
+                    <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
                       <div>
                         <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
@@ -422,18 +448,32 @@ export default function Dashboard() {
                           <Badge variant="outline" className="text-xs">{d.tld}</Badge>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-8">
-                      <div className="text-right">
+                    </a>
+                    <div className="flex items-center gap-4 sm:gap-8">
+                      <div className="text-right hidden sm:block">
                         <div className="font-bold">${d.price.toLocaleString()}</div>
                         <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground hidden md:flex">
                         <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
                       </div>
-                      <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleFavorite(d.domain, d.id);
+                        }}
+                        className={isFavorite(d.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
+                      >
+                        <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
+                      </Button>
+                      <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </a>
                     </div>
-                  </motion.a>
+                  </motion.div>
                 ))}
               </motion.div>
 
