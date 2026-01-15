@@ -1,28 +1,86 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
-const mockDomains = [
-  { domain: "cryptomarket.com", price: "$2,450", bids: 12, ends: "2h 15m", source: "GoDaddy" },
-  { domain: "aitools.io", price: "$890", bids: 8, ends: "45m", source: "GoDaddy" },
-  { domain: "startuplab.dev", price: "$1,200", bids: 5, ends: "4h 30m", source: "GoDaddy" },
-  { domain: "techbrand.co", price: "$560", bids: 3, ends: "6h", source: "GoDaddy" },
-  { domain: "designhub.app", price: "$320", bids: 2, ends: "12h", source: "Closeout" },
-];
+interface AuctionDomain {
+  auctionId: number;
+  domain: string;
+  auctionEndTime: string;
+  price: number;
+  numberOfBids: number;
+  traffic: number;
+  domainAge: number;
+  auctionType: string;
+  tld: string;
+}
+
+function formatTimeRemaining(endTime: string): string {
+  const end = new Date(endTime);
+  const now = new Date();
+  const diff = end.getTime() - now.getTime();
+  
+  if (diff <= 0) return "Ended";
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [search, setSearch] = useState("");
+  const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
+  useEffect(() => {
+    async function fetchAuctions() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { data, error } = await supabase.functions.invoke('fetch-auctions', {
+          body: null,
+        });
+        
+        if (error) throw error;
+        
+        if (data?.success && data?.data) {
+          setAuctions(data.data);
+        } else {
+          setError(data?.error || 'Failed to fetch auctions');
+        }
+      } catch (err) {
+        console.error('Error fetching auctions:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    if (user) {
+      fetchAuctions();
+    }
+  }, [user]);
+  
+  if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
-  const filtered = mockDomains.filter(d => d.domain.toLowerCase().includes(search.toLowerCase()));
+  const filtered = auctions.filter(d => d.domain.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,26 +100,53 @@ export default function Dashboard() {
             <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
-            {filtered.map((d, i) => (
-              <motion.a key={i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
-                  <div>
-                    <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
-                    <div className="text-sm text-muted-foreground">{d.source}</div>
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <span className="ml-3 text-muted-foreground">Loading auctions...</span>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="text-center py-12">
+              <p className="text-destructive mb-4">{error}</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+          )}
+
+          {!loading && !error && filtered.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No auctions found matching your search.
+            </div>
+          )}
+
+          {!loading && !error && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
+              {filtered.map((d, i) => (
+                <motion.a key={d.auctionId || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
+                    <div>
+                      <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
+                      <div className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-8">
-                  <div className="text-right"><div className="font-bold">{d.price}</div><div className="text-xs text-muted-foreground">{d.bids} bids</div></div>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground"><Clock className="w-4 h-4" />{d.ends}</div>
-                  <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </motion.a>
-            ))}
-          </motion.div>
+                  <div className="flex items-center gap-8">
+                    <div className="text-right">
+                      <div className="font-bold">${d.price.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </motion.a>
+              ))}
+            </motion.div>
+          )}
         </div>
       </main>
     </div>
