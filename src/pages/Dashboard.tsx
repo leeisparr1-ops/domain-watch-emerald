@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { SyncAllDialog } from "@/components/dashboard/SyncAllDialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AuctionDomain {
   id: string;
@@ -259,22 +258,36 @@ export default function Dashboard() {
             </p>
           </motion.div>
           
-          {/* View Mode Tabs */}
+          {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "all" | "favorites")}>
-              <TabsList>
-                <TabsTrigger value="all">All Auctions</TabsTrigger>
-                <TabsTrigger value="favorites" className="flex items-center gap-2">
-                  <Heart className="w-4 h-4" />
-                  Favorites
-                  {favoritesCount > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                      {favoritesCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+              <button
+                onClick={() => setViewMode("all")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                  viewMode === "all" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "hover:bg-background/50"
+                }`}
+              >
+                All Auctions
+              </button>
+              <button
+                onClick={() => setViewMode("favorites")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
+                  viewMode === "favorites" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <Heart className="w-4 h-4" />
+                Favorites
+                {favoritesCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {favoritesCount}
+                  </Badge>
+                )}
+              </button>
+            </div>
           </motion.div>
 
           {/* Search and Actions Bar */}
