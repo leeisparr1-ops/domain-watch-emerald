@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface AuctionDomain {
-  auctionId: number;
+  auctionId: string;
   domain: string;
   auctionEndTime: string;
   price: number;
@@ -17,13 +17,67 @@ interface AuctionDomain {
   tld: string;
 }
 
-interface GoDaddyAuctionResponse {
-  auctions: any[];
-  totalCount: number;
+// GoDaddy inventory URLs
+const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
+const INVENTORY_FILES = {
+  endingToday: 'all_listings_ending_today.json.zip',
+  endingTomorrow: 'all_listings_ending_tomorrow.json.zip',
+  allBiddable: 'all_biddable_auctions.json.zip',
+  allExpiring: 'all_expiring_auctions.json.zip',
+  allListings: 'all_listings.json.zip',
+  fiveLetter: '5_letter_auctions.json.zip',
+};
+
+// Simple ZIP file parser for single-file archives
+async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
+  const view = new DataView(zipData.buffer);
+  
+  if (view.getUint32(0, true) !== 0x04034b50) {
+    throw new Error('Invalid ZIP file signature');
+  }
+  
+  const compressionMethod = view.getUint16(8, true);
+  const compressedSize = view.getUint32(18, true);
+  const fileNameLength = view.getUint16(26, true);
+  const extraFieldLength = view.getUint16(28, true);
+  
+  const dataStart = 30 + fileNameLength + extraFieldLength;
+  const compressedData = zipData.slice(dataStart, dataStart + compressedSize);
+  
+  let jsonData: Uint8Array;
+  
+  if (compressionMethod === 0) {
+    jsonData = compressedData;
+  } else if (compressionMethod === 8) {
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    const reader = ds.readable.getReader();
+    
+    writer.write(compressedData);
+    writer.close();
+    
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    jsonData = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      jsonData.set(chunk, offset);
+      offset += chunk.length;
+    }
+  } else {
+    throw new Error(`Unsupported compression method: ${compressionMethod}`);
+  }
+  
+  return new TextDecoder().decode(jsonData);
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,136 +87,131 @@ serve(async (req) => {
     const searchTerm = url.searchParams.get('q') || '';
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '50');
-    const auctionType = url.searchParams.get('type') || 'all'; // all, expiring, closeout, offer
+    const inventoryType = url.searchParams.get('type') || 'fiveLetter'; // Default to smaller file
     const tld = url.searchParams.get('tld') || '';
-    const minPrice = url.searchParams.get('minPrice') || '';
-    const maxPrice = url.searchParams.get('maxPrice') || '';
-    const sortBy = url.searchParams.get('sortBy') || 'endTime'; // endTime, price, bids, traffic
+    const minPrice = parseFloat(url.searchParams.get('minPrice') || '0');
+    const maxPrice = parseFloat(url.searchParams.get('maxPrice') || '999999999');
+    const sortBy = url.searchParams.get('sortBy') || 'endTime';
     const sortOrder = url.searchParams.get('sortOrder') || 'asc';
 
-    // Build GoDaddy API URL
-    const gdApiUrl = new URL('https://auctions.godaddy.com/trpSearchResults.aspx');
-    
-    // GoDaddy uses specific query parameters
-    const params: Record<string, string> = {
-      '_Type': 'json',
-      'page': page.toString(),
-      'rows': limit.toString(),
-      'skey': searchTerm,
-    };
+    const inventoryFile = INVENTORY_FILES[inventoryType as keyof typeof INVENTORY_FILES] || INVENTORY_FILES.fiveLetter;
+    const inventoryUrl = `${INVENTORY_BASE}/${inventoryFile}`;
 
-    // Add filters
-    if (auctionType !== 'all') {
-      switch (auctionType) {
-        case 'expiring':
-          params['at'] = '2'; // Expiring auctions
-          break;
-        case 'closeout':
-          params['at'] = '5'; // Closeout
-          break;
-        case 'offer':
-          params['at'] = '4'; // Buy now/Offer
-          break;
-      }
-    }
+    console.log('Fetching from GoDaddy inventory:', inventoryUrl);
 
-    if (tld) {
-      params['ext'] = tld.replace('.', '');
-    }
-
-    if (minPrice) {
-      params['minp'] = minPrice;
-    }
-
-    if (maxPrice) {
-      params['maxp'] = maxPrice;
-    }
-
-    // Sort mapping
-    const sortMapping: Record<string, string> = {
-      'endTime': 'auctionEndTime',
-      'price': 'price',
-      'bids': 'bids',
-      'traffic': 'traffic',
-    };
-
-    params['sort'] = sortMapping[sortBy] || 'auctionEndTime';
-    params['dir'] = sortOrder === 'desc' ? 'desc' : 'asc';
-
-    // Construct the full URL with params
-    Object.entries(params).forEach(([key, value]) => {
-      gdApiUrl.searchParams.append(key, value);
-    });
-
-    console.log('Fetching from GoDaddy:', gdApiUrl.toString());
-
-    // Fetch from GoDaddy's auction inventory
-    const response = await fetch(gdApiUrl.toString(), {
-      method: 'GET',
+    const response = await fetch(inventoryUrl, {
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'DomainMonitor/1.0',
+        'Accept': '*/*',
+        'User-Agent': 'DomainPulse/1.0',
       },
     });
 
     if (!response.ok) {
-      // If the main endpoint fails, try the alternative API
-      console.log('Primary endpoint failed, trying alternative...');
-      
-      const altUrl = `https://auctions.godaddy.com/trpItemListingAction.aspx?miession=public&t=2&_Type=json&page=${page}&rows=${limit}&skey=${encodeURIComponent(searchTerm)}`;
-      
-      const altResponse = await fetch(altUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'DomainMonitor/1.0',
-        },
-      });
-
-      if (!altResponse.ok) {
-        // Return mock data if both endpoints fail (for development)
-        console.log('Both endpoints failed, returning mock data');
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: generateMockAuctions(searchTerm, limit),
-            totalCount: 100,
-            page,
-            limit,
-            source: 'mock',
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
-      const altData = await altResponse.json();
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: transformAuctionData(altData),
-          totalCount: altData.totalRecords || 0,
-          page,
-          limit,
-          source: 'godaddy',
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      throw new Error(`Failed to fetch inventory: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const zipData = new Uint8Array(await response.arrayBuffer());
+    console.log(`Downloaded ${zipData.length} bytes`);
     
+    const jsonContent = await extractJsonFromZip(zipData);
+    console.log(`Extracted JSON, first 500 chars: ${jsonContent.substring(0, 500)}`);
+
+    const parsed = JSON.parse(jsonContent);
+    const rawAuctions: any[] = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || parsed.data || []);
+
+    console.log(`Parsed ${rawAuctions.length} auctions`);
+    if (rawAuctions.length > 0) {
+      console.log('Sample auction keys:', Object.keys(rawAuctions[0]).join(', '));
+      console.log('Sample auction:', JSON.stringify(rawAuctions[0]).substring(0, 300));
+    }
+
+    // Transform with flexible field mapping based on actual GoDaddy format
+    // Sample: {"domainName":"PPN57.COM","link":"...","auctionType":"BuyNow","auctionEndTime":"2026-01-14T16:00:00Z","price":"$5","numberOfBids":0,"domainAge":7,"pageviews":0,"valuation":"$1,067","isAdult":false}
+    let auctions: AuctionDomain[] = rawAuctions.map((item: any) => {
+      // GoDaddy uses camelCase field names
+      const domain = item.domainName || item.DomainName || item.domain || item.dn || item.name || '';
+      const auctionId = String(item.auctionId || item.AuctionId || item.id || Math.random().toString(36).substr(2, 9));
+      const endTime = item.auctionEndTime || item.AuctionEndTime || item.endTime || new Date().toISOString();
+      
+      // Price comes as "$5" string, need to parse
+      let price = 0;
+      const priceRaw = item.price || item.Price || item.currentPrice || item.minBid || '0';
+      if (typeof priceRaw === 'string') {
+        price = parseFloat(priceRaw.replace(/[$,]/g, '')) || 0;
+      } else {
+        price = parseFloat(priceRaw) || 0;
+      }
+      
+      const bids = parseInt(item.numberOfBids || item.NumberOfBids || item.bids || 0);
+      const traffic = parseInt(item.pageviews || item.traffic || item.Traffic || 0);
+      const age = parseInt(item.domainAge || item.DomainAge || 0);
+      const type = item.auctionType || item.AuctionType || item.type || 'auction';
+      
+      return {
+        auctionId,
+        domain,
+        auctionEndTime: endTime,
+        price,
+        numberOfBids: bids,
+        traffic,
+        domainAge: age,
+        auctionType: type,
+        tld: extractTld(domain),
+      };
+    }).filter(a => a.domain); // Filter out entries without domains
+
+    console.log(`After filtering empty domains: ${auctions.length} auctions`);
+
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      auctions = auctions.filter(a => a.domain.toLowerCase().includes(searchLower));
+    }
+
+    // Filter by TLD
+    if (tld) {
+      const tldLower = tld.toLowerCase().replace('.', '');
+      auctions = auctions.filter(a => a.tld.toLowerCase().replace('.', '') === tldLower);
+    }
+
+    // Filter by price range
+    auctions = auctions.filter(a => a.price >= minPrice && a.price <= maxPrice);
+
+    // Sort
+    auctions.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'price':
+          comparison = a.price - b.price;
+          break;
+        case 'bids':
+          comparison = a.numberOfBids - b.numberOfBids;
+          break;
+        case 'traffic':
+          comparison = a.traffic - b.traffic;
+          break;
+        case 'endTime':
+        default:
+          comparison = new Date(a.auctionEndTime).getTime() - new Date(b.auctionEndTime).getTime();
+          break;
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+
+    const totalCount = auctions.length;
+    const startIndex = (page - 1) * limit;
+    const paginatedAuctions = auctions.slice(startIndex, startIndex + limit);
+
+    console.log(`Returning ${paginatedAuctions.length} auctions (page ${page}, total ${totalCount})`);
+
     return new Response(
       JSON.stringify({
         success: true,
-        data: transformAuctionData(data),
-        totalCount: data.totalRecords || data.length || 0,
+        data: paginatedAuctions,
+        totalCount,
         page,
         limit,
-        source: 'godaddy',
+        source: 'godaddy-inventory',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -187,56 +236,7 @@ serve(async (req) => {
   }
 });
 
-function transformAuctionData(rawData: any): AuctionDomain[] {
-  const auctions = rawData.rows || rawData.auctions || rawData || [];
-  
-  return auctions.map((item: any) => ({
-    auctionId: item.auctionId || item.id || Math.random().toString(36).substr(2, 9),
-    domain: item.domain || item.dn || item.name || '',
-    auctionEndTime: item.auctionEndTime || item.endTime || item.te || new Date().toISOString(),
-    price: parseFloat(item.price || item.auctionPrice || item.cp || item.currentPrice || 0),
-    numberOfBids: parseInt(item.bids || item.numberOfBids || item.nb || 0),
-    traffic: parseInt(item.traffic || item.monthlyTraffic || item.est || 0),
-    domainAge: parseInt(item.domainAge || item.age || item.da || 0),
-    auctionType: item.auctionType || item.type || item.at || 'auction',
-    tld: extractTld(item.domain || item.dn || item.name || ''),
-  }));
-}
-
 function extractTld(domain: string): string {
   const parts = domain.split('.');
   return parts.length > 1 ? `.${parts[parts.length - 1]}` : '';
-}
-
-function generateMockAuctions(searchTerm: string, count: number): AuctionDomain[] {
-  const tlds = ['.com', '.net', '.org', '.io', '.co', '.dev', '.app'];
-  const types = ['expiring', 'closeout', 'offer', 'auction'];
-  const prefixes = ['domain', 'web', 'tech', 'cloud', 'crypto', 'digital', 'smart', 'pro'];
-  const suffixes = ['hub', 'zone', 'base', 'core', 'labs', 'works', 'group', 'inc'];
-  
-  const auctions: AuctionDomain[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    const prefix = searchTerm || prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-    const tld = tlds[Math.floor(Math.random() * tlds.length)];
-    const domain = `${prefix}${suffix}${tld}`.toLowerCase();
-    
-    const endDate = new Date();
-    endDate.setHours(endDate.getHours() + Math.floor(Math.random() * 168)); // Up to 7 days
-    
-    auctions.push({
-      auctionId: 100000000 + i,
-      domain,
-      auctionEndTime: endDate.toISOString(),
-      price: Math.floor(Math.random() * 5000) + 10,
-      numberOfBids: Math.floor(Math.random() * 50),
-      traffic: Math.floor(Math.random() * 10000),
-      domainAge: Math.floor(Math.random() * 20) + 1,
-      auctionType: types[Math.floor(Math.random() * types.length)],
-      tld,
-    });
-  }
-  
-  return auctions;
 }
