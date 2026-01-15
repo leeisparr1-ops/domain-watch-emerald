@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff } from "lucide-react";
 import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -107,6 +108,7 @@ function formatTimeRemaining(endTime: string): string {
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
+  const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -353,6 +355,22 @@ export default function Dashboard() {
                 )}
               </button>
             </div>
+            
+            {/* Notification Toggle */}
+            <Button
+              variant={notificationsEnabled ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleNotifications}
+              className="gap-2 ml-2"
+              title={notificationsEnabled ? 'Disable auction ending alerts' : 'Enable alerts when favorites are ending soon'}
+            >
+              {notificationsEnabled ? (
+                <Bell className="w-4 h-4 text-primary" />
+              ) : (
+                <BellOff className="w-4 h-4" />
+              )}
+              {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
+            </Button>
           </motion.div>
 
           {/* Search and Actions Bar */}
