@@ -41,8 +41,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Monitor GoDaddy auctions and closeouts in real-time. Set up pattern-based 
-            alerts and never miss the perfect domain for your next project.
+            Monitor specific domains and get alerts when they become available. 
+            Never miss the perfect domain for your next project.
           </motion.p>
 
           <motion.div
