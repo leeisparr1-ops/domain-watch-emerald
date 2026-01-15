@@ -62,6 +62,38 @@ export type Database = {
         }
         Relationships: []
       }
+      favorites: {
+        Row: {
+          auction_id: string | null
+          created_at: string
+          domain_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          auction_id?: string | null
+          created_at?: string
+          domain_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          auction_id?: string | null
+          created_at?: string
+          domain_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
