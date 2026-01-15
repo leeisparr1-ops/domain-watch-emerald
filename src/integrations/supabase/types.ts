@@ -67,7 +67,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      trigger_auction_sync: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
