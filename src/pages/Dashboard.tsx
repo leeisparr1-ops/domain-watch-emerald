@@ -111,7 +111,7 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, addPattern, removePattern, matchesDomain, hasPatterns } = usePatterns();
+  const { patterns, addPattern, removePattern, clearPatterns, matchesDomain, hasPatterns } = usePatterns();
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -412,7 +412,7 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
             <SyncAllDialog onSyncComplete={fetchAuctionsFromDb} />
-            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} />
+            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} />
           </motion.div>
 
           {/* Filters Panel */}

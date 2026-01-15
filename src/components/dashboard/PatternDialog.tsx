@@ -38,6 +38,7 @@ interface PatternDialogProps {
   patterns: Pattern[];
   onAddPattern: (pattern: Omit<Pattern, "id">) => void;
   onRemovePattern: (id: string) => void;
+  onClearPatterns: () => void;
 }
 
 const PATTERN_PRESETS = [
@@ -103,7 +104,7 @@ const PATTERN_PRESETS = [
   },
 ];
 
-export function PatternDialog({ patterns, onAddPattern, onRemovePattern }: PatternDialogProps) {
+export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClearPatterns }: PatternDialogProps) {
   const [open, setOpen] = useState(false);
   const [customPattern, setCustomPattern] = useState("");
   const [patternType, setPatternType] = useState<"regex" | "structure" | "pronounceable">("regex");
@@ -155,10 +156,35 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern }: Patte
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="hero">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Pattern
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="hero" className="relative">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Pattern
+            {patterns.length > 0 && (
+              <Badge 
+                variant="default" 
+                className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary-foreground text-primary"
+              >
+                {patterns.length}
+              </Badge>
+            )}
+          </Button>
+          {patterns.length > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClearPatterns();
+                toast.success("All patterns cleared");
+              }}
+              title="Clear all patterns"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
