@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2 } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -120,18 +120,25 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
   const [customPattern, setCustomPattern] = useState("");
   const [patternType, setPatternType] = useState<"regex" | "structure" | "pronounceable">("regex");
   const [description, setDescription] = useState("");
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [presetMaxPrice, setPresetMaxPrice] = useState<string>("");
 
   const handleAddPreset = (preset: typeof PATTERN_PRESETS[0]) => {
     if (patterns.some(p => p.pattern === preset.pattern)) {
       toast.error("Pattern already exists");
       return;
     }
+    const parsedMaxPrice = presetMaxPrice ? parseFloat(presetMaxPrice) : null;
     onAddPattern({
       pattern: preset.pattern,
       pattern_type: preset.pattern_type,
-      description: preset.description,
+      description: preset.description + (parsedMaxPrice ? ` (max $${parsedMaxPrice})` : ""),
+      max_price: parsedMaxPrice,
+      min_price: 0,
     });
     toast.success(`Added pattern: ${preset.label}`);
+    setPresetMaxPrice("");
   };
 
   const handleAddCustom = () => {
@@ -153,15 +160,32 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
       return;
     }
     
+    const parsedMinPrice = minPrice ? parseFloat(minPrice) : 0;
+    const parsedMaxPrice = maxPrice ? parseFloat(maxPrice) : null;
+    
+    let finalDescription = description || `Custom ${patternType} pattern`;
+    if (parsedMinPrice > 0 || parsedMaxPrice) {
+      const priceRange = parsedMinPrice > 0 && parsedMaxPrice 
+        ? `$${parsedMinPrice}-$${parsedMaxPrice}`
+        : parsedMaxPrice 
+          ? `max $${parsedMaxPrice}`
+          : `min $${parsedMinPrice}`;
+      finalDescription += ` (${priceRange})`;
+    }
+    
     onAddPattern({
       pattern: customPattern,
       pattern_type: patternType,
-      description: description || `Custom ${patternType} pattern`,
+      description: finalDescription,
+      max_price: parsedMaxPrice,
+      min_price: parsedMinPrice,
     });
     
     toast.success("Custom pattern added");
     setCustomPattern("");
     setDescription("");
+    setMinPrice("");
+    setMaxPrice("");
   };
 
   return (
@@ -229,6 +253,22 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
           {/* Pattern Presets */}
           <div className="space-y-3">
             <h4 className="font-medium text-sm">Quick Add Patterns</h4>
+            
+            {/* Price filter for presets */}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Max price:</span>
+              <Input
+                type="number"
+                placeholder="No limit"
+                value={presetMaxPrice}
+                onChange={(e) => setPresetMaxPrice(e.target.value)}
+                className="w-28 h-8"
+                min="0"
+              />
+              <span className="text-xs text-muted-foreground">(applies to preset you click)</span>
+            </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {PATTERN_PRESETS.map((preset, idx) => (
                 <Button
@@ -275,6 +315,30 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+              
+              {/* Price Range for Custom Pattern */}
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Price range:</span>
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  className="w-24 h-8"
+                  min="0"
+                />
+                <span className="text-muted-foreground">-</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="w-24 h-8"
+                  min="0"
+                />
+              </div>
+              
               <Button onClick={handleAddCustom} className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Custom Pattern
