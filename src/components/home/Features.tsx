@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, Bell, BarChart3, Zap, Shield, Globe } from "lucide-react";
+import { Search, Bell, BarChart3, Shield, Globe } from "lucide-react";
 
 const features = [
   {
@@ -16,11 +16,6 @@ const features = [
     icon: BarChart3,
     title: "Market Analytics",
     description: "Track pricing trends, auction activity, and market movements to make informed decisions.",
-  },
-  {
-    icon: Zap,
-    title: "Instant Access",
-    description: "Click any domain to go directly to its auction page. Never miss an opportunity with our direct links.",
   },
   {
     icon: Shield,
