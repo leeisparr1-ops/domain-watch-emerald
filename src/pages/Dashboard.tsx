@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2 } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -9,7 +9,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AuctionDomain {
-  auctionId: number;
+  id: string;
   domain: string;
   auctionEndTime: string;
   price: number;
@@ -45,35 +45,71 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   
-  useEffect(() => {
-    async function fetchAuctions() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data, error } = await supabase.functions.invoke('fetch-auctions', {
+  async function fetchAuctionsFromDb() {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Query from database with filters
+      let query = supabase
+        .from('auctions')
+        .select('*', { count: 'exact' })
+        .gte('end_time', new Date().toISOString())
+        .order('end_time', { ascending: true })
+        .limit(100);
+      
+      const { data, error, count } = await query;
+      
+      if (error) throw error;
+      
+      if (data) {
+        const mapped: AuctionDomain[] = data.map(a => ({
+          id: a.id,
+          domain: a.domain_name,
+          auctionEndTime: a.end_time || '',
+          price: Number(a.price) || 0,
+          numberOfBids: a.bid_count || 0,
+          traffic: a.traffic_count || 0,
+          domainAge: a.domain_age || 0,
+          auctionType: a.auction_type || 'auction',
+          tld: a.tld || '',
+        }));
+        setAuctions(mapped);
+        setTotalCount(count || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching auctions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  async function triggerSync() {
+    setSyncing(true);
+    try {
+      // Sync multiple inventory types
+      for (const type of ['endingToday', 'endingTomorrow', 'allBiddable']) {
+        await supabase.functions.invoke('sync-auctions', {
           body: null,
         });
-        
-        if (error) throw error;
-        
-        if (data?.success && data?.data) {
-          setAuctions(data.data);
-        } else {
-          setError(data?.error || 'Failed to fetch auctions');
-        }
-      } catch (err) {
-        console.error('Error fetching auctions:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
-      } finally {
-        setLoading(false);
       }
+      // Refresh data after sync
+      await fetchAuctionsFromDb();
+    } catch (err) {
+      console.error('Sync error:', err);
+    } finally {
+      setSyncing(false);
     }
-    
+  }
+  
+  useEffect(() => {
     if (user) {
-      fetchAuctions();
+      fetchAuctionsFromDb();
     }
   }, [user]);
   
@@ -89,7 +125,9 @@ export default function Dashboard() {
         <div className="container mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
-            <p className="text-muted-foreground">Monitor auctions from GoDaddy inventory</p>
+            <p className="text-muted-foreground">
+              {totalCount > 0 ? `${totalCount.toLocaleString()} auctions in database` : 'Monitor auctions from GoDaddy inventory'}
+            </p>
           </motion.div>
           
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -97,6 +135,10 @@ export default function Dashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search domains or use patterns like *crypto*" value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
             </div>
+            <Button variant="outline" onClick={triggerSync} disabled={syncing}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync Now'}
+            </Button>
             <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
           </motion.div>
 
@@ -122,8 +164,8 @@ export default function Dashboard() {
 
           {!loading && !error && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
-              {filtered.map((d, i) => (
-                <motion.a key={d.auctionId || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
+              {filtered.slice(0, 50).map((d, i) => (
+                <motion.a key={d.id || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                   className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
                   <div className="flex items-center gap-4">
