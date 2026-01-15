@@ -154,7 +154,8 @@ export default function Dashboard() {
       // Query from database with filters, sorting, and pagination
       let query = supabase
         .from('auctions')
-        .select('*', { count: 'exact' })
+        // Avoid `count=exact` (can time out on large datasets). We'll use estimated count.
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld', { count: 'estimated' })
         .gte('end_time', new Date().toISOString())
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
@@ -188,7 +189,7 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        setTotalCount(count || 0);
+        setTotalCount(typeof count === "number" ? count : from + mapped.length);
         setLastRefresh(new Date());
       }
     } catch (err) {
