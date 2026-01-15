@@ -8,7 +8,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
-import { usePatterns } from "@/hooks/usePatterns";
+import { useUserPatterns } from "@/hooks/useUserPatterns";
+import { usePatternAlerts } from "@/hooks/usePatternAlerts";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -111,7 +112,8 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, addPattern, removePattern, clearPatterns, matchesDomain, hasPatterns } = usePatterns();
+  const { patterns, addPattern, removePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking } = useUserPatterns();
+  usePatternAlerts(); // Enable background pattern checking
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
