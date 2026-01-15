@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, RefreshCw } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, RefreshCw, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 
 interface AuctionDomain {
   id: string;
@@ -19,6 +28,41 @@ interface AuctionDomain {
   auctionType: string;
   tld: string;
 }
+
+interface Filters {
+  tld: string;
+  auctionType: string;
+  minPrice: number;
+  maxPrice: number;
+}
+
+const TLD_OPTIONS = [
+  { value: "all", label: "All TLDs" },
+  { value: ".com", label: ".com" },
+  { value: ".net", label: ".net" },
+  { value: ".org", label: ".org" },
+  { value: ".io", label: ".io" },
+  { value: ".co", label: ".co" },
+  { value: ".ai", label: ".ai" },
+  { value: ".xyz", label: ".xyz" },
+  { value: ".info", label: ".info" },
+];
+
+const AUCTION_TYPE_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "Bid", label: "Bid" },
+  { value: "BuyNow", label: "Buy Now" },
+  { value: "Offer", label: "Make Offer" },
+  { value: "Expired", label: "Expired" },
+];
+
+const PRICE_PRESETS = [
+  { label: "Any", min: 0, max: 1000000 },
+  { label: "Under $50", min: 0, max: 50 },
+  { label: "$50-$500", min: 50, max: 500 },
+  { label: "$500-$5K", min: 500, max: 5000 },
+  { label: "$5K+", min: 5000, max: 1000000 },
+];
 
 function formatTimeRemaining(endTime: string): string {
   const end = new Date(endTime);
@@ -48,7 +92,20 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<Filters>({
+    tld: "all",
+    auctionType: "all",
+    minPrice: 0,
+    maxPrice: 1000000,
+  });
   
+  const activeFilterCount = [
+    filters.tld !== "all",
+    filters.auctionType !== "all",
+    filters.minPrice > 0 || filters.maxPrice < 1000000,
+  ].filter(Boolean).length;
+
   async function fetchAuctionsFromDb() {
     try {
       setLoading(true);
@@ -59,8 +116,20 @@ export default function Dashboard() {
         .from('auctions')
         .select('*', { count: 'exact' })
         .gte('end_time', new Date().toISOString())
+        .gte('price', filters.minPrice)
+        .lte('price', filters.maxPrice)
         .order('end_time', { ascending: true })
         .limit(100);
+      
+      // Apply TLD filter
+      if (filters.tld !== "all") {
+        query = query.eq('tld', filters.tld);
+      }
+      
+      // Apply auction type filter
+      if (filters.auctionType !== "all") {
+        query = query.eq('auction_type', filters.auctionType);
+      }
       
       const { data, error, count } = await query;
       
@@ -107,11 +176,20 @@ export default function Dashboard() {
     }
   }
   
+  function resetFilters() {
+    setFilters({
+      tld: "all",
+      auctionType: "all",
+      minPrice: 0,
+      maxPrice: 1000000,
+    });
+  }
+  
   useEffect(() => {
     if (user) {
       fetchAuctionsFromDb();
     }
-  }, [user]);
+  }, [user, filters]);
   
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
@@ -126,21 +204,131 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
             <p className="text-muted-foreground">
-              {totalCount > 0 ? `${totalCount.toLocaleString()} auctions in database` : 'Monitor auctions from GoDaddy inventory'}
+              {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
             </p>
           </motion.div>
           
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row gap-4 mb-8">
+          {/* Search and Actions Bar */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search domains or use patterns like *crypto*" value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
+              <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
             </div>
+            <Button 
+              variant={showFilters ? "secondary" : "outline"} 
+              onClick={() => setShowFilters(!showFilters)}
+              className="relative"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
             <Button variant="outline" onClick={triggerSync} disabled={syncing}>
               <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync Now'}
             </Button>
             <Button variant="hero"><Plus className="w-4 h-4 mr-2" />Add Pattern</Button>
           </motion.div>
+
+          {/* Filters Panel */}
+          {showFilters && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: 'auto' }} 
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-6 p-4 rounded-xl glass border border-border"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Filter Auctions</h3>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    <X className="w-4 h-4 mr-1" /> Clear Filters
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* TLD Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">TLD Extension</label>
+                  <Select value={filters.tld} onValueChange={(value) => setFilters(f => ({ ...f, tld: value }))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select TLD" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {TLD_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Auction Type Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Auction Type</label>
+                  <Select value={filters.auctionType} onValueChange={(value) => setFilters(f => ({ ...f, auctionType: value }))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select Type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {AUCTION_TYPE_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Price Range Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Price Range</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PRICE_PRESETS.map(preset => (
+                      <Button 
+                        key={preset.label}
+                        variant={filters.minPrice === preset.min && filters.maxPrice === preset.max ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setFilters(f => ({ ...f, minPrice: preset.min, maxPrice: preset.max }))}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Summary */}
+              {activeFilterCount > 0 && (
+                <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-2">
+                  {filters.tld !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      TLD: {filters.tld}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(f => ({ ...f, tld: "all" }))} />
+                    </Badge>
+                  )}
+                  {filters.auctionType !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Type: {filters.auctionType}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(f => ({ ...f, auctionType: "all" }))} />
+                    </Badge>
+                  )}
+                  {(filters.minPrice > 0 || filters.maxPrice < 1000000) && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      ${filters.minPrice.toLocaleString()} - ${filters.maxPrice.toLocaleString()}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(f => ({ ...f, minPrice: 0, maxPrice: 1000000 }))} />
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {loading && (
             <div className="flex items-center justify-center py-12">
@@ -158,21 +346,27 @@ export default function Dashboard() {
 
           {!loading && !error && filtered.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              No auctions found matching your search.
+              <p className="mb-2">No auctions found matching your criteria.</p>
+              {activeFilterCount > 0 && (
+                <Button variant="outline" onClick={resetFilters}>Clear Filters</Button>
+              )}
             </div>
           )}
 
-          {!loading && !error && (
+          {!loading && !error && filtered.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
               {filtered.slice(0, 50).map((d, i) => (
                 <motion.a key={d.id || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
                   className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
                     <div>
                       <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
-                      <div className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</span>
+                        <Badge variant="outline" className="text-xs">{d.tld}</Badge>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-8">
