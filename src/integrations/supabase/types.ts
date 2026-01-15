@@ -94,6 +94,36 @@ export type Database = {
           },
         ]
       }
+      sync_history: {
+        Row: {
+          auctions_count: number
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          inventory_source: string
+          success: boolean
+          synced_at: string
+        }
+        Insert: {
+          auctions_count?: number
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          inventory_source: string
+          success?: boolean
+          synced_at?: string
+        }
+        Update: {
+          auctions_count?: number
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          inventory_source?: string
+          success?: boolean
+          synced_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
