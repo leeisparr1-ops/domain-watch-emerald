@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
 import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
@@ -357,20 +357,22 @@ export default function Dashboard() {
             </div>
             
             {/* Notification Toggle */}
-            <Button
-              variant={notificationsEnabled ? "secondary" : "outline"}
-              size="sm"
-              onClick={toggleNotifications}
-              className="gap-2 ml-2"
-              title={notificationsEnabled ? 'Disable auction ending alerts' : 'Enable alerts when favorites are ending soon'}
-            >
-              {notificationsEnabled ? (
-                <Bell className="w-4 h-4 text-primary" />
-              ) : (
-                <BellOff className="w-4 h-4" />
-              )}
-              {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
-            </Button>
+            <Link to="/settings">
+              <Button
+                variant={notificationsEnabled ? "secondary" : "outline"}
+                size="sm"
+                className="gap-2 ml-2"
+                title="Configure auction alerts in Settings"
+              >
+                {notificationsEnabled ? (
+                  <Bell className="w-4 h-4 text-primary" />
+                ) : (
+                  <BellOff className="w-4 h-4" />
+                )}
+                {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
+                <Settings className="w-3 h-3 opacity-50" />
+              </Button>
+            </Link>
           </motion.div>
 
           {/* Search and Actions Bar */}
