@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart } from "lucide-react";
+import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -257,6 +258,9 @@ export default function Dashboard() {
               {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
             </p>
           </motion.div>
+
+          {/* Sync History Panel */}
+          <SyncHistoryPanel />
           
           {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
