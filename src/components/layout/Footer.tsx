@@ -37,14 +37,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Resources */}
-          <div>
-            <h4 className="font-semibold mb-4">Resources</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="https://namebio.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">NameBio</a></li>
-              <li><a href="https://auctions.godaddy.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GoDaddy Auctions</a></li>
-            </ul>
-          </div>
 
           {/* Legal */}
           <div>
