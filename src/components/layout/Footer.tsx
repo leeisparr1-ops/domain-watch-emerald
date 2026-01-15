@@ -12,7 +12,7 @@ export function Footer() {
               <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
                 <Globe className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold gradient-text">DomainPulse</span>
+              <span className="text-xl font-bold gradient-text">ExpiredHawk</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Monitor domain auctions and find your perfect web address.
@@ -49,7 +49,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} DomainPulse. All rights reserved.
+          © {new Date().getFullYear()} ExpiredHawk. All rights reserved.
         </div>
       </div>
     </footer>
