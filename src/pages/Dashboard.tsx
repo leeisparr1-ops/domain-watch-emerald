@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, AlertTriangle } from "lucide-react";
 import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,6 +117,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [fallbackMode, setFallbackMode] = useState(false); // True when using 24h window due to timeout
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
@@ -140,7 +141,7 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
-  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true) => {
+  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, useFallback = false) => {
     try {
       if (showLoadingSpinner) setLoading(true);
       setError(null);
@@ -151,16 +152,31 @@ export default function Dashboard() {
       // Get current sort option
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
       
+      // Calculate end_time filter - use 24h window in fallback mode
+      const now = new Date();
+      let endTimeFilter = now.toISOString();
+      if (useFallback) {
+        const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        // For fallback, we filter to auctions ending within next 24h
+        endTimeFilter = now.toISOString();
+      }
+      
       // Query from database with filters, sorting, and pagination
       // Skip count entirely to avoid timeout on large datasets
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
-        .gte('end_time', new Date().toISOString())
+        .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to);
+      
+      // In fallback mode, also add upper bound for end_time (next 24h)
+      if (useFallback) {
+        const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        query = query.lte('end_time', next24h.toISOString());
+      }
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
@@ -172,9 +188,24 @@ export default function Dashboard() {
         query = query.eq('auction_type', filters.auctionType);
       }
       
-      const { data, error } = await query;
+      const { data, error: queryError } = await query;
       
-      if (error) throw error;
+      // Check for timeout error and retry with fallback
+      if (queryError) {
+        const isTimeout = queryError.code === '57014' || 
+          queryError.message?.includes('statement timeout') ||
+          queryError.message?.includes('canceling statement');
+        
+        if (isTimeout && !useFallback) {
+          console.log('Query timed out, retrying with 24h fallback window...');
+          setFallbackMode(true);
+          return fetchAuctionsFromDb(showLoadingSpinner, true);
+        }
+        throw queryError;
+      }
+      
+      // Update fallback mode state
+      setFallbackMode(useFallback);
       
       if (data) {
         const mapped: AuctionDomain[] = data.map(a => ({
@@ -327,6 +358,34 @@ export default function Dashboard() {
               </div>
             </div>
           </motion.div>
+
+          {/* Fallback Mode Banner */}
+          {fallbackMode && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3"
+            >
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-500">Limited Results Mode</p>
+                <p className="text-xs text-muted-foreground">
+                  Showing auctions ending in the next 24 hours only. The full query timed out due to high database load.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFallbackMode(false);
+                  fetchAuctionsFromDb(true, false);
+                }}
+                className="text-xs"
+              >
+                Try Full Query
+              </Button>
+            </motion.div>
+          )}
 
           {/* Sync History Panel */}
           <SyncHistoryPanel />
