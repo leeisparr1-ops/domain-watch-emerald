@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
 
 export default function Settings() {
   const { user, loading } = useAuth();
@@ -66,6 +67,9 @@ export default function Settings() {
                 )}
               </div>
             </div>
+
+            {/* Notification Settings */}
+            <NotificationSettingsPanel />
 
             <div className="p-6 rounded-xl glass border border-border">
               <h2 className="text-lg font-semibold mb-2">Subscription</h2>
