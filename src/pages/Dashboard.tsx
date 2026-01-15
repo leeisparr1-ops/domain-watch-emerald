@@ -161,8 +161,15 @@ export default function Dashboard() {
         endTimeFilter = now.toISOString();
       }
       
+      // Build count query with same filters (but no pagination/sorting)
+      let countQuery = supabase
+        .from('auctions')
+        .select('id', { count: 'exact', head: true })
+        .gte('end_time', endTimeFilter)
+        .gte('price', filters.minPrice)
+        .lte('price', filters.maxPrice);
+      
       // Query from database with filters, sorting, and pagination
-      // Skip count entirely to avoid timeout on large datasets
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
@@ -176,39 +183,43 @@ export default function Dashboard() {
       if (useFallback) {
         const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         query = query.lte('end_time', next24h.toISOString());
+        countQuery = countQuery.lte('end_time', next24h.toISOString());
       }
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
+        countQuery = countQuery.eq('tld', filters.tld.toUpperCase());
       }
       
       // Apply auction type filter
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
+        countQuery = countQuery.eq('auction_type', filters.auctionType);
       }
       
-      const { data, error: queryError } = await query;
+      // Run both queries in parallel
+      const [dataResult, countResult] = await Promise.all([query, countQuery]);
       
       // Check for timeout error and retry with fallback
-      if (queryError) {
-        const isTimeout = queryError.code === '57014' || 
-          queryError.message?.includes('statement timeout') ||
-          queryError.message?.includes('canceling statement');
+      if (dataResult.error) {
+        const isTimeout = dataResult.error.code === '57014' || 
+          dataResult.error.message?.includes('statement timeout') ||
+          dataResult.error.message?.includes('canceling statement');
         
         if (isTimeout && !useFallback) {
           console.log('Query timed out, retrying with 24h fallback window...');
           setFallbackMode(true);
           return fetchAuctionsFromDb(showLoadingSpinner, true);
         }
-        throw queryError;
+        throw dataResult.error;
       }
       
       // Update fallback mode state
       setFallbackMode(useFallback);
       
-      if (data) {
-        const mapped: AuctionDomain[] = data.map(a => ({
+      if (dataResult.data) {
+        const mapped: AuctionDomain[] = dataResult.data.map(a => ({
           id: a.id,
           domain: a.domain_name,
           auctionEndTime: a.end_time || '',
@@ -220,7 +231,8 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        setTotalCount(from + mapped.length + (mapped.length === itemsPerPage ? itemsPerPage : 0));
+        // Use actual count from count query, fallback to estimate if count failed
+        setTotalCount(countResult.count ?? (from + mapped.length + (mapped.length === itemsPerPage ? itemsPerPage : 0)));
         setLastRefresh(new Date());
       }
     } catch (err) {
