@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw } from "lucide-react";
 import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +123,11 @@ export default function Dashboard() {
     maxPrice: 1000000,
   });
   const [sortBy, setSortBy] = useState("end_time_asc");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
+  const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes for data refresh
+  const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
   
   const activeFilterCount = [
     filters.tld !== "all",
@@ -130,9 +135,9 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
-  async function fetchAuctionsFromDb() {
+  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner) setLoading(true);
       setError(null);
       
       const from = (currentPage - 1) * itemsPerPage;
@@ -179,6 +184,7 @@ export default function Dashboard() {
         }));
         setAuctions(mapped);
         setTotalCount(count || 0);
+        setLastRefresh(new Date());
       }
     } catch (err) {
       console.error('Error fetching auctions:', err);
@@ -186,7 +192,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentPage, sortBy, filters]);
   
   // triggerSync removed - now using SyncAllDialog component
   
@@ -209,7 +215,35 @@ export default function Dashboard() {
     if (user) {
       fetchAuctionsFromDb();
     }
-  }, [user, filters, sortBy, currentPage]);
+  }, [user, fetchAuctionsFromDb]);
+  
+  // Auto-refresh auction data every 3 minutes
+  useEffect(() => {
+    if (!user || !autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      fetchAuctionsFromDb(false); // Silent refresh (no loading spinner)
+    }, AUTO_REFRESH_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [user, autoRefresh, fetchAuctionsFromDb, AUTO_REFRESH_INTERVAL]);
+  
+  // Update time remaining display every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeKey(k => k + 1);
+    }, TIME_UPDATE_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [TIME_UPDATE_INTERVAL]);
+  
+  const formatLastRefresh = () => {
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastRefresh.getTime()) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 120) return '1 min ago';
+    return `${Math.floor(diff / 60)} mins ago`;
+  };
   
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   
@@ -253,10 +287,37 @@ export default function Dashboard() {
       <main className="pt-24 pb-12 px-4">
         <div className="container mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
-            <p className="text-muted-foreground">
-              {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
-            </p>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
+                <p className="text-muted-foreground">
+                  {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'text-primary' : ''}`} />
+                  <span>Updated {formatLastRefresh()}</span>
+                </div>
+                <Button
+                  variant={autoRefresh ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+                  {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchAuctionsFromDb()}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
           </motion.div>
 
           {/* Sync History Panel */}
