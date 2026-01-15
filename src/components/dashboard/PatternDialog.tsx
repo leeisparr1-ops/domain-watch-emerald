@@ -27,16 +27,27 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-interface Pattern {
+export interface Pattern {
   id: string;
   pattern: string;
-  type: "regex" | "structure" | "pronounceable";
-  description: string;
+  pattern_type: "regex" | "structure" | "pronounceable";
+  description: string | null;
+  max_price?: number | null;
+  min_price?: number;
+  tld_filter?: string | null;
+  enabled?: boolean;
 }
 
 interface PatternDialogProps {
   patterns: Pattern[];
-  onAddPattern: (pattern: Omit<Pattern, "id">) => void;
+  onAddPattern: (pattern: {
+    pattern: string;
+    pattern_type: "regex" | "structure" | "pronounceable";
+    description?: string;
+    max_price?: number | null;
+    min_price?: number;
+    tld_filter?: string | null;
+  }) => void;
   onRemovePattern: (id: string) => void;
   onClearPatterns: () => void;
 }
@@ -45,61 +56,61 @@ const PATTERN_PRESETS = [
   { 
     label: "Short pronounceable (CVCV)", 
     pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$",
-    type: "pronounceable" as const,
+    pattern_type: "pronounceable" as const,
     description: "4-letter pronounceable like rare, core, made"
   },
   { 
     label: "CVVC pattern", 
     pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$",
-    type: "pronounceable" as const,
+    pattern_type: "pronounceable" as const,
     description: "4-letter with double vowel like cool, boom"
   },
   { 
     label: "3-letter domains", 
     pattern: "^[a-z]{3}$",
-    type: "structure" as const,
+    pattern_type: "structure" as const,
     description: "Any 3-letter domain (LLL format)"
   },
   { 
     label: "4-letter domains", 
     pattern: "^[a-z]{4}$",
-    type: "structure" as const,
+    pattern_type: "structure" as const,
     description: "Any 4-letter domain (LLLL format)"
   },
   { 
     label: "Numbers only", 
     pattern: "^[0-9]+$",
-    type: "structure" as const,
+    pattern_type: "structure" as const,
     description: "Numeric domains like 123, 8888"
   },
   { 
     label: "Word + Number", 
     pattern: "^[a-z]+[0-9]+$",
-    type: "structure" as const,
+    pattern_type: "structure" as const,
     description: "Pattern like app2, cloud9"
   },
   { 
     label: "Starts with 'ai'", 
     pattern: "^ai",
-    type: "regex" as const,
+    pattern_type: "regex" as const,
     description: "Domains starting with 'ai'"
   },
   { 
     label: "Ends with 'ly'", 
     pattern: "ly$",
-    type: "regex" as const,
+    pattern_type: "regex" as const,
     description: "Domains ending with 'ly'"
   },
   { 
     label: "Contains 'tech'", 
     pattern: "tech",
-    type: "regex" as const,
+    pattern_type: "regex" as const,
     description: "Domains containing 'tech'"
   },
   { 
     label: "Repeating letters", 
     pattern: "([a-z])\\1",
-    type: "regex" as const,
+    pattern_type: "regex" as const,
     description: "Has consecutive repeated letters"
   },
 ];
@@ -117,7 +128,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
     }
     onAddPattern({
       pattern: preset.pattern,
-      type: preset.type,
+      pattern_type: preset.pattern_type,
       description: preset.description,
     });
     toast.success(`Added pattern: ${preset.label}`);
@@ -144,7 +155,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
     
     onAddPattern({
       pattern: customPattern,
-      type: patternType,
+      pattern_type: patternType,
       description: description || `Custom ${patternType} pattern`,
     });
     

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.cron-sync-auctions]
 verify_jwt = false
+
+[functions.check-pattern-alerts]
+verify_jwt = false

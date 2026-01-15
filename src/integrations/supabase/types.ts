@@ -94,6 +94,48 @@ export type Database = {
           },
         ]
       }
+      pattern_alerts: {
+        Row: {
+          alerted_at: string
+          auction_id: string
+          domain_name: string
+          id: string
+          pattern_id: string
+          user_id: string
+        }
+        Insert: {
+          alerted_at?: string
+          auction_id: string
+          domain_name: string
+          id?: string
+          pattern_id: string
+          user_id: string
+        }
+        Update: {
+          alerted_at?: string
+          auction_id?: string
+          domain_name?: string
+          id?: string
+          pattern_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_alerts_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pattern_alerts_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "user_patterns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_history: {
         Row: {
           auctions_count: number
@@ -121,6 +163,51 @@ export type Database = {
           inventory_source?: string
           success?: boolean
           synced_at?: string
+        }
+        Relationships: []
+      }
+      user_patterns: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          last_matched_at: string | null
+          max_price: number | null
+          min_price: number | null
+          pattern: string
+          pattern_type: string
+          tld_filter: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          last_matched_at?: string | null
+          max_price?: number | null
+          min_price?: number | null
+          pattern: string
+          pattern_type?: string
+          tld_filter?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          last_matched_at?: string | null
+          max_price?: number | null
+          min_price?: number | null
+          pattern?: string
+          pattern_type?: string
+          tld_filter?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
