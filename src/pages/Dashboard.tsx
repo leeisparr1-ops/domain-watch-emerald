@@ -161,9 +161,9 @@ export default function Dashboard() {
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to);
       
-      // Apply TLD filter (case-insensitive - DB stores uppercase like .COM)
+      // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
-        query = query.ilike('tld', filters.tld);
+        query = query.eq('tld', filters.tld.toUpperCase());
       }
       
       // Apply auction type filter
