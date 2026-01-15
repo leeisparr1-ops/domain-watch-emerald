@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, RefreshCw, Filter, X } from "lucide-react";
+import { Search, Plus, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -89,10 +89,11 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   const [filters, setFilters] = useState<Filters>({
     tld: "all",
     auctionType: "all",
@@ -111,7 +112,10 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       
-      // Query from database with filters
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      
+      // Query from database with filters and pagination
       let query = supabase
         .from('auctions')
         .select('*', { count: 'exact' })
@@ -119,7 +123,7 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
         .order('end_time', { ascending: true })
-        .limit(100);
+        .range(from, to);
       
       // Apply TLD filter
       if (filters.tld !== "all") {
@@ -158,23 +162,7 @@ export default function Dashboard() {
     }
   }
   
-  async function triggerSync() {
-    setSyncing(true);
-    try {
-      // Sync multiple inventory types
-      for (const type of ['endingToday', 'endingTomorrow', 'allBiddable']) {
-        await supabase.functions.invoke('sync-auctions', {
-          body: null,
-        });
-      }
-      // Refresh data after sync
-      await fetchAuctionsFromDb();
-    } catch (err) {
-      console.error('Sync error:', err);
-    } finally {
-      setSyncing(false);
-    }
-  }
+  // triggerSync removed - now using SyncAllDialog component
   
   function resetFilters() {
     setFilters({
@@ -183,13 +171,46 @@ export default function Dashboard() {
       minPrice: 0,
       maxPrice: 1000000,
     });
+    setCurrentPage(1);
   }
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
   
   useEffect(() => {
     if (user) {
       fetchAuctionsFromDb();
     }
-  }, [user, filters]);
+  }, [user, filters, currentPage]);
+  
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 7;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      
+      if (currentPage > 3) pages.push('...');
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) pages.push(i);
+      
+      if (currentPage < totalPages - 2) pages.push('...');
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
   
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
@@ -351,34 +372,85 @@ export default function Dashboard() {
           )}
 
           {!loading && !error && filtered.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
-              {filtered.slice(0, 50).map((d, i) => (
-                <motion.a key={d.id || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                  className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
-                    <div>
-                      <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</span>
-                        <Badge variant="outline" className="text-xs">{d.tld}</Badge>
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
+                {filtered.map((d, i) => (
+                  <motion.a key={d.id || i} href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer"
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+                    className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
+                      <div>
+                        <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</span>
+                          <Badge variant="outline" className="text-xs">{d.tld}</Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <div className="text-right">
-                      <div className="font-bold">${d.price.toLocaleString()}</div>
-                      <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
+                    <div className="flex items-center gap-8">
+                      <div className="text-right">
+                        <div className="font-bold">${d.price.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
-                    </div>
-                    <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.a>
+                ))}
+              </motion.div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  className="mt-8 flex items-center justify-center gap-2"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((page, idx) => (
+                      typeof page === 'number' ? (
+                        <Button
+                          key={idx}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className="w-9"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      ) : (
+                        <span key={idx} className="px-2 text-muted-foreground">...</span>
+                      )
+                    ))}
                   </div>
-                </motion.a>
-              ))}
-            </motion.div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  
+                  <span className="ml-4 text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages.toLocaleString()}
+                  </span>
+                </motion.div>
+              )}
+            </>
           )}
         </div>
       </main>
