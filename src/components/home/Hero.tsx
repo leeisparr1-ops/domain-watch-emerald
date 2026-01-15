@@ -84,39 +84,8 @@ export function Hero() {
                 {feature.text}
               </div>
             ))}
-          </motion.div>
-        </div>
-
-        {/* Floating Domain Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-16 max-w-5xl mx-auto"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { domain: "crypto.io", price: "$2,450", bids: 12, time: "2h 15m" },
-              { domain: "startup.dev", price: "$890", bids: 8, time: "45m" },
-              { domain: "design.co", price: "$1,200", bids: 5, time: "4h 30m" },
-            ].map((item, index) => (
-              <motion.div
-                key={index}
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="p-4 rounded-xl glass border-glow"
-              >
-                <div className="font-mono text-lg text-primary mb-2">{item.domain}</div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground font-semibold">{item.price}</span>
-                  <span className="text-muted-foreground">{item.bids} bids</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Ends in {item.time}
-                </div>
-              </motion.div>
-            ))}
-          </div>
         </motion.div>
+        </div>
       </div>
     </section>
   );
