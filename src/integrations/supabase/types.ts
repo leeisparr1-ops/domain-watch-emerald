@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      auctions: {
+        Row: {
+          auction_type: string | null
+          bid_count: number
+          created_at: string
+          domain_age: number | null
+          domain_name: string
+          end_time: string | null
+          id: string
+          inventory_source: string | null
+          price: number
+          tld: string | null
+          traffic_count: number
+          updated_at: string
+          valuation: number | null
+        }
+        Insert: {
+          auction_type?: string | null
+          bid_count?: number
+          created_at?: string
+          domain_age?: number | null
+          domain_name: string
+          end_time?: string | null
+          id?: string
+          inventory_source?: string | null
+          price?: number
+          tld?: string | null
+          traffic_count?: number
+          updated_at?: string
+          valuation?: number | null
+        }
+        Update: {
+          auction_type?: string | null
+          bid_count?: number
+          created_at?: string
+          domain_age?: number | null
+          domain_name?: string
+          end_time?: string | null
+          id?: string
+          inventory_source?: string | null
+          price?: number
+          tld?: string | null
+          traffic_count?: number
+          updated_at?: string
+          valuation?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
