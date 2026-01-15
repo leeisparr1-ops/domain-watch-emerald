@@ -29,7 +29,7 @@ export function Navbar() {
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
               <Globe className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold gradient-text">DomainPulse</span>
+            <span className="text-xl font-bold gradient-text">ExpiredHawk</span>
           </Link>
 
           {/* Desktop Navigation */}
