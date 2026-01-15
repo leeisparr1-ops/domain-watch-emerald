@@ -16,7 +16,8 @@ const INVENTORY_FILES = {
   fiveLetter: '5_letter_auctions.json.zip',
 };
 
-async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
+// Process ZIP in streaming chunks to reduce memory usage
+async function* streamJsonArrayFromZip(zipData: Uint8Array): AsyncGenerator<any> {
   const view = new DataView(zipData.buffer);
   
   if (view.getUint32(0, true) !== 0x04034b50) {
@@ -31,37 +32,107 @@ async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
   const dataStart = 30 + fileNameLength + extraFieldLength;
   const compressedData = zipData.slice(dataStart, dataStart + compressedSize);
   
-  let jsonData: Uint8Array;
+  let jsonStream: ReadableStream<Uint8Array>;
   
   if (compressionMethod === 0) {
-    jsonData = compressedData;
+    jsonStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(compressedData);
+        controller.close();
+      }
+    });
   } else if (compressionMethod === 8) {
     const ds = new DecompressionStream('deflate-raw');
-    const writer = ds.writable.getWriter();
-    const reader = ds.readable.getReader();
-    
-    writer.write(compressedData);
-    writer.close();
-    
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-    
-    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    jsonData = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      jsonData.set(chunk, offset);
-      offset += chunk.length;
-    }
+    const inputStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(compressedData);
+        controller.close();
+      }
+    });
+    jsonStream = inputStream.pipeThrough(ds);
   } else {
     throw new Error(`Unsupported compression method: ${compressionMethod}`);
   }
-  
-  return new TextDecoder().decode(jsonData);
+
+  // Stream-parse the JSON array
+  const reader = jsonStream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let objectStart = -1;
+  let foundArray = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    
+    // Process buffer character by character
+    let i = 0;
+    while (i < buffer.length) {
+      const char = buffer[i];
+      
+      if (escape) {
+        escape = false;
+        i++;
+        continue;
+      }
+      
+      if (char === '\\' && inString) {
+        escape = true;
+        i++;
+        continue;
+      }
+      
+      if (char === '"') {
+        inString = !inString;
+        i++;
+        continue;
+      }
+      
+      if (inString) {
+        i++;
+        continue;
+      }
+      
+      if (char === '[' && !foundArray) {
+        foundArray = true;
+        i++;
+        continue;
+      }
+      
+      if (char === '{') {
+        if (depth === 0) {
+          objectStart = i;
+        }
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0 && objectStart !== -1) {
+          const objectStr = buffer.substring(objectStart, i + 1);
+          try {
+            yield JSON.parse(objectStr);
+          } catch {
+            // Skip malformed objects
+          }
+          objectStart = -1;
+        }
+      }
+      
+      i++;
+    }
+    
+    // Keep only unprocessed part of buffer
+    if (objectStart !== -1) {
+      buffer = buffer.substring(objectStart);
+      objectStart = 0;
+    } else {
+      buffer = '';
+    }
+  }
 }
 
 function extractTld(domain: string): string {
@@ -74,6 +145,24 @@ function parsePrice(priceRaw: string | number): number {
     return parseFloat(priceRaw.replace(/[$,]/g, '')) || 0;
   }
   return parseFloat(String(priceRaw)) || 0;
+}
+
+function transformAuction(item: any, inventoryType: string) {
+  const domainName = item.domainName || item.DomainName || item.domain || item.dn || item.name || '';
+  if (!domainName) return null;
+  
+  return {
+    domain_name: domainName,
+    price: parsePrice(item.price || item.Price || item.currentPrice || item.minBid || '0'),
+    bid_count: parseInt(item.numberOfBids || item.NumberOfBids || item.bids || 0),
+    traffic_count: parseInt(item.pageviews || item.traffic || item.Traffic || 0),
+    end_time: item.auctionEndTime || item.AuctionEndTime || item.endTime || null,
+    valuation: parsePrice(item.valuation || item.Valuation || '0'),
+    auction_type: item.auctionType || item.AuctionType || item.type || 'auction',
+    domain_age: parseInt(item.domainAge || item.DomainAge || 0),
+    tld: extractTld(domainName),
+    inventory_source: inventoryType,
+  };
 }
 
 serve(async (req) => {
@@ -108,36 +197,46 @@ serve(async (req) => {
     const zipData = new Uint8Array(await response.arrayBuffer());
     console.log(`Downloaded ${zipData.length} bytes`);
     
-    const jsonContent = await extractJsonFromZip(zipData);
-    const parsed = JSON.parse(jsonContent);
-    const rawAuctions: any[] = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || parsed.data || []);
-
-    console.log(`Parsed ${rawAuctions.length} auctions from ${inventoryType}`);
-
-    // Transform to database format
-    const auctionsToUpsert = rawAuctions
-      .filter((item: any) => item.domainName || item.DomainName || item.domain)
-      .map((item: any) => ({
-        domain_name: item.domainName || item.DomainName || item.domain || item.dn || item.name || '',
-        price: parsePrice(item.price || item.Price || item.currentPrice || item.minBid || '0'),
-        bid_count: parseInt(item.numberOfBids || item.NumberOfBids || item.bids || 0),
-        traffic_count: parseInt(item.pageviews || item.traffic || item.Traffic || 0),
-        end_time: item.auctionEndTime || item.AuctionEndTime || item.endTime || null,
-        valuation: parsePrice(item.valuation || item.Valuation || '0'),
-        auction_type: item.auctionType || item.AuctionType || item.type || 'auction',
-        domain_age: parseInt(item.domainAge || item.DomainAge || 0),
-        tld: extractTld(item.domainName || item.DomainName || item.domain || ''),
-        inventory_source: inventoryType,
-      }));
-
-    // Upsert in batches of 500
-    const batchSize = 500;
+    // Process in streaming batches to minimize memory
+    const batchSize = 200;
+    let batch: any[] = [];
+    let totalProcessed = 0;
     let totalUpserted = 0;
     let errors: string[] = [];
 
-    for (let i = 0; i < auctionsToUpsert.length; i += batchSize) {
-      const batch = auctionsToUpsert.slice(i, i + batchSize);
-      
+    for await (const item of streamJsonArrayFromZip(zipData)) {
+      const auction = transformAuction(item, inventoryType);
+      if (auction) {
+        batch.push(auction);
+        totalProcessed++;
+        
+        if (batch.length >= batchSize) {
+          const { error } = await supabase
+            .from('auctions')
+            .upsert(batch, { 
+              onConflict: 'domain_name',
+              ignoreDuplicates: false 
+            });
+
+          if (error) {
+            console.error(`Batch error:`, error.message);
+            errors.push(error.message);
+          } else {
+            totalUpserted += batch.length;
+          }
+          
+          batch = [];
+          
+          // Log progress every 2000 records
+          if (totalProcessed % 2000 === 0) {
+            console.log(`Processed ${totalProcessed} auctions...`);
+          }
+        }
+      }
+    }
+
+    // Upsert remaining batch
+    if (batch.length > 0) {
       const { error } = await supabase
         .from('auctions')
         .upsert(batch, { 
@@ -146,13 +245,14 @@ serve(async (req) => {
         });
 
       if (error) {
-        console.error(`Batch ${i / batchSize + 1} error:`, error);
+        console.error(`Final batch error:`, error.message);
         errors.push(error.message);
       } else {
         totalUpserted += batch.length;
-        console.log(`Upserted batch ${i / batchSize + 1}: ${batch.length} auctions`);
       }
     }
+
+    console.log(`Sync complete: ${totalUpserted}/${totalProcessed} auctions from ${inventoryType}`);
 
     // Clean up old expired auctions (older than 7 days)
     const { error: cleanupError } = await supabase
@@ -168,7 +268,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Synced ${totalUpserted} auctions from ${inventoryType}`,
-        totalProcessed: rawAuctions.length,
+        totalProcessed,
         totalUpserted,
         errors: errors.length > 0 ? errors : undefined,
       }),
