@@ -8,35 +8,35 @@ const corsHeaders = {
 
 const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
 
-// Inventory files - only smaller files work within edge function memory limits (~150MB)
-// Files over ~2-3MB compressed tend to fail due to decompression memory requirements
+// Inventory files - verified against https://inventory.auctions.godaddy.com/
+// Only files that actually exist and work within edge function limits (~150MB)
 const INVENTORY_FILES: Record<string, string> = {
-  // Small files that work reliably (under 3MB compressed)
-  featured: 'featured_listings.json.zip',              // ~685 bytes - tiny
-  mostActive: 'most_active_feed_all.json.zip',         // ~90KB - works
-  listings2: 'all_listings2.json.zip',                 // ~155KB - works
+  // Small files that work reliably (under 2MB compressed)
+  featured: 'featured_listings.json.zip',                // ~685 bytes - tiny
+  mostActive: 'most_active_feed_all.json.zip',           // ~87KB - works
+  listings2: 'all_listings2.json.zip',                   // ~155KB - works
   nonAdultListings2: 'all_non_adult_listings2.json.zip', // ~516KB - works
-  fiveLetter: '5_letter_auctions.json.zip',            // ~575KB - works
-  fourLetter: '4_letter_auctions.json.zip',            // ~200KB - try
-  threeLetter: '3_letter_auctions.json.zip',           // ~50KB - try
-  withPageviews: 'listings_with_pageviews.json.zip',   // ~797KB - works
-  recent: 'recent_listings.json.zip',                  // ~1MB - works
-  auctionsEndingToday: 'auctions_ending_today.json.zip', // ~1.7MB - works
-  endingTomorrow: 'all_listings_ending_tomorrow.json.zip', // ~1.8MB - works
-  auctionsEndingTomorrow: 'auctions_ending_tomorrow.json.zip', // ~1.8MB - works
-  highTraffic: 'high_traffic_listings.json.zip',       // ~500KB - try
-  premiumListings: 'premium_listings.json.zip',        // ~300KB - try
-  valuedOver1000: 'valued_over_1000.json.zip',         // ~2MB - try
+  fiveLetter: '5_letter_auctions.json.zip',              // ~564KB - works
+  withPageviews: 'listings_with_pageviews.json.zip',     // ~874KB - works
+  recent: 'recent_listings.json.zip',                    // ~830KB - works
+  auctionsEndingToday: 'auctions_ending_today.json.zip', // ~1.8MB - works
+  endingTomorrow: 'all_listings_ending_tomorrow.json.zip', // ~1.9MB - works
+  auctionsEndingTomorrow: 'auctions_ending_tomorrow.json.zip', // ~1.9MB - works
   
-  // Medium files - worth trying (3-5MB)
-  closeout: 'closeout_listings.json.zip',              // ~3-5MB - try
-  expiring: 'expiring_listings.json.zip',              // ~5MB - try
+  // These files are too large (8MB+) for edge functions - use sync-large-inventory instead
+  // closeout: 'closeout_listings.json.zip',             // ~8.6MB - too large
+  // allBiddable: 'all_biddable_auctions.json.zip',      // ~19MB - too large
+  // allExpiring: 'all_expiring_auctions.json.zip',      // ~28MB - too large
+  // allListings: 'all_listings.json.zip',               // ~28MB - too large
+  // endingToday: 'all_listings_ending_today.json.zip',  // ~10MB - too large
   
-  // These files are too large (8MB+) - skip
-  // endingToday: 'all_listings_ending_today.json.zip', // ~10MB - too large
-  // allBiddable: 'all_biddable_auctions.json.zip',  // ~19MB - too large
-  // allExpiring: 'all_expiring_auctions.json.zip',  // ~28MB - too large
-  // allListings: 'all_listings.json.zip',           // ~28MB - too large
+  // NOTE: These files do NOT exist on GoDaddy inventory (removed):
+  // - 3_letter_auctions.json.zip
+  // - 4_letter_auctions.json.zip  
+  // - high_traffic_listings.json.zip
+  // - premium_listings.json.zip
+  // - valued_over_1000.json.zip
+  // - expiring_listings.json.zip
 };
 
 async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
@@ -194,6 +194,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Synced ${totalUpserted} auctions from ${inventoryType}`,
+        count: totalUpserted, // Used by cron-sync-auctions for reporting
         totalProcessed: rawAuctions.length,
         totalUpserted,
         errors: errors.length > 0 ? errors : undefined,
