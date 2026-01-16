@@ -131,10 +131,8 @@ export default function Dashboard() {
     maxPrice: 1000000,
   });
   const [sortBy, setSortBy] = useState("end_time_asc");
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
-  const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes for data refresh
   const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
   
   const activeFilterCount = [
@@ -269,16 +267,6 @@ export default function Dashboard() {
     }
   }, [user, fetchAuctionsFromDb]);
   
-  // Auto-refresh auction data every 3 minutes
-  useEffect(() => {
-    if (!user || !autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      fetchAuctionsFromDb(false); // Silent refresh (no loading spinner)
-    }, AUTO_REFRESH_INTERVAL);
-    
-    return () => clearInterval(interval);
-  }, [user, autoRefresh, fetchAuctionsFromDb, AUTO_REFRESH_INTERVAL]);
   
   // Update time remaining display every 30 seconds
   useEffect(() => {
@@ -349,23 +337,15 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'text-primary' : ''}`} />
+                  <RefreshCw className="w-4 h-4 text-primary" />
                   <span>Updated {formatLastRefresh()}</span>
                 </div>
-                <Button
-                  variant={autoRefresh ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setAutoRefresh(!autoRefresh)}
-                  className="gap-2"
-                >
-                  <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
-                  {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => fetchAuctionsFromDb()}
                   disabled={loading}
+                  title="Refresh data"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
