@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, AlertTriangle, ChevronDown } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 
@@ -391,36 +385,8 @@ export default function Dashboard() {
           {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
             <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-1 ${
-                      viewMode === "all" 
-                        ? "bg-background text-foreground shadow-sm" 
-                        : "hover:bg-background/50"
-                    }`}
-                  >
-                    {filters.auctionType === "all" ? "All Auctions" : AUCTION_TYPE_OPTIONS.find(o => o.value === filters.auctionType)?.label || "All Auctions"}
-                    <ChevronDown className="w-3 h-3 ml-1" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  {AUCTION_TYPE_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => {
-                        setViewMode("all");
-                        setFilters(prev => ({ ...prev, auctionType: option.value }));
-                      }}
-                      className={filters.auctionType === option.value ? "bg-accent" : ""}
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
               <button
-                onClick={() => setViewMode("favorites")}
+                onClick={() => setViewMode(viewMode === "favorites" ? "all" : "favorites")}
                 className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
                   viewMode === "favorites" 
                     ? "bg-background text-foreground shadow-sm" 
@@ -435,25 +401,25 @@ export default function Dashboard() {
                   </Badge>
                 )}
               </button>
+              <Link to="/settings">
+                <button
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
+                    notificationsEnabled 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "hover:bg-background/50"
+                  }`}
+                  title="Configure auction alerts in Settings"
+                >
+                  {notificationsEnabled ? (
+                    <Bell className="w-4 h-4 text-primary" />
+                  ) : (
+                    <BellOff className="w-4 h-4" />
+                  )}
+                  {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
+                  <Settings className="w-3 h-3 opacity-50" />
+                </button>
+              </Link>
             </div>
-            
-            {/* Notification Toggle */}
-            <Link to="/settings">
-              <Button
-                variant={notificationsEnabled ? "secondary" : "outline"}
-                size="sm"
-                className="gap-2 ml-2"
-                title="Configure auction alerts in Settings"
-              >
-                {notificationsEnabled ? (
-                  <Bell className="w-4 h-4 text-primary" />
-                ) : (
-                  <BellOff className="w-4 h-4" />
-                )}
-                {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
-                <Settings className="w-3 h-3 opacity-50" />
-              </Button>
-            </Link>
           </motion.div>
 
           {/* Search and Actions Bar */}
