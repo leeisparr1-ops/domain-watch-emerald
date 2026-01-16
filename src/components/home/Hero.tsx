@@ -31,7 +31,7 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-5xl md:text-7xl font-bold mb-6"
           >
-            Discover Premium{" "}
+            Discover{" "}
             <span className="gradient-text">Domains</span> Before Anyone Else
           </motion.h1>
 
