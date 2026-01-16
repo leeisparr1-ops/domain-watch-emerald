@@ -20,9 +20,12 @@ const INVENTORY_TYPES = [
   'auctionsEndingTomorrow'
 ];
 
-// Large inventory types are disabled due to edge function memory/timeout limits
-// ZIP files require full download to decompress, which exceeds edge function constraints
-const LARGE_INVENTORY_TYPES: string[] = [];
+// Large inventory types - handled by sync-large-inventory function with streaming/limits
+const LARGE_INVENTORY_TYPES = [
+  'closeout',
+  'endingToday',
+  'allBiddable',
+];
 
 serve(async (req) => {
   // Handle CORS preflight
