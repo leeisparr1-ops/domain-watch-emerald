@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, AlertTriangle } from "lucide-react";
-import { SyncHistoryPanel } from "@/components/dashboard/SyncHistoryPanel";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
@@ -381,9 +381,7 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Sync History Panel */}
-          <SyncHistoryPanel />
-          
+
           {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
             <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
