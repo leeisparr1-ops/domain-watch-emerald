@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw } from 'lucide-react';
+import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from 'sonner';
 
 const THRESHOLD_OPTIONS = [
@@ -27,6 +28,15 @@ const THRESHOLD_OPTIONS = [
 
 export function NotificationSettingsPanel() {
   const { settings, updateSettings, resetToDefaults, isLoaded } = useNotificationSettings();
+  const { 
+    isSupported: pushSupported, 
+    isSubscribed: pushSubscribed, 
+    isLoading: pushLoading,
+    permissionStatus: pushPermission,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+    sendTestNotification 
+  } = usePushNotifications();
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -35,7 +45,7 @@ export function NotificationSettingsPanel() {
       setPermissionStatus(Notification.permission);
     }
     // Initialize audio for preview
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAsEONq+rHEqCCeH1OTRcjc2T3+6wq11NB5CeLrI2F8RAUphnbvafz4nRWC6xMGUUR8nVH2+z7ZfMB84TnG3xp1xQVQ2TXCkvraLWBwjN1Zus6SgaUgOGkVLaJiuo4BQIhYxPj9wqLO8bTcEI0BPXIS0uYxTIwgiPUlYf7C/q18wBxpCQExukb3Bd0AtCBQ8SEtqir7FgFQsCBI7SEZoir/KhFouCBE5SERkiL/Mg1stCBE5SERjiL/LglotCBE5SEVjh77KglktCBE5SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVkt');
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAsEONq+rHEqCCeH1OTRcjc2T3+6wq11NB5CeLrI2F8RAUphnbvafz4nRWC6xMGUUR8nVH2+z7ZfMB84TnG3xp1xQVQ2TXCkvraLWBwjN1Zus6SgaUgOGkVLaJiuo4BQIhYxPj9wqLO8bTcEI0BPXIS0uYxTIwgiPUlYf7C/q18wBxpCQExukb3Bd0AtCBQ8SEtqir7FgFQsCBI7SEZoir/KhFouCBE5SERkiL/Mg1stCBE5SERjiL/LglotCBE5SEVjh77KglktCBE5SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVkt');
   }, []);
 
   const requestBrowserPermission = async () => {
@@ -67,6 +77,14 @@ export function NotificationSettingsPanel() {
   const handleReset = () => {
     resetToDefaults();
     toast.success('Settings reset to defaults');
+  };
+
+  const handlePushToggle = async () => {
+    if (pushSubscribed) {
+      await unsubscribePush();
+    } else {
+      await subscribePush();
+    }
   };
 
   if (!isLoaded) {
@@ -135,6 +153,44 @@ export function NotificationSettingsPanel() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Push Notifications (Mobile) */}
+          {pushSupported && (
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-primary" />
+                    <Label className="text-base">Mobile Push Notifications</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {pushSubscribed 
+                      ? 'Receive alerts on your phone even when the browser is closed'
+                      : 'Enable to receive alerts on your phone'}
+                  </p>
+                </div>
+                <Switch
+                  checked={pushSubscribed}
+                  onCheckedChange={handlePushToggle}
+                  disabled={pushLoading}
+                />
+              </div>
+              
+              {pushSubscribed && (
+                <div className="mt-4 flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={sendTestNotification}
+                    disabled={pushLoading}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Test Notification
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Browser Notifications */}
           <div className="flex items-center justify-between">
