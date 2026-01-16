@@ -123,7 +123,9 @@ export default function Dashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [jumpToPage, setJumpToPage] = useState("");
   const [filters, setFilters] = useState<Filters>({
     tld: "all",
     auctionType: "all",
@@ -241,7 +243,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, filters]);
+  }, [currentPage, sortBy, filters, itemsPerPage]);
   
   // triggerSync removed - now using SyncAllDialog component
   
@@ -255,10 +257,10 @@ export default function Dashboard() {
     setCurrentPage(1);
   }
   
-  // Reset to page 1 when filters, sort, or view mode change
+  // Reset to page 1 when filters, sort, view mode, or items per page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sortBy, viewMode]);
+  }, [filters, sortBy, viewMode, itemsPerPage]);
   
   // Initial load
   useEffect(() => {
@@ -626,49 +628,113 @@ export default function Dashboard() {
                 <motion.div 
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
-                  className="mt-8 flex items-center justify-center gap-2"
+                  className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
                 >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  
-                  <div className="flex items-center gap-1">
-                    {getPageNumbers().map((page, idx) => (
-                      typeof page === 'number' ? (
-                        <Button
-                          key={idx}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          className="w-9"
-                          onClick={() => setCurrentPage(page)}
-                        >
-                          {page}
-                        </Button>
-                      ) : (
-                        <span key={idx} className="px-2 text-muted-foreground">...</span>
-                      )
-                    ))}
+                  {/* Items per page selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Show:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                      <SelectTrigger className="w-20 h-8 bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">per page</span>
                   </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  
-                  <span className="ml-4 text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages.toLocaleString()}
-                  </span>
+
+                  {/* Page navigation */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="hidden sm:flex"
+                    >
+                      First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers().map((page, idx) => (
+                        typeof page === 'number' ? (
+                          <Button
+                            key={idx}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            className="w-9"
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        ) : (
+                          <span key={idx} className="px-2 text-muted-foreground">...</span>
+                        )
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="hidden sm:flex"
+                    >
+                      Last
+                    </Button>
+                  </div>
+
+                  {/* Jump to page */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Go to:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={jumpToPage}
+                      onChange={(e) => setJumpToPage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const page = parseInt(jumpToPage);
+                          if (page >= 1 && page <= totalPages) {
+                            setCurrentPage(page);
+                            setJumpToPage("");
+                          }
+                        }
+                      }}
+                      placeholder={currentPage.toString()}
+                      className="w-20 h-8 bg-background"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      of {totalPages.toLocaleString()}
+                    </span>
+                  </div>
                 </motion.div>
               )}
+              
+              {/* Results summary */}
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage + 1).toLocaleString()} - {Math.min(currentPage * itemsPerPage, totalCount).toLocaleString()} of {totalCount.toLocaleString()} auctions
+              </div>
             </>
           )}
         </div>
