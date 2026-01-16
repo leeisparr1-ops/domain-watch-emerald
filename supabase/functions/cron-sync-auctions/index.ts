@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// All inventory types to sync - small files (reliable)
+// All inventory types to sync - only verified working sources
 const INVENTORY_TYPES = [
   'featured',
   'mostActive', 
