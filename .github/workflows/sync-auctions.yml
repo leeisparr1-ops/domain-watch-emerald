@@ -1,0 +1,23 @@
+name: Sync Auctions
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger auction sync
+        run: |
+          curl -X POST \
+            "https://orbygspxutudncbyipst.supabase.co/functions/v1/cron-sync-auctions" \
+            -H "Content-Type: application/json" \
+            --fail \
+            --silent \
+            --show-error
+        
+      - name: Log result
+        run: echo "Sync triggered successfully at $(date)"
