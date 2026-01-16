@@ -8,15 +8,19 @@ const corsHeaders = {
 
 const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
 
-// Large inventory files - we'll fetch partial data using Range headers
+// Large inventory files - download full files with memory limits
 const LARGE_INVENTORY_FILES: Record<string, string> = {
   closeout: 'closeout_listings.json.zip',
-  expiring: 'expiring_listings.json.zip',
   endingToday: 'all_listings_ending_today.json.zip',
   allBiddable: 'all_biddable_auctions.json.zip',
   allExpiring: 'all_expiring_auctions.json.zip',
   allListings: 'all_listings.json.zip',
 };
+
+// Max file size to download (10MB compressed should give us plenty of data)
+const MAX_DOWNLOAD_SIZE = 10 * 1024 * 1024;
+// Max auctions to extract per file
+const MAX_AUCTIONS = 10000;
 
 function extractTld(domain: string): string {
   const parts = domain.split('.');
@@ -30,62 +34,62 @@ function parsePrice(priceRaw: string | number): number {
   return parseFloat(String(priceRaw)) || 0;
 }
 
-// Try to extract data from a partial/corrupted JSON by finding valid auction objects
-function extractPartialAuctions(text: string): any[] {
-  const auctions: any[] = [];
-  
-  // Pattern to match auction objects - look for domainName field
-  const domainPattern = /"(?:domainName|DomainName|domain)"\s*:\s*"([^"]+\.[a-zA-Z]+)"/g;
-  let match;
-  
-  // Find all potential auction objects
-  const lines = text.split('\n');
-  let currentObject = '';
-  let braceCount = 0;
-  let inObject = false;
-  
-  for (const line of lines) {
-    if (line.includes('"domainName"') || line.includes('"DomainName"') || line.includes('"domain"')) {
-      // Start of a new auction object - find the opening brace
-      const objStart = line.lastIndexOf('{', line.indexOf('domain'));
-      if (objStart !== -1) {
-        currentObject = line.substring(objStart);
-        braceCount = (currentObject.match(/{/g) || []).length - (currentObject.match(/}/g) || []).length;
-        inObject = true;
-      }
-    } else if (inObject) {
-      currentObject += '\n' + line;
-      braceCount += (line.match(/{/g) || []).length;
-      braceCount -= (line.match(/}/g) || []).length;
-      
-      if (braceCount <= 0) {
-        // Try to parse the object
-        try {
-          // Clean up the object string
-          let objStr = currentObject.trim();
-          if (objStr.endsWith(',')) objStr = objStr.slice(0, -1);
-          const obj = JSON.parse(objStr);
-          if (obj.domainName || obj.DomainName || obj.domain) {
-            auctions.push(obj);
-          }
-        } catch (e) {
-          // Skip malformed objects
-        }
-        inObject = false;
-        currentObject = '';
-      }
-    }
-    
-    // Limit to prevent memory issues
-    if (auctions.length >= 5000) break;
+// Stream download with size limit
+async function downloadWithLimit(url: string, maxSize: number): Promise<Uint8Array> {
+  const response = await fetch(url, {
+    headers: {
+      'Accept': '*/*',
+      'User-Agent': 'DomainPulse/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch: ${response.status}`);
   }
-  
-  return auctions;
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalSize = 0;
+
+  while (totalSize < maxSize) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    chunks.push(value);
+    totalSize += value.length;
+    
+    // Log progress every 2MB
+    if (totalSize % (2 * 1024 * 1024) < value.length) {
+      console.log(`Downloaded ${(totalSize / 1024 / 1024).toFixed(1)}MB...`);
+    }
+  }
+
+  // Cancel remaining data if we hit limit
+  if (totalSize >= maxSize) {
+    await reader.cancel();
+    console.log(`Download stopped at ${(totalSize / 1024 / 1024).toFixed(1)}MB limit`);
+  }
+
+  // Combine chunks
+  const result = new Uint8Array(totalSize);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return result;
 }
 
+// Extract JSON from ZIP with full file (proper decompression)
 async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
   const view = new DataView(zipData.buffer);
   
+  // Verify ZIP signature
   if (view.getUint32(0, true) !== 0x04034b50) {
     throw new Error('Invalid ZIP file signature');
   }
@@ -96,36 +100,58 @@ async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
   const extraFieldLength = view.getUint16(28, true);
   
   const dataStart = 30 + fileNameLength + extraFieldLength;
-  const compressedData = zipData.slice(dataStart, dataStart + compressedSize);
+  
+  // Handle case where we might not have complete file
+  const availableData = zipData.length - dataStart;
+  const actualCompressedSize = Math.min(compressedSize, availableData);
+  const compressedData = zipData.slice(dataStart, dataStart + actualCompressedSize);
+  
+  console.log(`ZIP: compression=${compressionMethod}, compressedSize=${compressedSize}, available=${availableData}`);
   
   let jsonData: Uint8Array;
   
   if (compressionMethod === 0) {
+    // Stored (no compression)
     jsonData = compressedData;
   } else if (compressionMethod === 8) {
+    // Deflate compression
     const ds = new DecompressionStream('deflate-raw');
     const writer = ds.writable.getWriter();
     const reader = ds.readable.getReader();
     
-    writer.write(compressedData);
-    writer.close();
+    // Write data in chunks to avoid blocking
+    const CHUNK_SIZE = 512 * 1024; // 512KB chunks
+    const writePromise = (async () => {
+      for (let i = 0; i < compressedData.length; i += CHUNK_SIZE) {
+        const chunk = compressedData.slice(i, Math.min(i + CHUNK_SIZE, compressedData.length));
+        await writer.write(chunk);
+      }
+      await writer.close();
+    })();
     
     const chunks: Uint8Array[] = [];
     let totalSize = 0;
-    const MAX_SIZE = 50 * 1024 * 1024; // 50MB limit for decompressed data
+    const MAX_DECOMPRESSED = 100 * 1024 * 1024; // 100MB limit
     
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalSize += value.length;
-      
-      // Stop if we hit memory limit
-      if (totalSize > MAX_SIZE) {
-        console.log(`Stopping decompression at ${totalSize} bytes to preserve memory`);
+      try {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        totalSize += value.length;
+        
+        if (totalSize > MAX_DECOMPRESSED) {
+          console.log(`Decompression stopped at ${(totalSize / 1024 / 1024).toFixed(1)}MB`);
+          break;
+        }
+      } catch (e) {
+        // Decompression may fail if we have truncated data
+        console.log(`Decompression stopped: ${e}`);
         break;
       }
     }
+    
+    await writePromise.catch(() => {}); // Ignore write errors if reader cancelled
     
     jsonData = new Uint8Array(totalSize);
     let offset = 0;
@@ -139,6 +165,80 @@ async function extractJsonFromZip(zipData: Uint8Array): Promise<string> {
   }
   
   return new TextDecoder().decode(jsonData);
+}
+
+// Parse JSON array incrementally, handling truncated data
+function parseJsonArray(text: string, maxItems: number): any[] {
+  const auctions: any[] = [];
+  
+  // Try standard JSON parse first
+  try {
+    const parsed = JSON.parse(text);
+    const arr = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || parsed.data || []);
+    return arr.slice(0, maxItems);
+  } catch (e) {
+    // JSON is likely truncated, parse incrementally
+    console.log('Standard JSON parse failed, trying incremental parse...');
+  }
+  
+  // Find the start of the array
+  let startIdx = text.indexOf('[');
+  if (startIdx === -1) {
+    // Try to find individual objects
+    startIdx = text.indexOf('{');
+    if (startIdx === -1) return [];
+  }
+  
+  // Parse objects one by one
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = startIdx; i < text.length && auctions.length < maxItems; i++) {
+    const char = text[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    
+    if (inString) continue;
+    
+    if (char === '{') {
+      if (depth === 0 || (depth === 1 && objectStart === -1)) {
+        objectStart = i;
+      }
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 1 && objectStart !== -1) {
+        // Complete object found
+        const objStr = text.substring(objectStart, i + 1);
+        try {
+          const obj = JSON.parse(objStr);
+          if (obj.domainName || obj.DomainName || obj.domain) {
+            auctions.push(obj);
+          }
+        } catch (e) {
+          // Skip malformed object
+        }
+        objectStart = -1;
+      }
+    }
+  }
+  
+  return auctions;
 }
 
 serve(async (req) => {
@@ -165,84 +265,19 @@ serve(async (req) => {
     const inventoryUrl = `${INVENTORY_BASE}/${inventoryFile}`;
     console.log(`Syncing large inventory from: ${inventoryUrl} (type: ${inventoryType})`);
 
-    // Try to fetch with a size limit using Range header
-    const response = await fetch(inventoryUrl, {
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'DomainPulse/1.0',
-        'Range': 'bytes=0-3145728', // First 3MB only
-      },
-    });
+    // Download with size limit
+    const startTime = Date.now();
+    const zipData = await downloadWithLimit(inventoryUrl, MAX_DOWNLOAD_SIZE);
+    console.log(`Downloaded ${(zipData.length / 1024 / 1024).toFixed(2)}MB in ${Date.now() - startTime}ms`);
 
-    if (!response.ok && response.status !== 206) {
-      // If range not supported, try full fetch but with timeout
-      console.log('Range request not supported, trying full fetch...');
-      const fullResponse = await fetch(inventoryUrl, {
-        headers: {
-          'Accept': '*/*',
-          'User-Agent': 'DomainPulse/1.0',
-        },
-      });
-      
-      if (!fullResponse.ok) {
-        throw new Error(`Failed to fetch inventory: ${fullResponse.status}`);
-      }
-      
-      const zipData = new Uint8Array(await fullResponse.arrayBuffer());
-      console.log(`Downloaded ${zipData.length} bytes (full file)`);
-      
-      let jsonContent: string;
-      let rawAuctions: any[] = [];
-      
-      try {
-        jsonContent = await extractJsonFromZip(zipData);
-        const parsed = JSON.parse(jsonContent);
-        rawAuctions = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || parsed.data || []);
-      } catch (parseError) {
-        console.log('JSON parse failed, trying partial extraction...');
-        // Try to extract partial data
-        try {
-          jsonContent = await extractJsonFromZip(zipData);
-          rawAuctions = extractPartialAuctions(jsonContent);
-        } catch (e) {
-          throw new Error(`Failed to parse inventory data: ${parseError}`);
-        }
-      }
-      
-      console.log(`Extracted ${rawAuctions.length} auctions from ${inventoryType}`);
-      
-      // Limit to 5000 auctions per large file sync to manage memory
-      const limitedAuctions = rawAuctions.slice(0, 5000);
-      
-      return await processAuctions(supabase, limitedAuctions, inventoryType, corsHeaders);
-    }
+    // Extract and decompress
+    const jsonContent = await extractJsonFromZip(zipData);
+    console.log(`Decompressed to ${(jsonContent.length / 1024 / 1024).toFixed(2)}MB of JSON`);
 
-    // Handle partial content (206)
-    const zipData = new Uint8Array(await response.arrayBuffer());
-    console.log(`Downloaded ${zipData.length} bytes (partial)`);
+    // Parse auctions
+    const rawAuctions = parseJsonArray(jsonContent, MAX_AUCTIONS);
+    console.log(`Parsed ${rawAuctions.length} auctions from ${inventoryType}`);
 
-    let jsonContent: string;
-    let rawAuctions: any[] = [];
-    
-    try {
-      jsonContent = await extractJsonFromZip(zipData);
-      const parsed = JSON.parse(jsonContent);
-      rawAuctions = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || parsed.data || []);
-    } catch (e) {
-      console.log('Partial ZIP parse failed, trying text extraction...');
-      // The partial download may have truncated the file
-      try {
-        jsonContent = await extractJsonFromZip(zipData);
-        rawAuctions = extractPartialAuctions(jsonContent);
-      } catch (e2) {
-        // Even partial extraction failed
-        console.log('Could not extract any data from partial download');
-        rawAuctions = [];
-      }
-    }
-
-    console.log(`Extracted ${rawAuctions.length} auctions from partial ${inventoryType}`);
-    
     return await processAuctions(supabase, rawAuctions, inventoryType, corsHeaders);
 
   } catch (error) {
