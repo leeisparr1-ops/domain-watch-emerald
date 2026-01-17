@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Zap, TrendingUp, Shield } from "lucide-react";
+import { Bell, Smartphone, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Hero() {
@@ -20,8 +20,8 @@ export function Hero() {
             className="mb-6"
           >
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary">
-              <Zap className="w-4 h-4" />
-              Real-time Domain Auction Monitoring
+              <Smartphone className="w-4 h-4" />
+              Get Alerts Directly to Your Phone
             </span>
           </motion.div>
 
@@ -31,8 +31,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-5xl md:text-7xl font-bold mb-6"
           >
-            Discover{" "}
-            <span className="gradient-text">Domains</span> Before Anyone Else
+            Pattern-Based{" "}
+            <span className="gradient-text">Domain Alerts</span>
           </motion.h1>
 
           <motion.p
@@ -41,8 +41,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Monitor specific domains and get alerts when they become available. 
-            Never miss the perfect domain for your next project.
+            Set up patterns for the domains you want. Get instant mobile notifications 
+            when matching domains become available. Never miss the perfect domain again.
           </motion.p>
 
           <motion.div
@@ -53,7 +53,7 @@ export function Hero() {
           >
             <Link to="/signup">
               <Button variant="hero" size="xl">
-                <Search className="w-5 h-5 mr-2" />
+                <Bell className="w-5 h-5 mr-2" />
                 Start Monitoring Free
               </Button>
             </Link>
@@ -72,9 +72,10 @@ export function Hero() {
             className="flex flex-wrap justify-center gap-4"
           >
             {[
-              { icon: Search, text: "Pattern Matching" },
-              { icon: TrendingUp, text: "Live Auction Data" },
-              { icon: Shield, text: "Secure & Private" },
+              { icon: Bell, text: "Instant Alerts" },
+              { icon: Smartphone, text: "Mobile Push Notifications" },
+              { icon: Zap, text: "Pattern Matching" },
+              { icon: Shield, text: "Price Monitoring" },
             ].map((feature, index) => (
               <div
                 key={index}
@@ -84,7 +85,7 @@ export function Hero() {
                 {feature.text}
               </div>
             ))}
-        </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>

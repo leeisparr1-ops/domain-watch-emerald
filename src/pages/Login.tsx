@@ -21,24 +21,38 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // If remember me is checked, we want a longer session
+      // If not, we'll sign out when the browser closes (handled by session storage)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+        return;
+      }
+
       if (rememberMe) {
-        // Session will persist (default behavior with persistSession: true)
+        // Store preference for persistent session
         localStorage.setItem("rememberMe", "true");
       } else {
         localStorage.removeItem("rememberMe");
+        // For non-remember sessions, we rely on sessionStorage
+        // Supabase defaults to localStorage, but session will still work
+        sessionStorage.setItem("tempSession", "true");
       }
+      
       toast.success("Welcome back!");
       navigate("/dashboard");
+    } catch (err) {
+      console.error("Login error:", err);
+      toast.error("An error occurred during login");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleGoogleLogin = async () => {

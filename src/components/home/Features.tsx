@@ -1,31 +1,36 @@
 import { motion } from "framer-motion";
-import { Search, Bell, BarChart3, Shield, Globe } from "lucide-react";
+import { Search, Bell, Smartphone, Shield, Globe, TrendingDown } from "lucide-react";
 
 const features = [
   {
     icon: Search,
-    title: "Pattern-Based Search",
-    description: "Use wildcards and regex patterns to find domains matching your criteria. Search for *crypto*, ???ai, or complex patterns.",
+    title: "Pattern-Based Monitoring",
+    description: "Create custom patterns with regex, character counts, or word counts. Find domains like 'ai*', 5-letter names, or 2-word combos.",
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile Push Notifications",
+    description: "Get instant alerts on your phone when matching domains become available—even when your browser is closed.",
   },
   {
     icon: Bell,
-    title: "Real-time Alerts",
-    description: "Get notified instantly when a domain matching your pattern becomes available or approaches your price range.",
+    title: "Favorite Price Alerts",
+    description: "Save domains to favorites and get notified immediately when their price changes or they approach your budget.",
   },
   {
-    icon: BarChart3,
-    title: "Market Analytics",
-    description: "Track pricing trends, auction activity, and market movements to make informed decisions.",
+    icon: TrendingDown,
+    title: "Price Tracking",
+    description: "Monitor price movements on your watched domains. Never miss a price drop on that domain you've been eyeing.",
   },
   {
     icon: Shield,
-    title: "Secure Monitoring",
+    title: "Secure & Private",
     description: "Your search patterns and preferences are encrypted and private. Only you can see what you're tracking.",
   },
   {
     icon: Globe,
-    title: "Multiple Sources",
-    description: "Monitor domains from GoDaddy auctions, closeouts, and more sources in one unified dashboard.",
+    title: "Live Auction Data",
+    description: "Real-time sync with GoDaddy auctions, closeouts, and expiring domains. Thousands of listings updated continuously.",
   },
 ];
 
@@ -40,10 +45,10 @@ export function Features() {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Everything You Need to <span className="gradient-text">Hunt Domains</span>
+            Never Miss a <span className="gradient-text">Perfect Domain</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Powerful tools designed for serious domain investors and businesses looking for the perfect web address.
+            Set up your patterns once, then let ExpiredHawk watch for you 24/7 and alert you instantly on your phone.
           </p>
         </motion.div>
 
