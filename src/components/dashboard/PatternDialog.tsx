@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign, Globe } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import { toast } from "sonner";
 export interface Pattern {
   id: string;
   pattern: string;
-  pattern_type: "regex" | "structure" | "pronounceable";
+  pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
   description: string | null;
   max_price?: number | null;
   min_price?: number;
@@ -42,7 +43,7 @@ interface PatternDialogProps {
   patterns: Pattern[];
   onAddPattern: (pattern: {
     pattern: string;
-    pattern_type: "regex" | "structure" | "pronounceable";
+    pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
     description?: string;
     max_price?: number | null;
     min_price?: number;
@@ -50,6 +51,7 @@ interface PatternDialogProps {
   }) => void;
   onRemovePattern: (id: string) => void;
   onClearPatterns: () => void;
+  maxPatterns?: number;
 }
 
 const PATTERN_PRESETS = [
@@ -78,6 +80,12 @@ const PATTERN_PRESETS = [
     description: "Any 4-letter domain (LLLL format)"
   },
   { 
+    label: "5-letter domains", 
+    pattern: "^[a-z]{5}$",
+    pattern_type: "structure" as const,
+    description: "Any 5-letter domain (LLLLL format)"
+  },
+  { 
     label: "Numbers only", 
     pattern: "^[0-9]+$",
     pattern_type: "structure" as const,
@@ -94,12 +102,6 @@ const PATTERN_PRESETS = [
     pattern: "^ai",
     pattern_type: "regex" as const,
     description: "Domains starting with 'ai'"
-  },
-  { 
-    label: "Ends with 'ly'", 
-    pattern: "ly$",
-    pattern_type: "regex" as const,
-    description: "Domains ending with 'ly'"
   },
   { 
     label: "Contains 'tech'", 
@@ -129,18 +131,39 @@ const TLD_OPTIONS = [
   { value: ".app", label: ".app" },
 ];
 
-export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClearPatterns }: PatternDialogProps) {
+export function PatternDialog({ 
+  patterns, 
+  onAddPattern, 
+  onRemovePattern, 
+  onClearPatterns,
+  maxPatterns = Infinity 
+}: PatternDialogProps) {
   const [open, setOpen] = useState(false);
   const [customPattern, setCustomPattern] = useState("");
-  const [patternType, setPatternType] = useState<"regex" | "structure" | "pronounceable">("regex");
+  const [patternType, setPatternType] = useState<"regex" | "structure" | "pronounceable" | "length" | "words">("regex");
   const [description, setDescription] = useState("");
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [presetMaxPrice, setPresetMaxPrice] = useState<string>("");
   const [presetTld, setPresetTld] = useState<string>("any");
   const [customTld, setCustomTld] = useState<string>("any");
+  
+  // For character count pattern
+  const [minChars, setMinChars] = useState<number[]>([3]);
+  const [maxChars, setMaxChars] = useState<number[]>([8]);
+  
+  // For word count pattern
+  const [minWords, setMinWords] = useState<number[]>([1]);
+  const [maxWords, setMaxWords] = useState<number[]>([2]);
+
+  const isAtLimit = patterns.length >= maxPatterns;
 
   const handleAddPreset = (preset: typeof PATTERN_PRESETS[0]) => {
+    if (isAtLimit) {
+      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
+      return;
+    }
+    
     if (patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))) {
       toast.error("Pattern already exists with this TLD");
       return;
@@ -165,7 +188,89 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
     setPresetTld("any");
   };
 
+  const handleAddCharacterCountPattern = () => {
+    if (isAtLimit) {
+      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
+      return;
+    }
+    
+    const min = minChars[0];
+    const max = maxChars[0];
+    
+    if (min > max) {
+      toast.error("Minimum must be less than or equal to maximum");
+      return;
+    }
+    
+    // Create regex pattern for character count
+    const pattern = min === max 
+      ? `^[a-z]{${min}}$`
+      : `^[a-z]{${min},${max}}$`;
+    
+    const tldFilter = customTld === "any" ? null : customTld;
+    const desc = min === max 
+      ? `${min}-character domains${tldFilter ? ` [${tldFilter}]` : ""}`
+      : `${min}-${max} character domains${tldFilter ? ` [${tldFilter}]` : ""}`;
+    
+    if (patterns.some(p => p.pattern === pattern && p.tld_filter === tldFilter)) {
+      toast.error("Pattern already exists");
+      return;
+    }
+    
+    onAddPattern({
+      pattern,
+      pattern_type: "length",
+      description: desc,
+      tld_filter: tldFilter,
+    });
+    toast.success(`Added pattern: ${desc}`);
+  };
+
+  const handleAddWordCountPattern = () => {
+    if (isAtLimit) {
+      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
+      return;
+    }
+    
+    const min = minWords[0];
+    const max = maxWords[0];
+    
+    if (min > max) {
+      toast.error("Minimum must be less than or equal to maximum");
+      return;
+    }
+    
+    // Create regex pattern for word count (words separated by hyphens or camelCase)
+    // This matches domains with 1-N "words" (sequences of letters followed by optional hyphen or capital)
+    const pattern = min === max
+      ? `^([a-z]+[-]?){${min}}$|^([A-Z]?[a-z]+){${min}}$`
+      : `^([a-z]+[-]?){${min},${max}}$|^([A-Z]?[a-z]+){${min},${max}}$`;
+    
+    const tldFilter = customTld === "any" ? null : customTld;
+    const desc = min === max
+      ? `${min}-word domains${tldFilter ? ` [${tldFilter}]` : ""}`
+      : `${min}-${max} word domains${tldFilter ? ` [${tldFilter}]` : ""}`;
+    
+    if (patterns.some(p => p.description === desc)) {
+      toast.error("Pattern already exists");
+      return;
+    }
+    
+    onAddPattern({
+      pattern,
+      pattern_type: "words",
+      description: desc,
+      tld_filter: tldFilter,
+    });
+    toast.success(`Added pattern: ${desc}`);
+  };
+
   const handleAddCustom = () => {
+    if (isAtLimit) {
+      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
+      return;
+    }
+    
     if (!customPattern.trim()) {
       toast.error("Please enter a pattern");
       return;
@@ -230,12 +335,12 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                 variant="default" 
                 className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary-foreground text-primary"
               >
-                {patterns.length}
+                {patterns.length}{maxPatterns < Infinity ? `/${maxPatterns}` : ""}
               </Badge>
             )}
           </Button>
         </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Pattern Matching
@@ -245,13 +350,18 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                   <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>Use patterns to find specific domain structures. Patterns use regex to match domain names (without TLD).</p>
+                  <p>Use patterns to find specific domain structures. Get alerts on your phone when matching domains appear!</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </DialogTitle>
           <DialogDescription>
-            Find pronounceable domains, common structures, or specific character sequences.
+            Set up patterns and receive instant mobile alerts when matching domains become available.
+            {maxPatterns < Infinity && (
+              <span className="block mt-1 text-primary">
+                {patterns.length}/{maxPatterns} patterns used
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -325,7 +435,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                   size="sm"
                   className="justify-start h-auto py-2 px-3"
                   onClick={() => handleAddPreset(preset)}
-                  disabled={patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))}
+                  disabled={isAtLimit || patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))}
                 >
                   <div className="text-left">
                     <div className="font-medium">{preset.label}</div>
@@ -336,12 +446,106 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
             </div>
           </div>
 
+          {/* Character Count Pattern */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h4 className="font-medium text-sm flex items-center gap-2">
+              <Hash className="w-4 h-4" />
+              Number of Characters
+            </h4>
+            <div className="space-y-4 p-4 rounded-lg bg-muted/30">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Min: {minChars[0]} chars</span>
+                  <span>Max: {maxChars[0]} chars</span>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Slider
+                      value={minChars}
+                      onValueChange={setMinChars}
+                      min={1}
+                      max={15}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Slider
+                      value={maxChars}
+                      onValueChange={setMaxChars}
+                      min={1}
+                      max={20}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              <Button 
+                onClick={handleAddCharacterCountPattern} 
+                variant="secondary" 
+                className="w-full"
+                disabled={isAtLimit}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add {minChars[0]}-{maxChars[0]} Character Pattern
+              </Button>
+            </div>
+          </div>
+
+          {/* Word Count Pattern */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h4 className="font-medium text-sm flex items-center gap-2">
+              <Type className="w-4 h-4" />
+              Number of Words
+            </h4>
+            <div className="space-y-4 p-4 rounded-lg bg-muted/30">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Min: {minWords[0]} word{minWords[0] > 1 ? 's' : ''}</span>
+                  <span>Max: {maxWords[0]} words</span>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Slider
+                      value={minWords}
+                      onValueChange={setMinWords}
+                      min={1}
+                      max={5}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Slider
+                      value={maxWords}
+                      onValueChange={setMaxWords}
+                      min={1}
+                      max={6}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+              <Button 
+                onClick={handleAddWordCountPattern} 
+                variant="secondary" 
+                className="w-full"
+                disabled={isAtLimit}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add {minWords[0]}-{maxWords[0]} Word Pattern
+              </Button>
+            </div>
+          </div>
+
           {/* Custom Pattern */}
           <div className="space-y-3 pt-4 border-t border-border">
             <h4 className="font-medium text-sm">Custom Pattern</h4>
             <div className="space-y-3">
               <div className="flex gap-2">
-                <Select value={patternType} onValueChange={(v: "regex" | "structure" | "pronounceable") => setPatternType(v)}>
+                <Select value={patternType} onValueChange={(v: "regex" | "structure" | "pronounceable" | "length" | "words") => setPatternType(v)}>
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
@@ -405,7 +609,7 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
                 </div>
               </div>
               
-              <Button onClick={handleAddCustom} className="w-full">
+              <Button onClick={handleAddCustom} className="w-full" disabled={isAtLimit}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Custom Pattern
               </Button>
@@ -416,8 +620,8 @@ export function PatternDialog({ patterns, onAddPattern, onRemovePattern, onClear
               <p className="font-medium">Pattern Examples:</p>
               <ul className="text-muted-foreground space-y-0.5">
                 <li><code className="bg-background px-1 rounded">^ai</code> - Starts with "ai"</li>
-                <li><code className="bg-background px-1 rounded">ly$</code> - Ends with "ly"</li>
-                <li><code className="bg-background px-1 rounded">^[a-z]{"{4}"}$</code> - Exactly 4 letters</li>
+                <li><code className="bg-background px-1 rounded">app$</code> - Ends with "app"</li>
+                <li><code className="bg-background px-1 rounded">^[a-z]{"{5}"}$</code> - Exactly 5 letters</li>
                 <li><code className="bg-background px-1 rounded">[aeiou]{"{2}"}</code> - Contains double vowel</li>
               </ul>
             </div>

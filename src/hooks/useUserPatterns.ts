@@ -7,7 +7,7 @@ export interface UserPattern {
   id: string;
   user_id: string;
   pattern: string;
-  pattern_type: "regex" | "structure" | "pronounceable";
+  pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
   description: string | null;
   max_price: number | null;
   min_price: number;
@@ -27,12 +27,24 @@ export interface PatternMatch {
   pattern_description: string;
 }
 
+// Plan limits for pattern counts
+export const PLAN_LIMITS = {
+  free: 2,
+  pro: 5,
+  business: Infinity,
+};
+
 export function useUserPatterns() {
   const { user } = useAuth();
   const [patterns, setPatterns] = useState<UserPattern[]>([]);
   const [matches, setMatches] = useState<PatternMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
+  
+  // TODO: Get actual user plan from subscription
+  // For now, default to 'free' plan
+  const userPlan: keyof typeof PLAN_LIMITS = 'free';
+  const maxPatterns = PLAN_LIMITS[userPlan];
 
   // Fetch patterns from database
   const fetchPatterns = useCallback(async () => {
@@ -61,7 +73,7 @@ export function useUserPatterns() {
   // Add a new pattern
   const addPattern = useCallback(async (pattern: {
     pattern: string;
-    pattern_type: "regex" | "structure" | "pronounceable";
+    pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
     description?: string;
     max_price?: number | null;
     min_price?: number;
@@ -69,6 +81,12 @@ export function useUserPatterns() {
   }) => {
     if (!user) {
       toast.error("Please sign in to save patterns");
+      return null;
+    }
+
+    // Check pattern limit
+    if (patterns.length >= maxPatterns) {
+      toast.error(`You can only have ${maxPatterns} patterns on your current plan. Upgrade for more!`);
       return null;
     }
 
@@ -106,7 +124,7 @@ export function useUserPatterns() {
       toast.error("Failed to save pattern");
       return null;
     }
-  }, [user]);
+  }, [user, patterns.length, maxPatterns]);
 
   // Remove a pattern
   const removePattern = useCallback(async (id: string) => {
@@ -248,5 +266,7 @@ export function useUserPatterns() {
     hasPatterns: patterns.length > 0,
     enabledCount: patterns.filter(p => p.enabled).length,
     refetch: fetchPatterns,
+    maxPatterns,
+    isAtLimit: patterns.length >= maxPatterns,
   };
 }

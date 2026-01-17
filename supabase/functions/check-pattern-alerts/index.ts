@@ -160,7 +160,7 @@ serve(async (req) => {
       }
     }
 
-    // Record new alerts to prevent duplicate notifications
+    // Record new alerts and send push notifications
     if (newAlerts.length > 0) {
       const { error: insertError } = await supabase
         .from("pattern_alerts")
@@ -177,6 +177,32 @@ serve(async (req) => {
           .from("user_patterns")
           .update({ last_matched_at: new Date().toISOString() })
           .eq("id", patternId);
+      }
+
+      // Send push notification for new matches
+      if (matchedDomains.length > 0) {
+        try {
+          const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
+          const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
+          
+          await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: user.id,
+              payload: {
+                title: `🎯 ${matchedDomains.length} Domain${matchedDomains.length > 1 ? 's' : ''} Match Your Patterns!`,
+                body: `${topMatches}${moreCount}`,
+                icon: "/icons/icon-192.png",
+                tag: "pattern-match",
+                url: "/dashboard",
+              },
+            }),
+          });
+          console.log("Push notification sent for pattern matches");
+        } catch (pushError) {
+          console.error("Error sending push notification:", pushError);
+        }
       }
     }
 
