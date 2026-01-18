@@ -15,7 +15,7 @@ export function Footer() {
               <span className="text-xl font-bold gradient-text">ExpiredHawk</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Monitor domain auctions and find your perfect web address.
+              Pattern monitoring & instant mobile alerts for domain hunters.
             </p>
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
@@ -32,7 +32,6 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Product</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
-              <li><Link to="/registrars" className="hover:text-foreground transition-colors">Registrar Comparison</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
             </ul>
           </div>

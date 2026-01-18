@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, Bell, Smartphone, Shield, Globe, TrendingDown } from "lucide-react";
+import { Search, Bell, Smartphone, Shield, Globe, Zap } from "lucide-react";
 
 const features = [
   {
@@ -14,13 +14,13 @@ const features = [
   },
   {
     icon: Bell,
-    title: "Favorite Price Alerts",
-    description: "Save domains to favorites and get notified immediately when their price changes or they approach your budget.",
+    title: "Keyword Alerts",
+    description: "Track specific keywords across all domains. Get notified instantly when your target keywords appear in new listings.",
   },
   {
-    icon: TrendingDown,
-    title: "Price Tracking",
-    description: "Monitor price movements on your watched domains. Never miss a price drop on that domain you've been eyeing.",
+    icon: Zap,
+    title: "Instant Matching",
+    description: "Our system continuously scans new domain listings and matches them against your patterns in real-time.",
   },
   {
     icon: Shield,
