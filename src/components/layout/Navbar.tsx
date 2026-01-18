@@ -40,9 +40,6 @@ export function Navbar() {
             <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
               Pricing
             </Link>
-            <Link to="/registrars" className="text-muted-foreground hover:text-foreground transition-colors">
-              Registrars
-            </Link>
             {user ? (
               <>
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -100,9 +97,6 @@ export function Navbar() {
               </Link>
               <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2">
                 Pricing
-              </Link>
-              <Link to="/registrars" className="text-muted-foreground hover:text-foreground transition-colors py-2">
-                Registrars
               </Link>
               {user ? (
                 <>

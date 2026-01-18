@@ -12,7 +12,6 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
-import Registrars from "./pages/Registrars";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,7 +32,6 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/pricing" element={<Pricing />} />
-            <Route path="/registrars" element={<Registrars />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
