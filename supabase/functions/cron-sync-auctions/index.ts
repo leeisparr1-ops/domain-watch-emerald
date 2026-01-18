@@ -21,10 +21,13 @@ const INVENTORY_TYPES = [
 ];
 
 // Large inventory types - handled by sync-large-inventory function with streaming/limits
+// These contain the bulk of the domain listings
 const LARGE_INVENTORY_TYPES = [
-  'closeout',
-  'endingToday',
-  'allBiddable',
+  'closeout',      // ~8.6MB - closeout deals
+  'endingToday',   // ~10MB - urgent listings
+  'allBiddable',   // ~19MB - active auctions
+  'allExpiring',   // ~28MB - expiring domains
+  'allListings',   // ~28MB - complete inventory
 ];
 
 serve(async (req) => {
