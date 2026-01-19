@@ -681,10 +681,6 @@ export default function Dashboard() {
                 </motion.div>
               )}
               
-              {/* Results summary */}
-              <div className="mt-4 text-center text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * itemsPerPage + 1).toLocaleString()} - {Math.min(currentPage * itemsPerPage, totalCount).toLocaleString()} of {totalCount.toLocaleString()} auctions
-              </div>
             </>
           )}
         </div>
