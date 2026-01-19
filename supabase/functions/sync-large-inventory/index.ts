@@ -17,11 +17,11 @@ const LARGE_INVENTORY_FILES: Record<string, string> = {
   allListings: 'all_listings.json.zip',             // ~28MB compressed
 };
 
-// Conservative limits for edge function memory (~150MB total)
-const MAX_DOWNLOAD_SIZE = 8 * 1024 * 1024; // 8MB compressed max
-const MAX_AUCTIONS = 15000; // 15K domains per sync
-const MAX_DECOMPRESSED = 40 * 1024 * 1024; // 40MB decompressed limit
-const BATCH_SIZE = 500;
+// Increased limits for edge function memory (~150MB total)
+const MAX_DOWNLOAD_SIZE = 32 * 1024 * 1024; // 32MB compressed max (handles 28MB files)
+const MAX_AUCTIONS = 150000; // 150K domains per sync
+const MAX_DECOMPRESSED = 120 * 1024 * 1024; // 120MB decompressed limit
+const BATCH_SIZE = 1000; // Larger batches for efficiency
 
 function extractTld(domain: string): string {
   const parts = domain.split('.');
