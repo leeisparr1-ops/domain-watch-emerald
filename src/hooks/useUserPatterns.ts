@@ -30,8 +30,8 @@ export interface PatternMatch {
 // Plan limits for pattern counts
 export const PLAN_LIMITS = {
   free: 2,
-  pro: 5,
-  business: Infinity,
+  basic: 50,
+  advanced: 125,
 };
 
 export function useUserPatterns() {

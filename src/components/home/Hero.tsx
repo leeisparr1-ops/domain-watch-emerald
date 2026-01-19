@@ -75,7 +75,7 @@ export function Hero() {
               { icon: Bell, text: "Instant Alerts" },
               { icon: Smartphone, text: "Mobile Push Notifications" },
               { icon: Zap, text: "Pattern Matching" },
-              { icon: Shield, text: "Price Monitoring" },
+              { icon: Shield, text: "Keyword Monitoring" },
             ].map((feature, index) => (
               <div
                 key={index}
