@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.get-vapid-key]
 verify_jwt = false
+
+[functions.send-email-notification]
+verify_jwt = false
+
+[functions.sync-large-inventory]
+verify_jwt = false
