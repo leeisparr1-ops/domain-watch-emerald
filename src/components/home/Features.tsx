@@ -5,7 +5,7 @@ const features = [
   {
     icon: Search,
     title: "Pattern-Based Monitoring",
-    description: "Create custom patterns with regex, character counts, or word counts. Find domains like 'ai*', 5-letter names, or 2-word combos.",
+    description: "Create custom patterns with regex, character counts, or word counts. Find domains like 'ai+keyword', 5-letter names, or 2-word combos.",
   },
   {
     icon: Smartphone,

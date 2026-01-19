@@ -110,6 +110,18 @@ const PATTERN_PRESETS = [
     description: "Domains containing 'tech'"
   },
   { 
+    label: "Keyword + robotics", 
+    pattern: "robotics",
+    pattern_type: "regex" as const,
+    description: "Domains containing 'robotics'"
+  },
+  { 
+    label: "Keyword + intel", 
+    pattern: "intel",
+    pattern_type: "regex" as const,
+    description: "Domains containing 'intel'"
+  },
+  { 
     label: "Repeating letters", 
     pattern: "([a-z])\\1",
     pattern_type: "regex" as const,
