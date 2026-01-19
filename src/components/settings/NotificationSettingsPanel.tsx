@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send } from 'lucide-react';
+import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { toast } from 'sonner';
 
 const THRESHOLD_OPTIONS = [
@@ -37,8 +39,22 @@ export function NotificationSettingsPanel() {
     unsubscribe: unsubscribePush,
     sendTestNotification 
   } = usePushNotifications();
+  const {
+    settings: emailSettings,
+    isLoading: emailLoading,
+    isSaving: emailSaving,
+    updateSettings: updateEmailSettings,
+    sendTestEmail,
+  } = useEmailNotifications();
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
+  const [emailInput, setEmailInput] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (emailSettings.email) {
+      setEmailInput(emailSettings.email);
+    }
+  }, [emailSettings.email]);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -191,6 +207,62 @@ export function NotificationSettingsPanel() {
               )}
             </div>
           )}
+
+          {/* Email Notifications */}
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-primary" />
+                  <Label className="text-base">Email Notifications</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {emailSettings.enabled 
+                    ? 'Receive pattern match alerts via email'
+                    : 'Enable to get pattern alerts in your inbox'}
+                </p>
+              </div>
+              <Switch
+                checked={emailSettings.enabled}
+                onCheckedChange={(checked) => updateEmailSettings({ enabled: checked })}
+                disabled={emailLoading || emailSaving}
+              />
+            </div>
+            
+            {emailSettings.enabled && (
+              <div className="mt-4 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Email Address</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      className="flex-1 bg-background"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => updateEmailSettings({ email: emailInput })}
+                      disabled={emailSaving || emailInput === emailSettings.email}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={sendTestEmail}
+                  disabled={emailSaving || !emailSettings.email}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Test Email
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Browser Notifications */}
           <div className="flex items-center justify-between">
