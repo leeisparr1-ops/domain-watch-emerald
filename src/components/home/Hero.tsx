@@ -1,9 +1,23 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Smartphone, Zap, Shield } from "lucide-react";
+import { Bell, Smartphone, Zap, Shield, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Hero() {
+  const [domainCount, setDomainCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('auctions')
+        .select('id', { count: 'exact', head: true });
+      setDomainCount(count);
+    };
+    fetchCount();
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Effects */}
@@ -20,8 +34,8 @@ export function Hero() {
             className="mb-6"
           >
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary">
-              <Smartphone className="w-4 h-4" />
-              Get Alerts Directly to Your Phone
+              <Globe className="w-4 h-4" />
+              {domainCount ? `${domainCount.toLocaleString()}+ Domains Monitored` : 'Millions of Domains Monitored'}
             </span>
           </motion.div>
 

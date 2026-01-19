@@ -30,7 +30,7 @@ const features = [
   {
     icon: Globe,
     title: "Live Auction Data",
-    description: "Real-time sync with GoDaddy auctions, closeouts, and expiring domains. Thousands of listings updated continuously.",
+    description: "Real-time sync with auctions, closeouts, and expiring domains. Millions of listings updated continuously.",
   },
 ];
 
