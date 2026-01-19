@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, LogIn, User } from "lucide-react";
+import { Menu, X, LogIn, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Logo } from "@/components/Logo";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,9 +27,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Globe className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <Logo size="md" />
             <span className="text-xl font-bold gradient-text">ExpiredHawk</span>
           </Link>
 

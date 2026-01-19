@@ -74,10 +74,8 @@ const TLD_OPTIONS = [
 
 const AUCTION_TYPE_OPTIONS = [
   { value: "all", label: "All Types" },
-  { value: "Bid", label: "Bid" },
+  { value: "Bid", label: "Bid Auctions" },
   { value: "BuyNow", label: "Buy Now" },
-  { value: "Offer", label: "Make Offer" },
-  { value: "Expired", label: "Expired" },
 ];
 
 const PRICE_PRESETS = [
@@ -329,18 +327,19 @@ export default function Dashboard() {
       <Navbar />
       <main className="pt-24 pb-12 px-4">
         <div className="container mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
                   {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <RefreshCw className="w-4 h-4 text-primary" />
-                  <span>Updated {formatLastRefresh()}</span>
+                  <span className="hidden sm:inline">Updated {formatLastRefresh()}</span>
+                  <span className="sm:hidden">{formatLastRefresh()}</span>
                 </div>
                 <Button
                   variant="ghost"
@@ -425,38 +424,41 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Search and Actions Bar */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col sm:flex-row gap-4 mb-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
             </div>
-            <Button 
-              variant={showFilters ? "secondary" : "outline"} 
-              onClick={() => setShowFilters(!showFilters)}
-              className="relative"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
-              {activeFilterCount > 0 && (
-                <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <ArrowUpDown className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border border-border z-50">
-                {SORT_OPTIONS.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+            <div className="flex gap-2 sm:gap-4 overflow-x-auto">
+              <Button 
+                variant={showFilters ? "secondary" : "outline"} 
+                onClick={() => setShowFilters(!showFilters)}
+                className="relative flex-shrink-0"
+                size="sm"
+              >
+                <Filter className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="default" className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
+                  <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  {SORT_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+            </div>
           </motion.div>
 
           {/* Filters Panel */}
@@ -580,27 +582,28 @@ export default function Dashboard() {
 
           {!loading && !error && filtered.length > 0 && (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-3 sm:gap-4">
                 {filtered.map((d, i) => (
                   <motion.div key={d.id || i}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                    className="p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex items-center justify-between group">
-                    <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Gavel className="w-5 h-5 text-primary" /></div>
-                      <div>
-                        <div className="font-mono text-lg text-primary group-hover:glow-text">{d.domain}</div>
-                        <div className="flex items-center gap-2">
+                    className="p-3 sm:p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
+                    <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Gavel className="w-5 h-5 text-primary" /></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-mono text-base sm:text-lg text-primary group-hover:glow-text truncate">{d.domain}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</span>
                           <Badge variant="outline" className="text-xs">{d.tld}</Badge>
+                          <span className="text-sm font-bold sm:hidden">${d.price.toLocaleString()}</span>
                         </div>
                       </div>
                     </a>
-                    <div className="flex items-center gap-4 sm:gap-8">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 md:gap-8">
                       <div className="text-right hidden sm:block">
                         <div className="font-bold">${d.price.toLocaleString()}</div>
                         <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground hidden md:flex">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
                       </div>
                       <Button
@@ -615,7 +618,7 @@ export default function Dashboard() {
                       >
                         <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
                       </Button>
-                      <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer">
+                      <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="hidden sm:block">
                         <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </a>
                     </div>
