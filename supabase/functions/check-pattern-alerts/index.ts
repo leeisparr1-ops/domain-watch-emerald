@@ -181,10 +181,11 @@ serve(async (req) => {
 
       // Send push notification for new matches
       if (matchedDomains.length > 0) {
+        const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
+        const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
+        
+        // Send push notification
         try {
-          const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
-          const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
-          
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -202,6 +203,32 @@ serve(async (req) => {
           console.log("Push notification sent for pattern matches");
         } catch (pushError) {
           console.error("Error sending push notification:", pushError);
+        }
+
+        // Send email notification
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-email-notification`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              type: "pattern_match",
+              data: {
+                matches: matchedDomains.slice(0, 10).map(m => ({
+                  domain: m.domain_name,
+                  price: m.price,
+                  pattern: m.pattern_description,
+                  end_time: m.end_time,
+                })),
+                totalMatches: matchedDomains.length,
+              },
+            }),
+          });
+          console.log("Email notification sent for pattern matches");
+        } catch (emailError) {
+          console.error("Error sending email notification:", emailError);
         }
       }
     }

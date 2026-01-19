@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, AlertTriangle } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,7 +117,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [fallbackMode, setFallbackMode] = useState(false); // True when using 24h window due to timeout
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
@@ -141,7 +140,7 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
-  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, useFallback = false) => {
+  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true) => {
     try {
       if (showLoadingSpinner) setLoading(true);
       setError(null);
@@ -152,14 +151,8 @@ export default function Dashboard() {
       // Get current sort option
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
       
-      // Calculate end_time filter - use 24h window in fallback mode
       const now = new Date();
-      let endTimeFilter = now.toISOString();
-      if (useFallback) {
-        const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        // For fallback, we filter to auctions ending within next 24h
-        endTimeFilter = now.toISOString();
-      }
+      const endTimeFilter = now.toISOString();
       
       // Build count query with same filters (but no pagination/sorting)
       let countQuery = supabase
@@ -179,13 +172,6 @@ export default function Dashboard() {
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to);
       
-      // In fallback mode, also add upper bound for end_time (next 24h)
-      if (useFallback) {
-        const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        query = query.lte('end_time', next24h.toISOString());
-        countQuery = countQuery.lte('end_time', next24h.toISOString());
-      }
-      
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
@@ -201,22 +187,9 @@ export default function Dashboard() {
       // Run both queries in parallel
       const [dataResult, countResult] = await Promise.all([query, countQuery]);
       
-      // Check for timeout error and retry with fallback
       if (dataResult.error) {
-        const isTimeout = dataResult.error.code === '57014' || 
-          dataResult.error.message?.includes('statement timeout') ||
-          dataResult.error.message?.includes('canceling statement');
-        
-        if (isTimeout && !useFallback) {
-          console.log('Query timed out, retrying with 24h fallback window...');
-          setFallbackMode(true);
-          return fetchAuctionsFromDb(showLoadingSpinner, true);
-        }
         throw dataResult.error;
       }
-      
-      // Update fallback mode state
-      setFallbackMode(useFallback);
       
       if (dataResult.data) {
         const mapped: AuctionDomain[] = dataResult.data.map(a => ({
@@ -231,7 +204,6 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        // Use actual count from count query, fallback to estimate if count failed
         setTotalCount(countResult.count ?? (from + mapped.length + (mapped.length === itemsPerPage ? itemsPerPage : 0)));
         setLastRefresh(new Date());
       }
@@ -332,7 +304,7 @@ export default function Dashboard() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  {totalCount > 0 ? `${totalCount.toLocaleString()} auctions found` : 'Monitor auctions from GoDaddy inventory'}
+                  Browse and filter domain auctions
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -353,35 +325,6 @@ export default function Dashboard() {
               </div>
             </div>
           </motion.div>
-
-          {/* Fallback Mode Banner */}
-          {fallbackMode && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3"
-            >
-              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-500">Limited Results Mode</p>
-                <p className="text-xs text-muted-foreground">
-                  Showing auctions ending in the next 24 hours only. The full query timed out due to high database load.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFallbackMode(false);
-                  fetchAuctionsFromDb(true, false);
-                }}
-                className="text-xs"
-              >
-                Try Full Query
-              </Button>
-            </motion.div>
-          )}
-
 
           {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
@@ -457,7 +400,6 @@ export default function Dashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
             </div>
           </motion.div>
 
@@ -557,6 +499,11 @@ export default function Dashboard() {
             </motion.div>
           )}
 
+          {/* Add Patterns - Below Filters */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4">
+            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+          </motion.div>
+
           {loading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -587,17 +534,17 @@ export default function Dashboard() {
                   <motion.div key={d.id || i}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
                     className="p-3 sm:p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
-                    <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Gavel className="w-5 h-5 text-primary" /></div>
                       <div className="min-w-0 flex-1">
                         <div className="font-mono text-base sm:text-lg text-primary group-hover:glow-text truncate">{d.domain}</div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'GoDaddy'}</span>
+                          <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'Auction'}</span>
                           <Badge variant="outline" className="text-xs">{d.tld}</Badge>
                           <span className="text-sm font-bold sm:hidden">${d.price.toLocaleString()}</span>
                         </div>
                       </div>
-                    </a>
+                    </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 md:gap-8">
                       <div className="text-right hidden sm:block">
                         <div className="font-bold">${d.price.toLocaleString()}</div>
@@ -618,7 +565,7 @@ export default function Dashboard() {
                       >
                         <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
                       </Button>
-                      <a href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${d.domain}`} target="_blank" rel="noopener noreferrer" className="hidden sm:block">
+                      <a href={`https://www.google.com/search?q=${d.domain}`} target="_blank" rel="noopener noreferrer" className="hidden sm:block">
                         <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </a>
                     </div>

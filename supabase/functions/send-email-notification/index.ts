@@ -9,12 +9,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface MatchedDomain {
+  domain: string;
+  price: number;
+  pattern: string;
+  end_time: string | null;
+}
+
 interface EmailNotificationRequest {
   type: "pattern_match" | "test";
   email?: string;
   userId?: string;
   patternName?: string;
   matchedDomains?: string[];
+  data?: {
+    matches: MatchedDomain[];
+    totalMatches: number;
+  };
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -32,14 +43,27 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Email notification request:", payload);
 
     let recipientEmail = payload.email;
+    let userId = payload.userId;
+    
+    // Try to get user from auth header if not provided
+    if (!userId) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) {
+          userId = user.id;
+        }
+      }
+    }
     
     // If userId provided, fetch email from user settings or auth
-    if (payload.userId && !recipientEmail) {
+    if (userId && !recipientEmail) {
       const { data: settings } = await supabase
         .from("user_settings")
         .select("notification_email, email_notifications_enabled")
-        .eq("user_id", payload.userId)
-        .single();
+        .eq("user_id", userId)
+        .maybeSingle();
 
       if (!settings?.email_notifications_enabled) {
         console.log("Email notifications disabled for user");
@@ -53,7 +77,7 @@ serve(async (req: Request): Promise<Response> => {
 
       // If no custom email, try to get from auth
       if (!recipientEmail) {
-        const { data: authUser } = await supabase.auth.admin.getUserById(payload.userId);
+        const { data: authUser } = await supabase.auth.admin.getUserById(userId);
         recipientEmail = authUser?.user?.email;
       }
     }
@@ -92,10 +116,31 @@ serve(async (req: Request): Promise<Response> => {
         </div>
       `;
     } else if (payload.type === "pattern_match") {
-      const domainList = payload.matchedDomains?.slice(0, 10).map(d => `<li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${d}</li>`).join("") || "";
-      const moreCount = (payload.matchedDomains?.length || 0) - 10;
+      // Support both old and new data formats
+      const matches = payload.data?.matches || [];
+      const totalMatches = payload.data?.totalMatches || payload.matchedDomains?.length || matches.length;
       
-      subject = `🎯 Pattern Match: "${payload.patternName}" - ${payload.matchedDomains?.length || 0} domains found`;
+      let domainList = "";
+      if (matches.length > 0) {
+        domainList = matches.map(m => `
+          <li style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: #1f2937; font-family: monospace;">${m.domain}</strong>
+              <br><span style="color: #6b7280; font-size: 12px;">Pattern: ${m.pattern}</span>
+            </div>
+            <div style="text-align: right;">
+              <strong style="color: #059669;">$${m.price.toLocaleString()}</strong>
+            </div>
+          </li>
+        `).join("");
+      } else if (payload.matchedDomains) {
+        domainList = payload.matchedDomains.slice(0, 10).map(d => `<li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${d}</li>`).join("");
+      }
+      
+      const moreCount = totalMatches - (matches.length || (payload.matchedDomains?.slice(0, 10).length || 0));
+      const patternDisplay = payload.patternName || (matches.length > 0 ? matches[0].pattern : "Your Patterns");
+      
+      subject = `🎯 ${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Match Your Patterns!`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
@@ -103,9 +148,9 @@ serve(async (req: Request): Promise<Response> => {
             <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Pattern Match Alert</p>
           </div>
           <div style="background: #f9fafb; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0;">🎯 Pattern: "${payload.patternName}"</h2>
+            <h2 style="color: #1f2937; margin-top: 0;">🎯 ${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Found!</h2>
             <p style="color: #4b5563;">
-              We found <strong>${payload.matchedDomains?.length || 0} domains</strong> matching your pattern!
+              New domains matching your patterns are available for auction.
             </p>
             <ul style="list-style: none; padding: 0; margin: 16px 0; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
               ${domainList}
