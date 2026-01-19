@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.sync-large-inventory]
 verify_jwt = false
+
+[functions.chunked-sync-orchestrator]
+verify_jwt = false
