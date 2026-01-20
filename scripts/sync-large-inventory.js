@@ -22,12 +22,13 @@ const { createUnzip } = require('zlib');
 const { pipeline } = require('stream/promises');
 
 // Large inventory files that are too big for edge functions
+// These are the correct GoDaddy auction inventory URLs
 const LARGE_INVENTORY_TYPES = [
-  { type: 'closeout', url: 'https://inventory.godaddy.com/closeout.json.zip' },
-  { type: 'expired', url: 'https://inventory.godaddy.com/expired.json.zip' },
-  { type: 'pre_release', url: 'https://inventory.godaddy.com/pre_release.json.zip' },
-  { type: 'tdnam', url: 'https://inventory.godaddy.com/tdnam.json.zip' },
-  { type: 'offer_counter', url: 'https://inventory.godaddy.com/offer_counter.json.zip' },
+  { type: 'closeout', url: 'https://auctions.godaddy.com/beta/closeout_listings.json.zip' },
+  { type: 'allBiddable', url: 'https://auctions.godaddy.com/beta/all_biddable_listings.json.zip' },
+  { type: 'allExpiring', url: 'https://auctions.godaddy.com/beta/all_expiring_listings.json.zip' },
+  { type: 'allListings', url: 'https://auctions.godaddy.com/beta/all_listings.json.zip' },
+  { type: 'endingToday', url: 'https://auctions.godaddy.com/beta/listings_ending_today.json.zip' },
 ];
 
 // Configuration
