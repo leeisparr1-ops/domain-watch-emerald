@@ -10,11 +10,19 @@ export function Hero() {
 
   useEffect(() => {
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from('auctions')
-        .select('id', { count: 'exact', head: true });
-      setDomainCount(count);
+      try {
+        // Avoid expensive COUNT(*) on large tables (can cause statement timeouts)
+        const { count, error } = await supabase
+          .from("auctions")
+          .select("id", { count: "planned", head: true });
+
+        if (error) throw error;
+        setDomainCount(count ?? null);
+      } catch {
+        setDomainCount(null);
+      }
     };
+
     fetchCount();
   }, []);
 
