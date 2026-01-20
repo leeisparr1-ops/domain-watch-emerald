@@ -154,15 +154,8 @@ export default function Dashboard() {
       const now = new Date();
       const endTimeFilter = now.toISOString();
       
-      // Build count query with same filters (but no pagination/sorting)
-      let countQuery = supabase
-        .from('auctions')
-        .select('id', { count: 'exact', head: true })
-        .gte('end_time', endTimeFilter)
-        .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
-      
       // Query from database with filters, sorting, and pagination
+      // REMOVED count query to prevent timeouts - we estimate count from results instead
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
@@ -170,29 +163,30 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to);
+        .range(from, to + 1); // Fetch one extra to detect if there are more pages
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
-        countQuery = countQuery.eq('tld', filters.tld.toUpperCase());
       }
       
       // Apply auction type filter
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
-        countQuery = countQuery.eq('auction_type', filters.auctionType);
       }
       
-      // Run both queries in parallel
-      const [dataResult, countResult] = await Promise.all([query, countQuery]);
+      const { data, error: queryError } = await query;
       
-      if (dataResult.error) {
-        throw dataResult.error;
+      if (queryError) {
+        throw queryError;
       }
       
-      if (dataResult.data) {
-        const mapped: AuctionDomain[] = dataResult.data.map(a => ({
+      if (data) {
+        // Check if there are more results (we fetched one extra)
+        const hasMore = data.length > itemsPerPage;
+        const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
+        
+        const mapped: AuctionDomain[] = resultsToShow.map(a => ({
           id: a.id,
           domain: a.domain_name,
           auctionEndTime: a.end_time || '',
@@ -204,7 +198,12 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        setTotalCount(countResult.count ?? (from + mapped.length + (mapped.length === itemsPerPage ? itemsPerPage : 0)));
+        // Estimate total count: if we have more, assume at least 100 more pages worth
+        // This avoids expensive COUNT queries on large tables
+        const estimatedTotal = hasMore 
+          ? Math.max(from + itemsPerPage * 100, 10000) 
+          : from + mapped.length;
+        setTotalCount(estimatedTotal);
         setLastRefresh(new Date());
       }
     } catch (err) {
