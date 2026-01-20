@@ -45,7 +45,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node .github/scripts/sync-large-inventory.js
+        run: node .github/scripts/sync-large-inventory.cjs
 
       - name: Log completion
         run: echo "Full auction sync completed at $(date)"
