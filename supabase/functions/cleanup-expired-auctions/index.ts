@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 1000;
-const MAX_BATCHES = 50; // Max 50k deletions per run to prevent timeout
+const BATCH_SIZE = 100; // Small batches to avoid timeouts
+const MAX_BATCHES = 200; // Up to 20k deletions per run
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,81 +18,93 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Create client with service role key and proper auth config
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // Parse optional parameters
     const url = new URL(req.url);
-    const daysOld = parseInt(url.searchParams.get('days') || '3');
-    const maxBatches = parseInt(url.searchParams.get('maxBatches') || String(MAX_BATCHES));
+    const daysOld = parseInt(url.searchParams.get('days') || '0');
+    const maxBatches = Math.min(parseInt(url.searchParams.get('maxBatches') || String(MAX_BATCHES)), MAX_BATCHES);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
     const cutoffISO = cutoffDate.toISOString();
 
-    console.log(`Cleaning up auctions older than ${daysOld} days (before ${cutoffISO})`);
+    console.log(`Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago)`);
 
     let totalDeleted = 0;
     let batchCount = 0;
+    let consecutiveErrors = 0;
 
-    // Delete in batches to avoid overloading the database
-    while (batchCount < maxBatches) {
-      // First, get IDs of expired auctions
-      const { data: expiredIds, error: selectError } = await supabase
+    // Delete in small batches to avoid timeouts
+    while (batchCount < maxBatches && consecutiveErrors < 3) {
+      // Get IDs of expired auctions (small batch)
+      const { data: expiredAuctions, error: selectError } = await supabase
         .from('auctions')
         .select('id')
         .lt('end_time', cutoffISO)
+        .order('end_time', { ascending: true })
         .limit(BATCH_SIZE);
 
       if (selectError) {
         console.error('Error selecting expired auctions:', selectError);
-        throw selectError;
+        consecutiveErrors++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
       }
 
-      if (!expiredIds || expiredIds.length === 0) {
+      if (!expiredAuctions || expiredAuctions.length === 0) {
         console.log('No more expired auctions to delete');
         break;
       }
 
-      const idsToDelete = expiredIds.map(row => row.id);
+      const idsToDelete = expiredAuctions.map(row => row.id);
 
-      // Delete this batch
-      const { error: deleteError, count } = await supabase
+      // Delete by specific IDs (more reliable than filter-based delete)
+      const { error: deleteError } = await supabase
         .from('auctions')
         .delete()
         .in('id', idsToDelete);
 
       if (deleteError) {
         console.error('Error deleting batch:', deleteError);
-        throw deleteError;
+        consecutiveErrors++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
       }
 
-      const deletedCount = count || idsToDelete.length;
-      totalDeleted += deletedCount;
+      consecutiveErrors = 0; // Reset on success
+      totalDeleted += idsToDelete.length;
       batchCount++;
 
-      console.log(`Batch ${batchCount}: Deleted ${deletedCount} auctions (total: ${totalDeleted})`);
+      if (batchCount % 10 === 0) {
+        console.log(`Progress: Batch ${batchCount}, deleted ${totalDeleted} auctions`);
+      }
 
-      // Small delay between batches to reduce DB pressure
-      if (expiredIds.length === BATCH_SIZE) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // If we got less than batch size, we're probably done
+      if (idsToDelete.length < BATCH_SIZE) {
+        break;
       }
     }
 
     const durationMs = Date.now() - startTime;
 
-    // Get remaining count of expired auctions
-    const { count: remainingCount } = await supabase
-      .from('auctions')
-      .select('*', { count: 'exact', head: true })
-      .lt('end_time', cutoffISO);
-
     const result = {
       success: true,
       deleted: totalDeleted,
       batches: batchCount,
-      remainingExpired: remainingCount || 0,
       durationMs,
       cutoffDate: cutoffISO,
+      message: `Deleted ${totalDeleted} expired auctions in ${batchCount} batches`,
     };
 
     console.log('Cleanup complete:', result);
@@ -105,7 +117,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : String(error),
         durationMs: Date.now() - startTime,
       }),
       {
