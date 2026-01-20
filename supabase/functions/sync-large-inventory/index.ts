@@ -17,11 +17,14 @@ const LARGE_INVENTORY_FILES: Record<string, string> = {
   allListings: 'all_listings.json.zip',
 };
 
-// Conservative limits to avoid memory issues
-const MAX_DOWNLOAD_SIZE = 20 * 1024 * 1024; // 20MB compressed max
-const CHUNK_SIZE = 15000; // Process 15K domains per chunk
-const MAX_DECOMPRESSED = 50 * 1024 * 1024; // 50MB decompressed limit
-const BATCH_SIZE = 500; // Smaller DB batches
+// More aggressive limits to work within edge function constraints
+// Closeout file is ~8MB compressed, ~90MB decompressed - too big for edge functions
+// We'll download in streaming mode but limit decompression to first N bytes
+const MAX_DOWNLOAD_SIZE = 10 * 1024 * 1024; // 10MB compressed max
+const CHUNK_SIZE = 10000; // Process 10K domains per chunk
+const MAX_DECOMPRESSED = 25 * 1024 * 1024; // 25MB decompressed limit (stricter)
+const BATCH_SIZE = 300; // Smaller DB batches for faster processing
+const MAX_EXECUTION_TIME = 50000; // 50 seconds max per call
 
 function extractTld(domain: string): string {
   const parts = domain.split('.');
@@ -79,8 +82,8 @@ async function downloadWithLimit(url: string, maxSize: number): Promise<Uint8Arr
   return result;
 }
 
-// Streaming JSON extraction from ZIP - memory optimized
-async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed: number): Promise<string> {
+// Streaming JSON extraction from ZIP - memory optimized with timeout
+async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed: number, startTime: number): Promise<string> {
   const view = new DataView(zipData.buffer);
   
   if (view.getUint32(0, true) !== 0x04034b50) {
@@ -107,9 +110,15 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   const writer = ds.writable.getWriter();
   const reader = ds.readable.getReader();
   
+  // Feed compressed data in small chunks - with early abort if taking too long
   const writePromise = (async () => {
-    const CHUNK = 256 * 1024; // Smaller chunks for memory
+    const CHUNK = 128 * 1024; // 128KB chunks for faster processing
     for (let i = 0; i < compressedData.length; i += CHUNK) {
+      // Check if we're running out of time
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.log('Stopping compression feed early due to time limit');
+        break;
+      }
       await writer.write(compressedData.slice(i, i + CHUNK));
     }
     await writer.close();
@@ -119,6 +128,12 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   let totalSize = 0;
   
   while (totalSize < maxDecompressed) {
+    // Check time limit during decompression
+    if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+      console.log('Stopping decompression early due to time limit');
+      break;
+    }
+    
     try {
       const { done, value } = await reader.read();
       if (done) break;
@@ -131,7 +146,7 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   
   await writePromise.catch(() => {});
   
-  console.log(`Decompressed ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+  console.log(`Decompressed ${(totalSize / 1024 / 1024).toFixed(2)}MB in ${Date.now() - startTime}ms`);
   
   const result = new Uint8Array(totalSize);
   let offset = 0;
@@ -246,7 +261,7 @@ serve(async (req) => {
     const zipData = await downloadWithLimit(inventoryUrl, MAX_DOWNLOAD_SIZE);
     
     // Decompress with memory limit
-    const jsonContent = await extractJsonFromZipStreaming(zipData, MAX_DECOMPRESSED);
+    const jsonContent = await extractJsonFromZipStreaming(zipData, MAX_DECOMPRESSED, startTime);
     
     // Parse with offset/limit
     const { items: rawAuctions, total, hasMore } = parseJsonArrayWithOffset(jsonContent, chunkOffset, chunkLimit);
