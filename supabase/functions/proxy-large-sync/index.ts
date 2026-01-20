@@ -8,11 +8,11 @@ const corsHeaders = {
 // Batch size for upserts
 const BATCH_SIZE = 500;
 
-// Large inventory files to sync
+// Large inventory files to sync - correct GoDaddy URLs
 const INVENTORY_SOURCES = [
-  { type: 'closeout', url: 'https://inventory.auctions.godaddy.com/inventory/closeout.json.zip' },
-  { type: 'allExpiring', url: 'https://inventory.auctions.godaddy.com/inventory/allExpiring.json.zip' },
-  { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/inventory/allListings.json.zip' },
+  { type: 'closeout', url: 'https://inventory.auctions.godaddy.com/closeout_listings.json.zip' },
+  { type: 'allExpiring', url: 'https://inventory.auctions.godaddy.com/all_expiring_auctions.json.zip' },
+  { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/all_listings.json.zip' },
 ];
 
 Deno.serve(async (req) => {
@@ -70,18 +70,26 @@ Deno.serve(async (req) => {
         const jsonData = new TextDecoder().decode(unzipped[jsonFileName]);
         console.log(`Decompressed ${source.type}: ${(jsonData.length / 1024 / 1024).toFixed(2)}MB`);
         
-        // Parse JSON
+        // Parse JSON - handle different structures
         let items: any[];
         const parsed = JSON.parse(jsonData);
         
         if (Array.isArray(parsed)) {
           items = parsed;
+        } else if (parsed.data && Array.isArray(parsed.data)) {
+          items = parsed.data;
+        } else if (parsed.domains && Array.isArray(parsed.domains)) {
+          items = parsed.domains;
+        } else if (parsed.listings && Array.isArray(parsed.listings)) {
+          items = parsed.listings;
         } else if (parsed.auctions && Array.isArray(parsed.auctions)) {
           items = parsed.auctions;
         } else if (parsed.items && Array.isArray(parsed.items)) {
           items = parsed.items;
         } else {
-          throw new Error('Unknown JSON structure');
+          // Log the structure to help debug
+          console.log('JSON keys:', Object.keys(parsed));
+          throw new Error(`Unknown JSON structure. Keys: ${Object.keys(parsed).join(', ')}`);
         }
         
         console.log(`Parsed ${items.length} items from ${source.type}`);
@@ -91,18 +99,22 @@ Deno.serve(async (req) => {
         
         for (let i = 0; i < items.length; i += BATCH_SIZE) {
           const batch = items.slice(i, i + BATCH_SIZE).map(item => {
-            const domainName = (item.domainName || item.domain || item.name || '').toLowerCase();
+            const domainName = (item.domainName || item.DomainName || item.domain || item.name || '').toLowerCase();
+            const price = typeof item.price === 'string' 
+              ? parseFloat(item.price.replace(/[$,]/g, '')) 
+              : parseFloat(item.price || item.Price || item.currentPrice || item.minBid || '0') || 0;
+            
             return {
               domain_name: domainName,
-              price: parseFloat(item.price || item.currentPrice || item.minBid || '0') || 0,
-              bid_count: parseInt(item.bids || item.bidCount || item.numberOfBids || '0') || 0,
-              end_time: item.auctionEndTime || item.endTime || item.expiryDate || null,
-              traffic_count: parseInt(item.traffic || item.visitors || '0') || 0,
-              valuation: parseFloat(item.estibotValue || item.valuation || item.appraisal || '0') || null,
-              domain_age: parseInt(item.domainAge || item.age || '0') || null,
-              tld: domainName.includes('.') ? domainName.split('.').pop() : null,
+              price: price || 0,
+              bid_count: parseInt(item.numberOfBids || item.NumberOfBids || item.bids || item.bidCount || '0') || 0,
+              end_time: item.auctionEndTime || item.AuctionEndTime || item.endTime || item.expiryDate || null,
+              traffic_count: parseInt(item.pageviews || item.traffic || item.Traffic || item.visitors || '0') || 0,
+              valuation: parseFloat(item.valuation || item.Valuation || item.estibotValue || item.appraisal || '0') || null,
+              domain_age: parseInt(item.domainAge || item.DomainAge || item.age || '0') || null,
+              tld: domainName.includes('.') ? '.' + domainName.split('.').pop() : null,
               inventory_source: source.type,
-              auction_type: item.auctionType || item.type || 'standard',
+              auction_type: item.auctionType || item.AuctionType || item.type || 'standard',
             };
           }).filter(a => a.domain_name && a.domain_name.length > 0);
           
