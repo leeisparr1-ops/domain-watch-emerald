@@ -166,6 +166,21 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_control: {
+        Row: {
+          id: number
+          last_triggered_at: string
+        }
+        Insert: {
+          id: number
+          last_triggered_at?: string
+        }
+        Update: {
+          id?: number
+          last_triggered_at?: string
+        }
+        Relationships: []
+      }
       sync_history: {
         Row: {
           auctions_count: number
@@ -193,6 +208,27 @@ export type Database = {
           inventory_source?: string
           success?: boolean
           synced_at?: string
+        }
+        Relationships: []
+      }
+      sync_locks: {
+        Row: {
+          expires_at: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+        }
+        Insert: {
+          expires_at?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+        }
+        Update: {
+          expires_at?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
         }
         Relationships: []
       }
@@ -273,6 +309,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_sync_lock: {
+        Args: { lock_duration_minutes?: number; lock_holder: string }
+        Returns: boolean
+      }
+      is_sync_locked: {
+        Args: never
+        Returns: {
+          expires_at: string
+          is_locked: boolean
+          locked_at: string
+          locked_by: string
+        }[]
+      }
+      release_sync_lock: { Args: { lock_holder: string }; Returns: boolean }
       trigger_auction_sync: { Args: never; Returns: undefined }
     }
     Enums: {
