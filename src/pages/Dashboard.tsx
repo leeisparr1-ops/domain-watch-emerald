@@ -198,12 +198,16 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        // Estimate total count: if we have more, assume at least 100 more pages worth
-        // This avoids expensive COUNT queries on large tables
-        const estimatedTotal = hasMore 
-          ? Math.max(from + itemsPerPage * 100, 10000) 
-          : from + mapped.length;
-        setTotalCount(estimatedTotal);
+        // Estimate total count: if we have more pages, keep increasing the estimate
+        // This avoids expensive COUNT queries on large tables while allowing full navigation
+        if (hasMore) {
+          // If there are more results, estimate at least 1000 more pages from current position
+          const newEstimate = from + itemsPerPage * 1000;
+          setTotalCount(prev => Math.max(prev, newEstimate));
+        } else {
+          // We've reached the end - set exact count
+          setTotalCount(from + mapped.length);
+        }
         setLastRefresh(new Date());
       }
     } catch (err) {
@@ -529,46 +533,52 @@ export default function Dashboard() {
           {!loading && !error && filtered.length > 0 && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-3 sm:gap-4">
-                {filtered.map((d, i) => (
-                  <motion.div key={d.id || i}
-                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                    className="p-3 sm:p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Gavel className="w-5 h-5 text-primary" /></div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-mono text-base sm:text-lg text-primary group-hover:glow-text truncate">{d.domain}</div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'Auction'}</span>
-                          <Badge variant="outline" className="text-xs">{d.tld}</Badge>
-                          <span className="text-sm font-bold sm:hidden">${d.price.toLocaleString()}</span>
+              {filtered.map((d, i) => (
+                  <a
+                    key={d.id || i}
+                    href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+                      className="p-3 sm:p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group cursor-pointer">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Gavel className="w-5 h-5 text-primary" /></div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-base sm:text-lg text-primary group-hover:glow-text truncate">{d.domain}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'Auction'}</span>
+                            <Badge variant="outline" className="text-xs">{d.tld}</Badge>
+                            <span className="text-sm font-bold sm:hidden">${d.price.toLocaleString()}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 md:gap-8">
-                      <div className="text-right hidden sm:block">
-                        <div className="font-bold">${d.price.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleFavorite(d.domain, d.id);
-                        }}
-                        className={isFavorite(d.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
-                      >
-                        <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
-                      </Button>
-                      <a href={`https://www.google.com/search?q=${d.domain}`} target="_blank" rel="noopener noreferrer" className="hidden sm:block">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 md:gap-8">
+                        <div className="text-right hidden sm:block">
+                          <div className="font-bold">${d.price.toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleFavorite(d.domain, d.id);
+                          }}
+                          className={isFavorite(d.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
+                        >
+                          <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
+                        </Button>
                         <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    </div>
-                  </motion.div>
+                      </div>
+                    </motion.div>
+                  </a>
                 ))}
               </motion.div>
 
