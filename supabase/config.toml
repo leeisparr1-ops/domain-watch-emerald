@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.chunked-sync-orchestrator]
 verify_jwt = false
+
+[functions.cleanup-expired-auctions]
+verify_jwt = false
