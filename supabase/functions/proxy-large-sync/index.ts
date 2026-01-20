@@ -70,25 +70,51 @@ Deno.serve(async (req) => {
         const jsonData = new TextDecoder().decode(unzipped[jsonFileName]);
         console.log(`Decompressed ${source.type}: ${(jsonData.length / 1024 / 1024).toFixed(2)}MB`);
         
-        // Parse JSON - handle different structures
+        // Parse JSON - handle different GoDaddy structures
         let items: any[];
         const parsed = JSON.parse(jsonData);
         
+        console.log('Parsed JSON - top level keys:', Object.keys(parsed));
+        
         if (Array.isArray(parsed)) {
           items = parsed;
-        } else if (parsed.data && Array.isArray(parsed.data)) {
-          items = parsed.data;
+          console.log('Found root array');
+        } else if (parsed.data) {
+          // Handle { meta: {...}, data: [...] } or { data: { domains: [...] } }
+          if (Array.isArray(parsed.data)) {
+            items = parsed.data;
+            console.log('Found data array');
+          } else if (parsed.data.domains && Array.isArray(parsed.data.domains)) {
+            items = parsed.data.domains;
+            console.log('Found data.domains array');
+          } else if (parsed.data.listings && Array.isArray(parsed.data.listings)) {
+            items = parsed.data.listings;
+            console.log('Found data.listings array');
+          } else if (parsed.data.auctions && Array.isArray(parsed.data.auctions)) {
+            items = parsed.data.auctions;
+            console.log('Found data.auctions array');
+          } else {
+            console.log('Data structure:', typeof parsed.data, Object.keys(parsed.data || {}));
+            throw new Error(`Unknown data structure. Data keys: ${Object.keys(parsed.data || {}).join(', ')}`);
+          }
         } else if (parsed.domains && Array.isArray(parsed.domains)) {
           items = parsed.domains;
+          console.log('Found domains array');
         } else if (parsed.listings && Array.isArray(parsed.listings)) {
           items = parsed.listings;
+          console.log('Found listings array');
         } else if (parsed.auctions && Array.isArray(parsed.auctions)) {
           items = parsed.auctions;
+          console.log('Found auctions array');
         } else if (parsed.items && Array.isArray(parsed.items)) {
           items = parsed.items;
+          console.log('Found items array');
         } else {
           // Log the structure to help debug
-          console.log('JSON keys:', Object.keys(parsed));
+          console.log('Unknown structure - keys:', Object.keys(parsed));
+          if (parsed.data) {
+            console.log('Data type:', typeof parsed.data);
+          }
           throw new Error(`Unknown JSON structure. Keys: ${Object.keys(parsed).join(', ')}`);
         }
         
