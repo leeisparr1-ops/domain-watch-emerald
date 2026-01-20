@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.cleanup-expired-auctions]
 verify_jwt = false
+
+[functions.sync-closeout]
+verify_jwt = false
