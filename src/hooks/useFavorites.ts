@@ -16,16 +16,28 @@ export function useFavorites() {
     }
 
     try {
+      // Use AbortController with timeout to prevent long-running queries
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const { data, error } = await supabase
         .from('favorites')
         .select('domain_name')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) throw error;
 
       setFavorites(new Set(data?.map(f => f.domain_name) || []));
     } catch (err) {
-      console.error('Error fetching favorites:', err);
+      // Silently fail on timeout - favorites aren't critical for page load
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.warn('Favorites fetch timed out - DB may be under load');
+      } else {
+        console.error('Error fetching favorites:', err);
+      }
     } finally {
       setLoading(false);
     }

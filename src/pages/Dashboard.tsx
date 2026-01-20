@@ -154,6 +154,10 @@ export default function Dashboard() {
       const now = new Date();
       const endTimeFilter = now.toISOString();
       
+      // Use AbortController with timeout to prevent hanging on overloaded DB
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       // Query from database with filters, sorting, and pagination
       // REMOVED count query to prevent timeouts - we estimate count from results instead
       let query = supabase
@@ -163,7 +167,8 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to + 1); // Fetch one extra to detect if there are more pages
+        .range(from, to + 1) // Fetch one extra to detect if there are more pages
+        .abortSignal(controller.signal);
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
@@ -176,6 +181,8 @@ export default function Dashboard() {
       }
       
       const { data, error: queryError } = await query;
+      
+      clearTimeout(timeoutId);
       
       if (queryError) {
         throw queryError;
@@ -211,8 +218,13 @@ export default function Dashboard() {
         setLastRefresh(new Date());
       }
     } catch (err) {
-      console.error('Error fetching auctions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
+      // Handle timeout gracefully
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Database is busy - please try again in a moment');
+      } else {
+        console.error('Error fetching auctions:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
+      }
     } finally {
       setLoading(false);
     }
