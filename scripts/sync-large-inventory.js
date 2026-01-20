@@ -22,13 +22,16 @@ const { createUnzip } = require('zlib');
 const { pipeline } = require('stream/promises');
 
 // Large inventory files that are too big for edge functions
-// These are the correct GoDaddy auction inventory URLs
+// Using the CORRECT GoDaddy inventory URLs from: https://inventory.auctions.godaddy.com/
+const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
+
 const LARGE_INVENTORY_TYPES = [
-  { type: 'closeout', url: 'https://auctions.godaddy.com/beta/closeout_listings.json.zip' },
-  { type: 'allBiddable', url: 'https://auctions.godaddy.com/beta/all_biddable_listings.json.zip' },
-  { type: 'allExpiring', url: 'https://auctions.godaddy.com/beta/all_expiring_listings.json.zip' },
-  { type: 'allListings', url: 'https://auctions.godaddy.com/beta/all_listings.json.zip' },
-  { type: 'endingToday', url: 'https://auctions.godaddy.com/beta/listings_ending_today.json.zip' },
+  // These are the large files that contain 300k+ domains
+  { type: 'closeout', url: `${INVENTORY_BASE}/closeout_listings.json.zip` },              // ~8.6MB - closeout domains
+  { type: 'allBiddable', url: `${INVENTORY_BASE}/all_biddable_auctions.json.zip` },       // ~19MB - all biddable
+  { type: 'allExpiring', url: `${INVENTORY_BASE}/all_expiring_auctions.json.zip` },       // ~28MB - all expiring (MAIN SOURCE)
+  { type: 'allListings', url: `${INVENTORY_BASE}/all_listings.json.zip` },                // ~28MB - all listings  
+  { type: 'endingToday', url: `${INVENTORY_BASE}/all_listings_ending_today.json.zip` },   // ~10MB - ending today
 ];
 
 // Configuration
