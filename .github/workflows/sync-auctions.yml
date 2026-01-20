@@ -7,30 +7,8 @@ on:
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
-  # First job: Sync small inventory files via edge function
-  sync-small:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger small inventory sync
-        run: |
-          echo "Triggering edge function for small inventory files..."
-          curl -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cron-sync-auctions" \
-            -H "Content-Type: application/json" \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 300
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          
-      - name: Log result
-        run: echo "Small inventory sync triggered at $(date)"
-
-  # Second job: Sync large inventory files directly (bypasses edge function limits)
   sync-large:
     runs-on: ubuntu-latest
-    needs: sync-small
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
