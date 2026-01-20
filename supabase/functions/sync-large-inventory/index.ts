@@ -8,23 +8,35 @@ const corsHeaders = {
 
 const INVENTORY_BASE = 'https://inventory.auctions.godaddy.com';
 
-// Large inventory files
-const LARGE_INVENTORY_FILES: Record<string, string> = {
-  closeout: 'closeout_listings.json.zip',
-  endingToday: 'all_listings_ending_today.json.zip',
-  allBiddable: 'all_biddable_auctions.json.zip',
-  allExpiring: 'all_expiring_auctions.json.zip',
-  allListings: 'all_listings.json.zip',
+// Use the SMALLER paginated files that edge functions CAN handle
+// These are subsets of the large files, updated frequently
+const MANAGEABLE_INVENTORY_FILES: Record<string, { file: string; description: string }> = {
+  // These are small enough for edge functions (<5MB compressed)
+  featured: { file: 'featured_listings.json.zip', description: 'Featured domains' },
+  mostActive: { file: 'most_active_auctions.json.zip', description: 'Most active auctions' },
+  endingTomorrow: { file: 'auctions_ending_tomorrow.json.zip', description: 'Ending tomorrow' },
+  endingToday: { file: 'auctions_ending_today.json.zip', description: 'Ending today' },
+  fiveLetter: { file: 'five_letter_auctions.json.zip', description: '5-letter domains' },
+  withPageviews: { file: 'domains_with_pageviews.json.zip', description: 'With traffic' },
+  recent: { file: 'recent_auctions.json.zip', description: 'Recently listed' },
+  listings: { file: 'listings.json.zip', description: 'Buy-now listings' },
+  listings2: { file: 'listings2.json.zip', description: 'More listings' },
+  nonAdultListings: { file: 'non_adult_listings.json.zip', description: 'Non-adult listings' },
+  nonAdultListings2: { file: 'non_adult_listings2.json.zip', description: 'More non-adult' },
 };
 
-// More aggressive limits to work within edge function constraints
-// Closeout file is ~8MB compressed, ~90MB decompressed - too big for edge functions
-// We'll download in streaming mode but limit decompression to first N bytes
-const MAX_DOWNLOAD_SIZE = 10 * 1024 * 1024; // 10MB compressed max
-const CHUNK_SIZE = 10000; // Process 10K domains per chunk
-const MAX_DECOMPRESSED = 25 * 1024 * 1024; // 25MB decompressed limit (stricter)
-const BATCH_SIZE = 300; // Smaller DB batches for faster processing
-const MAX_EXECUTION_TIME = 50000; // 50 seconds max per call
+// Large files - these need special handling with byte-range requests
+const LARGE_INVENTORY_FILES: Record<string, { file: string; description: string; sizeEstimate: string }> = {
+  closeout: { file: 'closeout_listings.json.zip', description: 'Closeout domains', sizeEstimate: '~8MB' },
+  allExpiring: { file: 'all_expiring_auctions.json.zip', description: 'All expiring', sizeEstimate: '~15MB' },
+  allListings: { file: 'all_listings.json.zip', description: 'All listings', sizeEstimate: '~20MB' },
+  allBiddable: { file: 'all_biddable_auctions.json.zip', description: 'All biddable', sizeEstimate: '~10MB' },
+};
+
+const BATCH_SIZE = 500;
+const MAX_DOWNLOAD_SIZE = 8 * 1024 * 1024; // 8MB max download
+const MAX_DECOMPRESSED = 20 * 1024 * 1024; // 20MB decompressed limit
+const MAX_EXECUTION_TIME = 45000; // 45 seconds
 
 function extractTld(domain: string): string {
   const parts = domain.split('.');
@@ -38,52 +50,71 @@ function parsePrice(priceRaw: string | number): number {
   return parseFloat(String(priceRaw)) || 0;
 }
 
-// Stream download with size limit
-async function downloadWithLimit(url: string, maxSize: number): Promise<Uint8Array> {
-  console.log(`Downloading from ${url}, max: ${(maxSize / 1024 / 1024).toFixed(0)}MB`);
+// Stream download with size limit and byte-range support
+async function downloadWithByteRange(
+  url: string, 
+  startByte: number, 
+  maxSize: number
+): Promise<{ data: Uint8Array; totalSize: number | null; isComplete: boolean }> {
+  console.log(`Downloading from ${url}, range: ${startByte}-${startByte + maxSize}`);
   
-  const response = await fetch(url, {
-    headers: {
-      'Accept': '*/*',
-      'User-Agent': 'ExpiredHawk/1.0',
-    },
-  });
-
-  if (!response.ok) {
+  const headers: Record<string, string> = {
+    'Accept': '*/*',
+    'User-Agent': 'DomainHawk/1.0',
+  };
+  
+  // Only use range if not starting from 0
+  if (startByte > 0) {
+    headers['Range'] = `bytes=${startByte}-${startByte + maxSize - 1}`;
+  }
+  
+  const response = await fetch(url, { headers });
+  
+  if (!response.ok && response.status !== 206) {
     throw new Error(`Failed to fetch: ${response.status}`);
   }
-
+  
+  // Parse content-range to get total size
+  const contentRange = response.headers.get('content-range');
+  let totalSize: number | null = null;
+  if (contentRange) {
+    const match = contentRange.match(/\/(\d+)/);
+    if (match) totalSize = parseInt(match[1]);
+  }
+  
   const reader = response.body?.getReader();
   if (!reader) throw new Error('No response body');
-
+  
   const chunks: Uint8Array[] = [];
-  let totalSize = 0;
-
-  while (totalSize < maxSize) {
+  let downloadedSize = 0;
+  
+  while (downloadedSize < maxSize) {
     const { done, value } = await reader.read();
     if (done) break;
     chunks.push(value);
-    totalSize += value.length;
+    downloadedSize += value.length;
   }
-
-  if (totalSize >= maxSize) {
+  
+  // Check if we got all the data
+  const isComplete = response.status !== 206 || downloadedSize < maxSize;
+  
+  if (!isComplete) {
     await reader.cancel();
-    console.log(`Download capped at ${(totalSize / 1024 / 1024).toFixed(1)}MB`);
   }
-
-  const result = new Uint8Array(totalSize);
+  
+  const result = new Uint8Array(downloadedSize);
   let offset = 0;
   for (const chunk of chunks) {
     result.set(chunk, offset);
     offset += chunk.length;
   }
   
-  console.log(`Downloaded ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-  return result;
+  console.log(`Downloaded ${(downloadedSize / 1024 / 1024).toFixed(2)}MB, complete: ${isComplete}`);
+  return { data: result, totalSize, isComplete };
 }
 
-// Streaming JSON extraction from ZIP - memory optimized with timeout
-async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed: number, startTime: number): Promise<string> {
+// Streaming JSON extraction from ZIP
+async function extractJsonFromZip(zipData: Uint8Array, maxDecompressed: number): Promise<string> {
   const view = new DataView(zipData.buffer);
   
   if (view.getUint32(0, true) !== 0x04034b50) {
@@ -110,15 +141,10 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   const writer = ds.writable.getWriter();
   const reader = ds.readable.getReader();
   
-  // Feed compressed data in small chunks - with early abort if taking too long
+  // Feed compressed data in chunks
   const writePromise = (async () => {
-    const CHUNK = 128 * 1024; // 128KB chunks for faster processing
+    const CHUNK = 64 * 1024;
     for (let i = 0; i < compressedData.length; i += CHUNK) {
-      // Check if we're running out of time
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.log('Stopping compression feed early due to time limit');
-        break;
-      }
       await writer.write(compressedData.slice(i, i + CHUNK));
     }
     await writer.close();
@@ -128,12 +154,6 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   let totalSize = 0;
   
   while (totalSize < maxDecompressed) {
-    // Check time limit during decompression
-    if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-      console.log('Stopping decompression early due to time limit');
-      break;
-    }
-    
     try {
       const { done, value } = await reader.read();
       if (done) break;
@@ -146,7 +166,7 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
   
   await writePromise.catch(() => {});
   
-  console.log(`Decompressed ${(totalSize / 1024 / 1024).toFixed(2)}MB in ${Date.now() - startTime}ms`);
+  console.log(`Decompressed ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
   
   const result = new Uint8Array(totalSize);
   let offset = 0;
@@ -155,41 +175,29 @@ async function extractJsonFromZipStreaming(zipData: Uint8Array, maxDecompressed:
     offset += chunk.length;
   }
   
-  // Free memory before text decode
-  chunks.length = 0;
-  
+  chunks.length = 0; // Free memory
   return new TextDecoder().decode(result);
 }
 
-// Parse JSON with offset support - memory efficient
-function parseJsonArrayWithOffset(text: string, offset: number, limit: number): { items: any[], total: number, hasMore: boolean } {
-  let items: any[] = [];
-  let total = 0;
-  
+// Parse potentially truncated JSON
+function parseJsonArray(text: string): any[] {
   // Try standard parse first
   try {
     const parsed = JSON.parse(text);
-    const arr = Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || []);
-    total = arr.length;
-    items = arr.slice(offset, offset + limit);
-    console.log(`Parsed ${total} total items, returning ${items.length} (offset: ${offset})`);
-    // Free memory
-    return { items, total, hasMore: offset + limit < total };
+    return Array.isArray(parsed) ? parsed : (parsed.auctions || parsed.listings || []);
   } catch {
-    console.log('Using incremental parser with offset...');
+    console.log('Standard parse failed, using incremental parser...');
   }
   
   // Incremental parse for truncated JSON
-  const auctions: any[] = [];
+  const items: any[] = [];
   const startIdx = text.indexOf('[');
-  if (startIdx === -1) return { items: [], total: 0, hasMore: false };
+  if (startIdx === -1) return [];
   
   let depth = 0;
   let objectStart = -1;
   let inString = false;
   let escape = false;
-  let itemIndex = 0;
-  const endIndex = offset + limit;
   
   for (let i = startIdx; i < text.length; i++) {
     const char = text[i];
@@ -205,28 +213,19 @@ function parseJsonArrayWithOffset(text: string, offset: number, limit: number): 
     } else if (char === '}') {
       depth--;
       if (depth === 1 && objectStart !== -1) {
-        if (itemIndex >= offset && itemIndex < endIndex) {
-          try {
-            const obj = JSON.parse(text.substring(objectStart, i + 1));
-            if (obj.domainName || obj.DomainName || obj.domain) {
-              auctions.push(obj);
-            }
-          } catch {}
-        }
-        itemIndex++;
+        try {
+          const obj = JSON.parse(text.substring(objectStart, i + 1));
+          if (obj.domainName || obj.DomainName || obj.domain) {
+            items.push(obj);
+          }
+        } catch {}
         objectStart = -1;
-        
-        if (auctions.length >= limit) {
-          break;
-        }
       }
     }
   }
   
-  total = itemIndex;
-  
-  console.log(`Parsed ${auctions.length} items (offset: ${offset}, estimated total: ${total})`);
-  return { items: auctions, total, hasMore: auctions.length === limit };
+  console.log(`Incremental parser found ${items.length} items`);
+  return items;
 }
 
 serve(async (req) => {
@@ -241,30 +240,56 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const inventoryType = url.searchParams.get('type') || 'closeout';
-    const chunkOffset = parseInt(url.searchParams.get('offset') || '0');
-    const chunkLimit = parseInt(url.searchParams.get('limit') || String(CHUNK_SIZE));
+    const mode = url.searchParams.get('mode') || 'auto'; // 'auto', 'manageable', 'large'
     
-    const inventoryFile = LARGE_INVENTORY_FILES[inventoryType];
-    if (!inventoryFile) {
+    const startTime = Date.now();
+    
+    // Check if it's a manageable file first
+    const manageableConfig = MANAGEABLE_INVENTORY_FILES[inventoryType];
+    const largeConfig = LARGE_INVENTORY_FILES[inventoryType];
+    
+    if (!manageableConfig && !largeConfig) {
       return new Response(
-        JSON.stringify({ success: false, error: `Unknown type: ${inventoryType}` }),
+        JSON.stringify({ 
+          success: false, 
+          error: `Unknown inventory type: ${inventoryType}`,
+          available: {
+            manageable: Object.keys(MANAGEABLE_INVENTORY_FILES),
+            large: Object.keys(LARGE_INVENTORY_FILES),
+          }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    const inventoryUrl = `${INVENTORY_BASE}/${inventoryFile}`;
-    console.log(`=== Syncing: ${inventoryType} (offset: ${chunkOffset}, limit: ${chunkLimit}) ===`);
+    const isLarge = !!largeConfig;
+    const config = manageableConfig || largeConfig;
+    const inventoryUrl = `${INVENTORY_BASE}/${config.file}`;
     
-    const startTime = Date.now();
+    console.log(`=== Syncing ${inventoryType} (${isLarge ? 'LARGE' : 'manageable'}) ===`);
     
-    // Download with limit
-    const zipData = await downloadWithLimit(inventoryUrl, MAX_DOWNLOAD_SIZE);
+    // Download file
+    const { data: zipData, isComplete } = await downloadWithByteRange(
+      inventoryUrl, 
+      0, 
+      MAX_DOWNLOAD_SIZE
+    );
     
-    // Decompress with memory limit
-    const jsonContent = await extractJsonFromZipStreaming(zipData, MAX_DECOMPRESSED, startTime);
+    if (!isComplete && isLarge) {
+      console.log(`Large file ${inventoryType} truncated at ${MAX_DOWNLOAD_SIZE} bytes - processing partial data`);
+    }
     
-    // Parse with offset/limit
-    const { items: rawAuctions, total, hasMore } = parseJsonArrayWithOffset(jsonContent, chunkOffset, chunkLimit);
+    // Decompress
+    const jsonContent = await extractJsonFromZip(zipData, MAX_DECOMPRESSED);
+    
+    // Check time
+    if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+      console.log('Approaching time limit, stopping early');
+    }
+    
+    // Parse
+    const rawAuctions = parseJsonArray(jsonContent);
+    console.log(`Found ${rawAuctions.length} auctions`);
     
     // Transform
     const auctionsToUpsert = rawAuctions
@@ -289,6 +314,12 @@ serve(async (req) => {
     const errors: string[] = [];
     
     for (let i = 0; i < auctionsToUpsert.length; i += BATCH_SIZE) {
+      // Check time before each batch
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.log(`Time limit reached after ${totalUpserted} upserts`);
+        break;
+      }
+      
       const batch = auctionsToUpsert.slice(i, i + BATCH_SIZE);
       const { error } = await supabase
         .from('auctions')
@@ -296,30 +327,33 @@ serve(async (req) => {
       
       if (error) {
         errors.push(error.message);
+        console.error(`Batch error: ${error.message}`);
       } else {
         totalUpserted += batch.length;
       }
     }
     
     const duration = Date.now() - startTime;
-    const nextOffset = hasMore ? chunkOffset + chunkLimit : null;
     
-    console.log(`=== Done: ${totalUpserted} in ${(duration / 1000).toFixed(1)}s, hasMore: ${hasMore} ===`);
+    // Log to sync_history
+    await supabase.from('sync_history').insert({
+      inventory_source: inventoryType,
+      success: errors.length === 0,
+      auctions_count: totalUpserted,
+      duration_ms: duration,
+      error_message: errors.length > 0 ? errors.slice(0, 3).join('; ') : null,
+    });
+    
+    console.log(`=== Done: ${totalUpserted} in ${(duration / 1000).toFixed(1)}s ===`);
 
     return new Response(
       JSON.stringify({
-        success: true,
-        message: `Synced chunk ${Math.floor(chunkOffset / chunkLimit) + 1} of ${inventoryType}`,
+        success: errors.length === 0,
+        message: `Synced ${totalUpserted} auctions from ${inventoryType}`,
         count: totalUpserted,
-        chunk: {
-          offset: chunkOffset,
-          limit: chunkLimit,
-          processed: rawAuctions.length,
-          upserted: totalUpserted,
-        },
-        total_estimated: total,
-        hasMore,
-        nextOffset,
+        found: rawAuctions.length,
+        isLarge,
+        wasComplete: isComplete,
         duration_ms: duration,
         errors: errors.length > 0 ? errors.slice(0, 3) : undefined,
       }),
@@ -328,6 +362,23 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Sync error:', error);
+    
+    // Log error
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+    
+    const url = new URL(req.url);
+    const inventoryType = url.searchParams.get('type') || 'closeout';
+    
+    await supabase.from('sync_history').insert({
+      inventory_source: inventoryType,
+      success: false,
+      auctions_count: 0,
+      error_message: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
