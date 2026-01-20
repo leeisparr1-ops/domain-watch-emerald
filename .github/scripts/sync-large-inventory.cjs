@@ -13,6 +13,14 @@ const https = require('https');
 const { createWriteStream, unlinkSync, existsSync, mkdirSync, readFileSync } = require('fs');
 const { join } = require('path');
 
+// Node.js 18+ provides a built-in fetch() (Node 20 in GitHub Actions).
+// Avoid node-fetch here to prevent CommonJS/ESM interop issues like "fetch is not a function".
+const fetch = global.fetch;
+if (typeof fetch !== 'function') {
+  console.error('❌ This script requires Node.js 18+ (global fetch missing).');
+  process.exit(1);
+}
+
 // Large inventory files from GoDaddy - correct URLs
 const LARGE_INVENTORY_TYPES = [
   { type: 'closeout', url: 'https://inventory.auctions.godaddy.com/closeout_listings.json.zip' },
@@ -52,20 +60,50 @@ function downloadFile(url, destPath) {
     const file = createWriteStream(destPath);
     
     console.log(`   Downloading ${url}...`);
-    
-    https.get(url, (response) => {
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        // Handle redirect
-        file.close();
-        downloadFile(response.headers.location, destPath).then(resolve).catch(reject);
-        return;
-      }
-      
-      if (response.statusCode !== 200) {
-        file.close();
-        reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
-        return;
-      }
+
+    const requestUrl = new URL(url);
+    const req = https.request(
+      {
+        protocol: requestUrl.protocol,
+        hostname: requestUrl.hostname,
+        path: `${requestUrl.pathname}${requestUrl.search}`,
+        method: 'GET',
+        headers: {
+          // GoDaddy inventory endpoints can return 403 without browser-like headers
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://auctions.godaddy.com/',
+          'Connection': 'keep-alive',
+        },
+      },
+      (response) => {
+        const status = response.statusCode || 0;
+
+        // Handle redirects (including 307/308)
+        if ([301, 302, 303, 307, 308].includes(status) && response.headers.location) {
+          file.close();
+          const nextUrl = new URL(response.headers.location, url).toString();
+          downloadFile(nextUrl, destPath).then(resolve).catch(reject);
+          return;
+        }
+
+        if (status !== 200) {
+          // Capture a small slice of body for debugging (403 pages etc.)
+          let body = '';
+          response.on('data', (chunk) => {
+            if (body.length < 4000) body += chunk.toString('utf8');
+          });
+          response.on('end', () => {
+            file.close();
+            reject(
+              new Error(
+                `HTTP ${status}: ${response.statusMessage}${body ? `\nBody (truncated): ${body.substring(0, 200)}` : ''}`
+              )
+            );
+          });
+          return;
+        }
       
       const totalBytes = parseInt(response.headers['content-length'], 10);
       let downloadedBytes = 0;
@@ -85,11 +123,23 @@ function downloadFile(url, destPath) {
         console.log(''); // New line after progress
         resolve(destPath);
       });
-    }).on('error', (err) => {
-      file.close();
+
+      }
+    );
+
+    req.setTimeout(120000, () => {
+      req.destroy(new Error('Download timeout'));
+    });
+
+    req.on('error', (err) => {
+      try {
+        file.close();
+      } catch (_) {}
       if (existsSync(destPath)) unlinkSync(destPath);
       reject(err);
     });
+
+    req.end();
   });
 }
 
@@ -157,7 +207,6 @@ function parseAuction(item, inventoryType) {
  * Upsert auctions to Supabase in batches
  */
 async function upsertAuctions(auctions) {
-  const fetch = require('node-fetch');
   let inserted = 0;
   let errors = 0;
   
@@ -199,8 +248,6 @@ async function upsertAuctions(auctions) {
  * Record sync history
  */
 async function recordSyncHistory(inventorySource, success, auctionsCount, durationMs, errorMessage = null) {
-  const fetch = require('node-fetch');
-  
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/sync_history`, {
       method: 'POST',
