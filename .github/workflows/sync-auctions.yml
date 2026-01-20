@@ -24,29 +24,29 @@ jobs:
           echo "Response: $response"
           echo "✅ Small inventory sync triggered"
 
-  # Job 2: Sync large inventory files using Node.js (runs directly in GitHub Actions)
+  # Job 2: Trigger large inventory sync via edge function (uses internal service role key)
   sync-large-inventory:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */6 * * *'
+    needs: trigger-small-sync
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install adm-zip
-
-      - name: Sync large inventory files
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Trigger large inventory sync
         run: |
-          echo "Starting large inventory sync..."
-          node .github/scripts/sync-large-inventory.js
+          echo "Triggering large inventory sync (closeout, allExpiring, allListings)..."
+          
+          # Sync each large source one at a time to avoid memory issues
+          for source in closeout allExpiring allListings; do
+            echo "Syncing $source..."
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://orbygspxutudncbyipst.supabase.co/functions/v1/proxy-large-sync" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yYnlnc3B4dXR1ZG5jYnlpcHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MjE2NjQsImV4cCI6MjA4Mzk5NzY2NH0.956zo-yz_1rikHRWfppReftYeDmQf0xy60gezsbONec" \
+              -d "{\"source\": \"$source\"}" \
+              --max-time 600 || true)
+            
+            echo "Response for $source: $response"
+            sleep 5
+          done
+          
           echo "✅ Large inventory sync complete"
 
       - name: Log completion
