@@ -239,10 +239,15 @@ async function syncInventoryType({ type, url }) {
     // Extract and parse JSON
     const data = await extractJsonFromZip(zipPath);
     
-    // Handle different response formats
+    // Handle different response formats - GoDaddy uses { meta, data }
     let items = [];
     if (Array.isArray(data)) {
       items = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      // Handle { meta: {...}, data: [...] } format
+      items = data.data;
+    } else if (data.data && data.data.domains) {
+      items = data.data.domains;
     } else if (data.domains) {
       items = data.domains;
     } else if (data.auctions) {
@@ -253,6 +258,7 @@ async function syncInventoryType({ type, url }) {
       items = data.listings;
     }
     
+    console.log(`   JSON structure keys: ${Object.keys(data).join(', ')}`);
     console.log(`   Found ${items.length.toLocaleString()} auctions`);
     
     // Parse auctions - filter out entries without domain names

@@ -24,30 +24,28 @@ jobs:
           echo "Response: $response"
           echo "✅ Small inventory sync triggered"
 
-  # Job 2: Trigger large inventory sync via edge function (uses internal service role key)
+  # Job 2: Run Node.js script for large inventory files
+  # This bypasses edge function timeout/memory limits
   sync-large-inventory:
     runs-on: ubuntu-latest
     needs: trigger-small-sync
     steps:
-      - name: Trigger large inventory sync
-        run: |
-          echo "Triggering large inventory sync (closeout, allExpiring, allListings)..."
-          
-          # Sync each large source one at a time to avoid memory issues
-          for source in closeout allExpiring allListings; do
-            echo "Syncing $source..."
-            response=$(curl -s -w "\n%{http_code}" -X POST \
-              "https://orbygspxutudncbyipst.supabase.co/functions/v1/proxy-large-sync" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yYnlnc3B4dXR1ZG5jYnlpcHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MjE2NjQsImV4cCI6MjA4Mzk5NzY2NH0.956zo-yz_1rikHRWfppReftYeDmQf0xy60gezsbONec" \
-              -d "{\"source\": \"$source\"}" \
-              --max-time 600 || true)
-            
-            echo "Response for $source: $response"
-            sleep 5
-          done
-          
-          echo "✅ Large inventory sync complete"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install adm-zip node-fetch
+
+      - name: Run large inventory sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node .github/scripts/sync-large-inventory.js
 
       - name: Log completion
         run: echo "Full auction sync completed at $(date)"
