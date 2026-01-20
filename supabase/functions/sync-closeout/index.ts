@@ -10,6 +10,7 @@ const corsHeaders = {
 const CLOSEOUT_URL = 'https://inventory.auctions.godaddy.com/closeout_listings.json.zip';
 const BATCH_SIZE = 1000;
 const MAX_EXECUTION_TIME = 50000;
+const CHUNK_SIZE = 50000; // Process 50k domains per call
 
 function extractTld(domain: string): string {
   const parts = domain.split('.');
@@ -23,7 +24,7 @@ function parsePrice(priceRaw: string | number): number {
   return parseFloat(String(priceRaw)) || 0;
 }
 
-// Stream download in chunks to limit memory
+// Stream download
 async function downloadFile(url: string): Promise<Uint8Array> {
   console.log(`Downloading ${url}...`);
   
@@ -43,29 +44,37 @@ async function downloadFile(url: string): Promise<Uint8Array> {
   return new Uint8Array(buffer);
 }
 
-// Parse JSON and extract auctions
-function parseAuctions(text: string): any[] {
-  try {
-    const parsed = JSON.parse(text);
+// Streaming JSON parser - yields items one at a time
+function* parseJsonArrayStreaming(text: string): Generator<any> {
+  const startIdx = text.indexOf('[');
+  if (startIdx === -1) return;
+  
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escape = false;
+  
+  for (let i = startIdx; i < text.length; i++) {
+    const char = text[i];
     
-    // Try different known formats
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed.auctions) return parsed.auctions;
-    if (parsed.listings) return parsed.listings;
-    if (parsed.items) return parsed.items;
-    if (parsed.domains) return parsed.domains;
-    if (parsed.data) return Array.isArray(parsed.data) ? parsed.data : [];
+    if (escape) { escape = false; continue; }
+    if (char === '\\') { escape = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
+    if (inString) continue;
     
-    // Object with domain keys
-    const values = Object.values(parsed);
-    if (values.length > 0 && typeof values[0] === 'object') {
-      return values as any[];
+    if (char === '{') {
+      if (depth === 1) objectStart = i;
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 1 && objectStart !== -1) {
+        try {
+          const obj = JSON.parse(text.substring(objectStart, i + 1));
+          yield obj;
+        } catch {}
+        objectStart = -1;
+      }
     }
-    
-    return [];
-  } catch (e) {
-    console.error('JSON parse failed:', e);
-    return [];
   }
 }
 
@@ -79,37 +88,60 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
   const startTime = Date.now();
+  
+  // Get offset from query params
+  const url = new URL(req.url);
+  const offset = parseInt(url.searchParams.get('offset') || '0');
 
   try {
-    console.log('=== Starting Closeout Sync ===');
+    console.log(`=== Closeout Sync (offset: ${offset}) ===`);
     
     // Download the ZIP
     const zipData = await downloadFile(CLOSEOUT_URL);
     
-    // Decompress using fflate (more memory efficient)
+    // Decompress using fflate
     console.log('Decompressing...');
     const unzipped = unzipSync(zipData);
     const fileName = Object.keys(unzipped)[0];
     const jsonData = unzipped[fileName];
     console.log(`Decompressed: ${(jsonData.length / 1024 / 1024).toFixed(2)}MB`);
     
-    // Convert to string in chunks to reduce memory pressure
+    // Convert to string
     const decoder = new TextDecoder();
     const jsonContent = decoder.decode(jsonData);
     
-    // Free memory
-    // @ts-ignore - Allow garbage collection
+    // Free ZIP memory
+    // @ts-ignore
     unzipped[fileName] = null;
     
-    // Parse and transform
-    console.log('Parsing...');
-    const rawAuctions = parseAuctions(jsonContent);
-    console.log(`Found ${rawAuctions.length} raw items, first keys: ${rawAuctions[0] ? Object.keys(rawAuctions[0]).slice(0,5).join(',') : 'none'}`);
+    // Parse and process only our chunk
+    console.log(`Parsing from offset ${offset}, chunk size ${CHUNK_SIZE}...`);
     
-    const auctionsToUpsert = rawAuctions
-      .filter((item: any) => item.domainName || item.DomainName || item.domain || item.name)
-      .map((item: any) => ({
-        domain_name: item.domainName || item.DomainName || item.domain || item.name || '',
+    let totalUpserted = 0;
+    let totalFound = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    let batch: any[] = [];
+    
+    for (const item of parseJsonArrayStreaming(jsonContent)) {
+      totalFound++;
+      
+      // Skip items before our offset
+      if (totalFound <= offset) {
+        skipped++;
+        continue;
+      }
+      
+      // Stop after processing our chunk
+      if (totalFound > offset + CHUNK_SIZE) {
+        break;
+      }
+      
+      const domainName = item.domainName || item.DomainName || item.domain || item.name || '';
+      if (!domainName) continue;
+      
+      batch.push({
+        domain_name: domainName,
         price: parsePrice(item.price || item.Price || item.currentPrice || item.buyNowPrice || '0'),
         bid_count: parseInt(item.numberOfBids || item.bids || item.bidCount || 0) || 0,
         traffic_count: parseInt(item.pageviews || item.traffic || 0) || 0,
@@ -117,38 +149,14 @@ serve(async (req) => {
         valuation: parsePrice(item.valuation || item.estimatedValue || '0'),
         auction_type: 'closeout',
         domain_age: parseInt(item.domainAge || item.age || 0) || 0,
-        tld: extractTld(item.domainName || item.DomainName || item.domain || item.name || ''),
+        tld: extractTld(domainName),
         inventory_source: 'closeout',
-      }));
-
-    console.log(`Upserting ${auctionsToUpsert.length} auctions...`);
-    
-    let totalUpserted = 0;
-    const errors: string[] = [];
-    
-    for (let i = 0; i < auctionsToUpsert.length; i += BATCH_SIZE) {
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.log(`Time limit after ${totalUpserted}`);
-        break;
-      }
-      
-      const batch = auctionsToUpsert.slice(i, i + BATCH_SIZE);
-      const { error } = await supabase
-        .from('auctions')
-        .upsert(batch, { onConflict: 'domain_name', ignoreDuplicates: false });
-      
-      if (error) {
-        errors.push(error.message);
-      } else {
-        totalUpserted += batch.length;
-      }
-      
-      if (totalUpserted % 10000 === 0) console.log(`Progress: ${totalUpserted}`);
+      });
       
       // Flush batch
       if (batch.length >= BATCH_SIZE) {
         if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-          console.log(`Time limit reached after ${totalUpserted} upserts`);
+          console.log(`Time limit after ${totalUpserted}`);
           break;
         }
         
@@ -162,16 +170,14 @@ serve(async (req) => {
           totalUpserted += batch.length;
         }
         
-        if (totalUpserted % 10000 === 0) {
-          console.log(`Progress: ${totalUpserted}`);
-        }
-        
         batch = [];
+        
+        if (totalUpserted % 10000 === 0) console.log(`Progress: ${totalUpserted}`);
       }
     }
     
     // Flush remaining
-    if (batch.length > 0 && Date.now() - startTime <= MAX_EXECUTION_TIME) {
+    if (batch.length > 0) {
       const { error } = await supabase
         .from('auctions')
         .upsert(batch, { onConflict: 'domain_name', ignoreDuplicates: false });
@@ -184,17 +190,19 @@ serve(async (req) => {
     }
     
     const duration = Date.now() - startTime;
+    const hasMore = totalFound > offset + CHUNK_SIZE;
+    const nextOffset = hasMore ? offset + CHUNK_SIZE : null;
     
     // Log to sync_history
     await supabase.from('sync_history').insert({
-      inventory_source: 'closeout',
+      inventory_source: `closeout_chunk_${Math.floor(offset / CHUNK_SIZE)}`,
       success: errors.length === 0,
       auctions_count: totalUpserted,
       duration_ms: duration,
       error_message: errors.length > 0 ? errors.slice(0, 3).join('; ') : null,
     });
     
-    console.log(`=== Closeout Sync Complete: ${totalUpserted}/${totalFound} in ${(duration / 1000).toFixed(1)}s ===`);
+    console.log(`=== Done: ${totalUpserted} in ${(duration / 1000).toFixed(1)}s, hasMore: ${hasMore} ===`);
 
     return new Response(
       JSON.stringify({
@@ -202,6 +210,9 @@ serve(async (req) => {
         message: `Synced ${totalUpserted} closeout auctions`,
         count: totalUpserted,
         found: totalFound,
+        offset,
+        hasMore,
+        nextOffset,
         duration_ms: duration,
         errors: errors.length > 0 ? errors.slice(0, 3) : undefined,
       }),

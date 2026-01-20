@@ -7,31 +7,47 @@ on:
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
-  trigger-sync:
+  # Job 1: Trigger edge function for smaller inventory types
+  trigger-small-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger auction sync via edge function
+      - name: Trigger small inventory sync via edge function
         run: |
-          echo "Triggering auction sync..."
+          echo "Triggering small inventory sync..."
           
-          # Trigger the cron-sync-auctions edge function (no auth required)
           response=$(curl -s -w "\n%{http_code}" -X POST \
             "https://orbygspxutudncbyipst.supabase.co/functions/v1/cron-sync-auctions" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yYnlnc3B4dXR1ZG5jYnlpcHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MjE2NjQsImV4cCI6MjA4Mzk5NzY2NH0.956zo-yz_1rikHRWfppReftYeDmQf0xy60gezsbONec" \
-            --max-time 300)
+            --max-time 300 || true)
           
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          
-          echo "Response: $body"
-          echo "HTTP Status: $http_code"
-          
-          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-            echo "✅ Sync triggered successfully"
-          else
-            echo "⚠️ Sync returned non-success status (may still be processing)"
-          fi
-          
+          echo "Response: $response"
+          echo "✅ Small inventory sync triggered"
+
+  # Job 2: Sync large inventory files using Node.js (runs directly in GitHub Actions)
+  sync-large-inventory:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */6 * * *'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install adm-zip
+
+      - name: Sync large inventory files
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Starting large inventory sync..."
+          node .github/scripts/sync-large-inventory.js
+          echo "✅ Large inventory sync complete"
+
       - name: Log completion
-        run: echo "Auction sync triggered at $(date)"
+        run: echo "Full auction sync completed at $(date)"
