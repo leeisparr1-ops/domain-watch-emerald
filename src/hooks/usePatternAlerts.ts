@@ -77,9 +77,13 @@ export function usePatternAlerts() {
 
         if (result.matches.length > 5) {
           toast.info(`+${result.matches.length - 5} more pattern matches found!`, {
+            duration: 10000,
             action: {
               label: "View All",
-              onClick: () => window.location.href = "/dashboard",
+              onClick: () => {
+                // Dispatch a custom event to open the matches dialog
+                window.dispatchEvent(new CustomEvent('openPatternMatches'));
+              },
             },
           });
         }
