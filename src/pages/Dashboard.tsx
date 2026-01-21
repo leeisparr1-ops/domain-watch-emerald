@@ -834,49 +834,83 @@ export default function Dashboard() {
 
       {/* Pattern Matches Dialog */}
       <Dialog open={showMatchesDialog} onOpenChange={setShowMatchesDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader className="pb-4 border-b border-border">
             <DialogTitle className="flex items-center gap-2">
               <Gavel className="w-5 h-5 text-primary" />
               Pattern Matches ({dialogMatches.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 mt-4">
+          
+          <div className="flex-1 overflow-y-auto py-4">
             {loadingMatches ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : dialogMatches.length > 0 ? (
-              dialogMatches.map((match, i) => (
-                <a
-                  key={match.auction_id || i}
-                  href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <div className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-mono text-primary truncate">{match.domain_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Matches: {match.pattern_description || 'Pattern'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold">${match.price.toLocaleString()}</span>
-                      {match.end_time && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          {formatTimeRemaining(match.end_time)}
-                        </div>
-                      )}
-                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                    </div>
+              // Group matches by pattern
+              Object.entries(
+                dialogMatches.reduce((groups, match) => {
+                  const key = match.pattern_description || 'Pattern';
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(match);
+                  return groups;
+                }, {} as Record<string, typeof dialogMatches>)
+              ).map(([patternName, matches]) => (
+                <div key={patternName} className="mb-6 last:mb-0">
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                      {patternName}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {matches.length} match{matches.length !== 1 ? 'es' : ''}
+                    </span>
                   </div>
-                </a>
+                  
+                  <div className="space-y-2">
+                    {matches.map((match, i) => (
+                      <a
+                        key={match.auction_id || i}
+                        href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <div className="p-3 rounded-lg bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="font-mono text-primary text-sm truncate flex-1">
+                              {match.domain_name}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="font-semibold text-foreground">
+                                ${match.price.toLocaleString()}
+                              </span>
+                              {match.end_time && (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Clock className="w-3 h-3" />
+                                  {formatTimeRemaining(match.end_time)}
+                                </div>
+                              )}
+                              <Button variant="outline" size="sm" className="h-7 px-2">
+                                View
+                                <ExternalLink className="w-3 h-3 ml-1" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               ))
             ) : (
-              <p className="text-center text-muted-foreground py-4">No pattern matches found.</p>
+              <div className="text-center py-8">
+                <Gavel className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-muted-foreground">No pattern matches found.</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Matches will appear here when your patterns find new domains.
+                </p>
+              </div>
             )}
           </div>
         </DialogContent>
