@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
+import { SavedPatternsPanel } from "@/components/dashboard/SavedPatternsPanel";
 
 interface AuctionDomain {
   id: string;
@@ -110,7 +111,7 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, addPattern, removePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
+  const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
@@ -302,10 +303,14 @@ export default function Dashboard() {
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
+  // Filter auctions - patterns now apply only to dashboard display filtering
+  // When patterns exist, show only matching domains; when no patterns, show all
+  const enabledPatterns = patterns.filter(p => p.enabled);
   const filtered = auctions.filter(d => {
     const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
     const matchesFavorites = viewMode === "all" || isFavorite(d.domain);
-    const matchesPattern = matchesDomain(d.domain);
+    // Only filter by pattern if there are enabled patterns
+    const matchesPattern = enabledPatterns.length === 0 || matchesDomain(d.domain);
     return matchesSearch && matchesFavorites && matchesPattern;
   });
 
@@ -518,6 +523,15 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4">
             <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
           </motion.div>
+
+          {/* Saved Patterns Panel */}
+          <SavedPatternsPanel
+            patterns={patterns}
+            onRemovePattern={removePattern}
+            onTogglePattern={togglePattern}
+            onRenamePattern={renamePattern}
+            maxPatterns={maxPatterns}
+          />
 
           {loading && (
             <div className="flex items-center justify-center py-12">
