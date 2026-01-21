@@ -40,10 +40,32 @@ export function useUserPatterns() {
   const [matches, setMatches] = useState<PatternMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
+  const [userPlan, setUserPlan] = useState<keyof typeof PLAN_LIMITS>('free');
   
-  // TODO: Get actual user plan from subscription
-  // For now, default to 'free' plan
-  const userPlan: keyof typeof PLAN_LIMITS = 'free';
+  // Fetch user's subscription plan
+  const fetchUserPlan = useCallback(async () => {
+    if (!user) {
+      setUserPlan('free');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("subscription_plan")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      const plan = (data?.subscription_plan as keyof typeof PLAN_LIMITS) || 'free';
+      setUserPlan(plan);
+    } catch (error) {
+      console.error("Error fetching user plan:", error);
+      setUserPlan('free');
+    }
+  }, [user]);
+
   const maxPatterns = PLAN_LIMITS[userPlan];
 
   // Fetch patterns from database
@@ -270,10 +292,11 @@ export function useUserPatterns() {
     });
   }, [patterns]);
 
-  // Load patterns on mount
+  // Load patterns and plan on mount
   useEffect(() => {
     fetchPatterns();
-  }, [fetchPatterns]);
+    fetchUserPlan();
+  }, [fetchPatterns, fetchUserPlan]);
 
   return {
     patterns,
