@@ -90,11 +90,11 @@ serve(async (req: Request): Promise<Response> => {
     let html = "";
 
     if (payload.type === "test") {
-      subject = "🔔 DomainHawk Test Notification";
+      subject = "🔔 ExpiredHawk Test Notification";
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">🦅 DomainHawk</h1>
+          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">🦅 ExpiredHawk</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Email Notifications Active</p>
           </div>
           <div style="background: #f9fafb; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb;">
@@ -111,7 +111,7 @@ serve(async (req: Request): Promise<Response> => {
             </p>
           </div>
           <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">
-            © DomainHawk - Domain Monitoring Made Simple
+            © ExpiredHawk - Domain Monitoring Made Simple
           </p>
         </div>
       `;
@@ -143,8 +143,8 @@ serve(async (req: Request): Promise<Response> => {
       subject = `🎯 ${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Match Your Patterns!`;
       html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">🦅 DomainHawk</h1>
+          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">🦅 ExpiredHawk</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Pattern Match Alert</p>
           </div>
           <div style="background: #f9fafb; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb;">
@@ -156,12 +156,12 @@ serve(async (req: Request): Promise<Response> => {
               ${domainList}
             </ul>
             ${moreCount > 0 ? `<p style="color: #6b7280; font-style: italic;">...and ${moreCount} more domains</p>` : ""}
-            <a href="https://domainhawk.app/dashboard" style="display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
+            <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
               View All Matches →
             </a>
           </div>
           <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">
-            © DomainHawk - Domain Monitoring Made Simple
+            © ExpiredHawk - Domain Monitoring Made Simple
           </p>
         </div>
       `;
@@ -170,7 +170,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Sending email to:", recipientEmail);
     
     const emailResponse = await resend.emails.send({
-      from: "DomainHawk <notifications@resend.dev>",
+      from: "ExpiredHawk <notifications@resend.dev>",
       to: [recipientEmail],
       subject,
       html,
