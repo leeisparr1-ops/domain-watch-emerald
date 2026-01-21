@@ -276,33 +276,53 @@ export default function Dashboard() {
     if (!user) return;
     setLoadingMatches(true);
     try {
-      // Get user's pattern alerts with auction data
+      // First get pattern alerts
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
-        .select(`
-          auction_id,
-          domain_name,
-          pattern_id,
-          auctions (price, end_time),
-          user_patterns (description)
-        `)
+        .select('auction_id, domain_name, pattern_id')
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false })
         .limit(100);
 
       if (alertsError) throw alertsError;
+      if (!alerts || alerts.length === 0) {
+        setDialogMatches([]);
+        return;
+      }
 
-      const matches = (alerts || []).map((alert: any) => ({
-        auction_id: alert.auction_id,
-        domain_name: alert.domain_name,
-        price: alert.auctions?.price || 0,
-        end_time: alert.auctions?.end_time || null,
-        pattern_description: alert.user_patterns?.description || 'Pattern',
-      }));
+      // Get auction data for these alerts
+      const auctionIds = alerts.map(a => a.auction_id);
+      const { data: auctionData } = await supabase
+        .from('auctions')
+        .select('id, price, end_time')
+        .in('id', auctionIds);
+
+      // Get pattern descriptions
+      const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
+      const { data: patternData } = await supabase
+        .from('user_patterns')
+        .select('id, description')
+        .in('id', patternIds);
+
+      // Create lookup maps
+      const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
+      const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
+
+      const matches = alerts.map(alert => {
+        const auction = auctionMap.get(alert.auction_id);
+        return {
+          auction_id: alert.auction_id,
+          domain_name: alert.domain_name,
+          price: auction?.price || 0,
+          end_time: auction?.end_time || null,
+          pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+        };
+      });
 
       setDialogMatches(matches);
     } catch (error) {
       console.error('Error fetching pattern matches:', error);
+      setDialogMatches([]);
     } finally {
       setLoadingMatches(false);
     }
