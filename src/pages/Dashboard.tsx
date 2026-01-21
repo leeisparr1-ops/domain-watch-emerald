@@ -20,6 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Info } from "lucide-react";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
@@ -111,8 +118,9 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
+  const { patterns, matches, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
+  const [showMatchesDialog, setShowMatchesDialog] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,6 +263,12 @@ export default function Dashboard() {
     }
   }, [user, fetchAuctionsFromDb]);
   
+  // Listen for custom event to open pattern matches dialog
+  useEffect(() => {
+    const handleOpenMatches = () => setShowMatchesDialog(true);
+    window.addEventListener('openPatternMatches', handleOpenMatches);
+    return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
+  }, []);
   
   // Update time remaining display every 30 seconds
   useEffect(() => {
@@ -716,8 +730,77 @@ export default function Dashboard() {
               
             </>
           )}
+
+          {/* Pattern Matches Banner */}
+          {matches.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-50"
+            >
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center justify-between gap-3 backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5 text-primary" />
+                  <span className="text-sm">
+                    +{matches.length} more pattern matches found!
+                  </span>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowMatchesDialog(true)}
+                >
+                  View All
+                </Button>
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
+
+      {/* Pattern Matches Dialog */}
+      <Dialog open={showMatchesDialog} onOpenChange={setShowMatchesDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="w-5 h-5 text-primary" />
+              Pattern Matches ({matches.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {matches.map((match, i) => (
+              <a
+                key={match.auction_id || i}
+                href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <div className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-primary truncate">{match.domain_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Matches: {match.pattern_description || 'Pattern'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold">${match.price.toLocaleString()}</span>
+                    {match.end_time && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        {formatTimeRemaining(match.end_time)}
+                      </div>
+                    )}
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </a>
+            ))}
+            {matches.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">No pattern matches found.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
