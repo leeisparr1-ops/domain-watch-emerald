@@ -389,6 +389,27 @@ async function main() {
     }
   }
   
+  // Trigger pattern checking for all users after successful sync
+  if (totalCount > 0) {
+    console.log('\n🔔 Triggering pattern check for all users...');
+    try {
+      const patternCheckResponse = await fetch(`${SUPABASE_URL}/functions/v1/check-all-patterns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      const patternResult = await patternCheckResponse.json();
+      console.log(`   Pattern check result: ${JSON.stringify(patternResult)}`);
+      if (patternResult.success) {
+        console.log(`   ✅ Notified ${patternResult.usersNotified || 0} users with ${patternResult.totalNewMatches || 0} new matches`);
+      }
+    } catch (patternError) {
+      console.error(`   ⚠️ Pattern check failed: ${patternError.message}`);
+    }
+  }
+  
   // Cleanup temp directory
   if (existsSync(TEMP_DIR)) {
     const { rmSync } = require('fs');
