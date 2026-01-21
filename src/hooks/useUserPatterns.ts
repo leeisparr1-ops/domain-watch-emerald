@@ -147,6 +147,29 @@ export function useUserPatterns() {
     }
   }, [user]);
 
+  // Rename a pattern (update description)
+  const renamePattern = useCallback(async (id: string, newDescription: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("user_patterns")
+        .update({ description: newDescription })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setPatterns(prev => prev.map(p => 
+        p.id === id ? { ...p, description: newDescription } : p
+      ));
+      toast.success("Pattern renamed");
+    } catch (error) {
+      console.error("Error renaming pattern:", error);
+      toast.error("Failed to rename pattern");
+    }
+  }, [user]);
+
   // Toggle pattern enabled/disabled
   const togglePattern = useCallback(async (id: string, enabled: boolean) => {
     if (!user) return;
@@ -260,6 +283,7 @@ export function useUserPatterns() {
     addPattern,
     removePattern,
     togglePattern,
+    renamePattern,
     clearPatterns,
     checkPatterns,
     matchesDomain,

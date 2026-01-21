@@ -17,7 +17,9 @@ import {
   Smartphone,
   HelpCircle,
   BookOpen,
-  MessageCircle
+  MessageCircle,
+  Bookmark,
+  Pencil
 } from "lucide-react";
 
 export default function Help() {
@@ -28,18 +30,23 @@ export default function Help() {
       description: "Go to the Dashboard and click 'Add Pattern'. Enter keywords like 'crypto', 'tech', or use wildcards like '*bank*' to match domains containing 'bank'."
     },
     {
+      icon: <Bookmark className="w-6 h-6 text-primary" />,
+      title: "2. Manage Saved Patterns",
+      description: "Your patterns appear in the 'Saved Patterns' section. You can rename them by clicking the pencil icon, toggle them on/off, or delete them. Pattern limits depend on your plan."
+    },
+    {
       icon: <Filter className="w-6 h-6 text-primary" />,
-      title: "2. Set Filters",
+      title: "3. Set Filters",
       description: "Optionally filter by price range, TLD (.com, .net, etc.), and more to narrow down your search to domains that fit your budget."
     },
     {
       icon: <Bell className="w-6 h-6 text-primary" />,
-      title: "3. Enable Notifications",
+      title: "4. Enable Notifications",
       description: "Turn on email and/or push notifications in Settings to get alerted immediately when matching domains are found."
     },
     {
       icon: <Heart className="w-6 h-6 text-primary" />,
-      title: "4. Save Favorites",
+      title: "5. Save Favorites",
       description: "Found a great domain? Click the heart icon to save it to your favorites for easy access later."
     }
   ];
@@ -48,6 +55,14 @@ export default function Help() {
     {
       question: "What is a pattern?",
       answer: "A pattern is a search rule you create to find specific domains. You can use keywords, wildcards (*), or exact matches. For example, 'ai*' will match all domains starting with 'ai', while '*shop*' matches any domain containing 'shop'."
+    },
+    {
+      question: "How do I manage my saved patterns?",
+      answer: "After adding a pattern, it appears in the 'Saved Patterns' section on the Dashboard. Here you can: 1) Toggle patterns on/off with the toggle switch, 2) Rename patterns by clicking the pencil icon, 3) Delete patterns with the trash icon. The number of patterns you can save depends on your subscription plan."
+    },
+    {
+      question: "How many patterns can I save?",
+      answer: "The number of patterns depends on your plan: Free plan allows 2 patterns, Basic plan ($4.99/mo) allows 50 patterns, and Advanced plan ($9.99/mo) allows 125 patterns. You can upgrade at any time from the Pricing page."
     },
     {
       question: "How often are domain auctions updated?",
@@ -70,12 +85,16 @@ export default function Help() {
       answer: "'Contains' matches domains containing your keyword anywhere. 'Starts with' matches domains beginning with your keyword. 'Ends with' matches domains ending with your keyword. 'Exact' requires an exact domain name match."
     },
     {
+      question: "How do I rename a pattern?",
+      answer: "In the 'Saved Patterns' section on the Dashboard, click the pencil icon next to the pattern you want to rename. Type your new name and press Enter or click the checkmark to save."
+    },
+    {
       question: "How do I delete a pattern?",
-      answer: "On the Dashboard, find the pattern you want to remove and click the trash icon. Confirm the deletion when prompted."
+      answer: "In the 'Saved Patterns' section on the Dashboard, click the trash icon next to the pattern you want to remove."
     },
     {
       question: "Why am I not receiving notifications?",
-      answer: "Check that: 1) Notifications are enabled in Settings, 2) Your email is correct, 3) The pattern is enabled (toggle is on), 4) Check your spam folder for emails."
+      answer: "Check that: 1) Notifications are enabled in Settings, 2) Your email is correct, 3) The pattern is enabled (toggle is on in Saved Patterns), 4) Check your spam folder for emails."
     }
   ];
 
@@ -127,7 +146,18 @@ export default function Help() {
               <Smartphone className="w-6 h-6 text-primary" />
               <h2 className="text-2xl font-semibold">Quick Tips</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bookmark className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Organize Patterns</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Rename your saved patterns to easily identify them later
+                  </p>
+                </CardContent>
+              </Card>
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-2">
