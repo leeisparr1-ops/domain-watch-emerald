@@ -118,9 +118,17 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, matches, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
+  const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
   const [showMatchesDialog, setShowMatchesDialog] = useState(false);
+  const [dialogMatches, setDialogMatches] = useState<Array<{
+    auction_id: string;
+    domain_name: string;
+    price: number;
+    end_time: string | null;
+    pattern_description: string;
+  }>>([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,12 +271,59 @@ export default function Dashboard() {
     }
   }, [user, fetchAuctionsFromDb]);
   
+  // Fetch pattern matches from database when dialog opens
+  const fetchDialogMatches = useCallback(async () => {
+    if (!user) return;
+    setLoadingMatches(true);
+    try {
+      // Get user's pattern alerts with auction data
+      const { data: alerts, error: alertsError } = await supabase
+        .from('pattern_alerts')
+        .select(`
+          auction_id,
+          domain_name,
+          pattern_id,
+          auctions (price, end_time),
+          user_patterns (description)
+        `)
+        .eq('user_id', user.id)
+        .order('alerted_at', { ascending: false })
+        .limit(100);
+
+      if (alertsError) throw alertsError;
+
+      const matches = (alerts || []).map((alert: any) => ({
+        auction_id: alert.auction_id,
+        domain_name: alert.domain_name,
+        price: alert.auctions?.price || 0,
+        end_time: alert.auctions?.end_time || null,
+        pattern_description: alert.user_patterns?.description || 'Pattern',
+      }));
+
+      setDialogMatches(matches);
+    } catch (error) {
+      console.error('Error fetching pattern matches:', error);
+    } finally {
+      setLoadingMatches(false);
+    }
+  }, [user]);
+
   // Listen for custom event to open pattern matches dialog
   useEffect(() => {
-    const handleOpenMatches = () => setShowMatchesDialog(true);
+    const handleOpenMatches = () => {
+      setShowMatchesDialog(true);
+      fetchDialogMatches();
+    };
     window.addEventListener('openPatternMatches', handleOpenMatches);
     return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
-  }, []);
+  }, [fetchDialogMatches]);
+
+  // Fetch matches when dialog opens manually
+  useEffect(() => {
+    if (showMatchesDialog) {
+      fetchDialogMatches();
+    }
+  }, [showMatchesDialog, fetchDialogMatches]);
   
   // Update time remaining display every 30 seconds
   useEffect(() => {
@@ -732,7 +787,7 @@ export default function Dashboard() {
           )}
 
           {/* Pattern Matches Banner */}
-          {matches.length > 0 && (
+          {dialogMatches.length > 0 && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }}
@@ -742,7 +797,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2">
                   <Info className="w-5 h-5 text-primary" />
                   <span className="text-sm">
-                    +{matches.length} more pattern matches found!
+                    +{dialogMatches.length} more pattern matches found!
                   </span>
                 </div>
                 <Button 
@@ -763,39 +818,44 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Gavel className="w-5 h-5 text-primary" />
-              Pattern Matches ({matches.length})
+              Pattern Matches ({dialogMatches.length})
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-4">
-            {matches.map((match, i) => (
-              <a
-                key={match.auction_id || i}
-                href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <div className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-primary truncate">{match.domain_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Matches: {match.pattern_description || 'Pattern'}
+            {loadingMatches ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : dialogMatches.length > 0 ? (
+              dialogMatches.map((match, i) => (
+                <a
+                  key={match.auction_id || i}
+                  href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <div className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono text-primary truncate">{match.domain_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Matches: {match.pattern_description || 'Pattern'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold">${match.price.toLocaleString()}</span>
+                      {match.end_time && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4" />
+                          {formatTimeRemaining(match.end_time)}
+                        </div>
+                      )}
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold">${match.price.toLocaleString()}</span>
-                    {match.end_time && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        {formatTimeRemaining(match.end_time)}
-                      </div>
-                    )}
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                </div>
-              </a>
-            ))}
-            {matches.length === 0 && (
+                </a>
+              ))
+            ) : (
               <p className="text-center text-muted-foreground py-4">No pattern matches found.</p>
             )}
           </div>
