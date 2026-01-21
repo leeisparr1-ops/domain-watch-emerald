@@ -39,10 +39,6 @@ export function Navbar() {
             <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
               Pricing
             </Link>
-            <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              <HelpCircle className="w-4 h-4" />
-              Help
-            </Link>
             {user ? (
               <>
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -54,12 +50,20 @@ export function Navbar() {
                     Settings
                   </Button>
                 </Link>
+                <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <HelpCircle className="w-4 h-4" />
+                  Help
+                </Link>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
               </>
             ) : (
               <>
+                <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <HelpCircle className="w-4 h-4" />
+                  Help
+                </Link>
                 <Link to="/login">
                   <Button variant="ghost" size="sm">
                     <LogIn className="w-4 h-4 mr-2" />
@@ -95,23 +99,23 @@ export function Navbar() {
             className="md:hidden glass border-t border-border"
           >
             <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
-              <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 Home
               </Link>
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                 Pricing
-              </Link>
-              <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2">
-                <HelpCircle className="w-4 h-4" />
-                Help
               </Link>
               {user ? (
                 <>
-                  <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+                  <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                     Dashboard
                   </Link>
-                  <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+                  <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                     Settings
+                  </Link>
+                  <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                    <HelpCircle className="w-4 h-4" />
+                    Help
                   </Link>
                   <Button variant="outline" onClick={handleLogout}>
                     Logout
@@ -119,10 +123,14 @@ export function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link to="/login">
+                  <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                    <HelpCircle className="w-4 h-4" />
+                    Help
+                  </Link>
+                  <Link to="/login" onClick={() => setIsOpen(false)}>
                     <Button variant="ghost" className="w-full">Login</Button>
                   </Link>
-                  <Link to="/signup">
+                  <Link to="/signup" onClick={() => setIsOpen(false)}>
                     <Button variant="hero" className="w-full">Get Started</Button>
                   </Link>
                 </>
