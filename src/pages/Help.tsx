@@ -32,7 +32,7 @@ export default function Help() {
     {
       icon: <Bookmark className="w-6 h-6 text-primary" />,
       title: "2. Manage Saved Patterns",
-      description: "Your patterns appear in the 'Saved Patterns' section. You can rename them by clicking the pencil icon, toggle them on/off, or delete them. Pattern limits depend on your plan."
+      description: "Click the 'Saved Patterns' button on the Dashboard to open the patterns dialog. Here you can rename, toggle on/off, or delete patterns. Pattern limits depend on your plan."
     },
     {
       icon: <Filter className="w-6 h-6 text-primary" />,
@@ -58,7 +58,7 @@ export default function Help() {
     },
     {
       question: "How do I manage my saved patterns?",
-      answer: "After adding a pattern, it appears in the 'Saved Patterns' section on the Dashboard. Here you can: 1) Toggle patterns on/off with the toggle switch, 2) Rename patterns by clicking the pencil icon, 3) Delete patterns with the trash icon. The number of patterns you can save depends on your subscription plan."
+      answer: "After adding a pattern, click the 'Saved Patterns' button on the Dashboard to open your patterns dialog. Here you can: 1) Toggle patterns on/off with the toggle switch, 2) Rename patterns by clicking the pencil icon, 3) Delete patterns with the trash icon. The number of patterns you can save depends on your subscription plan."
     },
     {
       question: "How many patterns can I save?",
@@ -86,11 +86,11 @@ export default function Help() {
     },
     {
       question: "How do I rename a pattern?",
-      answer: "In the 'Saved Patterns' section on the Dashboard, click the pencil icon next to the pattern you want to rename. Type your new name and press Enter or click the checkmark to save."
+      answer: "Click the 'Saved Patterns' button on the Dashboard to open the dialog, then click the pencil icon next to the pattern you want to rename. Type your new name and press Enter or click the checkmark to save."
     },
     {
       question: "How do I delete a pattern?",
-      answer: "In the 'Saved Patterns' section on the Dashboard, click the trash icon next to the pattern you want to remove."
+      answer: "Click the 'Saved Patterns' button on the Dashboard to open the dialog, then click the trash icon next to the pattern you want to remove."
     },
     {
       question: "Why am I not receiving notifications?",

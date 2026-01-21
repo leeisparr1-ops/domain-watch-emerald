@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
-import { SavedPatternsPanel } from "@/components/dashboard/SavedPatternsPanel";
+import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
 
 interface AuctionDomain {
   id: string;
@@ -519,19 +519,17 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Add Patterns - Below Filters */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4">
+          {/* Add Patterns and Saved Patterns - Below Filters */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-3">
             <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+            <SavedPatternsDialog
+              patterns={patterns}
+              onRemovePattern={removePattern}
+              onTogglePattern={togglePattern}
+              onRenamePattern={renamePattern}
+              maxPatterns={maxPatterns}
+            />
           </motion.div>
-
-          {/* Saved Patterns Panel */}
-          <SavedPatternsPanel
-            patterns={patterns}
-            onRemovePattern={removePattern}
-            onTogglePattern={togglePattern}
-            onRenamePattern={renamePattern}
-            maxPatterns={maxPatterns}
-          />
 
           {loading && (
             <div className="flex items-center justify-center py-12">
