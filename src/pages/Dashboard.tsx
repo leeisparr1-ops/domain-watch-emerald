@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,13 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Info } from "lucide-react";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
@@ -120,7 +113,6 @@ export default function Dashboard() {
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
-  const [showMatchesDialog, setShowMatchesDialog] = useState(false);
   const [dialogMatches, setDialogMatches] = useState<Array<{
     auction_id: string;
     domain_name: string;
@@ -136,7 +128,7 @@ export default function Dashboard() {
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
+  const [viewMode, setViewMode] = useState<"all" | "favorites" | "matches">("all");
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [jumpToPage, setJumpToPage] = useState("");
@@ -328,22 +320,23 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // Listen for custom event to open pattern matches dialog
+  // Listen for custom event to open pattern matches tab
   useEffect(() => {
     const handleOpenMatches = () => {
-      setShowMatchesDialog(true);
+      setViewMode("matches");
       fetchDialogMatches();
     };
     window.addEventListener('openPatternMatches', handleOpenMatches);
     return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
   }, [fetchDialogMatches]);
 
-  // Fetch matches when dialog opens manually
+  // Fetch matches when switching to matches tab
   useEffect(() => {
-    if (showMatchesDialog) {
+    if (viewMode === "matches") {
       fetchDialogMatches();
     }
-  }, [showMatchesDialog, fetchDialogMatches]);
+  }, [viewMode, fetchDialogMatches]);
+
   
   // Update time remaining display every 30 seconds
   useEffect(() => {
@@ -397,7 +390,7 @@ export default function Dashboard() {
   const enabledPatterns = patterns.filter(p => p.enabled);
   const filtered = auctions.filter(d => {
     const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
-    const matchesFavorites = viewMode === "all" || isFavorite(d.domain);
+    const matchesFavorites = viewMode === "all" || viewMode === "matches" || isFavorite(d.domain);
     // Only filter by pattern if there are enabled patterns
     const matchesPattern = enabledPatterns.length === 0 || matchesDomain(d.domain);
     return matchesSearch && matchesFavorites && matchesPattern;
@@ -439,7 +432,17 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
             <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
               <button
-                onClick={() => setViewMode(viewMode === "favorites" ? "all" : "favorites")}
+                onClick={() => setViewMode("all")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
+                  viewMode === "all" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "hover:bg-background/50"
+                }`}
+              >
+                All Domains
+              </button>
+              <button
+                onClick={() => setViewMode("favorites")}
                 className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
                   viewMode === "favorites" 
                     ? "bg-background text-foreground shadow-sm" 
@@ -451,6 +454,22 @@ export default function Dashboard() {
                 {favoritesCount > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                     {favoritesCount}
+                  </Badge>
+                )}
+              </button>
+              <button
+                onClick={() => setViewMode("matches")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
+                  viewMode === "matches" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <Target className="w-4 h-4" />
+                Matches
+                {dialogMatches.length > 0 && (
+                  <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-primary">
+                    {dialogMatches.length}
                   </Badge>
                 )}
               </button>
@@ -475,45 +494,47 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Search and Actions Bar */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
-            </div>
-            <div className="flex gap-2 sm:gap-4 overflow-x-auto">
-              <Button 
-                variant={showFilters ? "secondary" : "outline"} 
-                onClick={() => setShowFilters(!showFilters)}
-                className="relative flex-shrink-0"
-                size="sm"
-              >
-                <Filter className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Filters</span>
-                {activeFilterCount > 0 && (
-                  <Badge variant="default" className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {activeFilterCount}
-                  </Badge>
-                )}
-              </Button>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
-                  <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
-                  {SORT_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </motion.div>
+          {/* Search and Actions Bar - Hidden in matches view */}
+          {viewMode !== "matches" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
+              </div>
+              <div className="flex gap-2 sm:gap-4 overflow-x-auto">
+                <Button 
+                  variant={showFilters ? "secondary" : "outline"} 
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="relative flex-shrink-0"
+                  size="sm"
+                >
+                  <Filter className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeFilterCount > 0 && (
+                    <Badge variant="default" className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
+                    <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    {SORT_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </motion.div>
+          )}
 
-          {/* Filters Panel */}
-          {showFilters && (
+          {/* Filters Panel - Hidden in matches view */}
+          {showFilters && viewMode !== "matches" && (
             <motion.div 
               initial={{ opacity: 0, height: 0 }} 
               animate={{ opacity: 1, height: 'auto' }} 
@@ -608,33 +629,118 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Add Patterns and Saved Patterns - Below Filters */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-3">
-            <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
-            <SavedPatternsDialog
-              patterns={patterns}
-              onRemovePattern={removePattern}
-              onTogglePattern={togglePattern}
-              onRenamePattern={renamePattern}
-              maxPatterns={maxPatterns}
-            />
-          </motion.div>
+          {/* Add Patterns and Saved Patterns - Hidden in matches view */}
+          {viewMode !== "matches" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-3">
+              <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+              <SavedPatternsDialog
+                patterns={patterns}
+                onRemovePattern={removePattern}
+                onTogglePattern={togglePattern}
+                onRenamePattern={renamePattern}
+                maxPatterns={maxPatterns}
+              />
+            </motion.div>
+          )}
 
-          {loading && (
+          {/* Pattern Matches View */}
+          {viewMode === "matches" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+              {loadingMatches ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <span className="ml-3 text-muted-foreground">Loading matches...</span>
+                </div>
+              ) : dialogMatches.length > 0 ? (
+                <div className="space-y-6">
+                  {Object.entries(
+                    dialogMatches.reduce((groups, match) => {
+                      const key = match.pattern_description || 'Pattern';
+                      if (!groups[key]) groups[key] = [];
+                      groups[key].push(match);
+                      return groups;
+                    }, {} as Record<string, typeof dialogMatches>)
+                  ).map(([patternName, matches]) => (
+                    <div key={patternName} className="p-4 rounded-xl glass border border-border">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                          {patternName}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {matches.length} match{matches.length !== 1 ? 'es' : ''}
+                        </span>
+                      </div>
+                      
+                      <div className="grid gap-3">
+                        {matches.map((match, i) => (
+                          <a
+                            key={match.auction_id || i}
+                            href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <div className="p-3 sm:p-4 rounded-lg bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all group">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <Target className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="font-mono text-primary text-sm sm:text-base truncate">
+                                    {match.domain_name}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                                  <span className="font-semibold text-foreground">
+                                    ${match.price.toLocaleString()}
+                                  </span>
+                                  {match.end_time && (
+                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                      <Clock className="w-4 h-4" />
+                                      {formatTimeRemaining(match.end_time)}
+                                    </div>
+                                  )}
+                                  <Button variant="outline" size="sm" className="h-8">
+                                    View
+                                    <ExternalLink className="w-3 h-3 ml-1" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                  <p className="mb-2">No pattern matches found.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Matches will appear here when your patterns find new domains.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Standard Auctions View */}
+          {viewMode !== "matches" && loading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
               <span className="ml-3 text-muted-foreground">Loading auctions...</span>
             </div>
           )}
 
-          {error && !loading && (
+          {viewMode !== "matches" && error && !loading && (
             <div className="text-center py-12">
               <p className="text-destructive mb-4">{error}</p>
               <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
             </div>
           )}
 
-          {!loading && !error && filtered.length === 0 && (
+          {viewMode !== "matches" && !loading && !error && filtered.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p className="mb-2">No auctions found matching your criteria.</p>
               {activeFilterCount > 0 && (
@@ -643,7 +749,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {!loading && !error && filtered.length > 0 && (
+          {viewMode !== "matches" && !loading && !error && filtered.length > 0 && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-3 sm:gap-4">
               {filtered.map((d, i) => (
@@ -805,116 +911,8 @@ export default function Dashboard() {
               
             </>
           )}
-
-          {/* Pattern Matches Banner */}
-          {dialogMatches.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }}
-              className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-50"
-            >
-              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center justify-between gap-3 backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                  <Info className="w-5 h-5 text-primary" />
-                  <span className="text-sm">
-                    +{dialogMatches.length} more pattern matches found!
-                  </span>
-                </div>
-                <Button 
-                  size="sm" 
-                  onClick={() => setShowMatchesDialog(true)}
-                >
-                  View All
-                </Button>
-              </div>
-            </motion.div>
-          )}
         </div>
       </main>
-
-      {/* Pattern Matches Dialog */}
-      <Dialog open={showMatchesDialog} onOpenChange={setShowMatchesDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader className="pb-4 border-b border-border">
-            <DialogTitle className="flex items-center gap-2">
-              <Gavel className="w-5 h-5 text-primary" />
-              Pattern Matches ({dialogMatches.length})
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto py-4">
-            {loadingMatches ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : dialogMatches.length > 0 ? (
-              // Group matches by pattern
-              Object.entries(
-                dialogMatches.reduce((groups, match) => {
-                  const key = match.pattern_description || 'Pattern';
-                  if (!groups[key]) groups[key] = [];
-                  groups[key].push(match);
-                  return groups;
-                }, {} as Record<string, typeof dialogMatches>)
-              ).map(([patternName, matches]) => (
-                <div key={patternName} className="mb-6 last:mb-0">
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      {patternName}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {matches.length} match{matches.length !== 1 ? 'es' : ''}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {matches.map((match, i) => (
-                      <a
-                        key={match.auction_id || i}
-                        href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <div className="p-3 rounded-lg bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="font-mono text-primary text-sm truncate flex-1">
-                              {match.domain_name}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="font-semibold text-foreground">
-                                ${match.price.toLocaleString()}
-                              </span>
-                              {match.end_time && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Clock className="w-3 h-3" />
-                                  {formatTimeRemaining(match.end_time)}
-                                </div>
-                              )}
-                              <Button variant="outline" size="sm" className="h-7 px-2">
-                                View
-                                <ExternalLink className="w-3 h-3 ml-1" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <Gavel className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">No pattern matches found.</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Matches will appear here when your patterns find new domains.
-                </p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
