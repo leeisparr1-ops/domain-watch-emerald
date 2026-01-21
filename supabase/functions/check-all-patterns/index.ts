@@ -81,19 +81,39 @@ serve(async (req) => {
 
     console.log(`Found ${allPatterns.length} enabled patterns across all users`);
 
-    // Get active auctions (ending in the future)
+    // Get active auctions ending soon - paginate in batches
     const now = new Date().toISOString();
-    const { data: auctions, error: auctionsError } = await supabase
-      .from("auctions")
-      .select("id, domain_name, price, tld, end_time")
-      .gte("end_time", now)
-      .limit(50000); // Limit for performance
+    const allAuctions: Auction[] = [];
+    const batchSize = 1000;
+    const maxBatches = 20; // Cap at 20k auctions for performance
+    
+    for (let batch = 0; batch < maxBatches; batch++) {
+      const { data: auctionBatch, error: auctionsError } = await supabase
+        .from("auctions")
+        .select("id, domain_name, price, tld, end_time")
+        .gte("end_time", now)
+        .order("end_time", { ascending: true })
+        .range(batch * batchSize, (batch + 1) * batchSize - 1);
 
-    if (auctionsError) {
-      throw auctionsError;
+      if (auctionsError) {
+        console.error(`Batch ${batch} error:`, auctionsError);
+        break;
+      }
+
+      if (!auctionBatch || auctionBatch.length === 0) {
+        break;
+      }
+
+      allAuctions.push(...(auctionBatch as Auction[]));
+      
+      if (auctionBatch.length < batchSize) {
+        break; // No more data
+      }
     }
 
-    if (!auctions || auctions.length === 0) {
+    const auctions = allAuctions;
+    
+    if (auctions.length === 0) {
       console.log("No active auctions found");
       return new Response(JSON.stringify({ 
         success: true,
