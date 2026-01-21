@@ -190,6 +190,21 @@ serve(async (req) => {
 
     console.log(`Sync complete: ${totalUpserted} auctions synced`);
 
+    // Trigger pattern checking for all users after successful sync
+    if (totalUpserted > 0) {
+      try {
+        console.log("Triggering pattern check for all users...");
+        const patternCheckResponse = await fetch(`${supabaseUrl}/functions/v1/check-all-patterns`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const patternResult = await patternCheckResponse.json();
+        console.log("Pattern check result:", patternResult);
+      } catch (patternError) {
+        console.error("Error triggering pattern check:", patternError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

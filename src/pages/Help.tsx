@@ -66,7 +66,7 @@ export default function Help() {
     },
     {
       question: "How often are domain auctions updated?",
-      answer: "Our system automatically syncs with GoDaddy Auctions every 6 hours, ensuring you have access to the latest expired and expiring domains."
+      answer: "Our system automatically syncs with GoDaddy Auctions every 6 hours, ensuring you have access to the latest expired and expiring domains. After each sync, your patterns are automatically checked against new domains, and notifications are sent immediately if matches are found."
     },
     {
       question: "What's the difference between 'Bid' and 'BuyNow' auctions?",
@@ -94,7 +94,11 @@ export default function Help() {
     },
     {
       question: "Why am I not receiving notifications?",
-      answer: "Check that: 1) Notifications are enabled in Settings, 2) Your email is correct, 3) The pattern is enabled (toggle is on in Saved Patterns), 4) Check your spam folder for emails."
+      answer: "Check that: 1) Notifications are enabled in Settings, 2) Your email is correct, 3) The pattern is enabled (toggle is on in Saved Patterns), 4) Check your spam folder for emails. Note: Notifications are sent automatically when new auctions sync (every 6 hours) and match your patterns."
+    },
+    {
+      question: "When do I receive notifications?",
+      answer: "Notifications are sent automatically when new domain auctions are synced (approximately every 6 hours). If any new domains match your enabled patterns, you'll receive push notifications (if enabled) and/or email alerts immediately after the sync completes."
     }
   ];
 
