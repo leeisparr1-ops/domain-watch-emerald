@@ -123,6 +123,7 @@ export default function Dashboard() {
   }>>([]);
   const [matchesPage, setMatchesPage] = useState(1);
   const MATCHES_PER_PAGE = 25;
+  const [totalMatchesCount, setTotalMatchesCount] = useState(0);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
@@ -263,6 +264,14 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchAuctionsFromDb();
+      // Fetch matches count for badge
+      (async () => {
+        const { count } = await supabase
+          .from('pattern_alerts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        setTotalMatchesCount(count || 0);
+      })();
     }
   }, [user, fetchAuctionsFromDb]);
   
@@ -283,21 +292,32 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // Fetch pattern matches from database when dialog opens
-  const fetchDialogMatches = useCallback(async () => {
+  // Fetch pattern matches from database with server-side pagination
+  const fetchDialogMatches = useCallback(async (page: number = 1) => {
     if (!user) return;
     setLoadingMatches(true);
     try {
       // Auto-cleanup old matches first
       await cleanupOldMatches();
 
-      // First get pattern alerts
+      const from = (page - 1) * MATCHES_PER_PAGE;
+      const to = from + MATCHES_PER_PAGE - 1;
+
+      // First get total count
+      const { count: totalCount } = await supabase
+        .from('pattern_alerts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      setTotalMatchesCount(totalCount || 0);
+
+      // Get pattern alerts for current page
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
         .select('id, auction_id, domain_name, pattern_id')
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false })
-        .limit(500);
+        .range(from, to);
 
       if (alertsError) throw alertsError;
       if (!alerts || alerts.length === 0) {
@@ -339,6 +359,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching pattern matches:', error);
       setDialogMatches([]);
+      setTotalMatchesCount(0);
     } finally {
       setLoadingMatches(false);
     }
@@ -355,6 +376,7 @@ export default function Dashboard() {
         .eq('user_id', user.id);
       
       setDialogMatches(prev => prev.filter(m => m.alert_id !== alertId));
+      setTotalMatchesCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error deleting match:', error);
     }
@@ -370,6 +392,8 @@ export default function Dashboard() {
         .eq('user_id', user.id);
       
       setDialogMatches([]);
+      setTotalMatchesCount(0);
+      setMatchesPage(1);
     } catch (error) {
       console.error('Error clearing matches:', error);
     }
@@ -379,18 +403,19 @@ export default function Dashboard() {
   useEffect(() => {
     const handleOpenMatches = () => {
       setViewMode("matches");
-      fetchDialogMatches();
+      setMatchesPage(1);
+      fetchDialogMatches(1);
     };
     window.addEventListener('openPatternMatches', handleOpenMatches);
     return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
   }, [fetchDialogMatches]);
 
-  // Fetch matches when switching to matches tab
+  // Fetch matches when switching to matches tab or changing page
   useEffect(() => {
     if (viewMode === "matches") {
-      fetchDialogMatches();
+      fetchDialogMatches(matchesPage);
     }
-  }, [viewMode, fetchDialogMatches]);
+  }, [viewMode, matchesPage, fetchDialogMatches]);
 
   
   // Update time remaining display every 30 seconds
@@ -524,9 +549,9 @@ export default function Dashboard() {
                 >
                   <Target className="w-4 h-4" />
                   <span>Matches</span>
-                  {dialogMatches.length > 0 && (
+                  {totalMatchesCount > 0 && (
                     <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-primary">
-                      {dialogMatches.length}
+                      {totalMatchesCount}
                     </Badge>
                   )}
                 </button>
@@ -711,7 +736,7 @@ export default function Dashboard() {
                   {/* Header with Clear All button */}
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
-                      Showing {Math.min((matchesPage - 1) * MATCHES_PER_PAGE + 1, dialogMatches.length)}-{Math.min(matchesPage * MATCHES_PER_PAGE, dialogMatches.length)} of {dialogMatches.length} matches
+                      Showing {Math.min((matchesPage - 1) * MATCHES_PER_PAGE + 1, totalMatchesCount)}-{Math.min(matchesPage * MATCHES_PER_PAGE, totalMatchesCount)} of {totalMatchesCount} matches
                     </p>
                     <Button
                       variant="outline"
@@ -725,13 +750,9 @@ export default function Dashboard() {
                     </Button>
                   </div>
 
-                  {/* Grouped matches with pagination */}
+                  {/* Grouped matches - already paginated from server */}
                   {(() => {
-                    const paginatedMatches = dialogMatches.slice(
-                      (matchesPage - 1) * MATCHES_PER_PAGE,
-                      matchesPage * MATCHES_PER_PAGE
-                    );
-                    const grouped = paginatedMatches.reduce((groups, match) => {
+                    const grouped = dialogMatches.reduce((groups, match) => {
                       const key = match.pattern_description || 'Pattern';
                       if (!groups[key]) groups[key] = [];
                       groups[key].push(match);
@@ -811,8 +832,8 @@ export default function Dashboard() {
                     ));
                   })()}
 
-                  {/* Pagination for matches */}
-                  {dialogMatches.length > MATCHES_PER_PAGE && (
+                  {/* Pagination for matches - server-side pagination */}
+                  {totalMatchesCount > MATCHES_PER_PAGE && (
                     <div className="flex items-center justify-center gap-2 pt-4">
                       <Button
                         variant="outline"
@@ -823,13 +844,13 @@ export default function Dashboard() {
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <span className="text-sm text-muted-foreground px-2">
-                        Page {matchesPage} of {Math.ceil(dialogMatches.length / MATCHES_PER_PAGE)}
+                        Page {matchesPage} of {Math.ceil(totalMatchesCount / MATCHES_PER_PAGE)}
                       </span>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setMatchesPage(p => Math.min(Math.ceil(dialogMatches.length / MATCHES_PER_PAGE), p + 1))}
-                        disabled={matchesPage >= Math.ceil(dialogMatches.length / MATCHES_PER_PAGE)}
+                        onClick={() => setMatchesPage(p => Math.min(Math.ceil(totalMatchesCount / MATCHES_PER_PAGE), p + 1))}
+                        disabled={matchesPage >= Math.ceil(totalMatchesCount / MATCHES_PER_PAGE)}
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
