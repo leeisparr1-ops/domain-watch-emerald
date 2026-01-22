@@ -73,6 +73,35 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
+      // Rate limit: Check last email sent (via pattern_alerts) - max 1 email per 6 hours
+      if (payload.type === "pattern_match") {
+        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+        const { data: recentAlerts } = await supabase
+          .from("pattern_alerts")
+          .select("alerted_at")
+          .eq("user_id", userId)
+          .gte("alerted_at", sixHoursAgo)
+          .order("alerted_at", { ascending: false })
+          .limit(1);
+
+        // Check if this is the first batch of alerts in this window
+        // If there are older alerts from this sync cycle, skip email
+        if (recentAlerts && recentAlerts.length > 0) {
+          const lastAlertTime = new Date(recentAlerts[0].alerted_at).getTime();
+          const oneMinuteAgo = Date.now() - 60 * 1000;
+          
+          // If the most recent alert is older than 1 minute, this is a new sync cycle
+          // but we already sent an email in the last 6 hours, so skip
+          if (lastAlertTime < oneMinuteAgo) {
+            console.log(`Rate limited: User ${userId} already received email within 6 hours`);
+            return new Response(
+              JSON.stringify({ message: "Rate limited - email already sent within 6 hours" }),
+              { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            );
+          }
+        }
+      }
+
       recipientEmail = settings?.notification_email;
 
       // If no custom email, try to get from auth
@@ -156,7 +185,7 @@ serve(async (req: Request): Promise<Response> => {
               ${domainList}
             </ul>
             ${moreCount > 0 ? `<p style="color: #6b7280; font-style: italic;">...and ${moreCount} more domains</p>` : ""}
-            <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
+            <a href="https://id-preview--3adc2e22-507b-4384-8039-c79550313fa4.lovable.app/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
               View All Matches →
             </a>
           </div>
