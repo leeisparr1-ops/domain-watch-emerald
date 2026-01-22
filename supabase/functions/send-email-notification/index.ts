@@ -185,7 +185,7 @@ serve(async (req: Request): Promise<Response> => {
               ${domainList}
             </ul>
             ${moreCount > 0 ? `<p style="color: #6b7280; font-style: italic;">...and ${moreCount} more domains</p>` : ""}
-            <a href="https://id-preview--3adc2e22-507b-4384-8039-c79550313fa4.lovable.app/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
+            <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
               View All Matches →
             </a>
           </div>
