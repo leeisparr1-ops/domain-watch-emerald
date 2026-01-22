@@ -266,11 +266,31 @@ export default function Dashboard() {
     }
   }, [user, fetchAuctionsFromDb]);
   
+  // Auto-cleanup old matches (older than 8 days)
+  const cleanupOldMatches = useCallback(async () => {
+    if (!user) return;
+    try {
+      const eightDaysAgo = new Date();
+      eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
+      
+      await supabase
+        .from('pattern_alerts')
+        .delete()
+        .eq('user_id', user.id)
+        .lt('alerted_at', eightDaysAgo.toISOString());
+    } catch (error) {
+      console.error('Error cleaning up old matches:', error);
+    }
+  }, [user]);
+
   // Fetch pattern matches from database when dialog opens
   const fetchDialogMatches = useCallback(async () => {
     if (!user) return;
     setLoadingMatches(true);
     try {
+      // Auto-cleanup old matches first
+      await cleanupOldMatches();
+
       // First get pattern alerts
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
@@ -322,7 +342,7 @@ export default function Dashboard() {
     } finally {
       setLoadingMatches(false);
     }
-  }, [user]);
+  }, [user, cleanupOldMatches]);
 
   // Delete a single match
   const deleteMatch = async (alertId: string) => {
@@ -503,7 +523,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <Target className="w-4 h-4" />
-                  <span className="hidden sm:inline">Matches</span>
+                  <span>Matches</span>
                   {dialogMatches.length > 0 && (
                     <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-primary">
                       {dialogMatches.length}
