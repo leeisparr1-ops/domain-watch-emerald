@@ -14,14 +14,14 @@ interface SubscriptionState {
 // Plan tier configuration
 export const PLAN_CONFIG = {
   basic: {
-    priceId: "price_1SsSBgEaMKJga5fx7kLVfRF5",
-    productId: "prod_Tq8SL50JpcARmF",
+    priceId: "price_1SsTamEaMKJga5fxylFENQ12",
+    productId: "prod_Tq9uBfPZRydPoT",
     price: 4.99,
     maxPatterns: 50,
   },
   advanced: {
-    priceId: "price_1SsSC4EaMKJga5fxhWoGQIzH",
-    productId: "prod_Tq8T8pIma90LcL",
+    priceId: "price_1SsTarEaMKJga5fxWBZIRakY",
+    productId: "prod_Tq9u0B65mJOkIU",
     price: 9.99,
     maxPatterns: 125,
   },
