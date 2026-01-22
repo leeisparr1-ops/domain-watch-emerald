@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Mail, CheckCircle, XCircle, Loader2, User } from "lucide-react";
+import { Mail, CheckCircle, XCircle, Loader2, User, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
-
+import { useSubscription, PLAN_CONFIG } from "@/hooks/useSubscription";
 export default function Settings() {
   const { user, loading } = useAuth();
+  const { plan, subscribed, subscriptionEnd, loading: subLoading, checkSubscription, openCustomerPortal } = useSubscription();
   const [resending, setResending] = useState(false);
+  const [managingSubscription, setManagingSubscription] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      toast.success("Subscription activated! Your plan has been upgraded.");
+      checkSubscription();
+    }
+  }, [searchParams, checkSubscription]);
   
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
@@ -72,9 +82,59 @@ export default function Settings() {
             <NotificationSettingsPanel />
 
             <div className="p-6 rounded-xl glass border border-border">
-              <h2 className="text-lg font-semibold mb-2">Subscription</h2>
-              <p className="text-muted-foreground mb-4">You're on the <span className="text-primary font-medium">Free</span> plan (2 patterns)</p>
-              <Button variant="hero">Upgrade to Basic - $4.99/mo</Button>
+              <div className="flex items-center gap-3 mb-4">
+                <CreditCard className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Subscription</h2>
+              </div>
+              {subLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading subscription...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <p className="text-muted-foreground">
+                      You're on the{" "}
+                      <span className="text-primary font-medium capitalize">{plan}</span> plan
+                      {" "}({PLAN_CONFIG[plan].maxPatterns} patterns)
+                    </p>
+                    {subscribed && subscriptionEnd && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Renews on {new Date(subscriptionEnd).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {subscribed ? (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          setManagingSubscription(true);
+                          try {
+                            await openCustomerPortal();
+                          } catch (error) {
+                            toast.error("Failed to open subscription portal");
+                          } finally {
+                            setManagingSubscription(false);
+                          }
+                        }}
+                        disabled={managingSubscription}
+                      >
+                        {managingSubscription ? (
+                          <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading...</>
+                        ) : (
+                          "Manage Subscription"
+                        )}
+                      </Button>
+                    ) : (
+                      <Link to="/pricing">
+                        <Button variant="hero">Upgrade Plan</Button>
+                      </Link>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
