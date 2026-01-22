@@ -18,7 +18,7 @@ const steps = [
     icon: Smartphone,
     step: "3",
     title: "Get Instant Alerts",
-    description: "Receive push notifications directly to your phone the moment a matching domain becomes available.",
+    description: "Receive push or email notifications the moment a matching domain becomes available.",
   },
   {
     icon: Check,
