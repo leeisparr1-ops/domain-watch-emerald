@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Mail, CheckCircle, XCircle, Loader2, User, CreditCard } from "lucide-react";
+import { Mail, CheckCircle, XCircle, Loader2, User, CreditCard, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useSearchParams, Link } from "react-router-dom";
@@ -15,6 +17,15 @@ export default function Settings() {
   const [resending, setResending] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
   const [searchParams] = useSearchParams();
+  
+  // Password change state
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  
+  // Email update state
+  const [newEmail, setNewEmail] = useState("");
+  const [updatingEmail, setUpdatingEmail] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("success") === "true") {
@@ -34,6 +45,57 @@ export default function Settings() {
     if (error) toast.error(error.message);
     else toast.success("Verification email sent!");
     setResending(false);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password updated successfully!");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setChangingPassword(false);
+  };
+
+  const handleEmailUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newEmail || !newEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    
+    if (newEmail === user.email) {
+      toast.error("New email is the same as current email");
+      return;
+    }
+    
+    setUpdatingEmail(true);
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Confirmation email sent! Please check both your old and new email addresses.");
+      setNewEmail("");
+    }
+    setUpdatingEmail(false);
   };
 
   return (
@@ -76,6 +138,86 @@ export default function Settings() {
                   </Button>
                 )}
               </div>
+            </div>
+
+            {/* Update Email */}
+            <div className="p-6 rounded-xl glass border border-border">
+              <div className="flex items-center gap-3 mb-4">
+                <Pencil className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Update Email</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Change the email address associated with your account. You'll need to verify the new email.
+              </p>
+              <form onSubmit={handleEmailUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-email">Current Email</Label>
+                  <Input
+                    id="current-email"
+                    type="email"
+                    value={user.email || ""}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">New Email</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    placeholder="Enter new email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline" disabled={updatingEmail || !newEmail}>
+                  {updatingEmail ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
+                  ) : (
+                    "Update Email"
+                  )}
+                </Button>
+              </form>
+            </div>
+
+            {/* Change Password */}
+            <div className="p-6 rounded-xl glass border border-border">
+              <div className="flex items-center gap-3 mb-4">
+                <Lock className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Change Password</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Update your account password. Choose a strong password with at least 6 characters.
+              </p>
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline" disabled={changingPassword || !newPassword || !confirmPassword}>
+                  {changingPassword ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
+                  ) : (
+                    "Change Password"
+                  )}
+                </Button>
+              </form>
             </div>
 
             {/* Notification Settings */}
