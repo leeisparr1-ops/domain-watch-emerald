@@ -105,8 +105,18 @@ export default function Settings() {
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    {subscribed ? (
+                  
+                  {subscribed ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Manage your subscription through the Stripe Customer Portal:
+                      </p>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 mb-4">
+                        <li>View subscription details</li>
+                        <li>Update payment method</li>
+                        <li>Cancel or change your plan</li>
+                        <li>View billing history</li>
+                      </ul>
                       <Button
                         variant="outline"
                         onClick={async () => {
@@ -127,12 +137,12 @@ export default function Settings() {
                           "Manage Subscription"
                         )}
                       </Button>
-                    ) : (
-                      <Link to="/pricing">
-                        <Button variant="hero">Upgrade Plan</Button>
-                      </Link>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <Link to="/pricing">
+                      <Button variant="hero">Upgrade Plan</Button>
+                    </Link>
+                  )}
                 </>
               )}
             </div>
