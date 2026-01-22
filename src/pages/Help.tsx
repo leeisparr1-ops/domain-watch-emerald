@@ -19,7 +19,8 @@ import {
   BookOpen,
   MessageCircle,
   Bookmark,
-  Pencil
+  Pencil,
+  Target
 } from "lucide-react";
 
 export default function Help() {
@@ -32,21 +33,26 @@ export default function Help() {
     {
       icon: <Bookmark className="w-6 h-6 text-primary" />,
       title: "2. Manage Saved Patterns",
-      description: "Click the 'Saved Patterns' button on the Dashboard to open the patterns dialog. Here you can rename, toggle on/off, or delete patterns. Pattern limits depend on your plan."
-    },
-    {
-      icon: <Filter className="w-6 h-6 text-primary" />,
-      title: "3. Set Filters",
-      description: "Optionally filter by price range, TLD (.com, .net, etc.), and more to narrow down your search to domains that fit your budget."
+      description: "Click 'Saved Patterns' on the Dashboard to view, rename, toggle, or delete your patterns. Pattern limits depend on your subscription plan."
     },
     {
       icon: <Bell className="w-6 h-6 text-primary" />,
-      title: "4. Enable Notifications",
-      description: "Turn on email and/or push notifications in Settings to get alerted immediately when matching domains are found."
+      title: "3. Enable Alerts",
+      description: "Click 'Alerts ON/OFF' next to 'Add Pattern' or go to Settings to enable push and email notifications when patterns match new domains."
+    },
+    {
+      icon: <Filter className="w-6 h-6 text-primary" />,
+      title: "4. Set Filters",
+      description: "Use filters to narrow results by price range, TLD extension, and auction type to find domains that fit your budget."
+    },
+    {
+      icon: <Target className="w-6 h-6 text-primary" />,
+      title: "5. Review Matches",
+      description: "Click the 'Matches' tab on the Dashboard to see all domains that matched your patterns. Use the bin icon to remove reviewed matches."
     },
     {
       icon: <Heart className="w-6 h-6 text-primary" />,
-      title: "5. Save Favorites",
+      title: "6. Save Favorites",
       description: "Found a great domain? Click the heart icon to save it to your favorites for easy access later."
     }
   ];
@@ -57,48 +63,44 @@ export default function Help() {
       answer: "A pattern is a search rule you create to find specific domains. You can use keywords, wildcards (*), or exact matches. For example, 'ai*' will match all domains starting with 'ai', while '*shop*' matches any domain containing 'shop'."
     },
     {
+      question: "How do I view my pattern matches?",
+      answer: "Click the 'Matches' tab on the Dashboard to see all domains that have matched your patterns. Results are grouped by pattern name. Use the bin icon to remove matches you've already reviewed."
+    },
+    {
       question: "How do I manage my saved patterns?",
-      answer: "After adding a pattern, click the 'Saved Patterns' button on the Dashboard to open your patterns dialog. Here you can: 1) Toggle patterns on/off with the toggle switch, 2) Rename patterns by clicking the pencil icon, 3) Delete patterns with the trash icon. The number of patterns you can save depends on your subscription plan."
+      answer: "Click 'Saved Patterns' on the Dashboard. Here you can: 1) Toggle patterns on/off, 2) Rename patterns with the pencil icon, 3) Delete patterns with the trash icon."
     },
     {
       question: "How many patterns can I save?",
-      answer: "The number of patterns depends on your plan: Free plan allows 2 patterns, Basic plan ($4.99/mo) allows 50 patterns, and Advanced plan ($9.99/mo) allows 125 patterns. You can upgrade at any time from the Pricing page."
+      answer: "Free plan: 2 patterns. Basic ($4.99/mo): 50 patterns. Advanced ($9.99/mo): 125 patterns. Upgrade anytime from the Pricing page."
     },
     {
-      question: "How often are domain auctions updated?",
-      answer: "Our system automatically syncs with GoDaddy Auctions every 6 hours, ensuring you have access to the latest expired and expiring domains. After each sync, your patterns are automatically checked against new domains, and notifications are sent immediately if matches are found."
+      question: "How often are auctions updated?",
+      answer: "Auctions sync every 6 hours. After each sync, your patterns are checked and notifications are sent immediately for any new matches."
     },
     {
       question: "What's the difference between 'Bid' and 'BuyNow' auctions?",
-      answer: "'Bid' auctions allow you to place competitive bids against other buyers, while 'BuyNow' domains have a fixed price for instant purchase."
+      answer: "'Bid' auctions let you compete with other buyers. 'BuyNow' domains have a fixed price for instant purchase."
     },
     {
-      question: "How do I enable email notifications?",
-      answer: "Go to Settings → Notifications, enter your email address, and toggle on 'Email Notifications'. You can test it with the 'Send Test' button."
+      question: "How do I enable notifications?",
+      answer: "Click 'Alerts ON/OFF' on the Dashboard or go to Settings → Notifications to configure push and email alerts."
     },
     {
       question: "Can I use ExpiredHawk on my phone?",
-      answer: "Yes! ExpiredHawk is a Progressive Web App (PWA). You can install it on your phone by clicking 'Add to Home Screen' in your browser menu for a native app-like experience."
+      answer: "Yes! Install ExpiredHawk as a PWA by clicking 'Add to Home Screen' in your browser for a native app-like experience with push notifications."
     },
     {
       question: "What do the pattern types mean?",
-      answer: "'Contains' matches domains containing your keyword anywhere. 'Starts with' matches domains beginning with your keyword. 'Ends with' matches domains ending with your keyword. 'Exact' requires an exact domain name match."
+      answer: "'Contains' matches domains with your keyword anywhere. 'Starts with' matches domains beginning with your keyword. 'Ends with' matches domains ending with your keyword. 'Exact' requires an exact match."
     },
     {
-      question: "How do I rename a pattern?",
-      answer: "Click the 'Saved Patterns' button on the Dashboard to open the dialog, then click the pencil icon next to the pattern you want to rename. Type your new name and press Enter or click the checkmark to save."
-    },
-    {
-      question: "How do I delete a pattern?",
-      answer: "Click the 'Saved Patterns' button on the Dashboard to open the dialog, then click the trash icon next to the pattern you want to remove."
+      question: "How do I remove matches I've reviewed?",
+      answer: "In the Matches tab, click the bin icon next to any domain to remove it from your matches list. This helps you keep track of domains you've already evaluated."
     },
     {
       question: "Why am I not receiving notifications?",
-      answer: "Check that: 1) Notifications are enabled in Settings, 2) Your email is correct, 3) The pattern is enabled (toggle is on in Saved Patterns), 4) Check your spam folder for emails. Note: Notifications are sent automatically when new auctions sync (every 6 hours) and match your patterns."
-    },
-    {
-      question: "When do I receive notifications?",
-      answer: "Notifications are sent automatically when new domain auctions are synced (approximately every 6 hours). If any new domains match your enabled patterns, you'll receive push notifications (if enabled) and/or email alerts immediately after the sync completes."
+      answer: "Check that: 1) Alerts are enabled (Alerts ON on Dashboard), 2) Email is correct in Settings, 3) Pattern is enabled in Saved Patterns, 4) Check spam folder. Notifications are sent after each 6-hour sync."
     }
   ];
 

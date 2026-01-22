@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Globe, Github, Twitter } from "lucide-react";
+import { Globe } from "lucide-react";
 
 export function Footer() {
   return (
@@ -17,14 +17,6 @@ export function Footer() {
             <p className="text-sm text-muted-foreground">
               Pattern monitoring & instant mobile alerts for domain hunters.
             </p>
-            <div className="flex gap-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Github className="w-5 h-5" />
-              </a>
-            </div>
           </div>
 
           {/* Product */}

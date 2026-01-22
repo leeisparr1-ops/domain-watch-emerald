@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target } from "lucide-react";
+import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,7 +119,10 @@ export default function Dashboard() {
     price: number;
     end_time: string | null;
     pattern_description: string;
+    alert_id?: string;
   }>>([]);
+  const [matchesPage, setMatchesPage] = useState(1);
+  const MATCHES_PER_PAGE = 25;
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
@@ -271,10 +274,10 @@ export default function Dashboard() {
       // First get pattern alerts
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
-        .select('auction_id, domain_name, pattern_id')
+        .select('id, auction_id, domain_name, pattern_id')
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (alertsError) throw alertsError;
       if (!alerts || alerts.length === 0) {
@@ -303,6 +306,7 @@ export default function Dashboard() {
       const matches = alerts.map(alert => {
         const auction = auctionMap.get(alert.auction_id);
         return {
+          alert_id: alert.id,
           auction_id: alert.auction_id,
           domain_name: alert.domain_name,
           price: auction?.price || 0,
@@ -319,6 +323,37 @@ export default function Dashboard() {
       setLoadingMatches(false);
     }
   }, [user]);
+
+  // Delete a single match
+  const deleteMatch = async (alertId: string) => {
+    if (!user) return;
+    try {
+      await supabase
+        .from('pattern_alerts')
+        .delete()
+        .eq('id', alertId)
+        .eq('user_id', user.id);
+      
+      setDialogMatches(prev => prev.filter(m => m.alert_id !== alertId));
+    } catch (error) {
+      console.error('Error deleting match:', error);
+    }
+  };
+
+  // Clear all matches
+  const clearAllMatches = async () => {
+    if (!user) return;
+    try {
+      await supabase
+        .from('pattern_alerts')
+        .delete()
+        .eq('user_id', user.id);
+      
+      setDialogMatches([]);
+    } catch (error) {
+      console.error('Error clearing matches:', error);
+    }
+  };
 
   // Listen for custom event to open pattern matches tab
   useEffect(() => {
@@ -430,67 +465,52 @@ export default function Dashboard() {
 
           {/* View Mode Toggle */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
-            <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-              <button
-                onClick={() => setViewMode("all")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
-                  viewMode === "all" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "hover:bg-background/50"
-                }`}
-              >
-                All Domains
-              </button>
-              <button
-                onClick={() => setViewMode("favorites")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
-                  viewMode === "favorites" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "hover:bg-background/50"
-                }`}
-              >
-                <Heart className="w-4 h-4" />
-                Favorites
-                {favoritesCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                    {favoritesCount}
-                  </Badge>
-                )}
-              </button>
-              <button
-                onClick={() => setViewMode("matches")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
-                  viewMode === "matches" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "hover:bg-background/50"
-                }`}
-              >
-                <Target className="w-4 h-4" />
-                Matches
-                {dialogMatches.length > 0 && (
-                  <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-primary">
-                    {dialogMatches.length}
-                  </Badge>
-                )}
-              </button>
-              <Link to="/settings">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
                 <button
-                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all gap-2 ${
-                    notificationsEnabled 
+                  onClick={() => setViewMode("all")}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
+                    viewMode === "all" 
                       ? "bg-background text-foreground shadow-sm" 
                       : "hover:bg-background/50"
                   }`}
-                  title="Configure auction alerts in Settings"
                 >
-                  {notificationsEnabled ? (
-                    <Bell className="w-4 h-4 text-primary" />
-                  ) : (
-                    <BellOff className="w-4 h-4" />
-                  )}
-                  {notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}
-                  <Settings className="w-3 h-3 opacity-50" />
+                  <span className="hidden sm:inline">All Domains</span>
+                  <span className="sm:hidden">All</span>
                 </button>
-              </Link>
+                <button
+                  onClick={() => setViewMode("favorites")}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
+                    viewMode === "favorites" 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "hover:bg-background/50"
+                  }`}
+                >
+                  <Heart className="w-4 h-4" />
+                  <span className="hidden sm:inline">Favorites</span>
+                  {favoritesCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {favoritesCount}
+                    </Badge>
+                  )}
+                </button>
+                <button
+                  onClick={() => setViewMode("matches")}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
+                    viewMode === "matches" 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "hover:bg-background/50"
+                  }`}
+                >
+                  <Target className="w-4 h-4" />
+                  <span className="hidden sm:inline">Matches</span>
+                  {dialogMatches.length > 0 && (
+                    <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-primary">
+                      {dialogMatches.length}
+                    </Badge>
+                  )}
+                </button>
+              </div>
             </div>
           </motion.div>
 
@@ -629,10 +649,25 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Add Patterns and Saved Patterns - Hidden in matches view */}
+          {/* Add Patterns, Saved Patterns, and Alerts - Hidden in matches view */}
           {viewMode !== "matches" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-3">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
               <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
+              <Link to="/settings">
+                <Button
+                  variant={notificationsEnabled ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1 sm:gap-2"
+                >
+                  {notificationsEnabled ? (
+                    <Bell className="w-4 h-4" />
+                  ) : (
+                    <BellOff className="w-4 h-4" />
+                  )}
+                  <span className="hidden sm:inline">{notificationsEnabled ? 'Alerts ON' : 'Alerts OFF'}</span>
+                  <span className="sm:hidden">{notificationsEnabled ? 'ON' : 'OFF'}</span>
+                </Button>
+              </Link>
               <SavedPatternsDialog
                 patterns={patterns}
                 onRemovePattern={removePattern}
@@ -652,66 +687,134 @@ export default function Dashboard() {
                   <span className="ml-3 text-muted-foreground">Loading matches...</span>
                 </div>
               ) : dialogMatches.length > 0 ? (
-                <div className="space-y-6">
-                  {Object.entries(
-                    dialogMatches.reduce((groups, match) => {
+                <div className="space-y-4">
+                  {/* Header with Clear All button */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {Math.min((matchesPage - 1) * MATCHES_PER_PAGE + 1, dialogMatches.length)}-{Math.min(matchesPage * MATCHES_PER_PAGE, dialogMatches.length)} of {dialogMatches.length} matches
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllMatches}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Clear All</span>
+                      <span className="sm:hidden">Clear</span>
+                    </Button>
+                  </div>
+
+                  {/* Grouped matches with pagination */}
+                  {(() => {
+                    const paginatedMatches = dialogMatches.slice(
+                      (matchesPage - 1) * MATCHES_PER_PAGE,
+                      matchesPage * MATCHES_PER_PAGE
+                    );
+                    const grouped = paginatedMatches.reduce((groups, match) => {
                       const key = match.pattern_description || 'Pattern';
                       if (!groups[key]) groups[key] = [];
                       groups[key].push(match);
                       return groups;
-                    }, {} as Record<string, typeof dialogMatches>)
-                  ).map(([patternName, matches]) => (
-                    <div key={patternName} className="p-4 rounded-xl glass border border-border">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                          {patternName}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {matches.length} match{matches.length !== 1 ? 'es' : ''}
-                        </span>
-                      </div>
-                      
-                      <div className="grid gap-3">
-                        {matches.map((match, i) => (
-                          <a
-                            key={match.auction_id || i}
-                            href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block"
-                          >
-                            <div className="p-3 sm:p-4 rounded-lg bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all group">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                    <Target className="w-4 h-4 text-primary" />
+                    }, {} as Record<string, typeof dialogMatches>);
+                    
+                    return Object.entries(grouped).map(([patternName, matches]) => (
+                      <div key={patternName} className="p-3 sm:p-4 rounded-xl glass border border-border">
+                        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs sm:text-sm">
+                            {patternName}
+                          </Badge>
+                          <span className="text-xs sm:text-sm text-muted-foreground">
+                            {matches.length} match{matches.length !== 1 ? 'es' : ''}
+                          </span>
+                        </div>
+                        
+                        <div className="grid gap-2 sm:gap-3">
+                          {matches.map((match, i) => (
+                            <div
+                              key={match.alert_id || match.auction_id || i}
+                              className="p-2 sm:p-3 rounded-lg bg-muted/50 border border-border hover:border-primary/50 transition-all group"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <a
+                                  href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1"
+                                >
+                                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                                   </div>
-                                  <div className="font-mono text-primary text-sm sm:text-base truncate">
-                                    {match.domain_name}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-                                  <span className="font-semibold text-foreground">
-                                    ${match.price.toLocaleString()}
-                                  </span>
-                                  {match.end_time && (
-                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                      <Clock className="w-4 h-4" />
-                                      {formatTimeRemaining(match.end_time)}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-mono text-primary text-xs sm:text-sm truncate">
+                                      {match.domain_name}
                                     </div>
-                                  )}
-                                  <Button variant="outline" size="sm" className="h-8">
-                                    View
-                                    <ExternalLink className="w-3 h-3 ml-1" />
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <span className="font-semibold text-foreground">
+                                        ${match.price.toLocaleString()}
+                                      </span>
+                                      {match.end_time && (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="w-3 h-3" />
+                                          {formatTimeRemaining(match.end_time)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </a>
+                                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                                  <a
+                                    href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Button variant="outline" size="sm" className="h-7 sm:h-8 px-2 sm:px-3">
+                                      <span className="hidden sm:inline">View</span>
+                                      <ExternalLink className="w-3 h-3 sm:ml-1" />
+                                    </Button>
+                                  </a>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 sm:h-8 px-2 text-muted-foreground hover:text-destructive"
+                                    onClick={() => match.alert_id && deleteMatch(match.alert_id)}
+                                    title="Remove match"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   </Button>
                                 </div>
                               </div>
                             </div>
-                          </a>
-                        ))}
+                          ))}
+                        </div>
                       </div>
+                    ));
+                  })()}
+
+                  {/* Pagination for matches */}
+                  {dialogMatches.length > MATCHES_PER_PAGE && (
+                    <div className="flex items-center justify-center gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMatchesPage(p => Math.max(1, p - 1))}
+                        disabled={matchesPage === 1}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground px-2">
+                        Page {matchesPage} of {Math.ceil(dialogMatches.length / MATCHES_PER_PAGE)}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMatchesPage(p => Math.min(Math.ceil(dialogMatches.length / MATCHES_PER_PAGE), p + 1))}
+                        disabled={matchesPage >= Math.ceil(dialogMatches.length / MATCHES_PER_PAGE)}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
