@@ -9,8 +9,8 @@ const corsHeaders = {
 
 // Product ID to plan mapping
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  "prod_Tq8SL50JpcARmF": "basic",
-  "prod_Tq8T8pIma90LcL": "advanced",
+  "prod_Tq9uBfPZRydPoT": "basic",
+  "prod_Tq9u0B65mJOkIU": "advanced",
 };
 
 const logStep = (step: string, details?: any) => {
