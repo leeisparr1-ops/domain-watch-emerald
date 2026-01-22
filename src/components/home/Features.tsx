@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, Bell, Smartphone, Shield, Globe, Zap } from "lucide-react";
+import { Search, Bell, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react";
 
 const features = [
   {
@@ -9,8 +9,13 @@ const features = [
   },
   {
     icon: Smartphone,
-    title: "Mobile Push Notifications",
+    title: "Push Notifications",
     description: "Get instant alerts on your phone when matching domains become available—even when your browser is closed.",
+  },
+  {
+    icon: Mail,
+    title: "Email Notifications",
+    description: "Receive email alerts with all your matching domains. Perfect for staying informed without enabling push notifications.",
   },
   {
     icon: Bell,

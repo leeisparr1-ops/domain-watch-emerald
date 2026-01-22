@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Smartphone, Zap, Shield, Globe } from "lucide-react";
+import { Bell, Smartphone, Zap, Shield, Globe, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,7 +95,8 @@ export function Hero() {
           >
             {[
               { icon: Bell, text: "Instant Alerts" },
-              { icon: Smartphone, text: "Mobile Push Notifications" },
+              { icon: Smartphone, text: "Push Notifications" },
+              { icon: Mail, text: "Email Notifications" },
               { icon: Zap, text: "Pattern Matching" },
               { icon: Shield, text: "Keyword Monitoring" },
             ].map((feature, index) => (
