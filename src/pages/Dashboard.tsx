@@ -153,6 +153,101 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
+  // Fetch favorite auctions directly by domain names
+  const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
+    if (!user) return;
+    try {
+      if (showLoadingSpinner) setLoading(true);
+      setError(null);
+
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+      const now = new Date();
+      const endTimeFilter = now.toISOString();
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      // First get the user's favorite domain names
+      const { data: favData, error: favError } = await supabase
+        .from('favorites')
+        .select('domain_name')
+        .eq('user_id', user.id)
+        .abortSignal(controller.signal);
+
+      if (favError) throw favError;
+
+      const favDomains = favData?.map(f => f.domain_name) || [];
+      
+      if (favDomains.length === 0) {
+        setAuctions([]);
+        setTotalCount(0);
+        setLastRefresh(new Date());
+        clearTimeout(timeoutId);
+        return;
+      }
+
+      // Now fetch auctions for those domains
+      let query = supabase
+        .from('auctions')
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
+        .in('domain_name', favDomains)
+        .gte('end_time', endTimeFilter)
+        .gte('price', filters.minPrice)
+        .lte('price', filters.maxPrice)
+        .order(currentSort.column, { ascending: currentSort.ascending })
+        .range(from, to + 1)
+        .abortSignal(controller.signal);
+
+      if (filters.tld !== "all") {
+        query = query.eq('tld', filters.tld.toUpperCase());
+      }
+      if (filters.auctionType !== "all") {
+        query = query.eq('auction_type', filters.auctionType);
+      }
+
+      const { data, error: queryError } = await query;
+      clearTimeout(timeoutId);
+
+      if (queryError) throw queryError;
+
+      if (data) {
+        const hasMore = data.length > itemsPerPage;
+        const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
+
+        const mapped: AuctionDomain[] = resultsToShow.map(a => ({
+          id: a.id,
+          domain: a.domain_name,
+          auctionEndTime: a.end_time || '',
+          price: Number(a.price) || 0,
+          numberOfBids: a.bid_count || 0,
+          traffic: a.traffic_count || 0,
+          domainAge: a.domain_age || 0,
+          auctionType: a.auction_type || 'auction',
+          tld: a.tld || '',
+        }));
+        setAuctions(mapped);
+        if (hasMore) {
+          const newEstimate = from + itemsPerPage * 1000;
+          setTotalCount(prev => Math.max(prev, newEstimate));
+        } else {
+          setTotalCount(from + mapped.length);
+        }
+        setLastRefresh(new Date());
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Database is busy - please try again in a moment');
+      } else {
+        console.error('Error fetching favorite auctions:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch favorites');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user, currentPage, sortBy, filters, itemsPerPage]);
+
   const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true) => {
     try {
       if (showLoadingSpinner) setLoading(true);
@@ -260,11 +355,21 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [filters, sortBy, viewMode, itemsPerPage]);
   
-  // Initial load
+  // Fetch data based on view mode
   useEffect(() => {
     if (user) {
-      fetchAuctionsFromDb();
-      // Fetch matches count for badge
+      if (viewMode === "favorites") {
+        fetchFavoriteAuctions();
+      } else if (viewMode === "all") {
+        fetchAuctionsFromDb();
+      }
+      // matches tab has its own fetch via fetchDialogMatches
+    }
+  }, [user, viewMode, fetchAuctionsFromDb, fetchFavoriteAuctions]);
+
+  // Initial matches count fetch
+  useEffect(() => {
+    if (user) {
       (async () => {
         const { count } = await supabase
           .from('pattern_alerts')
@@ -273,7 +378,7 @@ export default function Dashboard() {
         setTotalMatchesCount(count || 0);
       })();
     }
-  }, [user, fetchAuctionsFromDb]);
+  }, [user]);
   
   // Auto-cleanup old matches (older than 8 days)
   const cleanupOldMatches = useCallback(async () => {
@@ -465,15 +570,14 @@ export default function Dashboard() {
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
-  // Filter auctions - patterns now apply only to dashboard display filtering
+  // Filter auctions - favorites are now fetched directly, so no client-side filter needed for them
   // When patterns exist, show only matching domains; when no patterns, show all
   const enabledPatterns = patterns.filter(p => p.enabled);
   const filtered = auctions.filter(d => {
     const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
-    const matchesFavorites = viewMode === "all" || viewMode === "matches" || isFavorite(d.domain);
-    // Only filter by pattern if there are enabled patterns
-    const matchesPattern = enabledPatterns.length === 0 || matchesDomain(d.domain);
-    return matchesSearch && matchesFavorites && matchesPattern;
+    // Only filter by pattern if there are enabled patterns and we're in "all" view
+    const matchesPattern = viewMode !== "all" || enabledPatterns.length === 0 || matchesDomain(d.domain);
+    return matchesSearch && matchesPattern;
   });
 
   return (
@@ -498,7 +602,7 @@ export default function Dashboard() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => fetchAuctionsFromDb()}
+                  onClick={() => viewMode === "favorites" ? fetchFavoriteAuctions() : fetchAuctionsFromDb()}
                   disabled={loading}
                   title="Refresh data"
                 >
