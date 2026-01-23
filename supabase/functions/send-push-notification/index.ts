@@ -95,6 +95,32 @@ serve(async (req) => {
     console.log("Sending push notification for user:", user_id);
     console.log("Payload:", JSON.stringify(payload));
 
+    // Rate limit: Max 1 push notification per user per 6 hours for pattern matches
+    if (user_id && payload.tag === "pattern-match") {
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+      const { data: recentAlerts } = await supabase
+        .from("pattern_alerts")
+        .select("alerted_at")
+        .eq("user_id", user_id)
+        .gte("alerted_at", sixHoursAgo)
+        .order("alerted_at", { ascending: false })
+        .limit(1);
+
+      if (recentAlerts && recentAlerts.length > 0) {
+        const lastAlertTime = new Date(recentAlerts[0].alerted_at).getTime();
+        const oneMinuteAgo = Date.now() - 60 * 1000;
+        
+        // If the most recent alert is older than 1 minute, we already sent a push in this window
+        if (lastAlertTime < oneMinuteAgo) {
+          console.log(`Rate limited: User ${user_id} already received push within 6 hours`);
+          return new Response(
+            JSON.stringify({ success: false, message: "Rate limited - push already sent within 6 hours" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     // Get user's push subscriptions
     let query = supabase.from("push_subscriptions").select("*");
     

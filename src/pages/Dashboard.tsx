@@ -621,7 +621,19 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
+                <button 
+                  onClick={() => {
+                    setViewMode("all");
+                    setSearch("");
+                    setCurrentPage(1);
+                    resetFilters();
+                    fetchAuctionsFromDb();
+                  }}
+                  className="text-left hover:opacity-80 transition-opacity"
+                  title="Reset to dashboard home"
+                >
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
+                </button>
                 <p className="text-sm sm:text-base text-muted-foreground">
                   Browse and filter domain auctions
                 </p>
