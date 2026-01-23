@@ -284,6 +284,7 @@ export type Database = {
           id: string
           last_email_sent_at: string | null
           notification_email: string | null
+          notification_frequency_hours: number
           subscription_plan: string
           updated_at: string
           user_id: string
@@ -294,6 +295,7 @@ export type Database = {
           id?: string
           last_email_sent_at?: string | null
           notification_email?: string | null
+          notification_frequency_hours?: number
           subscription_plan?: string
           updated_at?: string
           user_id: string
@@ -304,6 +306,7 @@ export type Database = {
           id?: string
           last_email_sent_at?: string | null
           notification_email?: string | null
+          notification_frequency_hours?: number
           subscription_plan?: string
           updated_at?: string
           user_id?: string

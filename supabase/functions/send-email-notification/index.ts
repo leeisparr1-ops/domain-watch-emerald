@@ -73,26 +73,24 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
-      // Rate limit: Check last email sent via user_settings.updated_at - max 1 email per 2 hours
+      // Rate limit: Check last email sent using user's configured frequency preference
       if (payload.type === "pattern_match") {
-        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-        
-        // Check if we've sent an email recently by looking at a dedicated field
-        // We'll use the settings row itself - check updated_at when email was last sent
-        const { data: lastEmailCheck } = await supabase
+        const { data: rateLimitCheck } = await supabase
           .from("user_settings")
-          .select("last_email_sent_at")
+          .select("last_email_sent_at, notification_frequency_hours")
           .eq("user_id", userId)
           .maybeSingle();
         
-        if (lastEmailCheck?.last_email_sent_at) {
-          const lastEmailTime = new Date(lastEmailCheck.last_email_sent_at).getTime();
-          const twoHoursInMs = 2 * 60 * 60 * 1000;
+        const frequencyHours = rateLimitCheck?.notification_frequency_hours || 2;
+        
+        if (rateLimitCheck?.last_email_sent_at) {
+          const lastEmailTime = new Date(rateLimitCheck.last_email_sent_at).getTime();
+          const frequencyMs = frequencyHours * 60 * 60 * 1000;
           
-          if (Date.now() - lastEmailTime < twoHoursInMs) {
-            console.log(`Rate limited: User ${userId} already received email within 2 hours (last: ${lastEmailCheck.last_email_sent_at})`);
+          if (Date.now() - lastEmailTime < frequencyMs) {
+            console.log(`Rate limited: User ${userId} already received email within ${frequencyHours} hours (last: ${rateLimitCheck.last_email_sent_at})`);
             return new Response(
-              JSON.stringify({ message: "Rate limited - email already sent within 2 hours" }),
+              JSON.stringify({ message: `Rate limited - email already sent within ${frequencyHours} hours` }),
               { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
             );
           }

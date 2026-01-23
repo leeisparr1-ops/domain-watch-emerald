@@ -95,14 +95,23 @@ serve(async (req) => {
     console.log("Sending push notification for user:", user_id);
     console.log("Payload:", JSON.stringify(payload));
 
-    // Rate limit: Max 1 push notification per user per 6 hours for pattern matches
+    // Rate limit: Use user's configured frequency preference for pattern matches
     if (user_id && payload.tag === "pattern-match") {
-      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+      // Get user's notification frequency preference
+      const { data: userSettings } = await supabase
+        .from("user_settings")
+        .select("notification_frequency_hours")
+        .eq("user_id", user_id)
+        .maybeSingle();
+      
+      const frequencyHours = userSettings?.notification_frequency_hours || 2;
+      const frequencyAgo = new Date(Date.now() - frequencyHours * 60 * 60 * 1000).toISOString();
+      
       const { data: recentAlerts } = await supabase
         .from("pattern_alerts")
         .select("alerted_at")
         .eq("user_id", user_id)
-        .gte("alerted_at", sixHoursAgo)
+        .gte("alerted_at", frequencyAgo)
         .order("alerted_at", { ascending: false })
         .limit(1);
 
@@ -112,9 +121,9 @@ serve(async (req) => {
         
         // If the most recent alert is older than 1 minute, we already sent a push in this window
         if (lastAlertTime < oneMinuteAgo) {
-          console.log(`Rate limited: User ${user_id} already received push within 6 hours`);
+          console.log(`Rate limited: User ${user_id} already received push within ${frequencyHours} hours`);
           return new Response(
-            JSON.stringify({ success: false, message: "Rate limited - push already sent within 6 hours" }),
+            JSON.stringify({ success: false, message: `Rate limited - push already sent within ${frequencyHours} hours` }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
