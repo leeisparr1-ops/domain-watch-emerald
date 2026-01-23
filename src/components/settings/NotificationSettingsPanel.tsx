@@ -28,6 +28,12 @@ const THRESHOLD_OPTIONS = [
   { value: '1440', label: '24 hours' },
 ];
 
+const FREQUENCY_OPTIONS = [
+  { value: '2', label: 'Every 2 hours' },
+  { value: '4', label: 'Every 4 hours' },
+  { value: '6', label: 'Every 6 hours' },
+];
+
 export function NotificationSettingsPanel() {
   const { settings, updateSettings, resetToDefaults, isLoaded } = useNotificationSettings();
   const { 
@@ -162,6 +168,33 @@ export function NotificationSettingsPanel() {
               </SelectTrigger>
               <SelectContent className="bg-background border border-border">
                 {THRESHOLD_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Notification Frequency */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <Label>Notification Frequency</Label>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">
+              Maximum frequency for email and push notifications
+            </p>
+            <Select
+              value={String(emailSettings.frequencyHours)}
+              onValueChange={(value) => updateEmailSettings({ frequencyHours: parseInt(value) })}
+              disabled={emailLoading || emailSaving}
+            >
+              <SelectTrigger className="w-full bg-background">
+                <SelectValue placeholder="Select frequency" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border border-border">
+                {FREQUENCY_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

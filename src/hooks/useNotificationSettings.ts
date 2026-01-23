@@ -7,6 +7,7 @@ export interface NotificationSettings {
   soundVolume: number;
   browserNotifications: boolean;
   inAppToasts: boolean;
+  pushFrequencyHours: number;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -16,6 +17,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   soundVolume: 50,
   browserNotifications: true,
   inAppToasts: true,
+  pushFrequencyHours: 2,
 };
 
 const STORAGE_KEY = 'auction-notification-settings';

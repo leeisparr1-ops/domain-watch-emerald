@@ -6,11 +6,12 @@ import { toast } from 'sonner';
 export interface EmailSettings {
   enabled: boolean;
   email: string;
+  frequencyHours: number;
 }
 
 export function useEmailNotifications() {
   const { user } = useAuth();
-  const [settings, setSettings] = useState<EmailSettings>({ enabled: false, email: '' });
+  const [settings, setSettings] = useState<EmailSettings>({ enabled: false, email: '', frequencyHours: 2 });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -25,7 +26,7 @@ export function useEmailNotifications() {
       try {
         const { data, error } = await supabase
           .from('user_settings')
-          .select('email_notifications_enabled, notification_email')
+          .select('email_notifications_enabled, notification_email, notification_frequency_hours')
           .eq('user_id', user.id)
           .single();
 
@@ -38,12 +39,14 @@ export function useEmailNotifications() {
           setSettings({
             enabled: data.email_notifications_enabled || false,
             email: data.notification_email || user.email || '',
+            frequencyHours: data.notification_frequency_hours || 2,
           });
         } else {
           // Default to user's auth email
           setSettings({
             enabled: false,
             email: user.email || '',
+            frequencyHours: 2,
           });
         }
       } catch (error) {
@@ -69,6 +72,7 @@ export function useEmailNotifications() {
           user_id: user.id,
           email_notifications_enabled: newSettings.enabled,
           notification_email: newSettings.email,
+          notification_frequency_hours: newSettings.frequencyHours,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id',
