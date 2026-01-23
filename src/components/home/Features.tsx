@@ -4,28 +4,28 @@ import { Search, Bell, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react
 const features = [
   {
     icon: Search,
-    title: "Pattern-Based Monitoring",
-    description: "Create custom patterns with regex, character counts, or word counts. Find domains like 'ai+keyword', 5-letter names, or 2-word combos.",
+    title: "Smart Pattern Builder",
+    description: "Create patterns with 'Starts with', 'Ends with', 'Contains', or custom regex. Add TLD filters and price limits to match exactly what you want.",
   },
   {
     icon: Smartphone,
     title: "Push Notifications",
-    description: "Get instant alerts on your phone when matching domains become available—even when your browser is closed.",
+    description: "Get alerts on your phone when matching domains become available—even when your browser is closed.",
   },
   {
     icon: Mail,
     title: "Email Notifications",
-    description: "Receive email alerts with all your matching domains. Perfect for staying informed without enabling push notifications.",
+    description: "Receive email alerts on your schedule—every 2, 4, or 6 hours. Customize notification frequency in Settings.",
   },
   {
     icon: Bell,
-    title: "Keyword Alerts",
-    description: "Track specific keywords across all domains. Get notified instantly when your target keywords appear in new listings.",
+    title: "Flexible Alert Frequency",
+    description: "Choose how often you receive notifications. Set 2, 4, or 6-hour intervals to match your workflow.",
   },
   {
     icon: Zap,
-    title: "Instant Matching",
-    description: "Our system continuously scans new domain listings and matches them against your patterns in real-time.",
+    title: "Automatic Matching",
+    description: "Patterns are checked automatically after every sync. New matches appear in your Matches tab with one-click access.",
   },
   {
     icon: Shield,
@@ -35,7 +35,7 @@ const features = [
   {
     icon: Globe,
     title: "Live Auction Data",
-    description: "Real-time sync with auctions, closeouts, and expiring domains. Listings updated continuously.",
+    description: "Syncs every 6 hours with auctions, closeouts, and expiring domains. Over 30 TLD filters available.",
   },
 ];
 
