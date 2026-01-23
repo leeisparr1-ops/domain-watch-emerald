@@ -14,6 +14,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -835,18 +846,38 @@ export function PatternDialog({
       </DialogContent>
       </Dialog>
       {patterns.length > 0 && (
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="h-9 w-9 text-muted-foreground hover:text-destructive"
-          onClick={() => {
-            onClearPatterns();
-            toast.success("All patterns cleared");
-          }}
-          title="Clear all patterns"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+              title="Clear all patterns"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear all patterns?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove all {patterns.length} saved patterns. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => {
+                  onClearPatterns();
+                  toast.success("All patterns cleared");
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Clear All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
