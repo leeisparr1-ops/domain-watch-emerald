@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type, ArrowRight, ArrowLeft, Search, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -196,6 +196,12 @@ export function PatternDialog({
   // For word count pattern
   const [minWords, setMinWords] = useState<number[]>([1]);
   const [maxWords, setMaxWords] = useState<number[]>([2]);
+  
+  // For user-friendly pattern modes
+  const [patternMode, setPatternMode] = useState<"starts" | "ends" | "contains" | "regex">("contains");
+  const [startsWithValue, setStartsWithValue] = useState("");
+  const [endsWithValue, setEndsWithValue] = useState("");
+  const [containsValue, setContainsValue] = useState("");
 
   const isAtLimit = patterns.length >= maxPatterns;
 
@@ -306,27 +312,63 @@ export function PatternDialog({
     toast.success(`Added pattern: ${desc}`);
   };
 
+  const buildPatternFromMode = (): { pattern: string; desc: string } | null => {
+    switch (patternMode) {
+      case "starts":
+        if (!startsWithValue.trim()) return null;
+        return {
+          pattern: `^${escapeRegex(startsWithValue.toLowerCase())}`,
+          desc: `Starts with "${startsWithValue}"`
+        };
+      case "ends":
+        if (!endsWithValue.trim()) return null;
+        return {
+          pattern: `${escapeRegex(endsWithValue.toLowerCase())}$`,
+          desc: `Ends with "${endsWithValue}"`
+        };
+      case "contains":
+        if (!containsValue.trim()) return null;
+        return {
+          pattern: escapeRegex(containsValue.toLowerCase()),
+          desc: `Contains "${containsValue}"`
+        };
+      case "regex":
+        if (!customPattern.trim()) return null;
+        return {
+          pattern: customPattern,
+          desc: description || `Custom regex: ${customPattern}`
+        };
+      default:
+        return null;
+    }
+  };
+  
+  const escapeRegex = (str: string): string => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
   const handleAddCustom = () => {
     if (isAtLimit) {
       toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
       return;
     }
     
-    if (!customPattern.trim()) {
-      toast.error("Please enter a pattern");
+    const result = buildPatternFromMode();
+    if (!result) {
+      toast.error("Please enter a value");
       return;
     }
     
     // Validate regex
     try {
-      new RegExp(customPattern);
+      new RegExp(result.pattern);
     } catch {
       toast.error("Invalid regex pattern");
       return;
     }
     
     const tldFilter = customTld === "any" ? null : customTld;
-    if (patterns.some(p => p.pattern === customPattern && p.tld_filter === tldFilter)) {
+    if (patterns.some(p => p.pattern === result.pattern && p.tld_filter === tldFilter)) {
       toast.error("Pattern already exists with this TLD");
       return;
     }
@@ -334,7 +376,7 @@ export function PatternDialog({
     const parsedMinPrice = minPrice ? parseFloat(minPrice) : 0;
     const parsedMaxPrice = maxPrice ? parseFloat(maxPrice) : null;
     
-    let finalDescription = description || `Custom ${patternType} pattern`;
+    let finalDescription = result.desc;
     if (parsedMinPrice > 0 || parsedMaxPrice) {
       const priceRange = parsedMinPrice > 0 && parsedMaxPrice 
         ? `$${parsedMinPrice}-$${parsedMaxPrice}`
@@ -348,16 +390,19 @@ export function PatternDialog({
     }
     
     onAddPattern({
-      pattern: customPattern,
-      pattern_type: patternType,
+      pattern: result.pattern,
+      pattern_type: patternMode === "regex" ? patternType : "regex",
       description: finalDescription,
       max_price: parsedMaxPrice,
       min_price: parsedMinPrice,
       tld_filter: tldFilter,
     });
     
-    toast.success(`Custom pattern added${tldFilter ? ` for ${tldFilter}` : ""}`);
+    toast.success(`Pattern added${tldFilter ? ` for ${tldFilter}` : ""}`);
     setCustomPattern("");
+    setStartsWithValue("");
+    setEndsWithValue("");
+    setContainsValue("");
     setDescription("");
     setMinPrice("");
     setMaxPrice("");
@@ -584,87 +629,200 @@ export function PatternDialog({
           {/* Custom Pattern */}
           <div className="space-y-3 pt-4 border-t border-border">
             <h4 className="font-medium text-sm">Custom Pattern</h4>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Select value={patternType} onValueChange={(v: "regex" | "structure" | "pronounceable" | "length" | "words") => setPatternType(v)}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="regex">Regex</SelectItem>
-                    <SelectItem value="structure">Structure</SelectItem>
-                    <SelectItem value="pronounceable">Pronounceable</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Enter regex pattern..."
-                  value={customPattern}
-                  onChange={(e) => setCustomPattern(e.target.value)}
-                  className="font-mono"
-                />
-              </div>
-              <Input
-                placeholder="Description (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-              
-              {/* Filters for Custom Pattern */}
-              <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">TLD:</span>
-                  <Select value={customTld} onValueChange={setCustomTld}>
-                    <SelectTrigger className="w-24 h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TLD_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Price:</span>
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value)}
-                    className="w-20 h-8"
-                    min="0"
-                  />
-                  <span className="text-muted-foreground">-</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    className="w-20 h-8"
-                    min="0"
-                  />
-                </div>
+            <div className="space-y-4">
+              {/* Pattern Mode Tabs */}
+              <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted/50">
+                <button
+                  onClick={() => setPatternMode("starts")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-sm font-medium transition-colors ${
+                    patternMode === "starts" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Starts with</span>
+                  <span className="sm:hidden">Start</span>
+                </button>
+                <button
+                  onClick={() => setPatternMode("ends")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-sm font-medium transition-colors ${
+                    patternMode === "ends" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Ends with</span>
+                  <span className="sm:hidden">End</span>
+                </button>
+                <button
+                  onClick={() => setPatternMode("contains")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-sm font-medium transition-colors ${
+                    patternMode === "contains" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Contains</span>
+                  <span className="sm:hidden">Has</span>
+                </button>
+                <button
+                  onClick={() => setPatternMode("regex")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-sm font-medium transition-colors ${
+                    patternMode === "regex" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Code className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Regex</span>
+                  <span className="sm:hidden">Regex</span>
+                </button>
               </div>
               
-              <Button onClick={handleAddCustom} className="w-full" disabled={isAtLimit}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Custom Pattern
-              </Button>
-            </div>
-            
-            {/* Pattern Help */}
-            <div className="p-3 rounded-lg bg-muted/50 text-xs space-y-1">
-              <p className="font-medium">Pattern Examples:</p>
-              <ul className="text-muted-foreground space-y-0.5">
-                <li><code className="bg-background px-1 rounded">^ai</code> - Starts with "ai"</li>
-                <li><code className="bg-background px-1 rounded">app$</code> - Ends with "app"</li>
-                <li><code className="bg-background px-1 rounded">^[a-z]{"{5}"}$</code> - Exactly 5 letters</li>
-                <li><code className="bg-background px-1 rounded">[aeiou]{"{2}"}</code> - Contains double vowel</li>
-              </ul>
+              {/* Pattern Input based on mode */}
+              <div className="space-y-3">
+                {patternMode === "starts" && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Domain starts with:</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center bg-muted/30 rounded-md border border-input">
+                        <span className="px-3 text-muted-foreground text-sm font-mono">^</span>
+                        <Input
+                          placeholder="e.g., ai, cloud, app"
+                          value={startsWithValue}
+                          onChange={(e) => setStartsWithValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                          className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Matches domains like: <span className="font-mono text-foreground">{startsWithValue || "ai"}domain.com</span>
+                    </p>
+                  </div>
+                )}
+                
+                {patternMode === "ends" && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Domain ends with:</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center bg-muted/30 rounded-md border border-input">
+                        <Input
+                          placeholder="e.g., app, hub, ai"
+                          value={endsWithValue}
+                          onChange={(e) => setEndsWithValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                          className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                        <span className="px-3 text-muted-foreground text-sm font-mono">$</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Matches domains like: <span className="font-mono text-foreground">domain{endsWithValue || "app"}.com</span>
+                    </p>
+                  </div>
+                )}
+                
+                {patternMode === "contains" && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Domain contains:</label>
+                    <Input
+                      placeholder="e.g., tech, data, crypto"
+                      value={containsValue}
+                      onChange={(e) => setContainsValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Matches domains like: <span className="font-mono text-foreground">my{containsValue || "tech"}site.com</span>
+                    </p>
+                  </div>
+                )}
+                
+                {patternMode === "regex" && (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Select value={patternType} onValueChange={(v: "regex" | "structure" | "pronounceable" | "length" | "words") => setPatternType(v)}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regex">Regex</SelectItem>
+                          <SelectItem value="structure">Structure</SelectItem>
+                          <SelectItem value="pronounceable">Pronounceable</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Enter regex pattern..."
+                        value={customPattern}
+                        onChange={(e) => setCustomPattern(e.target.value)}
+                        className="font-mono"
+                      />
+                    </div>
+                    <Input
+                      placeholder="Description (optional)"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                    <div className="p-3 rounded-lg bg-muted/50 text-xs space-y-1">
+                      <p className="font-medium">Regex Examples:</p>
+                      <ul className="text-muted-foreground space-y-0.5">
+                        <li><code className="bg-background px-1 rounded">^[a-z]{"{5}"}$</code> - Exactly 5 letters</li>
+                        <li><code className="bg-background px-1 rounded">[aeiou]{"{2}"}</code> - Contains double vowel</li>
+                        <li><code className="bg-background px-1 rounded">([a-z])\1</code> - Has repeated letters</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Filters for Custom Pattern */}
+                <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">TLD:</span>
+                    <Select value={customTld} onValueChange={setCustomTld}>
+                      <SelectTrigger className="w-24 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TLD_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Price:</span>
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      className="w-20 h-8"
+                      min="0"
+                    />
+                    <span className="text-muted-foreground">-</span>
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      className="w-20 h-8"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                
+                <Button onClick={handleAddCustom} className="w-full" disabled={isAtLimit}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {patternMode === "starts" && `Add "Starts with ${startsWithValue || '...'}" Pattern`}
+                  {patternMode === "ends" && `Add "Ends with ${endsWithValue || '...'}" Pattern`}
+                  {patternMode === "contains" && `Add "Contains ${containsValue || '...'}" Pattern`}
+                  {patternMode === "regex" && "Add Custom Regex Pattern"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
