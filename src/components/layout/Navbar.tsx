@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogIn, User, HelpCircle } from "lucide-react";
@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
 
-export function Navbar() {
+export const Navbar = forwardRef<HTMLElement>(function Navbar(_, ref) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ export function Navbar() {
 
   return (
     <motion.nav
+      ref={ref}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       className="fixed top-0 left-0 right-0 z-50 glass border-b border-border"
@@ -142,4 +143,4 @@ export function Navbar() {
       </AnimatePresence>
     </motion.nav>
   );
-}
+});

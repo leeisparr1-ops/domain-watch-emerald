@@ -60,7 +60,9 @@ const plans = [
   },
 ];
 
-export default function Pricing() {
+import { forwardRef } from "react";
+
+const Pricing = forwardRef<HTMLDivElement>(function Pricing(_, ref) {
   const { user } = useAuth();
   const { plan: currentPlan, subscribed, loading, createCheckout, openCustomerPortal } = useSubscription();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export default function Pricing() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={ref} className="min-h-screen bg-background">
       <Navbar />
       <section className="pt-32 pb-20">
         <div className="container mx-auto px-4">
@@ -270,4 +272,6 @@ export default function Pricing() {
       <Footer />
     </div>
   );
-}
+});
+
+export default Pricing;
