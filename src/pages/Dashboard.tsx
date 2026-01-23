@@ -164,7 +164,7 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
-  // Fetch favorite auctions directly by domain names
+  // Fetch favorite auctions directly by domain names with proper pagination
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
     try {
@@ -180,7 +180,7 @@ export default function Dashboard() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      // First get the user's favorite domain names
+      // First get ALL user's favorite domain names (needed to filter auctions)
       const { data: favData, error: favError } = await supabase
         .from('favorites')
         .select('domain_name')
@@ -199,7 +199,26 @@ export default function Dashboard() {
         return;
       }
 
-      // Now fetch auctions for those domains
+      // Get total count of active favorite auctions (for accurate pagination)
+      let countQuery = supabase
+        .from('auctions')
+        .select('id', { count: 'exact', head: true })
+        .in('domain_name', favDomains)
+        .gte('end_time', endTimeFilter)
+        .gte('price', filters.minPrice)
+        .lte('price', filters.maxPrice);
+
+      if (filters.tld !== "all") {
+        countQuery = countQuery.eq('tld', filters.tld.toUpperCase());
+      }
+      if (filters.auctionType !== "all") {
+        countQuery = countQuery.eq('auction_type', filters.auctionType);
+      }
+
+      const { count: totalFavCount } = await countQuery;
+      setTotalCount(totalFavCount || 0);
+
+      // Now fetch paginated auctions for those domains
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld')
@@ -208,7 +227,7 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to + 1)
+        .range(from, to)
         .abortSignal(controller.signal);
 
       if (filters.tld !== "all") {
@@ -224,10 +243,7 @@ export default function Dashboard() {
       if (queryError) throw queryError;
 
       if (data) {
-        const hasMore = data.length > itemsPerPage;
-        const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
-
-        const mapped: AuctionDomain[] = resultsToShow.map(a => ({
+        const mapped: AuctionDomain[] = data.map(a => ({
           id: a.id,
           domain: a.domain_name,
           auctionEndTime: a.end_time || '',
@@ -239,12 +255,6 @@ export default function Dashboard() {
           tld: a.tld || '',
         }));
         setAuctions(mapped);
-        if (hasMore) {
-          const newEstimate = from + itemsPerPage * 1000;
-          setTotalCount(prev => Math.max(prev, newEstimate));
-        } else {
-          setTotalCount(from + mapped.length);
-        }
         setLastRefresh(new Date());
       }
     } catch (err) {
@@ -1011,10 +1021,10 @@ export default function Dashboard() {
           {viewMode !== "matches" && !loading && !error && filtered.length > 0 && (
             <>
               {/* Favorites header with Clear All button */}
-              {viewMode === "favorites" && favoritesCount > 0 && (
+              {viewMode === "favorites" && totalCount > 0 && (
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm text-muted-foreground">
-                    Showing {filtered.length} favorite{filtered.length !== 1 ? 's' : ''}
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} favorite{totalCount !== 1 ? 's' : ''}
                   </p>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
