@@ -108,6 +108,25 @@ export function useFavorites() {
     return favorites.has(domainName);
   }, [favorites]);
 
+  const clearAllFavorites = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      setFavorites(new Set());
+      toast.success("All favorites cleared");
+    } catch (err) {
+      console.error('Error clearing favorites:', err);
+      toast.error("Failed to clear favorites");
+    }
+  }, [user]);
+
   return {
     favorites,
     loading,
@@ -115,5 +134,6 @@ export function useFavorites() {
     isFavorite,
     refetch: fetchFavorites,
     count: favorites.size,
+    clearAllFavorites,
   };
 }

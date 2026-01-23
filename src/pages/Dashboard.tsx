@@ -20,6 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
@@ -109,7 +120,7 @@ function formatTimeRemaining(endTime: string): string {
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { isFavorite, toggleFavorite, count: favoritesCount } = useFavorites();
+  const { isFavorite, toggleFavorite, count: favoritesCount, clearAllFavorites } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
@@ -999,6 +1010,48 @@ export default function Dashboard() {
 
           {viewMode !== "matches" && !loading && !error && filtered.length > 0 && (
             <>
+              {/* Favorites header with Clear All button */}
+              {viewMode === "favorites" && favoritesCount > 0 && (
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filtered.length} favorite{filtered.length !== 1 ? 's' : ''}
+                  </p>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        <span className="hidden sm:inline">Clear All</span>
+                        <span className="sm:hidden">Clear</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Clear All Favorites?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will remove all {favoritesCount} domains from your favorites. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            await clearAllFavorites();
+                            setAuctions([]);
+                            setTotalCount(0);
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Clear All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-3 sm:gap-4">
               {filtered.map((d, i) => (
                   <a
