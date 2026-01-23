@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -34,8 +35,8 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
 
@@ -100,7 +101,7 @@ export default function ResetPassword() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 bg-input border-border"
-                  minLength={6}
+                  minLength={8}
                   required
                 />
                 <button
@@ -111,6 +112,7 @@ export default function ResetPassword() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <PasswordStrengthIndicator password={password} />
             </div>
 
             <div className="space-y-2">
@@ -124,7 +126,7 @@ export default function ResetPassword() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pl-10 pr-10 bg-input border-border"
-                  minLength={6}
+                  minLength={8}
                   required
                 />
                 <button
