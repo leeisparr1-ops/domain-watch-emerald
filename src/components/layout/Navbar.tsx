@@ -127,8 +127,9 @@ export function Navbar() {
                     <HelpCircle className="w-4 h-4" />
                     Help
                   </Link>
-                  <Link to="/login" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full">Login</Button>
+                  <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                    <LogIn className="w-4 h-4" />
+                    Sign In
                   </Link>
                   <Link to="/signup" onClick={() => setIsOpen(false)}>
                     <Button variant="hero" className="w-full">Get Started</Button>

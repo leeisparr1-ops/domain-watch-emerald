@@ -4,6 +4,9 @@ import { useNotificationSettings } from "./useNotificationSettings";
 import { useUserPatterns, PatternMatch } from "./useUserPatterns";
 import { toast } from "sonner";
 
+const NOTIFICATION_COOLDOWN_KEY = 'pattern-alert-last-notification';
+const NOTIFICATION_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours between in-app notifications
+
 export function usePatternAlerts() {
   const { user } = useAuth();
   const { settings } = useNotificationSettings();
@@ -69,23 +72,34 @@ export function usePatternAlerts() {
       const result = await checkPatterns();
       
       if (result.newMatches > 0) {
-        // Notify for each new match (limit to first 5 to avoid spam)
-        const matchesToNotify = result.matches.slice(0, 5);
-        matchesToNotify.forEach((match: PatternMatch) => {
-          sendNotification(match);
-        });
-
-        if (result.matches.length > 5) {
-          toast.info(`+${result.matches.length - 5} more pattern matches found!`, {
-            duration: 10000,
-            action: {
-              label: "View All",
-              onClick: () => {
-                // Dispatch a custom event to open the matches dialog
-                window.dispatchEvent(new CustomEvent('openPatternMatches'));
-              },
-            },
+        // Check rate limit for in-app notifications (6 hour cooldown)
+        const lastNotification = parseInt(localStorage.getItem(NOTIFICATION_COOLDOWN_KEY) || '0', 10);
+        const shouldNotify = now - lastNotification > NOTIFICATION_COOLDOWN_MS;
+        
+        if (shouldNotify) {
+          // Notify for each new match (limit to first 3 to avoid spam)
+          const matchesToNotify = result.matches.slice(0, 3);
+          matchesToNotify.forEach((match: PatternMatch) => {
+            sendNotification(match);
           });
+
+          if (result.matches.length > 3) {
+            toast.info(`+${result.matches.length - 3} more pattern matches found!`, {
+              duration: 10000,
+              action: {
+                label: "View All",
+                onClick: () => {
+                  window.dispatchEvent(new CustomEvent('openPatternMatches'));
+                },
+              },
+            });
+          }
+          
+          // Update last notification time
+          localStorage.setItem(NOTIFICATION_COOLDOWN_KEY, now.toString());
+        } else {
+          // Silently log that we found matches but skipped notification
+          console.log(`Found ${result.newMatches} matches, but notification cooldown active (${Math.round((NOTIFICATION_COOLDOWN_MS - (now - lastNotification)) / 60000)} min remaining)`);
         }
       }
     } catch (error) {
