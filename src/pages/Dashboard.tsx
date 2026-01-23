@@ -603,14 +603,11 @@ export default function Dashboard() {
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
-  // Filter auctions - favorites are now fetched directly, so no client-side filter needed for them
-  // When patterns exist, show only matching domains; when no patterns, show all
-  const enabledPatterns = patterns.filter(p => p.enabled);
+  // Filter auctions - only apply search filter client-side
+  // Pattern matching is handled separately in the "Matches" tab via pattern_alerts
   const filtered = auctions.filter(d => {
     const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
-    // Only filter by pattern if there are enabled patterns and we're in "all" view
-    const matchesPattern = viewMode !== "all" || enabledPatterns.length === 0 || matchesDomain(d.domain);
-    return matchesSearch && matchesPattern;
+    return matchesSearch;
   });
 
   return (
