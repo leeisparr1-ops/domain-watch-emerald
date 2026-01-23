@@ -269,7 +269,10 @@ export default function Dashboard() {
     }
   }, [user, currentPage, sortBy, filters, itemsPerPage]);
 
-  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true) => {
+  const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, retryCount = 0) => {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY = 1500; // 1.5 seconds between retries
+    
     try {
       if (showLoadingSpinner) setLoading(true);
       setError(null);
@@ -347,8 +350,17 @@ export default function Dashboard() {
         setLastRefresh(new Date());
       }
     } catch (err) {
-      // Handle timeout gracefully
-      if (err instanceof Error && err.name === 'AbortError') {
+      // Handle timeout gracefully with retry logic
+      const isTimeoutError = 
+        (err instanceof Error && err.name === 'AbortError') ||
+        (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '57014');
+      
+      if (isTimeoutError && retryCount < MAX_RETRIES) {
+        console.log(`Database timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
+      } else if (isTimeoutError) {
         setError('Database is busy - please try again in a moment');
       } else {
         console.error('Error fetching auctions:', err);
