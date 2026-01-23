@@ -62,10 +62,10 @@ interface SortOption {
 }
 
 const SORT_OPTIONS: SortOption[] = [
-  { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
-  { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
   { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
+  { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
+  { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
   { value: "bid_count_desc", label: "Most Bids", column: "bid_count", ascending: false },
   { value: "bid_count_asc", label: "Least Bids", column: "bid_count", ascending: true },
   { value: "domain_name_asc", label: "Domain: A-Z", column: "domain_name", ascending: true },
