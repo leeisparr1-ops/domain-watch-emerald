@@ -204,6 +204,20 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
+    // Update last_email_sent_at for rate limiting (only for pattern_match emails)
+    if (payload.type === "pattern_match" && userId) {
+      const { error: updateError } = await supabase
+        .from("user_settings")
+        .update({ last_email_sent_at: new Date().toISOString() })
+        .eq("user_id", userId);
+      
+      if (updateError) {
+        console.error("Error updating last_email_sent_at:", updateError);
+      } else {
+        console.log(`Updated last_email_sent_at for user ${userId}`);
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, ...emailResponse }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },

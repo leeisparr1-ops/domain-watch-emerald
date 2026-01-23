@@ -282,6 +282,7 @@ export type Database = {
           created_at: string
           email_notifications_enabled: boolean | null
           id: string
+          last_email_sent_at: string | null
           notification_email: string | null
           subscription_plan: string
           updated_at: string
@@ -291,6 +292,7 @@ export type Database = {
           created_at?: string
           email_notifications_enabled?: boolean | null
           id?: string
+          last_email_sent_at?: string | null
           notification_email?: string | null
           subscription_plan?: string
           updated_at?: string
@@ -300,6 +302,7 @@ export type Database = {
           created_at?: string
           email_notifications_enabled?: boolean | null
           id?: string
+          last_email_sent_at?: string | null
           notification_email?: string | null
           subscription_plan?: string
           updated_at?: string
