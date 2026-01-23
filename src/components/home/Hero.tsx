@@ -63,8 +63,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Set up patterns for the domains you want. Get instant notifications 
-            when matching domains become available. Never miss the perfect domain again.
+            Create smart patterns with TLD and price filters. Get email and push 
+            notifications on your schedule when matching domains become available.
           </motion.p>
 
           <motion.div
@@ -94,11 +94,11 @@ export function Hero() {
             className="flex flex-wrap justify-center gap-4"
           >
             {[
-              { icon: Bell, text: "Instant Alerts" },
+              { icon: Bell, text: "Custom Alert Frequency" },
               { icon: Smartphone, text: "Push Notifications" },
               { icon: Mail, text: "Email Notifications" },
-              { icon: Zap, text: "Pattern Matching" },
-              { icon: Shield, text: "Keyword Monitoring" },
+              { icon: Zap, text: "Smart Pattern Matching" },
+              { icon: Shield, text: "TLD & Price Filters" },
             ].map((feature, index) => (
               <div
                 key={index}

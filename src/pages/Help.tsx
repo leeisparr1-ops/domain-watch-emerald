@@ -28,47 +28,47 @@ export default function Help() {
     {
       icon: <Search className="w-6 h-6 text-primary" />,
       title: "1. Create Your First Pattern",
-      description: "Go to the Dashboard and click 'Add Pattern'. Enter keywords like 'crypto', 'tech', or use wildcards like '*bank*' to match domains containing 'bank'."
+      description: "Go to the Dashboard and click 'Add Pattern'. Choose 'Starts with', 'Ends with', 'Contains', or custom regex. Add TLD filters and max price limits."
     },
     {
       icon: <Bookmark className="w-6 h-6 text-primary" />,
       title: "2. Manage Saved Patterns",
-      description: "Click 'Saved Patterns' on the Dashboard to view, rename, toggle, or delete your patterns. Pattern limits depend on your subscription plan."
+      description: "Click 'Saved Patterns' to view, rename, toggle, or delete patterns. Use 'Clear All' (with confirmation) to remove all at once."
     },
     {
       icon: <Bell className="w-6 h-6 text-primary" />,
-      title: "3. Enable Alerts",
-      description: "Click 'Alerts ON/OFF' next to 'Add Pattern' or go to Settings to enable push and email notifications when patterns match new domains."
+      title: "3. Configure Notifications",
+      description: "Go to Settings to enable push/email notifications and set your preferred frequency (every 2, 4, or 6 hours)."
     },
     {
       icon: <Filter className="w-6 h-6 text-primary" />,
-      title: "4. Set Filters",
-      description: "Use filters to narrow results by price range, TLD extension, and auction type to find domains that fit your budget."
+      title: "4. Use Pattern Filters",
+      description: "Each pattern can have its own TLD filter (30+ options including .com, .io, .ai) and max price to reduce noise."
     },
     {
       icon: <Target className="w-6 h-6 text-primary" />,
       title: "5. Review Matches",
-      description: "Click the 'Matches' tab on the Dashboard to see all domains that matched your patterns. Use the bin icon to remove reviewed matches."
+      description: "Click the 'Matches' tab to see domains grouped by pattern. Use 'Clear All' to reset your match history after reviewing."
     },
     {
       icon: <Heart className="w-6 h-6 text-primary" />,
       title: "6. Save Favorites",
-      description: "Found a great domain? Click the heart icon to save it to your favorites for easy access later."
+      description: "Click the heart icon to save domains. Use 'Clear All Favorites' (with confirmation) to reset your list."
     }
   ];
 
   const faqs = [
     {
       question: "What is a pattern?",
-      answer: "A pattern is a search rule you create to find specific domains. You can use keywords, wildcards (*), or exact matches. For example, 'ai*' will match all domains starting with 'ai', while '*shop*' matches any domain containing 'shop'."
+      answer: "A pattern is a search rule to find specific domains. Use 'Starts with', 'Ends with', 'Contains', or custom regex. Each pattern can include TLD filters (30+ options) and a max price limit."
     },
     {
       question: "How do I view my pattern matches?",
-      answer: "Click the 'Matches' tab on the Dashboard to see all domains that have matched your patterns. Results are grouped by pattern name. Use the bin icon to remove matches you've already reviewed."
+      answer: "Click the 'Matches' tab on the Dashboard to see all domains grouped by pattern. Use 'Clear All' (with confirmation) to reset your match history after reviewing."
     },
     {
       question: "How do I manage my saved patterns?",
-      answer: "Click 'Saved Patterns' on the Dashboard. Here you can: 1) Toggle patterns on/off, 2) Rename patterns with the pencil icon, 3) Delete patterns with the trash icon."
+      answer: "Click 'Saved Patterns' on the Dashboard. Toggle patterns on/off, rename with the pencil icon, delete individually, or use the trash icon to clear all patterns (with confirmation)."
     },
     {
       question: "How many patterns can I save?",
@@ -76,7 +76,11 @@ export default function Help() {
     },
     {
       question: "How often are auctions updated?",
-      answer: "Auctions sync every 6 hours. After each sync, your patterns are checked and notifications are sent immediately for any new matches."
+      answer: "Auctions sync every 6 hours. After each sync, your patterns are automatically checked and notifications sent based on your frequency preference."
+    },
+    {
+      question: "How do I control notification frequency?",
+      answer: "Go to Settings → Notifications and choose your preferred interval: every 2, 4, or 6 hours. This applies to both email and push notifications."
     },
     {
       question: "What's the difference between 'Bid' and 'BuyNow' auctions?",
@@ -84,23 +88,23 @@ export default function Help() {
     },
     {
       question: "How do I enable notifications?",
-      answer: "Click 'Alerts ON/OFF' on the Dashboard or go to Settings → Notifications to configure push and email alerts."
+      answer: "Go to Settings → Notifications to enable push and/or email alerts. Set your notification email and choose your preferred frequency (2, 4, or 6 hours)."
     },
     {
       question: "Can I use ExpiredHawk on my phone?",
       answer: "Yes! Install ExpiredHawk as a PWA by clicking 'Add to Home Screen' in your browser for a native app-like experience with push notifications."
     },
     {
-      question: "What do the pattern types mean?",
-      answer: "'Contains' matches domains with your keyword anywhere. 'Starts with' matches domains beginning with your keyword. 'Ends with' matches domains ending with your keyword. 'Exact' requires an exact match."
+      question: "What TLD filters are available?",
+      answer: "Over 30 TLDs including popular extensions (.com, .net, .org), tech-focused (.io, .ai, .dev, .app), and country codes (.co, .me, .tv). Set per-pattern in Add Pattern."
     },
     {
-      question: "How do I remove matches I've reviewed?",
-      answer: "In the Matches tab, click the bin icon next to any domain to remove it from your matches list. This helps you keep track of domains you've already evaluated."
+      question: "How do I set price limits on patterns?",
+      answer: "When creating a pattern, use the 'Max Price' slider to set a limit. Only domains at or below your max price will trigger matches and notifications."
     },
     {
       question: "Why am I not receiving notifications?",
-      answer: "Check that: 1) Alerts are enabled (Alerts ON on Dashboard), 2) Email is correct in Settings, 3) Pattern is enabled in Saved Patterns, 4) Check spam folder. Notifications are sent after each 6-hour sync."
+      answer: "Check: 1) Alerts enabled in Settings, 2) Email correct, 3) Pattern enabled in Saved Patterns, 4) Spam folder. Notifications respect your frequency setting (2/4/6 hours)."
     }
   ];
 
@@ -190,10 +194,10 @@ export default function Help() {
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-2">
                     <Mail className="w-5 h-5 text-primary" />
-                    <span className="font-medium">Check Email</span>
+                    <span className="font-medium">Set Frequency</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Daily digest emails summarize all matching domains found
+                    Choose 2, 4, or 6-hour notification intervals in Settings
                   </p>
                 </CardContent>
               </Card>
