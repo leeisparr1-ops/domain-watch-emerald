@@ -43,6 +43,13 @@
       "type": "image/png",
       "form_factor": "wide",
       "label": "ExpiredHawk Dashboard"
+    },
+    {
+      "src": "/screenshots/mobile-screenshot.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ExpiredHawk Mobile App"
     }
   ],
   "categories": ["business", "productivity", "utilities"],
