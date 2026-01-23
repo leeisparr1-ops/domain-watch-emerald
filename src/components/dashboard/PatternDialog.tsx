@@ -859,9 +859,14 @@ export function PatternDialog({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clear all patterns?</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2">
+                Clear all patterns?
+                <Badge variant="destructive" className="text-sm font-bold">
+                  {patterns.length}
+                </Badge>
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This will remove all {patterns.length} saved patterns. This action cannot be undone.
+                This will permanently remove all {patterns.length} saved pattern{patterns.length !== 1 ? 's' : ''} and stop any associated alerts. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
