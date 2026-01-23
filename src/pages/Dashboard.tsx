@@ -153,7 +153,7 @@ export default function Dashboard() {
     minPrice: 0,
     maxPrice: 1000000,
   });
-  const [sortBy, setSortBy] = useState("end_time_asc");
+  const [sortBy, setSortBy] = useState("price_asc");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
   const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
