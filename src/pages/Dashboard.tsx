@@ -884,16 +884,33 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground">
                       Showing {Math.min((matchesPage - 1) * MATCHES_PER_PAGE + 1, totalMatchesCount)}-{Math.min(matchesPage * MATCHES_PER_PAGE, totalMatchesCount)} of {totalMatchesCount} matches
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllMatches}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Clear All</span>
-                      <span className="sm:hidden">Clear</span>
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Clear All</span>
+                          <span className="sm:hidden">Clear</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Clear all matches?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove all {totalMatchesCount} pattern matches from your history. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={clearAllMatches} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Clear All
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
 
                   {/* Grouped matches - already paginated from server */}
