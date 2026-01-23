@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { validateRegexSafety } from "@/lib/regexSecurity";
 
 export interface UserPattern {
   id: string;
@@ -112,11 +113,10 @@ export function useUserPatterns() {
       return null;
     }
 
-    // Validate regex
-    try {
-      new RegExp(pattern.pattern);
-    } catch {
-      toast.error("Invalid regex pattern");
+    // Validate regex for safety (ReDoS prevention)
+    const validation = validateRegexSafety(pattern.pattern);
+    if (!validation.safe) {
+      toast.error(validation.reason || "Invalid regex pattern");
       return null;
     }
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createSafeRegex } from "../_shared/regexSecurity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,51 +113,52 @@ serve(async (req) => {
 
     // Check each pattern against auctions
     for (const pattern of patterns as UserPattern[]) {
-      try {
-        const regex = new RegExp(pattern.pattern, "i");
+      // Use safe regex validation
+      const { regex, error: regexError } = createSafeRegex(pattern.pattern, "i");
+      if (!regex) {
+        console.error(`Unsafe or invalid regex pattern: ${pattern.pattern} - ${regexError}`);
+        continue;
+      }
         
-        for (const auction of auctions as Auction[]) {
-          // Skip if already alerted
-          const key = `${pattern.id}:${auction.id}`;
-          if (alertedSet.has(key)) continue;
+      for (const auction of auctions as Auction[]) {
+        // Skip if already alerted
+        const key = `${pattern.id}:${auction.id}`;
+        if (alertedSet.has(key)) continue;
 
-          // Extract domain name without TLD
-          const domainParts = auction.domain_name.split(".");
-          const nameOnly = domainParts.slice(0, -1).join(".").toLowerCase();
+        // Extract domain name without TLD
+        const domainParts = auction.domain_name.split(".");
+        const nameOnly = domainParts.slice(0, -1).join(".").toLowerCase();
 
-          // Check regex match
-          if (!regex.test(nameOnly)) continue;
+        // Check regex match
+        if (!regex.test(nameOnly)) continue;
 
-          // Check price filter
-          if (pattern.min_price && auction.price < pattern.min_price) continue;
-          if (pattern.max_price && auction.price > pattern.max_price) continue;
+        // Check price filter
+        if (pattern.min_price && auction.price < pattern.min_price) continue;
+        if (pattern.max_price && auction.price > pattern.max_price) continue;
 
-          // Check TLD filter
-          if (pattern.tld_filter && auction.tld) {
-            const filterTld = pattern.tld_filter.toUpperCase().replace(".", "");
-            const auctionTld = auction.tld.toUpperCase().replace(".", "");
-            if (filterTld !== auctionTld) continue;
-          }
-
-          // Match found!
-          matchedDomains.push({
-            auction_id: auction.id,
-            domain_name: auction.domain_name,
-            price: auction.price,
-            end_time: auction.end_time,
-            pattern_id: pattern.id,
-            pattern_description: pattern.description || pattern.pattern,
-          });
-
-          newAlerts.push({
-            user_id: user.id,
-            pattern_id: pattern.id,
-            auction_id: auction.id,
-            domain_name: auction.domain_name,
-          });
+        // Check TLD filter
+        if (pattern.tld_filter && auction.tld) {
+          const filterTld = pattern.tld_filter.toUpperCase().replace(".", "");
+          const auctionTld = auction.tld.toUpperCase().replace(".", "");
+          if (filterTld !== auctionTld) continue;
         }
-      } catch (regexError) {
-        console.error(`Invalid regex pattern: ${pattern.pattern}`, regexError);
+
+        // Match found!
+        matchedDomains.push({
+          auction_id: auction.id,
+          domain_name: auction.domain_name,
+          price: auction.price,
+          end_time: auction.end_time,
+          pattern_id: pattern.id,
+          pattern_description: pattern.description || pattern.pattern,
+        });
+
+        newAlerts.push({
+          user_id: user.id,
+          pattern_id: pattern.id,
+          auction_id: auction.id,
+          domain_name: auction.domain_name,
+        });
       }
     }
 
