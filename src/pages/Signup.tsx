@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -164,7 +165,7 @@ export default function Signup() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 pr-10 bg-input border-border"
-                minLength={6}
+                minLength={8}
                 required
               />
               <button
@@ -175,6 +176,7 @@ export default function Signup() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <PasswordStrengthIndicator password={password} />
           </div>
 
           <Button type="submit" variant="hero" className="w-full" disabled={loading}>
