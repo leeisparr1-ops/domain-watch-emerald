@@ -73,29 +73,26 @@ serve(async (req: Request): Promise<Response> => {
         );
       }
 
-      // Rate limit: Check last email sent (via pattern_alerts) - max 1 email per 6 hours
+      // Rate limit: Check last email sent via user_settings.updated_at - max 1 email per 2 hours
       if (payload.type === "pattern_match") {
-        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-        const { data: recentAlerts } = await supabase
-          .from("pattern_alerts")
-          .select("alerted_at")
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        
+        // Check if we've sent an email recently by looking at a dedicated field
+        // We'll use the settings row itself - check updated_at when email was last sent
+        const { data: lastEmailCheck } = await supabase
+          .from("user_settings")
+          .select("last_email_sent_at")
           .eq("user_id", userId)
-          .gte("alerted_at", sixHoursAgo)
-          .order("alerted_at", { ascending: false })
-          .limit(1);
-
-        // Check if this is the first batch of alerts in this window
-        // If there are older alerts from this sync cycle, skip email
-        if (recentAlerts && recentAlerts.length > 0) {
-          const lastAlertTime = new Date(recentAlerts[0].alerted_at).getTime();
-          const oneMinuteAgo = Date.now() - 60 * 1000;
+          .maybeSingle();
+        
+        if (lastEmailCheck?.last_email_sent_at) {
+          const lastEmailTime = new Date(lastEmailCheck.last_email_sent_at).getTime();
+          const twoHoursInMs = 2 * 60 * 60 * 1000;
           
-          // If the most recent alert is older than 1 minute, this is a new sync cycle
-          // but we already sent an email in the last 6 hours, so skip
-          if (lastAlertTime < oneMinuteAgo) {
-            console.log(`Rate limited: User ${userId} already received email within 6 hours`);
+          if (Date.now() - lastEmailTime < twoHoursInMs) {
+            console.log(`Rate limited: User ${userId} already received email within 2 hours (last: ${lastEmailCheck.last_email_sent_at})`);
             return new Response(
-              JSON.stringify({ message: "Rate limited - email already sent within 6 hours" }),
+              JSON.stringify({ message: "Rate limited - email already sent within 2 hours" }),
               { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
             );
           }
