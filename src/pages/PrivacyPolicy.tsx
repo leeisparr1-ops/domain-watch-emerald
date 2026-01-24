@@ -106,8 +106,8 @@ const PrivacyPolicy = () => {
               <h2 className="text-2xl font-semibold mb-4">10. Contact Us</h2>
               <p className="text-muted-foreground">
                 If you have any questions about this Privacy Policy, please contact us at{" "}
-                <a href="mailto:privacy@expiredhawk.com" className="text-primary hover:underline">
-                  privacy@expiredhawk.com
+                <a href="mailto:support@expiredhawk.com" className="text-primary hover:underline">
+                  support@expiredhawk.com
                 </a>
               </p>
             </section>
