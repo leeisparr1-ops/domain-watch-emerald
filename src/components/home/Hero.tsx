@@ -63,8 +63,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Create smart patterns with TLD and price filters. Get email and push 
-            notifications on your schedule when matching domains become available.
+            Set up patterns for the Domains you want and get instant notifications 
+            when matching Domains become available. Never miss a Domain again.
           </motion.p>
 
           <motion.div
