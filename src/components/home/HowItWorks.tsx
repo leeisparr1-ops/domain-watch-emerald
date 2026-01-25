@@ -12,7 +12,7 @@ const steps = [
     icon: Bell,
     step: "2",
     title: "We Monitor 24/7",
-    description: "Our system continuously scans GoDaddy auctions and matches new listings against your patterns in real-time.",
+    description: "Our system continuously scans domain auctions and matches new listings against your patterns in real-time.",
   },
   {
     icon: Smartphone,
