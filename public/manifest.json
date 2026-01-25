@@ -1,7 +1,7 @@
 {
   "name": "ExpiredHawk - Domain Monitoring",
   "short_name": "ExpiredHawk",
-  "description": "Monitor domain patterns and get instant mobile alerts when matching domains become available",
+  "description": "Set up patterns for the Domains you want and get instant notifications when matching Domains become available. Never miss a Domain again.",
   "start_url": "/",
   "id": "/",
   "scope": "/",
