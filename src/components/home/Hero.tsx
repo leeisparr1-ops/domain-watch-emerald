@@ -63,8 +63,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Set up patterns for the Domains you want and get instant notifications 
-            when matching Domains become available. Never miss a Domain again.
+            Set up patterns for the domains you want and get instant notifications 
+            when they become available. Never miss a domain again.
           </motion.p>
 
           <motion.div
