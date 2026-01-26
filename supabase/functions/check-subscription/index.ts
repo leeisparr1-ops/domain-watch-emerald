@@ -51,11 +51,14 @@ serve(async (req) => {
     if (customers.data.length === 0) {
       logStep("No Stripe customer found, user is on free plan");
       // Use upsert to handle case where user_settings doesn't exist yet
+      // Enable email notifications by default for all users
       await supabaseClient
         .from("user_settings")
         .upsert({ 
           user_id: user.id, 
-          subscription_plan: "free" 
+          subscription_plan: "free",
+          email_notifications_enabled: true,
+          notification_email: user.email,
         }, { 
           onConflict: "user_id" 
         });
@@ -82,11 +85,14 @@ serve(async (req) => {
     if (subscriptions.data.length === 0) {
       logStep("No active subscription found");
       // Use upsert to handle case where user_settings doesn't exist yet
+      // Enable email notifications by default for all users
       await supabaseClient
         .from("user_settings")
         .upsert({ 
           user_id: user.id, 
-          subscription_plan: "free" 
+          subscription_plan: "free",
+          email_notifications_enabled: true,
+          notification_email: user.email,
         }, { 
           onConflict: "user_id" 
         });
@@ -124,11 +130,14 @@ serve(async (req) => {
     logStep("Active subscription found", { subscriptionId: subscription.id, plan, subscriptionEnd, productId });
 
     // Use upsert to handle case where user_settings doesn't exist yet
+    // Enable email notifications by default for all users
     const { error: upsertError } = await supabaseClient
       .from("user_settings")
       .upsert({ 
         user_id: user.id, 
-        subscription_plan: plan 
+        subscription_plan: plan,
+        email_notifications_enabled: true,
+        notification_email: user.email,
       }, { 
         onConflict: "user_id" 
       });

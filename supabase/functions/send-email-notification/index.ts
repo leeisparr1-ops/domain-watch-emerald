@@ -65,12 +65,33 @@ serve(async (req: Request): Promise<Response> => {
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (!settings?.email_notifications_enabled) {
-        console.log("Email notifications disabled for user");
+      // If no settings record exists, create one with email enabled by default
+      if (!settings) {
+        console.log(`No settings found for user ${userId}, creating default settings with email enabled`);
+        const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+        const userEmail = authUser?.user?.email;
+        
+        if (userEmail) {
+          await supabase.from("user_settings").upsert({
+            user_id: userId,
+            email_notifications_enabled: true,
+            notification_email: userEmail,
+            notification_frequency_hours: 2,
+            subscription_plan: 'free',
+          }, { onConflict: 'user_id' });
+          
+          recipientEmail = userEmail;
+          console.log(`Created default settings for user ${userId}, email: ${userEmail}`);
+        }
+      } else if (settings.email_notifications_enabled === false) {
+        // Only skip if explicitly disabled (not null/undefined)
+        console.log("Email notifications explicitly disabled for user");
         return new Response(
           JSON.stringify({ message: "Email notifications disabled" }),
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
+      } else {
+        recipientEmail = settings.notification_email;
       }
 
       // Rate limit: Check last email sent using user's configured frequency preference
