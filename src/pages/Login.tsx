@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Globe, Loader2, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Globe, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [showResendSection, setShowResendSection] = useState(false);
   
   const navigate = useNavigate();
 
@@ -56,6 +58,31 @@ export default function Login() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast.error("Please enter your email address first");
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Verification email sent! Please check your inbox.");
+      }
+    } catch (err) {
+      console.error("Resend error:", err);
+      toast.error("Failed to resend verification email");
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
@@ -139,6 +166,43 @@ export default function Login() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
           </Button>
         </form>
+
+        {/* Resend Verification Section */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setShowResendSection(!showResendSection)}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+          >
+            Didn't receive verification email?
+          </button>
+          
+          {showResendSection && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-3"
+            >
+              <p className="text-xs text-muted-foreground mb-2 text-center">
+                Enter your email above and click below to resend
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendVerification}
+                disabled={resendLoading || !email}
+              >
+                {resendLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Resend Verification Email
+              </Button>
+            </motion.div>
+          )}
+        </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
