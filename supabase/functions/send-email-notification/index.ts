@@ -91,7 +91,15 @@ serve(async (req: Request): Promise<Response> => {
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       } else {
+        // Use notification_email from settings if available
         recipientEmail = settings.notification_email;
+        
+        // Fallback to auth email if notification_email is not set
+        if (!recipientEmail) {
+          const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+          recipientEmail = authUser?.user?.email;
+          console.log(`No notification_email set, using auth email: ${recipientEmail}`);
+        }
       }
 
       // Rate limit: Check last email sent using user's configured frequency preference
@@ -116,14 +124,6 @@ serve(async (req: Request): Promise<Response> => {
             );
           }
         }
-      }
-
-      recipientEmail = settings?.notification_email;
-
-      // If no custom email, try to get from auth
-      if (!recipientEmail) {
-        const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-        recipientEmail = authUser?.user?.email;
       }
     }
 
