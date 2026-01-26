@@ -60,7 +60,7 @@ interface PatternDialogProps {
     max_price?: number | null;
     min_price?: number;
     tld_filter?: string | null;
-  }) => void;
+  }) => Promise<unknown> | void;
   onRemovePattern: (id: string) => void;
   onClearPatterns: () => void;
   maxPatterns?: number;
@@ -315,7 +315,7 @@ export function PatternDialog({
     toast.success(`Added pattern: ${desc}`);
   };
 
-  const handleAddWordCountPattern = () => {
+  const handleAddWordCountPattern = async () => {
     if (isAtLimit) {
       toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
       return;
@@ -329,11 +329,20 @@ export function PatternDialog({
       return;
     }
     
-    // Create regex pattern for word count (words separated by hyphens or camelCase)
-    // This matches domains with 1-N "words" (sequences of letters followed by optional hyphen or capital)
-    const pattern = min === max
-      ? `^([a-z]+[-]?){${min}}$|^([A-Z]?[a-z]+){${min}}$`
-      : `^([a-z]+[-]?){${min},${max}}$|^([A-Z]?[a-z]+){${min},${max}}$`;
+    // Simplified word pattern that passes regex security validation
+    // Matches domains with hyphen-separated words (e.g., "my-domain", "hello-world-app")
+    // Word count is approximated by hyphen count + 1
+    let pattern: string;
+    if (min === 1 && max === 1) {
+      // Single word: no hyphens allowed
+      pattern = "^[a-z]+$";
+    } else if (min === 1) {
+      // 1 to max words: 0 to (max-1) hyphens
+      pattern = `^[a-z]+(-[a-z]+){0,${max - 1}}$`;
+    } else {
+      // min to max words: (min-1) to (max-1) hyphens
+      pattern = `^[a-z]+(-[a-z]+){${min - 1},${max - 1}}$`;
+    }
     
     const tldFilter = customTld === "any" ? null : customTld;
     const desc = min === max
@@ -345,13 +354,13 @@ export function PatternDialog({
       return;
     }
     
-    onAddPattern({
+    // onAddPattern already shows toast on success/failure
+    await onAddPattern({
       pattern,
       pattern_type: "words",
       description: desc,
       tld_filter: tldFilter,
     });
-    toast.success(`Added pattern: ${desc}`);
   };
 
   const buildPatternFromMode = (): { pattern: string; desc: string } | null => {
