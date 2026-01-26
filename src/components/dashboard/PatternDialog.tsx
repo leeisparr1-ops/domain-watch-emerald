@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type, ArrowRight, ArrowLeft, Search, Code } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, ArrowRight, ArrowLeft, Search, Code } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,10 +205,6 @@ export function PatternDialog({
   const [minChars, setMinChars] = useState<number[]>([3]);
   const [maxChars, setMaxChars] = useState<number[]>([8]);
   
-  // For word count pattern
-  const [minWords, setMinWords] = useState<number[]>([1]);
-  const [maxWords, setMaxWords] = useState<number[]>([2]);
-  
   // For user-friendly pattern modes
   const [patternMode, setPatternMode] = useState<"starts" | "ends" | "contains" | "regex">("contains");
   const [startsWithValue, setStartsWithValue] = useState("");
@@ -313,54 +309,6 @@ export function PatternDialog({
       tld_filter: tldFilter,
     });
     toast.success(`Added pattern: ${desc}`);
-  };
-
-  const handleAddWordCountPattern = async () => {
-    if (isAtLimit) {
-      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
-      return;
-    }
-    
-    const min = minWords[0];
-    const max = maxWords[0];
-    
-    if (min > max) {
-      toast.error("Minimum must be less than or equal to maximum");
-      return;
-    }
-    
-    // Simplified word pattern that passes regex security validation
-    // Matches domains with hyphen-separated words (e.g., "my-domain", "hello-world-app")
-    // Word count is approximated by hyphen count + 1
-    let pattern: string;
-    if (min === 1 && max === 1) {
-      // Single word: no hyphens allowed
-      pattern = "^[a-z]+$";
-    } else if (min === 1) {
-      // 1 to max words: 0 to (max-1) hyphens
-      pattern = `^[a-z]+(-[a-z]+){0,${max - 1}}$`;
-    } else {
-      // min to max words: (min-1) to (max-1) hyphens
-      pattern = `^[a-z]+(-[a-z]+){${min - 1},${max - 1}}$`;
-    }
-    
-    const tldFilter = customTld === "any" ? null : customTld;
-    const desc = min === max
-      ? `${min}-word domains${tldFilter ? ` [${tldFilter}]` : ""}`
-      : `${min}-${max} word domains${tldFilter ? ` [${tldFilter}]` : ""}`;
-    
-    if (patterns.some(p => p.description === desc)) {
-      toast.error("Pattern already exists");
-      return;
-    }
-    
-    // onAddPattern already shows toast on success/failure
-    await onAddPattern({
-      pattern,
-      pattern_type: "words",
-      description: desc,
-      tld_filter: tldFilter,
-    });
   };
 
   const buildPatternFromMode = (): { pattern: string; desc: string } | null => {
@@ -654,53 +602,6 @@ export function PatternDialog({
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add {minChars[0]}-{maxChars[0]} Character Pattern
-              </Button>
-            </div>
-          </div>
-
-          {/* Word Count Pattern */}
-          <div className="space-y-3 pt-4 border-t border-border">
-            <h4 className="font-medium text-sm flex items-center gap-2">
-              <Type className="w-4 h-4" />
-              Number of Words
-            </h4>
-            <div className="p-4 rounded-lg bg-muted/30">
-              <div className="space-y-4 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span>Min: {minWords[0]} word{minWords[0] > 1 ? 's' : ''}</span>
-                  <span>Max: {maxWords[0]} words</span>
-                </div>
-                <div className="flex gap-4 pb-2">
-                  <div className="flex-1">
-                    <Slider
-                      value={minWords}
-                      onValueChange={setMinWords}
-                      min={1}
-                      max={5}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Slider
-                      value={maxWords}
-                      onValueChange={setMaxWords}
-                      min={1}
-                      max={6}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-              <Button 
-                onClick={handleAddWordCountPattern} 
-                variant="secondary" 
-                className="w-full relative z-10"
-                disabled={isAtLimit}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add {minWords[0]}-{maxWords[0]} Word Pattern
               </Button>
             </div>
           </div>
