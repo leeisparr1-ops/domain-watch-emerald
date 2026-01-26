@@ -92,7 +92,7 @@ serve(async (req: Request): Promise<Response> => {
         console.log(`Sending welcome email to: ${user.email}`);
         
         const emailResponse: any = await resend.emails.send({
-          from: "ExpiredHawk <notifications@resend.dev>",
+          from: "ExpiredHawk <notifications@expiredhawk.com>",
           to: [user.email],
           subject: "🦅 Welcome to ExpiredHawk – Thank You for Joining!",
           html: welcomeHtml,
