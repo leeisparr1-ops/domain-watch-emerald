@@ -223,21 +223,30 @@ export function PatternDialog({
 
   const isAtLimit = patterns.length >= maxPatterns;
 
+  const buildExclusionPattern = (basePattern: string, noNumbers: boolean, noHyphens: boolean): string => {
+    if (!noNumbers && !noHyphens) return basePattern;
+    
+    const excludeChars = [];
+    if (noNumbers) excludeChars.push('0-9');
+    if (noHyphens) excludeChars.push('-');
+    const lookahead = `(?!.*[${excludeChars.join('')}])`;
+    
+    // If pattern already starts with ^, insert lookahead after it
+    if (basePattern.startsWith('^')) {
+      return `^${lookahead}${basePattern.slice(1)}`;
+    }
+    // Otherwise, anchor to start and add .* to allow matching anywhere
+    return `^${lookahead}.*${basePattern}`;
+  };
+
   const handleAddPreset = (preset: typeof PATTERN_PRESETS[0]) => {
     if (isAtLimit) {
       toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
       return;
     }
     
-    // Build pattern with exclusion filters
-    let finalPattern = preset.pattern;
-    if (presetNoNumbers || presetNoHyphens) {
-      // Wrap the pattern with a negative lookahead for excluded characters
-      const excludeChars = [];
-      if (presetNoNumbers) excludeChars.push('0-9');
-      if (presetNoHyphens) excludeChars.push('-');
-      finalPattern = `(?!.*[${excludeChars.join('')}])${preset.pattern}`;
-    }
+    // Build pattern with exclusion filters - properly anchored
+    const finalPattern = buildExclusionPattern(preset.pattern, presetNoNumbers, presetNoHyphens);
     
     if (patterns.some(p => p.pattern === finalPattern && p.tld_filter === (presetTld === "any" ? null : presetTld))) {
       toast.error("Pattern already exists with this TLD");
@@ -399,14 +408,8 @@ export function PatternDialog({
       return;
     }
     
-    // Build pattern with exclusion filters
-    let finalPattern = result.pattern;
-    if (customNoNumbers || customNoHyphens) {
-      const excludeChars = [];
-      if (customNoNumbers) excludeChars.push('0-9');
-      if (customNoHyphens) excludeChars.push('-');
-      finalPattern = `(?!.*[${excludeChars.join('')}])${result.pattern}`;
-    }
+    // Build pattern with exclusion filters - properly anchored to check entire domain
+    const finalPattern = buildExclusionPattern(result.pattern, customNoNumbers, customNoHyphens);
     
     const tldFilter = customTld === "any" ? null : customTld;
     if (patterns.some(p => p.pattern === finalPattern && p.tld_filter === tldFilter)) {
