@@ -213,23 +213,31 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     console.log("Sending email to:", recipientEmail);
-    
-    const emailResponse = await resend.emails.send({
+
+    // Resend's SDK can return { data, error } without throwing.
+    // If we don't handle that, we can incorrectly mark emails as sent and
+    // update last_email_sent_at, which then rate-limits future (valid) attempts.
+    const emailResponse: any = await resend.emails.send({
       from: "ExpiredHawk <notifications@resend.dev>",
       to: [recipientEmail],
       subject,
       html,
     });
 
+    if (emailResponse?.error) {
+      console.error("Resend returned an error:", emailResponse.error);
+      throw new Error(emailResponse.error?.message || "Email provider error");
+    }
+
     console.log("Email sent successfully:", emailResponse);
 
-    // Update last_email_sent_at for rate limiting (only for pattern_match emails)
+    // Update last_email_sent_at for rate limiting (only after confirmed success)
     if (payload.type === "pattern_match" && userId) {
       const { error: updateError } = await supabase
         .from("user_settings")
         .update({ last_email_sent_at: new Date().toISOString() })
         .eq("user_id", userId);
-      
+
       if (updateError) {
         console.error("Error updating last_email_sent_at:", updateError);
       } else {
