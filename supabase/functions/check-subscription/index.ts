@@ -50,11 +50,15 @@ serve(async (req) => {
 
     if (customers.data.length === 0) {
       logStep("No Stripe customer found, user is on free plan");
-      // Update user_settings to free plan
+      // Use upsert to handle case where user_settings doesn't exist yet
       await supabaseClient
         .from("user_settings")
-        .update({ subscription_plan: "free" })
-        .eq("user_id", user.id);
+        .upsert({ 
+          user_id: user.id, 
+          subscription_plan: "free" 
+        }, { 
+          onConflict: "user_id" 
+        });
       
       return new Response(JSON.stringify({ 
         subscribed: false,
@@ -77,10 +81,15 @@ serve(async (req) => {
 
     if (subscriptions.data.length === 0) {
       logStep("No active subscription found");
+      // Use upsert to handle case where user_settings doesn't exist yet
       await supabaseClient
         .from("user_settings")
-        .update({ subscription_plan: "free" })
-        .eq("user_id", user.id);
+        .upsert({ 
+          user_id: user.id, 
+          subscription_plan: "free" 
+        }, { 
+          onConflict: "user_id" 
+        });
       
       return new Response(JSON.stringify({ 
         subscribed: false,
@@ -93,17 +102,42 @@ serve(async (req) => {
     }
 
     const subscription = subscriptions.data[0];
-    const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    // Handle timestamp - could be seconds or already a Date depending on Stripe SDK version
+    let subscriptionEndTimestamp = subscription.current_period_end;
+    let subscriptionEnd: string;
+    try {
+      // If it's a number (Unix timestamp in seconds), multiply by 1000
+      if (typeof subscriptionEndTimestamp === 'number') {
+        subscriptionEnd = new Date(subscriptionEndTimestamp * 1000).toISOString();
+      } else {
+        subscriptionEnd = new Date(subscriptionEndTimestamp).toISOString();
+      }
+    } catch (e) {
+      logStep("Error parsing subscription end date, using fallback", { subscriptionEndTimestamp });
+      // Fallback: 30 days from now
+      subscriptionEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    
     const productId = subscription.items.data[0].price.product as string;
     const plan = PRODUCT_TO_PLAN[productId] || "basic";
     
-    logStep("Active subscription found", { subscriptionId: subscription.id, plan, subscriptionEnd });
+    logStep("Active subscription found", { subscriptionId: subscription.id, plan, subscriptionEnd, productId });
 
-    // Update user_settings with current plan
-    await supabaseClient
+    // Use upsert to handle case where user_settings doesn't exist yet
+    const { error: upsertError } = await supabaseClient
       .from("user_settings")
-      .update({ subscription_plan: plan })
-      .eq("user_id", user.id);
+      .upsert({ 
+        user_id: user.id, 
+        subscription_plan: plan 
+      }, { 
+        onConflict: "user_id" 
+      });
+    
+    if (upsertError) {
+      logStep("Error upserting user_settings", { error: upsertError.message });
+    } else {
+      logStep("Successfully updated user_settings", { userId: user.id, plan });
+    }
 
     return new Response(JSON.stringify({
       subscribed: true,
