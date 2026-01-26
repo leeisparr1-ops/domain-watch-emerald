@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type, ArrowRight, ArrowLeft, Search, Code, Ban } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, Type, ArrowRight, ArrowLeft, Search, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -214,30 +213,9 @@ export function PatternDialog({
   const [startsWithValue, setStartsWithValue] = useState("");
   const [endsWithValue, setEndsWithValue] = useState("");
   
-  // Filter options for excluding numbers and hyphens
-  const [presetNoNumbers, setPresetNoNumbers] = useState(false);
-  const [presetNoHyphens, setPresetNoHyphens] = useState(false);
-  const [customNoNumbers, setCustomNoNumbers] = useState(false);
-  const [customNoHyphens, setCustomNoHyphens] = useState(false);
   const [containsValue, setContainsValue] = useState("");
 
   const isAtLimit = patterns.length >= maxPatterns;
-
-  const buildExclusionPattern = (basePattern: string, noNumbers: boolean, noHyphens: boolean): string => {
-    if (!noNumbers && !noHyphens) return basePattern;
-    
-    const excludeChars = [];
-    if (noNumbers) excludeChars.push('0-9');
-    if (noHyphens) excludeChars.push('-');
-    const lookahead = `(?!.*[${excludeChars.join('')}])`;
-    
-    // If pattern already starts with ^, insert lookahead after it
-    if (basePattern.startsWith('^')) {
-      return `^${lookahead}${basePattern.slice(1)}`;
-    }
-    // Otherwise, anchor to start and add .* to allow matching anywhere
-    return `^${lookahead}.*${basePattern}`;
-  };
 
   const handleAddPreset = (preset: typeof PATTERN_PRESETS[0]) => {
     if (isAtLimit) {
@@ -245,10 +223,7 @@ export function PatternDialog({
       return;
     }
     
-    // Build pattern with exclusion filters - properly anchored
-    const finalPattern = buildExclusionPattern(preset.pattern, presetNoNumbers, presetNoHyphens);
-    
-    if (patterns.some(p => p.pattern === finalPattern && p.tld_filter === (presetTld === "any" ? null : presetTld))) {
+    if (patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))) {
       toast.error("Pattern already exists with this TLD");
       return;
     }
@@ -256,13 +231,11 @@ export function PatternDialog({
     const tldFilter = presetTld === "any" ? null : presetTld;
     
     let desc = preset.description;
-    if (presetNoNumbers) desc += ' (no numbers)';
-    if (presetNoHyphens) desc += ' (no hyphens)';
     if (parsedMaxPrice) desc += ` (max $${parsedMaxPrice})`;
     if (tldFilter) desc += ` [${tldFilter}]`;
     
     onAddPattern({
-      pattern: finalPattern,
+      pattern: preset.pattern,
       pattern_type: preset.pattern_type,
       description: desc,
       max_price: parsedMaxPrice,
@@ -272,8 +245,6 @@ export function PatternDialog({
     toast.success(`Added pattern: ${preset.label}${tldFilter ? ` for ${tldFilter}` : ""}`);
     setPresetMaxPrice("");
     setPresetTld("any");
-    setPresetNoNumbers(false);
-    setPresetNoHyphens(false);
   };
 
   const handleAddCharacterCountPattern = () => {
@@ -408,8 +379,7 @@ export function PatternDialog({
       return;
     }
     
-    // Build pattern with exclusion filters - properly anchored to check entire domain
-    const finalPattern = buildExclusionPattern(result.pattern, customNoNumbers, customNoHyphens);
+    const finalPattern = result.pattern;
     
     const tldFilter = customTld === "any" ? null : customTld;
     if (patterns.some(p => p.pattern === finalPattern && p.tld_filter === tldFilter)) {
@@ -421,8 +391,6 @@ export function PatternDialog({
     const parsedMaxPrice = maxPrice ? parseFloat(maxPrice) : null;
     
     let finalDescription = result.desc;
-    if (customNoNumbers) finalDescription += ' (no numbers)';
-    if (customNoHyphens) finalDescription += ' (no hyphens)';
     if (parsedMinPrice > 0 || parsedMaxPrice) {
       const priceRange = parsedMinPrice > 0 && parsedMaxPrice 
         ? `$${parsedMinPrice}-$${parsedMaxPrice}`
@@ -453,8 +421,6 @@ export function PatternDialog({
     setMinPrice("");
     setMaxPrice("");
     setCustomTld("any");
-    setCustomNoNumbers(false);
-    setCustomNoHyphens(false);
   };
 
   return (
@@ -558,29 +524,6 @@ export function PatternDialog({
                   min="0"
                 />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="preset-no-numbers" 
-                    checked={presetNoNumbers} 
-                    onCheckedChange={(checked) => setPresetNoNumbers(checked === true)}
-                  />
-                  <label htmlFor="preset-no-numbers" className="text-sm text-muted-foreground cursor-pointer">
-                    No numbers
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="preset-no-hyphens" 
-                    checked={presetNoHyphens} 
-                    onCheckedChange={(checked) => setPresetNoHyphens(checked === true)}
-                  />
-                  <label htmlFor="preset-no-hyphens" className="text-sm text-muted-foreground cursor-pointer">
-                    No hyphens
-                  </label>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">(applies to preset you click)</span>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -882,28 +825,6 @@ export function PatternDialog({
                       className="w-20 h-8"
                       min="0"
                     />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="custom-no-numbers" 
-                        checked={customNoNumbers} 
-                        onCheckedChange={(checked) => setCustomNoNumbers(checked === true)}
-                      />
-                      <label htmlFor="custom-no-numbers" className="text-sm text-muted-foreground cursor-pointer">
-                        No numbers
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="custom-no-hyphens" 
-                        checked={customNoHyphens} 
-                        onCheckedChange={(checked) => setCustomNoHyphens(checked === true)}
-                      />
-                      <label htmlFor="custom-no-hyphens" className="text-sm text-muted-foreground cursor-pointer">
-                        No hyphens
-                      </label>
-                    </div>
                   </div>
                 </div>
                 
