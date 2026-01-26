@@ -608,13 +608,13 @@ export function PatternDialog({
               <Hash className="w-4 h-4" />
               Number of Characters
             </h4>
-            <div className="space-y-4 p-4 rounded-lg bg-muted/30">
-              <div className="space-y-2">
+            <div className="p-4 rounded-lg bg-muted/30">
+              <div className="space-y-4 mb-4">
                 <div className="flex justify-between text-sm">
                   <span>Min: {minChars[0]} chars</span>
                   <span>Max: {maxChars[0]} chars</span>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4 pb-2">
                   <div className="flex-1">
                     <Slider
                       value={minChars}
@@ -640,7 +640,7 @@ export function PatternDialog({
               <Button 
                 onClick={handleAddCharacterCountPattern} 
                 variant="secondary" 
-                className="w-full"
+                className="w-full relative z-10"
                 disabled={isAtLimit}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -655,13 +655,13 @@ export function PatternDialog({
               <Type className="w-4 h-4" />
               Number of Words
             </h4>
-            <div className="space-y-4 p-4 rounded-lg bg-muted/30">
-              <div className="space-y-2">
+            <div className="p-4 rounded-lg bg-muted/30">
+              <div className="space-y-4 mb-4">
                 <div className="flex justify-between text-sm">
                   <span>Min: {minWords[0]} word{minWords[0] > 1 ? 's' : ''}</span>
                   <span>Max: {maxWords[0]} words</span>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4 pb-2">
                   <div className="flex-1">
                     <Slider
                       value={minWords}
@@ -687,7 +687,7 @@ export function PatternDialog({
               <Button 
                 onClick={handleAddWordCountPattern} 
                 variant="secondary" 
-                className="w-full"
+                className="w-full relative z-10"
                 disabled={isAtLimit}
               >
                 <Plus className="w-4 h-4 mr-2" />
