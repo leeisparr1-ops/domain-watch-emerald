@@ -218,7 +218,7 @@ serve(async (req: Request): Promise<Response> => {
     // If we don't handle that, we can incorrectly mark emails as sent and
     // update last_email_sent_at, which then rate-limits future (valid) attempts.
     const emailResponse: any = await resend.emails.send({
-      from: "ExpiredHawk <notifications@resend.dev>",
+      from: "ExpiredHawk <notifications@expiredhawk.com>",
       to: [recipientEmail],
       subject,
       html,
