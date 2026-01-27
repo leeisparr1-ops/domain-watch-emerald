@@ -27,26 +27,18 @@ interface PushSubscription {
   auth: string;
 }
 
-// Send push notification using web-push compatible approach
+// Send push notification using simple POST
+// Note: This works for basic testing. For production with encryption,
+// users enable push notifications from the app settings which handles
+// the subscription through the browser's Push API.
 async function sendPushToSubscription(
   subscription: PushSubscription,
-  payload: PushPayload,
-  vapidPublicKey: string,
-  vapidPrivateKey: string
+  payload: PushPayload
 ): Promise<boolean> {
   try {
     console.log(`Sending push to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
     
-    // For now, use a simple POST to the push service
-    // In production, you'd want to use proper web-push encryption
     const payloadString = JSON.stringify(payload);
-    
-    // Create authorization header with VAPID
-    const url = new URL(subscription.endpoint);
-    const audience = `${url.protocol}//${url.host}`;
-    
-    // Simple VAPID header (for testing)
-    const authHeader = `vapid t=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9, k=${vapidPublicKey}`;
     
     const response = await fetch(subscription.endpoint, {
       method: "POST",
@@ -157,12 +149,24 @@ serve(async (req) => {
     // Send to all subscriptions
     const results = await Promise.all(
       (subscriptions as PushSubscription[]).map((sub) =>
-        sendPushToSubscription(sub, payload, vapidPublicKey, vapidPrivateKey)
+        sendPushToSubscription(sub, payload)
       )
     );
 
     const successCount = results.filter(Boolean).length;
     console.log(`Sent ${successCount}/${subscriptions.length} notifications`);
+
+    // Clean up expired subscriptions (those that returned false)
+    for (let i = 0; i < results.length; i++) {
+      if (!results[i]) {
+        const sub = subscriptions[i] as PushSubscription;
+        console.log("Removing failed subscription:", sub.id);
+        await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("id", sub.id);
+      }
+    }
 
     return new Response(
       JSON.stringify({
