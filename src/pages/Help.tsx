@@ -43,7 +43,7 @@ export default function Help() {
     {
       icon: <Filter className="w-6 h-6 text-primary" />,
       title: "4. Use Pattern Filters",
-      description: "Each pattern can have its own TLD filter (30+ options including .com, .io, .ai) and max price to reduce noise."
+      description: "Each pattern can have its own TLD filter (including .com, .io, .ai) and max price to reduce noise."
     },
     {
       icon: <Target className="w-6 h-6 text-primary" />,
@@ -60,7 +60,7 @@ export default function Help() {
   const faqs = [
     {
       question: "What is a pattern?",
-      answer: "A pattern is a search rule to find specific domains. Use 'Starts with', 'Ends with', 'Contains', or custom regex. Each pattern can include TLD filters (30+ options) and a max price limit."
+      answer: "A pattern is a search rule to find specific domains. Use 'Starts with', 'Ends with', 'Contains', or custom regex. Each pattern can include TLD filters and a max price limit."
     },
     {
       question: "How do I view my pattern matches?",
@@ -96,7 +96,7 @@ export default function Help() {
     },
     {
       question: "What TLD filters are available?",
-      answer: "Over 30 TLDs including popular extensions (.com, .net, .org), tech-focused (.io, .ai, .dev, .app), and country codes (.co, .me, .tv). Set per-pattern in Add Pattern."
+      answer: "Popular extensions (.com, .net, .org), tech-focused (.io, .ai, .dev, .app), and country codes (.co, .me, .tv). Set per-pattern in Add Pattern."
     },
     {
       question: "How do I set price limits on patterns?",
