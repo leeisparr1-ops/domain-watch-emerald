@@ -63,8 +63,8 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            Set up patterns for the domains you want and get instant notifications 
-            when they become available. Never miss a domain again.
+            Get alerted when expiring domain names matching your criteria become 
+            available at auction or closeout.
           </motion.p>
 
           <motion.div
