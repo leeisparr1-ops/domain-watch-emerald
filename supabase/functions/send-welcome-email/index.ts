@@ -1,0 +1,115 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface WelcomeEmailRequest {
+  email: string;
+  name?: string;
+}
+
+serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { email, name }: WelcomeEmailRequest = await req.json();
+
+    if (!email) {
+      throw new Error("Email is required");
+    }
+
+    console.log(`Sending welcome email to: ${email}`);
+
+    const firstName = name?.split(' ')[0] || 'there';
+
+    const emailResponse: any = await resend.emails.send({
+      from: "ExpiredHawk <notifications@expiredhawk.com>",
+      to: [email],
+      subject: "🦅 Welcome to ExpiredHawk - Let's Find Your Perfect Domain!",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">🦅 ExpiredHawk</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Domain Monitoring Made Simple</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <h2 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">Hey ${firstName}! 👋</h2>
+              
+              <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                Welcome to ExpiredHawk! You've just joined the smartest way to discover valuable expired domains before anyone else.
+              </p>
+              
+              <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; border-radius: 8px; margin: 24px 0;">
+                <h3 style="color: #166534; margin: 0 0 12px 0; font-size: 16px;">🚀 Get Started in 3 Steps:</h3>
+                <ol style="color: #15803d; margin: 0; padding-left: 20px; line-height: 1.8;">
+                  <li><strong>Create your first search pattern</strong> - Keywords, TLDs, or regex</li>
+                  <li><strong>Enable notifications</strong> - Email or push alerts</li>
+                  <li><strong>Sit back</strong> - We'll alert you when domains match!</li>
+                </ol>
+              </div>
+              
+              <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 20px 0;">
+                Your free account includes <strong>2 search patterns</strong>. Need more? Upgrade anytime to unlock unlimited patterns and premium features.
+              </p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                  Go to Dashboard →
+                </a>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 32px 0;">
+              
+              <p style="color: #71717a; font-size: 14px; line-height: 1.6; margin: 0;">
+                Questions? Just reply to this email or reach out at <a href="mailto:support@expiredhawk.com" style="color: #22c55e;">support@expiredhawk.com</a>
+              </p>
+            </div>
+            
+            <!-- Footer -->
+            <div style="text-align: center; padding: 24px;">
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} ExpiredHawk. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (emailResponse?.error) {
+      console.error("Resend returned an error:", emailResponse.error);
+      throw new Error(emailResponse.error?.message || "Email provider error");
+    }
+
+    console.log("Welcome email sent successfully:", emailResponse);
+
+    return new Response(JSON.stringify({ success: true, id: emailResponse.data?.id }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  } catch (error: any) {
+    console.error("Error sending welcome email:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+});

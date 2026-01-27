@@ -35,6 +35,11 @@ export default function Signup() {
     if (error) {
       toast.error(error.message);
     } else {
+      // Send welcome email (fire and forget - don't block signup flow)
+      supabase.functions.invoke('send-welcome-email', {
+        body: { email, name: fullName },
+      }).catch(err => console.error('Welcome email error:', err));
+
       toast.success("Account created! Please check your email to verify your account before signing in.", {
         duration: 10000,
       });
