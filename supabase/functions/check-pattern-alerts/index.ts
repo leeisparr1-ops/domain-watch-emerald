@@ -217,11 +217,14 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               type: "pattern_match",
+              userId: user.id,
               data: {
                 matches: matchedDomains.slice(0, 10).map(m => ({
                   domain: m.domain_name,
                   price: m.price,
                   pattern: m.pattern_description,
+                  pattern_id: m.pattern_id,
+                  auction_id: m.auction_id,
                   end_time: m.end_time,
                 })),
                 totalMatches: matchedDomains.length,
