@@ -13,6 +13,8 @@ interface MatchedDomain {
   domain: string;
   price: number;
   pattern: string;
+  pattern_id?: string;
+  auction_id?: string;
   end_time: string | null;
 }
 
@@ -162,8 +164,35 @@ serve(async (req: Request): Promise<Response> => {
       `;
     } else if (payload.type === "pattern_match") {
       // Support both old and new data formats
-      const matches = payload.data?.matches || [];
-      const totalMatches = payload.data?.totalMatches || payload.matchedDomains?.length || matches.length;
+      let matches = payload.data?.matches || [];
+      
+      // Filter out domains already emailed to this user
+      if (userId && matches.length > 0) {
+        const domainNames = matches.map(m => m.domain);
+        const { data: alreadyEmailed } = await supabase
+          .from("emailed_domains")
+          .select("domain_name")
+          .eq("user_id", userId)
+          .in("domain_name", domainNames);
+        
+        if (alreadyEmailed && alreadyEmailed.length > 0) {
+          const emailedSet = new Set(alreadyEmailed.map(e => e.domain_name));
+          const beforeCount = matches.length;
+          matches = matches.filter(m => !emailedSet.has(m.domain));
+          console.log(`Filtered ${beforeCount - matches.length} already-emailed domains, ${matches.length} remaining`);
+        }
+      }
+      
+      // If no new domains to email, skip
+      if (matches.length === 0) {
+        console.log("All domains in this batch have already been emailed to user");
+        return new Response(
+          JSON.stringify({ message: "No new domains to email (all already sent)" }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      const totalMatches = matches.length;
       
       let domainList = "";
       if (matches.length > 0) {
@@ -184,6 +213,14 @@ serve(async (req: Request): Promise<Response> => {
       
       const moreCount = totalMatches - (matches.length || (payload.matchedDomains?.slice(0, 10).length || 0));
       const patternDisplay = payload.patternName || (matches.length > 0 ? matches[0].pattern : "Your Patterns");
+      
+      // Store matches for recording after successful send
+      (req as any).__matchesToRecord = matches.filter(m => m.auction_id && m.pattern_id).map(m => ({
+        user_id: userId,
+        domain_name: m.domain,
+        auction_id: m.auction_id,
+        pattern_id: m.pattern_id,
+      }));
       
       subject = `🎯 ${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Match Your Patterns!`;
       html = `
@@ -242,6 +279,20 @@ serve(async (req: Request): Promise<Response> => {
         console.error("Error updating last_email_sent_at:", updateError);
       } else {
         console.log(`Updated last_email_sent_at for user ${userId}`);
+      }
+      
+      // Record emailed domains to prevent duplicates
+      const matchesToRecord = (req as any).__matchesToRecord;
+      if (matchesToRecord && matchesToRecord.length > 0) {
+        const { error: recordError } = await supabase
+          .from("emailed_domains")
+          .upsert(matchesToRecord, { onConflict: "user_id,domain_name", ignoreDuplicates: true });
+        
+        if (recordError) {
+          console.error("Error recording emailed domains:", recordError);
+        } else {
+          console.log(`Recorded ${matchesToRecord.length} emailed domains for user ${userId}`);
+        }
       }
     }
 
