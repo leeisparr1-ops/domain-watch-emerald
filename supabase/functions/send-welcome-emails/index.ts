@@ -108,8 +108,8 @@ serve(async (req: Request): Promise<Response> => {
           successCount++;
         }
 
-        // Small delay to avoid rate limiting from Resend
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Delay to avoid rate limiting from Resend (2 requests/sec max)
+        await new Promise(resolve => setTimeout(resolve, 600));
       } catch (err: any) {
         console.error(`Error sending to ${user.email}:`, err.message);
         results.push({ email: user.email, success: false, error: err.message });
