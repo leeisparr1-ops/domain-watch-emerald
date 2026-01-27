@@ -62,6 +62,33 @@ export type Database = {
         }
         Relationships: []
       }
+      emailed_domains: {
+        Row: {
+          auction_id: string
+          domain_name: string
+          emailed_at: string
+          id: string
+          pattern_id: string
+          user_id: string
+        }
+        Insert: {
+          auction_id: string
+          domain_name: string
+          emailed_at?: string
+          id?: string
+          pattern_id: string
+          user_id: string
+        }
+        Update: {
+          auction_id?: string
+          domain_name?: string
+          emailed_at?: string
+          id?: string
+          pattern_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           auction_id: string | null

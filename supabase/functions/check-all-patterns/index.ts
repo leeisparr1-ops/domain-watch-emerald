@@ -279,6 +279,8 @@ serve(async (req) => {
                 domain: m.domain_name,
                 price: m.price,
                 pattern: m.pattern_description,
+                pattern_id: m.pattern_id,
+                auction_id: m.auction_id,
                 end_time: m.end_time,
               })),
               totalMatches: matches.length,
