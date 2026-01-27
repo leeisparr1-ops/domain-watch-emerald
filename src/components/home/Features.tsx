@@ -35,7 +35,7 @@ const features = [
   {
     icon: Globe,
     title: "Live Auction Data",
-    description: "Syncs every 6 hours with auctions, closeouts, and expiring domains. Over 30 TLD filters available.",
+    description: "Syncs every 6 hours with auctions, closeouts, and expiring domains.",
   },
 ];
 
