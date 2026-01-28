@@ -204,6 +204,54 @@ export function useUserPatterns() {
     }
   }, [user]);
 
+  // Update pattern with all fields
+  const updatePattern = useCallback(async (id: string, updates: {
+    pattern?: string;
+    pattern_type?: "regex" | "structure" | "pronounceable" | "length" | "words";
+    description?: string | null;
+    max_price?: number | null;
+    min_price?: number;
+    tld_filter?: string | null;
+    min_length?: number | null;
+    max_length?: number | null;
+    min_age?: number | null;
+    max_age?: number | null;
+  }) => {
+    if (!user) return false;
+
+    // Validate regex for safety if pattern is being updated
+    if (updates.pattern) {
+      const validation = validateRegexSafety(updates.pattern);
+      if (!validation.safe) {
+        toast.error(validation.reason || "Invalid regex pattern");
+        return false;
+      }
+    }
+
+    try {
+      const { error } = await supabase
+        .from("user_patterns")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setPatterns(prev => prev.map(p => 
+        p.id === id ? { ...p, ...updates } : p
+      ));
+      toast.success("Pattern updated");
+      return true;
+    } catch (error) {
+      console.error("Error updating pattern:", error);
+      toast.error("Failed to update pattern");
+      return false;
+    }
+  }, [user]);
+
   // Toggle pattern enabled/disabled
   const togglePattern = useCallback(async (id: string, enabled: boolean) => {
     if (!user) return;
@@ -319,6 +367,7 @@ export function useUserPatterns() {
     removePattern,
     togglePattern,
     renamePattern,
+    updatePattern,
     clearPatterns,
     checkPatterns,
     matchesDomain,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2 } from "lucide-react";
 
@@ -122,7 +122,7 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount, clearAllFavorites } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
-  const { patterns, addPattern, removePattern, togglePattern, renamePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
+  const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
   const [dialogMatches, setDialogMatches] = useState<Array<{
     auction_id: string;
@@ -388,9 +388,23 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [filters, sortBy, viewMode, itemsPerPage]);
   
-  // Fetch data based on view mode
+  // Fetch data based on view mode - only on initial load or explicit changes
+  // Skip refetch if page was just hidden and shown again (tab switch)
+  const lastFetchRef = useRef<number>(0);
+  const REFETCH_COOLDOWN = 30000; // 30 seconds minimum between auto-refetches
+  
   useEffect(() => {
     if (user) {
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetchRef.current;
+      
+      // Skip fetch if we recently fetched (prevents tab-switch reload)
+      if (timeSinceLastFetch < REFETCH_COOLDOWN && lastFetchRef.current > 0) {
+        return;
+      }
+      
+      lastFetchRef.current = now;
+      
       if (viewMode === "favorites") {
         fetchFavoriteAuctions();
       } else if (viewMode === "all") {
@@ -864,6 +878,7 @@ export default function Dashboard() {
                 onRemovePattern={removePattern}
                 onTogglePattern={togglePattern}
                 onRenamePattern={renamePattern}
+                onUpdatePattern={updatePattern}
                 maxPatterns={maxPatterns}
               />
             </motion.div>
@@ -1165,9 +1180,10 @@ export default function Dashboard() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-background border border-border z-50">
-                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
                         <SelectItem value="50">50</SelectItem>
                         <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="250">250</SelectItem>
                       </SelectContent>
                     </Select>
                     <span className="text-sm text-muted-foreground">per page</span>
