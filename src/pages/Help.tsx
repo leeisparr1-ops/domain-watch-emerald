@@ -43,7 +43,7 @@ export default function Help() {
     {
       icon: <Filter className="w-6 h-6 text-primary" />,
       title: "4. Use Pattern Filters",
-      description: "Each pattern can have its own TLD filter (including .com, .io, .ai) and max price to reduce noise."
+      description: "Each pattern can have TLD filters, price limits, character length (min/max), and domain age (years) to find exactly what you need."
     },
     {
       icon: <Target className="w-6 h-6 text-primary" />,
@@ -60,7 +60,7 @@ export default function Help() {
   const faqs = [
     {
       question: "What is a pattern?",
-      answer: "A pattern is a search rule to find specific domains. Use 'Starts with', 'Ends with', 'Contains', or custom regex. Each pattern can include TLD filters and a max price limit."
+      answer: "A pattern is a search rule to find specific domains. Use 'Starts with', 'Ends with', 'Contains', or custom regex. Each pattern can include TLD filters, price limits, character length, and domain age."
     },
     {
       question: "How do I view my pattern matches?",
@@ -97,6 +97,14 @@ export default function Help() {
     {
       question: "What TLD filters are available?",
       answer: "Popular extensions (.com, .net, .org), tech-focused (.io, .ai, .dev, .app), and country codes (.co, .me, .tv). Set per-pattern in Add Pattern."
+    },
+    {
+      question: "How do I filter by character length?",
+      answer: "When creating a pattern, use the 'Chars' inputs to set min/max character limits. For example, set min 4 and max 6 to find only short domain names."
+    },
+    {
+      question: "How do I filter by domain age?",
+      answer: "Use the 'Age' inputs (in years) when creating a pattern. Set a minimum age to find established domains, or a maximum to find newer registrations."
     },
     {
       question: "How do I set price limits on patterns?",
