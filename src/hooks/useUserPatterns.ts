@@ -13,6 +13,10 @@ export interface UserPattern {
   max_price: number | null;
   min_price: number;
   tld_filter: string | null;
+  min_length: number | null;
+  max_length: number | null;
+  min_age: number | null;
+  max_age: number | null;
   enabled: boolean;
   last_matched_at: string | null;
   created_at: string;
@@ -101,6 +105,10 @@ export function useUserPatterns() {
     max_price?: number | null;
     min_price?: number;
     tld_filter?: string | null;
+    min_length?: number | null;
+    max_length?: number | null;
+    min_age?: number | null;
+    max_age?: number | null;
   }) => {
     if (!user) {
       toast.error("Please sign in to save patterns");
@@ -131,6 +139,10 @@ export function useUserPatterns() {
           max_price: pattern.max_price ?? null,
           min_price: pattern.min_price ?? 0,
           tld_filter: pattern.tld_filter ?? null,
+          min_length: pattern.min_length ?? null,
+          max_length: pattern.max_length ?? null,
+          min_age: pattern.min_age ?? null,
+          max_age: pattern.max_age ?? null,
           enabled: true,
         })
         .select()

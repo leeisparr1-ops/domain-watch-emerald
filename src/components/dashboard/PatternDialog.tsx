@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, Hash, ArrowRight, ArrowLeft, Search, Code } from "lucide-react";
+import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, ArrowRight, ArrowLeft, Search, Code, Ruler, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
+
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,10 @@ export interface Pattern {
   max_price?: number | null;
   min_price?: number;
   tld_filter?: string | null;
+  min_length?: number | null;
+  max_length?: number | null;
+  min_age?: number | null;
+  max_age?: number | null;
   enabled?: boolean;
 }
 
@@ -60,6 +64,10 @@ interface PatternDialogProps {
     max_price?: number | null;
     min_price?: number;
     tld_filter?: string | null;
+    min_length?: number | null;
+    max_length?: number | null;
+    min_age?: number | null;
+    max_age?: number | null;
   }) => Promise<unknown> | void;
   onRemovePattern: (id: string) => void;
   onClearPatterns: () => void;
@@ -201,9 +209,19 @@ export function PatternDialog({
   const [presetTld, setPresetTld] = useState<string>("any");
   const [customTld, setCustomTld] = useState<string>("any");
   
-  // For character count pattern
-  const [minChars, setMinChars] = useState<number[]>([3]);
-  const [maxChars, setMaxChars] = useState<number[]>([8]);
+  // For min/max length filters (Quick Add)
+  const [presetMinLength, setPresetMinLength] = useState<string>("");
+  const [presetMaxLength, setPresetMaxLength] = useState<string>("");
+  // For min/max age filters (Quick Add)
+  const [presetMinAge, setPresetMinAge] = useState<string>("");
+  const [presetMaxAge, setPresetMaxAge] = useState<string>("");
+  
+  // For min/max length filters (Custom Pattern)
+  const [customMinLength, setCustomMinLength] = useState<string>("");
+  const [customMaxLength, setCustomMaxLength] = useState<string>("");
+  // For min/max age filters (Custom Pattern)
+  const [customMinAge, setCustomMinAge] = useState<string>("");
+  const [customMaxAge, setCustomMaxAge] = useState<string>("");
   
   // For user-friendly pattern modes
   const [patternMode, setPatternMode] = useState<"starts" | "ends" | "contains" | "regex">("contains");
@@ -252,10 +270,32 @@ export function PatternDialog({
     const parsedMaxPrice = presetMaxPrice ? parseFloat(presetMaxPrice) : null;
     const tldFilter = presetTld === "any" ? null : presetTld;
     
+    // Parse length and age filters
+    const parsedMinLength = presetMinLength ? parseInt(presetMinLength) : null;
+    const parsedMaxLength = presetMaxLength ? parseInt(presetMaxLength) : null;
+    const parsedMinAge = presetMinAge ? parseInt(presetMinAge) : null;
+    const parsedMaxAge = presetMaxAge ? parseInt(presetMaxAge) : null;
+    
     let desc = preset.description;
     if (presetNoNumbers) desc += ' (no numbers)';
     if (presetNoHyphens) desc += ' (no hyphens)';
     if (parsedMaxPrice) desc += ` (max $${parsedMaxPrice})`;
+    if (parsedMinLength || parsedMaxLength) {
+      const lengthRange = parsedMinLength && parsedMaxLength 
+        ? `${parsedMinLength}-${parsedMaxLength} chars`
+        : parsedMaxLength 
+          ? `≤${parsedMaxLength} chars`
+          : `≥${parsedMinLength} chars`;
+      desc += ` [${lengthRange}]`;
+    }
+    if (parsedMinAge || parsedMaxAge) {
+      const ageRange = parsedMinAge && parsedMaxAge 
+        ? `${parsedMinAge}-${parsedMaxAge}yr`
+        : parsedMaxAge 
+          ? `≤${parsedMaxAge}yr`
+          : `≥${parsedMinAge}yr`;
+      desc += ` [${ageRange}]`;
+    }
     if (tldFilter) desc += ` [${tldFilter}]`;
     
     onAddPattern({
@@ -265,50 +305,20 @@ export function PatternDialog({
       max_price: parsedMaxPrice,
       min_price: 0,
       tld_filter: tldFilter,
+      min_length: parsedMinLength,
+      max_length: parsedMaxLength,
+      min_age: parsedMinAge,
+      max_age: parsedMaxAge,
     });
     toast.success(`Added pattern: ${preset.label}${tldFilter ? ` for ${tldFilter}` : ""}`);
     setPresetMaxPrice("");
     setPresetTld("any");
     setPresetNoNumbers(false);
     setPresetNoHyphens(false);
-  };
-
-  const handleAddCharacterCountPattern = () => {
-    if (isAtLimit) {
-      toast.error(`Maximum ${maxPatterns} patterns allowed on your plan`);
-      return;
-    }
-    
-    const min = minChars[0];
-    const max = maxChars[0];
-    
-    if (min > max) {
-      toast.error("Minimum must be less than or equal to maximum");
-      return;
-    }
-    
-    // Create regex pattern for character count
-    const pattern = min === max 
-      ? `^[a-z]{${min}}$`
-      : `^[a-z]{${min},${max}}$`;
-    
-    const tldFilter = customTld === "any" ? null : customTld;
-    const desc = min === max 
-      ? `${min}-character domains${tldFilter ? ` [${tldFilter}]` : ""}`
-      : `${min}-${max} character domains${tldFilter ? ` [${tldFilter}]` : ""}`;
-    
-    if (patterns.some(p => p.pattern === pattern && p.tld_filter === tldFilter)) {
-      toast.error("Pattern already exists");
-      return;
-    }
-    
-    onAddPattern({
-      pattern,
-      pattern_type: "length",
-      description: desc,
-      tld_filter: tldFilter,
-    });
-    toast.success(`Added pattern: ${desc}`);
+    setPresetMinLength("");
+    setPresetMaxLength("");
+    setPresetMinAge("");
+    setPresetMaxAge("");
   };
 
   const buildPatternFromMode = (): { pattern: string; desc: string } | null => {
@@ -378,6 +388,12 @@ export function PatternDialog({
     const parsedMinPrice = minPrice ? parseFloat(minPrice) : 0;
     const parsedMaxPrice = maxPrice ? parseFloat(maxPrice) : null;
     
+    // Parse length and age filters
+    const parsedMinLength = customMinLength ? parseInt(customMinLength) : null;
+    const parsedMaxLength = customMaxLength ? parseInt(customMaxLength) : null;
+    const parsedMinAge = customMinAge ? parseInt(customMinAge) : null;
+    const parsedMaxAge = customMaxAge ? parseInt(customMaxAge) : null;
+    
     let finalDescription = result.desc;
     if (customNoNumbers) finalDescription += ' (no numbers)';
     if (customNoHyphens) finalDescription += ' (no hyphens)';
@@ -388,6 +404,22 @@ export function PatternDialog({
           ? `max $${parsedMaxPrice}`
           : `min $${parsedMinPrice}`;
       finalDescription += ` (${priceRange})`;
+    }
+    if (parsedMinLength || parsedMaxLength) {
+      const lengthRange = parsedMinLength && parsedMaxLength 
+        ? `${parsedMinLength}-${parsedMaxLength} chars`
+        : parsedMaxLength 
+          ? `≤${parsedMaxLength} chars`
+          : `≥${parsedMinLength} chars`;
+      finalDescription += ` [${lengthRange}]`;
+    }
+    if (parsedMinAge || parsedMaxAge) {
+      const ageRange = parsedMinAge && parsedMaxAge 
+        ? `${parsedMinAge}-${parsedMaxAge}yr`
+        : parsedMaxAge 
+          ? `≤${parsedMaxAge}yr`
+          : `≥${parsedMinAge}yr`;
+      finalDescription += ` [${ageRange}]`;
     }
     if (tldFilter) {
       finalDescription += ` [${tldFilter}]`;
@@ -400,6 +432,10 @@ export function PatternDialog({
       max_price: parsedMaxPrice,
       min_price: parsedMinPrice,
       tld_filter: tldFilter,
+      min_length: parsedMinLength,
+      max_length: parsedMaxLength,
+      min_age: parsedMinAge,
+      max_age: parsedMaxAge,
     });
     
     toast.success(`Pattern added${tldFilter ? ` for ${tldFilter}` : ""}`);
@@ -413,6 +449,10 @@ export function PatternDialog({
     setCustomTld("any");
     setCustomNoNumbers(false);
     setCustomNoHyphens(false);
+    setCustomMinLength("");
+    setCustomMaxLength("");
+    setCustomMinAge("");
+    setCustomMaxAge("");
   };
 
   return (
@@ -487,35 +527,89 @@ export function PatternDialog({
             <h4 className="font-medium text-sm">Quick Add Patterns</h4>
             
             {/* Filters for presets */}
-            <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">TLD:</span>
-                <Select value={presetTld} onValueChange={setPresetTld}>
-                  <SelectTrigger className="w-24 h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TLD_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">TLD:</span>
+                  <Select value={presetTld} onValueChange={setPresetTld}>
+                    <SelectTrigger className="w-24 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TLD_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Max:</span>
+                  <Input
+                    type="number"
+                    placeholder="No limit"
+                    value={presetMaxPrice}
+                    onChange={(e) => setPresetMaxPrice(e.target.value)}
+                    className="w-24 h-8"
+                    min="0"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Max:</span>
-                <Input
-                  type="number"
-                  placeholder="No limit"
-                  value={presetMaxPrice}
-                  onChange={(e) => setPresetMaxPrice(e.target.value)}
-                  className="w-24 h-8"
-                  min="0"
-                />
+              
+              {/* Character length and domain age filters */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Chars:</span>
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={presetMinLength}
+                    onChange={(e) => setPresetMinLength(e.target.value)}
+                    className="w-16 h-8"
+                    min="1"
+                    max="50"
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={presetMaxLength}
+                    onChange={(e) => setPresetMaxLength(e.target.value)}
+                    className="w-16 h-8"
+                    min="1"
+                    max="50"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Age:</span>
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={presetMinAge}
+                    onChange={(e) => setPresetMinAge(e.target.value)}
+                    className="w-16 h-8"
+                    min="0"
+                    max="30"
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={presetMaxAge}
+                    onChange={(e) => setPresetMaxAge(e.target.value)}
+                    className="w-16 h-8"
+                    min="0"
+                    max="30"
+                  />
+                  <span className="text-xs text-muted-foreground">yrs</span>
+                </div>
               </div>
+              
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox 
@@ -558,54 +652,6 @@ export function PatternDialog({
               ))}
             </div>
           </div>
-
-          {/* Character Count Pattern */}
-          <div className="space-y-3 pt-4 border-t border-border">
-            <h4 className="font-medium text-sm flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              Number of Characters
-            </h4>
-            <div className="p-4 rounded-lg bg-muted/30">
-              <div className="space-y-4 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span>Min: {minChars[0]} chars</span>
-                  <span>Max: {maxChars[0]} chars</span>
-                </div>
-                <div className="flex gap-4 pb-2">
-                  <div className="flex-1">
-                    <Slider
-                      value={minChars}
-                      onValueChange={setMinChars}
-                      min={1}
-                      max={15}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Slider
-                      value={maxChars}
-                      onValueChange={setMaxChars}
-                      min={1}
-                      max={20}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-              <Button 
-                onClick={handleAddCharacterCountPattern} 
-                variant="secondary" 
-                className="w-full relative z-10"
-                disabled={isAtLimit}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add {minChars[0]}-{maxChars[0]} Character Pattern
-              </Button>
-            </div>
-          </div>
-
           {/* Custom Pattern */}
           <div className="space-y-3 pt-4 border-t border-border">
             <h4 className="font-medium text-sm">Custom Pattern</h4>
@@ -755,56 +801,98 @@ export function PatternDialog({
                 )}
                 
                 {/* Filters for Custom Pattern */}
-                <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">TLD:</span>
-                    <Select value={customTld} onValueChange={setCustomTld}>
-                      <SelectTrigger className="w-24 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TLD_OPTIONS.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">TLD:</span>
+                      <Select value={customTld} onValueChange={setCustomTld}>
+                        <SelectTrigger className="w-24 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TLD_OPTIONS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Price:</span>
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
+                        className="w-20 h-8"
+                        min="0"
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        className="w-20 h-8"
+                        min="0"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Price:</span>
-                    <Input
-                      type="number"
-                      placeholder="Min"
-                      value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
-                      className="w-20 h-8"
-                      min="0"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <Input
-                      type="number"
-                      placeholder="Max"
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
-                      className="w-20 h-8"
-                      min="0"
-                    />
+                  
+                  {/* Character length and domain age filters */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Ruler className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Chars:</span>
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={customMinLength}
+                        onChange={(e) => setCustomMinLength(e.target.value)}
+                        className="w-16 h-8"
+                        min="1"
+                        max="50"
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={customMaxLength}
+                        onChange={(e) => setCustomMaxLength(e.target.value)}
+                        className="w-16 h-8"
+                        min="1"
+                        max="50"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Age:</span>
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={customMinAge}
+                        onChange={(e) => setCustomMinAge(e.target.value)}
+                        className="w-16 h-8"
+                        min="0"
+                        max="30"
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={customMaxAge}
+                        onChange={(e) => setCustomMaxAge(e.target.value)}
+                        className="w-16 h-8"
+                        min="0"
+                        max="30"
+                      />
+                      <span className="text-xs text-muted-foreground">yrs</span>
+                    </div>
                   </div>
-                </div>
-                
-                <Button onClick={handleAddCustom} className="w-full" disabled={isAtLimit}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  {patternMode === "starts" && `Add "Starts with ${startsWithValue || '...'}" Pattern`}
-                  {patternMode === "ends" && `Add "Ends with ${endsWithValue || '...'}" Pattern`}
-                  {patternMode === "contains" && `Add "Contains ${containsValue || '...'}" Pattern`}
-                  {patternMode === "regex" && "Add Custom Regex Pattern"}
-                </Button>
-              </div>
-            </div>
-                  </div>
+                  
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Checkbox 
@@ -828,6 +916,18 @@ export function PatternDialog({
                     </div>
                   </div>
                 </div>
+                
+                <Button onClick={handleAddCustom} className="w-full" disabled={isAtLimit}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {patternMode === "starts" && `Add "Starts with ${startsWithValue || '...'}" Pattern`}
+                  {patternMode === "ends" && `Add "Ends with ${endsWithValue || '...'}" Pattern`}
+                  {patternMode === "contains" && `Add "Contains ${containsValue || '...'}" Pattern`}
+                  {patternMode === "regex" && "Add Custom Regex Pattern"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

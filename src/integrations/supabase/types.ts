@@ -266,7 +266,11 @@ export type Database = {
           enabled: boolean
           id: string
           last_matched_at: string | null
+          max_age: number | null
+          max_length: number | null
           max_price: number | null
+          min_age: number | null
+          min_length: number | null
           min_price: number | null
           pattern: string
           pattern_type: string
@@ -280,7 +284,11 @@ export type Database = {
           enabled?: boolean
           id?: string
           last_matched_at?: string | null
+          max_age?: number | null
+          max_length?: number | null
           max_price?: number | null
+          min_age?: number | null
+          min_length?: number | null
           min_price?: number | null
           pattern: string
           pattern_type?: string
@@ -294,7 +302,11 @@ export type Database = {
           enabled?: boolean
           id?: string
           last_matched_at?: string | null
+          max_age?: number | null
+          max_length?: number | null
           max_price?: number | null
+          min_age?: number | null
+          min_length?: number | null
           min_price?: number | null
           pattern?: string
           pattern_type?: string
