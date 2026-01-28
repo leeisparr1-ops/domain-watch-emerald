@@ -146,7 +146,7 @@ export function SavedPatternsDialog({
                         <div className="font-medium text-sm truncate">
                           {pattern.description || pattern.pattern}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground capitalize">
                             {pattern.pattern_type}
                           </span>
@@ -158,6 +158,24 @@ export function SavedPatternsDialog({
                           {pattern.max_price && (
                             <span className="text-xs text-muted-foreground">
                               Max: ${pattern.max_price}
+                            </span>
+                          )}
+                          {(pattern.min_length || pattern.max_length) && (
+                            <span className="text-xs text-muted-foreground">
+                              {pattern.min_length && pattern.max_length 
+                                ? `${pattern.min_length}-${pattern.max_length} chars`
+                                : pattern.max_length 
+                                  ? `≤${pattern.max_length} chars`
+                                  : `≥${pattern.min_length} chars`}
+                            </span>
+                          )}
+                          {(pattern.min_age || pattern.max_age) && (
+                            <span className="text-xs text-muted-foreground">
+                              {pattern.min_age && pattern.max_age 
+                                ? `${pattern.min_age}-${pattern.max_age}yr`
+                                : pattern.max_age 
+                                  ? `≤${pattern.max_age}yr`
+                                  : `≥${pattern.min_age}yr`}
                             </span>
                           )}
                         </div>
