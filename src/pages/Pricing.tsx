@@ -17,7 +17,7 @@ const plans = [
     description: "Get started with basic monitoring",
     features: [
       "2 monitoring patterns",
-      "Daily email alerts",
+      "Email & push alerts",
       "Basic auction data",
       "7-day history",
     ],
@@ -32,7 +32,7 @@ const plans = [
     description: "For serious domain hunters",
     features: [
       "50 monitoring patterns",
-      "Instant mobile push alerts",
+      "Email & push alerts",
       "Full auction data",
       "30-day history",
       "Favorite domain alerts",
@@ -48,7 +48,7 @@ const plans = [
     description: "Maximum monitoring power",
     features: [
       "125 monitoring patterns",
-      "Priority mobile alerts",
+      "Priority alerts",
       "Full auction data",
       "90-day history",
       "Custom alert rules",
