@@ -205,6 +205,7 @@ export function useUserPatterns() {
   }, [user]);
 
   // Update pattern with all fields
+  // IMPORTANT: When filter criteria change, we clear old pattern_alerts so they get re-matched
   const updatePattern = useCallback(async (id: string, updates: {
     pattern?: string;
     pattern_type?: "regex" | "structure" | "pronounceable" | "length" | "words";
@@ -229,6 +230,32 @@ export function useUserPatterns() {
     }
 
     try {
+      // Check if any filter criteria are being changed (not just description)
+      const filterFieldsChanged = 
+        updates.max_price !== undefined ||
+        updates.min_price !== undefined ||
+        updates.tld_filter !== undefined ||
+        updates.min_length !== undefined ||
+        updates.max_length !== undefined ||
+        updates.min_age !== undefined ||
+        updates.max_age !== undefined ||
+        updates.pattern !== undefined;
+
+      // If filter criteria changed, delete old alerts for this pattern
+      // so they get re-evaluated with new filters on next check
+      if (filterFieldsChanged) {
+        const { error: deleteError } = await supabase
+          .from("pattern_alerts")
+          .delete()
+          .eq("pattern_id", id)
+          .eq("user_id", user.id);
+
+        if (deleteError) {
+          console.error("Error clearing old pattern alerts:", deleteError);
+          // Continue with update even if delete fails
+        }
+      }
+
       const { error } = await supabase
         .from("user_patterns")
         .update({
@@ -243,7 +270,12 @@ export function useUserPatterns() {
       setPatterns(prev => prev.map(p => 
         p.id === id ? { ...p, ...updates } : p
       ));
-      toast.success("Pattern updated");
+      
+      if (filterFieldsChanged) {
+        toast.success("Pattern updated - matches will refresh on next sync");
+      } else {
+        toast.success("Pattern updated");
+      }
       return true;
     } catch (error) {
       console.error("Error updating pattern:", error);
