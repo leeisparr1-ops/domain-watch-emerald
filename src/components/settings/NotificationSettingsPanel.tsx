@@ -493,10 +493,28 @@ export function NotificationSettingsPanel() {
                 Show toast notifications in the app
               </p>
             </div>
-            <Switch
-              checked={settings.inAppToasts}
-              onCheckedChange={(checked) => updateSettings({ inAppToasts: checked })}
-            />
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  toast.success('🎯 Test: domain.com matches "pattern" - $99', {
+                    duration: 10000,
+                    action: {
+                      label: 'View',
+                      onClick: () => {},
+                    },
+                  });
+                }}
+                disabled={!settings.inAppToasts}
+              >
+                Test
+              </Button>
+              <Switch
+                checked={settings.inAppToasts}
+                onCheckedChange={(checked) => updateSettings({ inAppToasts: checked })}
+              />
+            </div>
           </div>
 
           {/* Sound Settings */}
