@@ -24,6 +24,53 @@ export function usePushNotifications() {
     return registration.pushManager.getSubscription();
   }, []);
 
+  const getOrRegisterServiceWorker = useCallback(async (): Promise<ServiceWorkerRegistration> => {
+    if (!('serviceWorker' in navigator)) {
+      throw new Error('Service Worker not supported');
+    }
+
+    const existing = await navigator.serviceWorker.getRegistration('/');
+    if (existing) {
+      await navigator.serviceWorker.ready;
+      return existing;
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+    return registration;
+  }, []);
+
+  const fetchVapidPublicKey = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
+    const { data: configData, error: vapidError } = await supabase.functions.invoke('get-vapid-key', {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    });
+
+    if (vapidError) {
+      throw new Error(`Could not get VAPID key: ${vapidError.message}`);
+    }
+    if (!configData?.publicKey) {
+      throw new Error('VAPID key not configured on server');
+    }
+
+    return String(configData.publicKey);
+  }, []);
+
+  const createBrowserSubscription = useCallback(
+    async (registration: ServiceWorkerRegistration) => {
+      const vapidKey = await fetchVapidPublicKey();
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey) as unknown as BufferSource;
+
+      return registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+    },
+    [fetchVapidPublicKey]
+  );
+
   const saveSubscriptionToDb = useCallback(
     async (subscription: PushSubscription) => {
       if (!user) return false;
@@ -51,11 +98,91 @@ export function usePushNotifications() {
     [user]
   );
 
+  // Check if user has an active subscription
+  const checkSubscription = useCallback(async () => {
+    if (!user) {
+      setState(prev => ({ ...prev, isLoading: false, isSubscribed: false }));
+      return;
+    }
+
+    const supported = 'serviceWorker' in navigator && 'PushManager' in window;
+    const permission = supported && 'Notification' in window ? Notification.permission : 'unsupported';
+
+    try {
+      const browserSubscription = supported && permission === 'granted'
+        ? await getBrowserSubscription()
+        : null;
+
+      // DB rows act as a "user intent" signal (they previously enabled push)
+      const { data: dbRows, error: dbError } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint')
+        .eq('user_id', user.id)
+        .limit(5);
+
+      if (dbError) {
+        // If the read fails transiently, don’t force-disable in UI.
+        setState(prev => ({
+          ...prev,
+          isSubscribed: !!browserSubscription,
+          isLoading: false,
+        }));
+        return;
+      }
+
+      const hasDbIntent = (dbRows?.length ?? 0) > 0;
+
+      if (browserSubscription) {
+        const hasMatchingDbRow = !!dbRows?.some(r => r.endpoint === browserSubscription.endpoint);
+
+        // If we have a browser subscription but DB record is missing, self-heal by re-saving it.
+        if (!hasMatchingDbRow) {
+          try {
+            await saveSubscriptionToDb(browserSubscription);
+          } catch (e) {
+            console.warn('[Push] Failed to self-heal subscription in DB:', e);
+          }
+        }
+
+        setState(prev => ({
+          ...prev,
+          isSubscribed: true,
+          isLoading: false,
+        }));
+        return;
+      }
+
+      // No browser subscription, but user had previously enabled push and permission is granted.
+      // This can happen in TWA/PWA if the subscription is lost; auto-restore silently.
+      if (hasDbIntent && supported && permission === 'granted') {
+        try {
+          const registration = await getOrRegisterServiceWorker();
+          const restored = await createBrowserSubscription(registration);
+          await saveSubscriptionToDb(restored);
+
+          setState(prev => ({
+            ...prev,
+            isSubscribed: true,
+            isLoading: false,
+          }));
+          return;
+        } catch (e) {
+          console.warn('[Push] Failed to auto-restore subscription:', e);
+        }
+      }
+
+      setState(prev => ({ ...prev, isSubscribed: false, isLoading: false }));
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      setState(prev => ({ ...prev, isLoading: false, isSubscribed: false }));
+    }
+  }, [createBrowserSubscription, getBrowserSubscription, getOrRegisterServiceWorker, saveSubscriptionToDb, user]);
+
   // Check if push notifications are supported
   useEffect(() => {
     const checkSupport = async () => {
       const supported = 'serviceWorker' in navigator && 'PushManager' in window;
-      const permission = supported ? Notification.permission : 'unsupported';
+      const permission = supported && 'Notification' in window ? Notification.permission : 'unsupported';
       
       setState(prev => ({
         ...prev,
@@ -71,65 +198,7 @@ export function usePushNotifications() {
     };
 
     checkSupport();
-  }, [user, saveSubscriptionToDb]);
-
-  // Check if user has an active subscription
-  const checkSubscription = useCallback(async () => {
-    if (!user) {
-      setState(prev => ({ ...prev, isLoading: false, isSubscribed: false }));
-      return;
-    }
-
-    try {
-      const subscription = await getBrowserSubscription();
-      
-      if (subscription) {
-        // Verify subscription exists in database
-        const { data, error } = await supabase
-          .from('push_subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('endpoint', subscription.endpoint)
-          .maybeSingle();
-
-        // If we have a browser subscription but DB record is missing, self-heal by re-saving it.
-        if (!data && !error) {
-          try {
-            await saveSubscriptionToDb(subscription);
-          } catch (e) {
-            console.warn('[Push] Failed to self-heal subscription in DB:', e);
-          }
-        }
-
-        setState(prev => ({
-          ...prev,
-          isSubscribed: !!data,
-          isLoading: false,
-        }));
-      } else {
-        setState(prev => ({ ...prev, isSubscribed: false, isLoading: false }));
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-      setState(prev => ({ ...prev, isLoading: false, isSubscribed: false }));
-    }
-  }, [user, getBrowserSubscription, saveSubscriptionToDb]);
-
-  // Register service worker
-  const registerServiceWorker = async (): Promise<ServiceWorkerRegistration> => {
-    if (!('serviceWorker' in navigator)) {
-      throw new Error('Service Worker not supported');
-    }
-
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-    });
-
-    // Wait for the service worker to be ready
-    await navigator.serviceWorker.ready;
-    
-    return registration;
-  };
+  }, [checkSubscription, user]);
 
   // Subscribe to push notifications
   const subscribe = useCallback(async (): Promise<boolean> => {
@@ -179,42 +248,11 @@ export function usePushNotifications() {
 
       // Register service worker
       console.log('[Push] Registering service worker...');
-      const registration = await registerServiceWorker();
+      const registration = await getOrRegisterServiceWorker();
       console.log('[Push] Service worker registered:', registration.scope);
 
-      // Get VAPID public key from edge function
-      console.log('[Push] Fetching VAPID key...');
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      const { data: configData, error: vapidError } = await supabase.functions.invoke('get-vapid-key', {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-      });
-      
-      if (vapidError) {
-        console.error('[Push] VAPID fetch error:', vapidError);
-        throw new Error(`Could not get VAPID key: ${vapidError.message}`);
-      }
-      
-      if (!configData?.publicKey) {
-        console.error('[Push] No publicKey in response:', configData);
-        throw new Error('VAPID key not configured on server');
-      }
-
-      if ((configData as any)?._version) {
-        console.log('[Push] get-vapid-key version:', (configData as any)._version);
-      }
-      
-      console.log('[Push] VAPID key received, subscribing to push manager...');
-
-      // PushManager.subscribe requires the VAPID public key as a Uint8Array (not a string)
-      const applicationServerKey = urlBase64ToUint8Array(String(configData.publicKey)) as unknown as BufferSource;
-
-      // Subscribe to push with VAPID key
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey,
-      });
+      console.log('[Push] Creating push subscription...');
+      const subscription = await createBrowserSubscription(registration);
       console.log('[Push] Subscription created:', subscription.endpoint.substring(0, 50) + '...');
 
       // Extract subscription details
@@ -240,7 +278,7 @@ export function usePushNotifications() {
       setState(prev => ({ ...prev, isLoading: false }));
       return false;
     }
-  }, [user]);
+  }, [createBrowserSubscription, getOrRegisterServiceWorker, saveSubscriptionToDb, user]);
 
   // Unsubscribe from push notifications
   const unsubscribe = useCallback(async (): Promise<boolean> => {
