@@ -338,6 +338,9 @@ export function usePushNotifications() {
     }
 
     try {
+      // Use absolute URL for icon so it displays correctly in notifications
+      const iconUrl = `${window.location.origin}/icons/icon-192.png`;
+      
       const invoke = () =>
         supabase.functions.invoke('send-push-notification', {
           body: {
@@ -345,7 +348,8 @@ export function usePushNotifications() {
             payload: {
               title: '🔔 Test Notification',
               body: 'Push notifications are working! You will receive alerts for pattern matches.',
-              icon: '/favicon.ico',
+              icon: iconUrl,
+              badge: iconUrl,
               tag: 'test',
               url: '/dashboard',
             },

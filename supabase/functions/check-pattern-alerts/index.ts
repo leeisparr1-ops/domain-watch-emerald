@@ -199,6 +199,9 @@ serve(async (req) => {
         const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
         const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
         
+        // Use absolute URL for icon - expiredhawk.lovable.app is the production domain
+        const iconUrl = "https://expiredhawk.lovable.app/icons/icon-192.png";
+        
         // Send push notification
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -209,7 +212,8 @@ serve(async (req) => {
               payload: {
                 title: `🎯 ${matchedDomains.length} Domain${matchedDomains.length > 1 ? 's' : ''} Match Your Patterns!`,
                 body: `${topMatches}${moreCount}`,
-                icon: "/icons/icon-192.png",
+                icon: iconUrl,
+                badge: iconUrl,
                 tag: "pattern-match",
                 url: "/dashboard",
               },

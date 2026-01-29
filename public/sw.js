@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v2';
+const CACHE_NAME = 'expiredhawk-v3';
 const OFFLINE_URL = '/';
 
 // Assets to cache for offline support
@@ -90,11 +90,13 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received:', event);
   
+  // Use absolute URL for icon to ensure it displays correctly in notifications
+  const baseUrl = self.location.origin;
   let data = {
     title: 'Domain Alert',
     body: 'You have a new pattern match!',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: `${baseUrl}/icons/icon-192.png`,
+    badge: `${baseUrl}/icons/icon-192.png`,
     tag: 'pattern-alert',
     url: '/dashboard'
   };
