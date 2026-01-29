@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v3';
+const CACHE_NAME = 'expiredhawk-v4';
 const OFFLINE_URL = '/';
 
 // Assets to cache for offline support
@@ -90,13 +90,14 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received:', event);
   
-  // Use absolute URL for icon to ensure it displays correctly in notifications
-  const baseUrl = self.location.origin;
+  // Use production domain for icon to ensure it displays correctly
+  const iconUrl = 'https://expiredhawk.lovable.app/icons/icon-192.png';
   let data = {
     title: 'Domain Alert',
     body: 'You have a new pattern match!',
-    icon: `${baseUrl}/icons/icon-192.png`,
-    badge: `${baseUrl}/icons/icon-192.png`,
+    icon: iconUrl,
+    badge: iconUrl,
+    image: iconUrl,
     tag: 'pattern-alert',
     url: '/dashboard'
   };
@@ -112,8 +113,9 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/icons/icon-192.png',
-    badge: data.badge || '/icons/icon-192.png',
+    icon: data.icon || 'https://expiredhawk.lovable.app/icons/icon-192.png',
+    badge: data.badge || 'https://expiredhawk.lovable.app/icons/icon-192.png',
+    image: data.image || 'https://expiredhawk.lovable.app/icons/icon-192.png',
     tag: data.tag || 'default',
     requireInteraction: true,
     vibrate: [200, 100, 200],
