@@ -115,20 +115,26 @@ async function getAppServer(vapidPublicKey: string, vapidPrivateKey: string) {
   return appServerPromise;
 }
 
-// Send push notification using simple POST
-// Note: This works for basic testing. For production with encryption,
-// users enable push notifications from the app settings which handles
-// the subscription through the browser's Push API.
+// Send push notification using the @negrel/webpush library.
+// The library expects p256dh and auth as base64url strings.
 async function sendPushToSubscription(
   subscription: PushSubscription,
   payload: PushPayload
 ): Promise<SendResult> {
   try {
     console.log(`Sending web push to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
+    console.log(`[Push Debug] p256dh (${subscription.p256dh.length} chars): ${subscription.p256dh.substring(0, 20)}...`);
+    console.log(`[Push Debug] auth (${subscription.auth.length} chars): ${subscription.auth}`);
+    
     const appServer = await getAppServer(
       Deno.env.get("VAPID_PUBLIC_KEY") || "",
       Deno.env.get("VAPID_PRIVATE_KEY") || "",
     );
+
+    // Log decoded byte lengths to verify format
+    const p256dhBytes = base64UrlToBytes(subscription.p256dh);
+    const authBytes = base64UrlToBytes(subscription.auth);
+    console.log(`[Push Debug] p256dh decoded to ${p256dhBytes.length} bytes (expected 65), auth decoded to ${authBytes.length} bytes (expected 16)`);
 
     const sub = appServer.subscribe({
       endpoint: subscription.endpoint,
@@ -148,6 +154,7 @@ async function sendPushToSubscription(
     const maybeResponse = (error as any)?.response;
     const status = maybeResponse?.status;
     const message = (error as any)?.message ? String((error as any).message) : String(error);
+    const stack = (error as any)?.stack || '';
 
     let shouldDelete = false;
     try {
@@ -160,7 +167,7 @@ async function sendPushToSubscription(
 
     if (status === 410 || status === 404) shouldDelete = true;
 
-    console.error("Error sending web push:", { status, message, shouldDelete });
+    console.error("Error sending web push:", { status, message, shouldDelete, stack: stack.substring(0, 500) });
     return { ok: false, shouldDelete, status, error: message };
   }
 }
