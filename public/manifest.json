@@ -15,7 +15,7 @@
   "icons": [
     {
       "src": "/icons/icon-192.png",
-      "sizes": "192x192",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
@@ -27,7 +27,7 @@
     },
     {
       "src": "/icons/maskable-192.png",
-      "sizes": "192x192",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
@@ -48,7 +48,7 @@
     },
     {
       "src": "/screenshots/mobile-screenshot.png",
-      "sizes": "1080x1920",
+      "sizes": "1088x1920",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "ExpiredHawk Mobile App"
