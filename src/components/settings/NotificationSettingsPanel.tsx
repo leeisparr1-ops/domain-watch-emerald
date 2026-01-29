@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send, Mail } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send, Mail, AlertTriangle, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -16,6 +16,8 @@ import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const THRESHOLD_OPTIONS = [
   { value: '15', label: '15 minutes' },
@@ -35,6 +37,7 @@ const FREQUENCY_OPTIONS = [
 ];
 
 export function NotificationSettingsPanel() {
+  const { user } = useAuth();
   const { settings, updateSettings, resetToDefaults, isLoaded } = useNotificationSettings();
   const { 
     isSupported: pushSupported, 
@@ -55,6 +58,73 @@ export function NotificationSettingsPanel() {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const [emailInput, setEmailInput] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<{
+    swStatus: string;
+    permissionStatus: string;
+    browserSubscription: string;
+    dbSubscriptionCount: number;
+    endpoint: string;
+  } | null>(null);
+  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+
+  const loadDiagnostics = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingDiagnostics(true);
+    try {
+      // Check service worker
+      let swStatus = 'Not supported';
+      let browserSub = 'None';
+      let endpoint = '';
+      
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration('/');
+        swStatus = reg ? `Active (scope: ${reg.scope})` : 'Not registered';
+        
+        if (reg && 'pushManager' in reg) {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            browserSub = 'Active';
+            endpoint = sub.endpoint.substring(0, 60) + '...';
+          } else {
+            browserSub = 'Not subscribed';
+          }
+        }
+      }
+
+      // Check permission
+      const perm = 'Notification' in window ? Notification.permission : 'unsupported';
+
+      // Check DB
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint')
+        .eq('user_id', user.id);
+
+      setDiagnostics({
+        swStatus,
+        permissionStatus: perm,
+        browserSubscription: browserSub,
+        dbSubscriptionCount: error ? -1 : (data?.length ?? 0),
+        endpoint,
+      });
+    } catch (e) {
+      console.error('Diagnostics error:', e);
+    } finally {
+      setIsLoadingDiagnostics(false);
+    }
+  }, [user]);
+
+  const handleResubscribe = async () => {
+    // First unsubscribe to clear old state
+    await unsubscribePush();
+    // Wait a moment for cleanup
+    await new Promise(r => setTimeout(r, 500));
+    // Re-subscribe
+    await subscribePush();
+    // Reload diagnostics
+    await loadDiagnostics();
+  };
 
   useEffect(() => {
     if (emailSettings.email) {
@@ -226,16 +296,99 @@ export function NotificationSettingsPanel() {
               </div>
               
               {pushSubscribed && (
-                <div className="mt-4 flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={sendTestNotification}
-                    disabled={pushLoading}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Test Notification
-                  </Button>
+                <div className="mt-4 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={sendTestNotification}
+                      disabled={pushLoading}
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Test
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleResubscribe}
+                      disabled={pushLoading}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Re-subscribe
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setShowDiagnostics(!showDiagnostics);
+                        if (!showDiagnostics) loadDiagnostics();
+                      }}
+                    >
+                      <Bug className="w-4 h-4 mr-2" />
+                      {showDiagnostics ? 'Hide' : 'Diagnostics'}
+                    </Button>
+                  </div>
+
+                  {showDiagnostics && (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border text-xs space-y-1.5">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium text-sm">Push Diagnostics</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2"
+                          onClick={loadDiagnostics}
+                          disabled={isLoadingDiagnostics}
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isLoadingDiagnostics ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                      {diagnostics ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Service Worker:</span>
+                            <span className={diagnostics.swStatus.includes('Active') ? 'text-green-500' : 'text-yellow-500'}>
+                              {diagnostics.swStatus.includes('Active') ? '✓ Active' : diagnostics.swStatus}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Permission:</span>
+                            <span className={diagnostics.permissionStatus === 'granted' ? 'text-green-500' : 'text-red-500'}>
+                              {diagnostics.permissionStatus}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Browser Subscription:</span>
+                            <span className={diagnostics.browserSubscription === 'Active' ? 'text-green-500' : 'text-yellow-500'}>
+                              {diagnostics.browserSubscription}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">DB Subscriptions:</span>
+                            <span className={diagnostics.dbSubscriptionCount > 0 ? 'text-green-500' : 'text-yellow-500'}>
+                              {diagnostics.dbSubscriptionCount}
+                            </span>
+                          </div>
+                          {diagnostics.endpoint && (
+                            <div className="pt-1 border-t border-border">
+                              <span className="text-muted-foreground">Endpoint:</span>
+                              <div className="font-mono text-[10px] break-all text-muted-foreground/70">
+                                {diagnostics.endpoint}
+                              </div>
+                            </div>
+                          )}
+                          <div className="pt-2 border-t border-border mt-2">
+                            <p className="text-muted-foreground leading-relaxed">
+                              <AlertTriangle className="w-3 h-3 inline mr-1 text-yellow-500" />
+                              If all checks are green but notifications don't arrive, check your <strong>Android Settings → Apps → ExpiredHawk → Notifications</strong> and ensure they're enabled.
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Loading...</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
