@@ -19,6 +19,38 @@ export function usePushNotifications() {
     permissionStatus: 'unsupported',
   });
 
+  const getBrowserSubscription = useCallback(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    return registration.pushManager.getSubscription();
+  }, []);
+
+  const saveSubscriptionToDb = useCallback(
+    async (subscription: PushSubscription) => {
+      if (!user) return false;
+
+      const subscriptionJson = subscription.toJSON();
+      const keys = subscriptionJson.keys as { p256dh?: string; auth?: string } | undefined;
+
+      if (!keys?.p256dh || !keys?.auth) {
+        throw new Error('Invalid subscription keys');
+      }
+
+      const { error } = await supabase.from('push_subscriptions').upsert(
+        {
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh: keys.p256dh,
+          auth: keys.auth,
+        },
+        { onConflict: 'user_id,endpoint' }
+      );
+
+      if (error) throw error;
+      return true;
+    },
+    [user]
+  );
+
   // Check if push notifications are supported
   useEffect(() => {
     const checkSupport = async () => {
@@ -39,7 +71,7 @@ export function usePushNotifications() {
     };
 
     checkSupport();
-  }, [user]);
+  }, [user, saveSubscriptionToDb]);
 
   // Check if user has an active subscription
   const checkSubscription = useCallback(async () => {
@@ -49,17 +81,25 @@ export function usePushNotifications() {
     }
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await getBrowserSubscription();
       
       if (subscription) {
         // Verify subscription exists in database
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('push_subscriptions')
           .select('id')
           .eq('user_id', user.id)
           .eq('endpoint', subscription.endpoint)
-          .single();
+          .maybeSingle();
+
+        // If we have a browser subscription but DB record is missing, self-heal by re-saving it.
+        if (!data && !error) {
+          try {
+            await saveSubscriptionToDb(subscription);
+          } catch (e) {
+            console.warn('[Push] Failed to self-heal subscription in DB:', e);
+          }
+        }
 
         setState(prev => ({
           ...prev,
@@ -71,9 +111,9 @@ export function usePushNotifications() {
       }
     } catch (error) {
       console.error('Error checking subscription:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ ...prev, isLoading: false, isSubscribed: false }));
     }
-  }, [user]);
+  }, [user, getBrowserSubscription, saveSubscriptionToDb]);
 
   // Register service worker
   const registerServiceWorker = async (): Promise<ServiceWorkerRegistration> => {
@@ -187,20 +227,7 @@ export function usePushNotifications() {
 
       // Save to database
       console.log('[Push] Saving subscription to database...');
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: user.id,
-          endpoint: subscription.endpoint,
-          p256dh: keys.p256dh,
-          auth: keys.auth,
-        },
-        { onConflict: 'user_id,endpoint' }
-      );
-
-      if (error) {
-        console.error('[Push] Database save error:', error);
-        throw error;
-      }
+      await saveSubscriptionToDb(subscription);
 
       setState(prev => ({ ...prev, isSubscribed: true, isLoading: false }));
       toast.success('Push notifications enabled!');
@@ -256,34 +283,51 @@ export function usePushNotifications() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: {
-          user_id: user.id,
-          payload: {
-            title: '🔔 Test Notification',
-            body: 'Push notifications are working! You will receive alerts for pattern matches.',
-            icon: '/favicon.ico',
-            tag: 'test',
-            url: '/dashboard',
+      const invoke = () =>
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: user.id,
+            payload: {
+              title: '🔔 Test Notification',
+              body: 'Push notifications are working! You will receive alerts for pattern matches.',
+              icon: '/favicon.ico',
+              tag: 'test',
+              url: '/dashboard',
+            },
           },
-        },
-      });
+        });
+
+      let { data, error } = await invoke();
+
+      // If backend says no subscriptions, we likely have a browser subscription but DB record is missing.
+      // Self-heal and retry once.
+      if (!error && data && !data.success && data.message === 'No subscriptions found') {
+        try {
+          const subscription = await getBrowserSubscription();
+          if (subscription) {
+            await saveSubscriptionToDb(subscription);
+            ({ data, error } = await invoke());
+          }
+        } catch (e) {
+          console.warn('[Push] Failed to self-heal before retrying test push:', e);
+        }
+      }
 
       if (error) throw error;
 
       if (data?.success) {
         toast.success('Test notification sent!');
         return true;
-      } else {
-        toast.error(data?.message || 'Failed to send notification');
-        return false;
       }
+
+      toast.error(data?.message || 'Failed to send notification');
+      return false;
     } catch (error) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');
       return false;
     }
-  }, [user, state.isSubscribed]);
+  }, [user, state.isSubscribed, getBrowserSubscription, saveSubscriptionToDb]);
 
   return {
     ...state,

@@ -27,6 +27,12 @@ interface PushSubscription {
   auth: string;
 }
 
+type SendResult = {
+  ok: boolean;
+  shouldDelete: boolean;
+  status?: number;
+};
+
 // Send push notification using simple POST
 // Note: This works for basic testing. For production with encryption,
 // users enable push notifications from the app settings which handles
@@ -34,7 +40,7 @@ interface PushSubscription {
 async function sendPushToSubscription(
   subscription: PushSubscription,
   payload: PushPayload
-): Promise<boolean> {
+): Promise<SendResult> {
   try {
     console.log(`Sending push to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
     
@@ -52,20 +58,17 @@ async function sendPushToSubscription(
 
     console.log(`Push response: ${response.status} ${response.statusText}`);
 
-    if (response.status === 201 || response.status === 200) {
-      return true;
+    // 410 Gone / 404 Not Found => subscription is no longer valid
+    if (response.status === 410 || response.status === 404) {
+      console.log("Subscription expired or not found; marking for removal");
+      return { ok: false, shouldDelete: true, status: response.status };
     }
 
-    // 410 Gone means subscription is no longer valid
-    if (response.status === 410) {
-      console.log("Subscription expired, should be removed");
-      return false;
-    }
-
-    return false;
+    const ok = response.status === 201 || response.status === 200;
+    return { ok, shouldDelete: false, status: response.status };
   } catch (error) {
     console.error("Error sending push:", error);
-    return false;
+    return { ok: false, shouldDelete: false };
   }
 }
 
@@ -153,12 +156,12 @@ serve(async (req) => {
       )
     );
 
-    const successCount = results.filter(Boolean).length;
+    const successCount = results.filter((r) => r.ok).length;
     console.log(`Sent ${successCount}/${subscriptions.length} notifications`);
 
-    // Clean up expired subscriptions (those that returned false)
+    // Clean up expired subscriptions (410/404 only)
     for (let i = 0; i < results.length; i++) {
-      if (!results[i]) {
+      if (results[i]?.shouldDelete) {
         const sub = subscriptions[i] as PushSubscription;
         console.log("Removing failed subscription:", sub.id);
         await supabase
