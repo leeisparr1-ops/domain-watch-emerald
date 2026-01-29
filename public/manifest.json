@@ -41,10 +41,10 @@
   "screenshots": [
     {
       "src": "/og-image.png",
-      "sizes": "1200x640",
+      "sizes": "1200x630",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "ExpiredHawk Dashboard"
+      "label": "ExpiredHawk Dashboard - Desktop View"
     },
     {
       "src": "/screenshots/mobile-screenshot.png",
@@ -72,12 +72,6 @@
   ],
   "categories": ["business", "productivity", "utilities"],
   "prefer_related_applications": false,
-  "related_applications": [
-    {
-      "platform": "play",
-      "id": "app.expiredhawk.android"
-    }
-  ],
   "launch_handler": {
     "client_mode": "navigate-existing"
   }
