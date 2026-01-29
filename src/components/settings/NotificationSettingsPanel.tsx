@@ -295,39 +295,39 @@ export function NotificationSettingsPanel() {
                 />
               </div>
               
-              {pushSubscribed && (
-                <div className="mt-4 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={sendTestNotification}
-                      disabled={pushLoading}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Send Test
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleResubscribe}
-                      disabled={pushLoading}
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Re-subscribe
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        setShowDiagnostics(!showDiagnostics);
-                        if (!showDiagnostics) loadDiagnostics();
-                      }}
-                    >
-                      <Bug className="w-4 h-4 mr-2" />
-                      {showDiagnostics ? 'Hide' : 'Diagnostics'}
-                    </Button>
-                  </div>
+              {/* Always show tools when toggle is on */}
+              <div className={`mt-4 space-y-3 ${!pushSubscribed ? 'hidden' : ''}`}>
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={sendTestNotification}
+                    disabled={pushLoading}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Test Push
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleResubscribe}
+                    disabled={pushLoading}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Re-subscribe
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setShowDiagnostics(!showDiagnostics);
+                      if (!showDiagnostics) loadDiagnostics();
+                    }}
+                  >
+                    <Bug className="w-4 h-4 mr-2" />
+                    {showDiagnostics ? 'Hide' : 'Diagnostics'}
+                  </Button>
+                </div>
 
                   {showDiagnostics && (
                     <div className="p-3 rounded-lg bg-muted/50 border border-border text-xs space-y-1.5">
@@ -389,8 +389,7 @@ export function NotificationSettingsPanel() {
                       )}
                     </div>
                   )}
-                </div>
-              )}
+              </div>
             </div>
           )}
 
