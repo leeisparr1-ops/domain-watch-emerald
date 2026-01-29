@@ -1,6 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
-const CACHE_NAME = 'expiredhawk-v1';
+// Bump this to force clients to refresh cached assets after a deploy
+const CACHE_NAME = 'expiredhawk-v2';
 const OFFLINE_URL = '/';
 
 // Assets to cache for offline support
