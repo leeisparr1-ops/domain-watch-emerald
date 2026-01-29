@@ -1,13 +1,89 @@
-// Service Worker for Web Push Notifications
+// Service Worker for Web Push Notifications and Offline Support
+
+const CACHE_NAME = 'expiredhawk-v1';
+const OFFLINE_URL = '/';
+
+// Assets to cache for offline support
+const STATIC_ASSETS = [
+  '/',
+  '/favicon.ico',
+  '/favicon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
+];
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker installed');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Caching static assets');
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activated');
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => clients.claim())
+  );
+});
+
+// Fetch handler for offline support
+self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Network-first strategy for API calls
+  if (event.request.url.includes('/functions/') || event.request.url.includes('/rest/')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
+  // Cache-first strategy for static assets
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      if (response) {
+        return response;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        // Cache successful responses for next time
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Return offline page for navigation requests
+        if (event.request.mode === 'navigate') {
+          return caches.match(OFFLINE_URL);
+        }
+      });
+    })
+  );
 });
 
 self.addEventListener('push', (event) => {
@@ -16,8 +92,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'Domain Alert',
     body: 'You have a new pattern match!',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     tag: 'pattern-alert',
     url: '/dashboard'
   };
@@ -33,8 +109,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/favicon.ico',
-    badge: data.badge || '/favicon.ico',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: data.badge || '/icons/icon-192.png',
     tag: data.tag || 'default',
     requireInteraction: true,
     vibrate: [200, 100, 200],
