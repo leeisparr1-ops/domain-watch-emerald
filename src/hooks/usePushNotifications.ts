@@ -158,10 +158,13 @@ export function usePushNotifications() {
       
       console.log('[Push] VAPID key received, subscribing to push manager...');
 
+      // PushManager.subscribe requires the VAPID public key as a Uint8Array (not a string)
+      const applicationServerKey = urlBase64ToUint8Array(String(configData.publicKey)) as unknown as BufferSource;
+
       // Subscribe to push with VAPID key
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: configData.publicKey,
+        applicationServerKey,
       });
       console.log('[Push] Subscription created:', subscription.endpoint.substring(0, 50) + '...');
 
@@ -287,7 +290,9 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+  // Use an explicit ArrayBuffer to avoid TS inferring ArrayBufferLike/SharedArrayBuffer
+  const buffer = new ArrayBuffer(rawData.length);
+  const outputArray = new Uint8Array(buffer);
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
