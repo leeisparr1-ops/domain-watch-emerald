@@ -144,7 +144,12 @@ export function usePushNotifications() {
 
       // Get VAPID public key from edge function
       console.log('[Push] Fetching VAPID key...');
-      const { data: configData, error: vapidError } = await supabase.functions.invoke('get-vapid-key');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      const { data: configData, error: vapidError } = await supabase.functions.invoke('get-vapid-key', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
       
       if (vapidError) {
         console.error('[Push] VAPID fetch error:', vapidError);
@@ -154,6 +159,10 @@ export function usePushNotifications() {
       if (!configData?.publicKey) {
         console.error('[Push] No publicKey in response:', configData);
         throw new Error('VAPID key not configured on server');
+      }
+
+      if ((configData as any)?._version) {
+        console.log('[Push] get-vapid-key version:', (configData as any)._version);
       }
       
       console.log('[Push] VAPID key received, subscribing to push manager...');
@@ -200,7 +209,7 @@ export function usePushNotifications() {
     } catch (error) {
       console.error('[Push] Error subscribing to push:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to enable push notifications: ${errorMessage.substring(0, 50)}`);
+      toast.error(`Failed to enable push notifications: ${errorMessage.substring(0, 140)}`);
       setState(prev => ({ ...prev, isLoading: false }));
       return false;
     }
