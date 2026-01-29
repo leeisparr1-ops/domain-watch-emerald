@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v4';
+const CACHE_NAME = 'expiredhawk-v5';
 const OFFLINE_URL = '/';
 
 // Assets to cache for offline support
@@ -88,7 +88,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
+  console.log('[SW v5] Push notification received at:', new Date().toISOString());
   
   // Use production domain for icon to ensure it displays correctly
   const iconUrl = 'https://expiredhawk.lovable.app/icons/icon-192.png';
@@ -105,20 +105,24 @@ self.addEventListener('push', (event) => {
   try {
     if (event.data) {
       const payload = event.data.json();
+      console.log('[SW v5] Push payload:', JSON.stringify(payload));
       data = { ...data, ...payload };
     }
   } catch (e) {
-    console.error('[SW] Error parsing push data:', e);
+    console.error('[SW v5] Error parsing push data:', e);
   }
 
   const options = {
     body: data.body,
-    icon: data.icon || 'https://expiredhawk.lovable.app/icons/icon-192.png',
-    badge: data.badge || 'https://expiredhawk.lovable.app/icons/icon-192.png',
-    image: data.image || 'https://expiredhawk.lovable.app/icons/icon-192.png',
+    icon: data.icon || iconUrl,
+    badge: data.badge || iconUrl,
+    // Android large image - this shows on the right side of notification
+    image: data.image || iconUrl,
     tag: data.tag || 'default',
     requireInteraction: true,
     vibrate: [200, 100, 200],
+    // Silent false ensures sound plays
+    silent: false,
     data: {
       url: data.url || '/dashboard',
       timestamp: Date.now()
@@ -129,8 +133,12 @@ self.addEventListener('push', (event) => {
     ]
   };
 
+  console.log('[SW v5] Showing notification with options:', JSON.stringify(options));
+
   event.waitUntil(
     self.registration.showNotification(data.title, options)
+      .then(() => console.log('[SW v5] Notification shown successfully'))
+      .catch((err) => console.error('[SW v5] Failed to show notification:', err))
   );
 });
 
