@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+const PUSH_ENABLED_KEY = 'expiredhawk_push_enabled';
+
 export interface PushSubscriptionState {
   isSupported: boolean;
   isSubscribed: boolean;
@@ -12,12 +14,22 @@ export interface PushSubscriptionState {
 
 export function usePushNotifications() {
   const { user } = useAuth();
-  const [state, setState] = useState<PushSubscriptionState>({
+
+  // Read localStorage once to seed initial state so the toggle doesn't flash off
+  const getInitialEnabled = () => {
+    try {
+      return localStorage.getItem(PUSH_ENABLED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  const [state, setState] = useState<PushSubscriptionState>(() => ({
     isSupported: false,
-    isSubscribed: false,
+    isSubscribed: getInitialEnabled(),
     isLoading: true,
     permissionStatus: 'unsupported',
-  });
+  }));
 
   const getBrowserSubscription = useCallback(async () => {
     const registration = await navigator.serviceWorker.ready;
@@ -144,6 +156,7 @@ export function usePushNotifications() {
           }
         }
 
+        try { localStorage.setItem(PUSH_ENABLED_KEY, 'true'); } catch {}
         setState(prev => ({
           ...prev,
           isSubscribed: true,
@@ -160,6 +173,7 @@ export function usePushNotifications() {
           const restored = await createBrowserSubscription(registration);
           await saveSubscriptionToDb(restored);
 
+          try { localStorage.setItem(PUSH_ENABLED_KEY, 'true'); } catch {}
           setState(prev => ({
             ...prev,
             isSubscribed: true,
@@ -171,6 +185,7 @@ export function usePushNotifications() {
         }
       }
 
+      try { localStorage.setItem(PUSH_ENABLED_KEY, 'false'); } catch {}
       setState(prev => ({ ...prev, isSubscribed: false, isLoading: false }));
     } catch (error) {
       console.error('Error checking subscription:', error);
@@ -267,6 +282,7 @@ export function usePushNotifications() {
       console.log('[Push] Saving subscription to database...');
       await saveSubscriptionToDb(subscription);
 
+      try { localStorage.setItem(PUSH_ENABLED_KEY, 'true'); } catch {}
       setState(prev => ({ ...prev, isSubscribed: true, isLoading: false }));
       toast.success('Push notifications enabled!');
       console.log('[Push] Successfully subscribed!');
@@ -302,6 +318,7 @@ export function usePushNotifications() {
           .eq('endpoint', subscription.endpoint);
       }
 
+      try { localStorage.setItem(PUSH_ENABLED_KEY, 'false'); } catch {}
       setState(prev => ({ ...prev, isSubscribed: false, isLoading: false }));
       toast.success('Push notifications disabled');
       return true;
