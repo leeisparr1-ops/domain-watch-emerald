@@ -19,6 +19,15 @@
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Service Worker Registration for PWABuilder detection -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        });
+      }
+    </script>
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     
     <!-- Open Graph -->
