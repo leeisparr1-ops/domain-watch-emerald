@@ -460,29 +460,73 @@ export default function Dashboard() {
       await cleanupOldMatches();
 
       const from = (page - 1) * matchesPerPage;
-      const to = from + matchesPerPage - 1;
       const now = new Date().toISOString();
 
-      // Get pattern alerts for current page
+      // Get pattern alerts with joined auction data in a single query
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id')
+        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time)')
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false });
 
-      if (alertsError) throw alertsError;
+      if (alertsError) {
+        // Fallback to separate queries if join fails
+        console.log('Join failed, using fallback method');
+        const { data: fallbackAlerts } = await supabase
+          .from('pattern_alerts')
+          .select('id, auction_id, domain_name, pattern_id')
+          .eq('user_id', user.id)
+          .order('alerted_at', { ascending: false });
+
+        if (!fallbackAlerts || fallbackAlerts.length === 0) {
+          setDialogMatches([]);
+          setTotalMatchesCount(0);
+          return;
+        }
+
+        const auctionIds = fallbackAlerts.map(a => a.auction_id);
+        const { data: auctionData } = await supabase
+          .from('auctions')
+          .select('id, price, end_time')
+          .in('id', auctionIds);
+
+        const patternIds = [...new Set(fallbackAlerts.map(a => a.pattern_id))];
+        const { data: patternData } = await supabase
+          .from('user_patterns')
+          .select('id, description')
+          .in('id', patternIds);
+
+        const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
+        const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
+
+        let allMatches = fallbackAlerts.map(alert => {
+          const auction = auctionMap.get(alert.auction_id);
+          return {
+            alert_id: alert.id,
+            auction_id: alert.auction_id,
+            domain_name: alert.domain_name,
+            price: auction?.price || 0,
+            end_time: auction?.end_time || null,
+            pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+          };
+        });
+
+        // Filter out ended auctions if enabled
+        if (hideEndedMatches) {
+          allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
+        }
+
+        setTotalMatchesCount(allMatches.length);
+        const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
+        setDialogMatches(paginatedMatches);
+        return;
+      }
+
       if (!alerts || alerts.length === 0) {
         setDialogMatches([]);
         setTotalMatchesCount(0);
         return;
       }
-
-      // Get auction data for these alerts
-      const auctionIds = alerts.map(a => a.auction_id);
-      const { data: auctionData } = await supabase
-        .from('auctions')
-        .select('id, price, end_time')
-        .in('id', auctionIds);
 
       // Get pattern descriptions
       const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
@@ -491,13 +535,11 @@ export default function Dashboard() {
         .select('id, description')
         .in('id', patternIds);
 
-      // Create lookup maps
-      const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
       const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
 
-      // Build matches with auction data
+      // Build matches with auction data from join
       let allMatches = alerts.map(alert => {
-        const auction = auctionMap.get(alert.auction_id);
+        const auction = alert.auctions as { id: string; price: number; end_time: string | null };
         return {
           alert_id: alert.id,
           auction_id: alert.auction_id,
@@ -513,11 +555,8 @@ export default function Dashboard() {
         allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
       }
 
-      // Set total count after filtering
       setTotalMatchesCount(allMatches.length);
-
-      // Apply pagination
-      const paginatedMatches = allMatches.slice(from, to + 1);
+      const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
       setDialogMatches(paginatedMatches);
     } catch (error) {
       console.error('Error fetching pattern matches:', error);
