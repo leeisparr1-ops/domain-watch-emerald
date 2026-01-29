@@ -133,8 +133,9 @@ export default function Dashboard() {
     alert_id?: string;
   }>>([]);
   const [matchesPage, setMatchesPage] = useState(1);
-  const MATCHES_PER_PAGE = 25;
+  const [matchesPerPage, setMatchesPerPage] = useState(50);
   const [totalMatchesCount, setTotalMatchesCount] = useState(0);
+  const [hideEndedMatches, setHideEndedMatches] = useState(true); // Default: hide ended auctions
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
@@ -387,6 +388,11 @@ export default function Dashboard() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, sortBy, viewMode, itemsPerPage]);
+
+  // Reset matches page when matchesPerPage or hideEndedMatches changes
+  useEffect(() => {
+    setMatchesPage(1);
+  }, [matchesPerPage, hideEndedMatches]);
   
   // Fetch data based on view mode - only on initial load or explicit changes
   // Skip refetch if page was just hidden and shown again (tab switch)
@@ -445,6 +451,7 @@ export default function Dashboard() {
   }, [user]);
 
   // Fetch pattern matches from database with server-side pagination
+  // Optionally filters out ended auctions based on hideEndedMatches state
   const fetchDialogMatches = useCallback(async (page: number = 1) => {
     if (!user) return;
     setLoadingMatches(true);
@@ -452,28 +459,21 @@ export default function Dashboard() {
       // Auto-cleanup old matches first
       await cleanupOldMatches();
 
-      const from = (page - 1) * MATCHES_PER_PAGE;
-      const to = from + MATCHES_PER_PAGE - 1;
-
-      // First get total count
-      const { count: totalCount } = await supabase
-        .from('pattern_alerts')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      setTotalMatchesCount(totalCount || 0);
+      const from = (page - 1) * matchesPerPage;
+      const to = from + matchesPerPage - 1;
+      const now = new Date().toISOString();
 
       // Get pattern alerts for current page
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
         .select('id, auction_id, domain_name, pattern_id')
         .eq('user_id', user.id)
-        .order('alerted_at', { ascending: false })
-        .range(from, to);
+        .order('alerted_at', { ascending: false });
 
       if (alertsError) throw alertsError;
       if (!alerts || alerts.length === 0) {
         setDialogMatches([]);
+        setTotalMatchesCount(0);
         return;
       }
 
@@ -495,7 +495,8 @@ export default function Dashboard() {
       const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
       const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
 
-      const matches = alerts.map(alert => {
+      // Build matches with auction data
+      let allMatches = alerts.map(alert => {
         const auction = auctionMap.get(alert.auction_id);
         return {
           alert_id: alert.id,
@@ -507,7 +508,17 @@ export default function Dashboard() {
         };
       });
 
-      setDialogMatches(matches);
+      // Filter out ended auctions if enabled
+      if (hideEndedMatches) {
+        allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
+      }
+
+      // Set total count after filtering
+      setTotalMatchesCount(allMatches.length);
+
+      // Apply pagination
+      const paginatedMatches = allMatches.slice(from, to + 1);
+      setDialogMatches(paginatedMatches);
     } catch (error) {
       console.error('Error fetching pattern matches:', error);
       setDialogMatches([]);
@@ -515,7 +526,7 @@ export default function Dashboard() {
     } finally {
       setLoadingMatches(false);
     }
-  }, [user, cleanupOldMatches]);
+  }, [user, cleanupOldMatches, matchesPerPage, hideEndedMatches]);
 
   // Delete a single match
   const deleteMatch = async (alertId: string) => {
@@ -894,11 +905,23 @@ export default function Dashboard() {
                 </div>
               ) : dialogMatches.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Header with Clear All button */}
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {Math.min((matchesPage - 1) * MATCHES_PER_PAGE + 1, totalMatchesCount)}-{Math.min(matchesPage * MATCHES_PER_PAGE, totalMatchesCount)} of {totalMatchesCount} matches
-                    </p>
+                  {/* Header with controls */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {Math.min((matchesPage - 1) * matchesPerPage + 1, totalMatchesCount)}-{Math.min(matchesPage * matchesPerPage, totalMatchesCount)} of {totalMatchesCount} matches
+                      </p>
+                      {/* Hide ended toggle */}
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hideEndedMatches}
+                          onChange={(e) => setHideEndedMatches(e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        <span className="text-muted-foreground">Hide ended</span>
+                      </label>
+                    </div>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -1010,28 +1033,50 @@ export default function Dashboard() {
                     ));
                   })()}
 
-                  {/* Pagination for matches - server-side pagination */}
-                  {totalMatchesCount > MATCHES_PER_PAGE && (
-                    <div className="flex items-center justify-center gap-2 pt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setMatchesPage(p => Math.max(1, p - 1))}
-                        disabled={matchesPage === 1}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <span className="text-sm text-muted-foreground px-2">
-                        Page {matchesPage} of {Math.ceil(totalMatchesCount / MATCHES_PER_PAGE)}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setMatchesPage(p => Math.min(Math.ceil(totalMatchesCount / MATCHES_PER_PAGE), p + 1))}
-                        disabled={matchesPage >= Math.ceil(totalMatchesCount / MATCHES_PER_PAGE)}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
+                  {/* Pagination for matches - configurable results per page */}
+                  {totalMatchesCount > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border">
+                      {/* Items per page selector */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Show:</span>
+                        <Select value={matchesPerPage.toString()} onValueChange={(v) => setMatchesPerPage(Number(v))}>
+                          <SelectTrigger className="w-20 h-8 bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border border-border z-50">
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                            <SelectItem value="250">250</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">per page</span>
+                      </div>
+
+                      {/* Page navigation */}
+                      {Math.ceil(totalMatchesCount / matchesPerPage) > 1 && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMatchesPage(p => Math.max(1, p - 1))}
+                            disabled={matchesPage === 1}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="text-sm text-muted-foreground px-2">
+                            Page {matchesPage} of {Math.ceil(totalMatchesCount / matchesPerPage)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMatchesPage(p => Math.min(Math.ceil(totalMatchesCount / matchesPerPage), p + 1))}
+                            disabled={matchesPage >= Math.ceil(totalMatchesCount / matchesPerPage)}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
