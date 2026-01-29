@@ -101,37 +101,80 @@ export function usePushNotifications() {
     setState(prev => ({ ...prev, isLoading: true }));
 
     try {
+      // Check if we're in a TWA or standalone mode
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                          (window.navigator as any).standalone === true ||
+                          document.referrer.includes('android-app://');
+      
+      console.log('[Push] Environment:', { 
+        isStandalone, 
+        userAgent: navigator.userAgent,
+        hasNotification: 'Notification' in window,
+        hasPushManager: 'PushManager' in window,
+        hasServiceWorker: 'serviceWorker' in navigator
+      });
+
       // Request notification permission
-      const permission = await Notification.requestPermission();
+      let permission: NotificationPermission;
+      try {
+        permission = await Notification.requestPermission();
+        console.log('[Push] Permission result:', permission);
+      } catch (permError) {
+        console.error('[Push] Permission request failed:', permError);
+        // On some TWA implementations, permission might already be granted
+        permission = Notification.permission;
+        console.log('[Push] Using existing permission:', permission);
+      }
+      
       setState(prev => ({ ...prev, permissionStatus: permission }));
 
       if (permission !== 'granted') {
-        toast.error('Notification permission denied');
+        const msg = permission === 'denied' 
+          ? 'Notifications blocked. Enable in browser/system settings.' 
+          : 'Notification permission not granted';
+        toast.error(msg);
         setState(prev => ({ ...prev, isLoading: false }));
         return false;
       }
 
       // Register service worker
+      console.log('[Push] Registering service worker...');
       const registration = await registerServiceWorker();
+      console.log('[Push] Service worker registered:', registration.scope);
 
       // Get VAPID public key from edge function
-      const { data: configData } = await supabase.functions.invoke('get-vapid-key');
+      console.log('[Push] Fetching VAPID key...');
+      const { data: configData, error: vapidError } = await supabase.functions.invoke('get-vapid-key');
+      
+      if (vapidError) {
+        console.error('[Push] VAPID fetch error:', vapidError);
+        throw new Error(`Could not get VAPID key: ${vapidError.message}`);
+      }
       
       if (!configData?.publicKey) {
-        throw new Error('Could not get VAPID key');
+        console.error('[Push] No publicKey in response:', configData);
+        throw new Error('VAPID key not configured on server');
       }
+      
+      console.log('[Push] VAPID key received, subscribing to push manager...');
 
       // Subscribe to push with VAPID key
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: configData.publicKey,
       });
+      console.log('[Push] Subscription created:', subscription.endpoint.substring(0, 50) + '...');
 
       // Extract subscription details
       const subscriptionJson = subscription.toJSON();
       const keys = subscriptionJson.keys as { p256dh: string; auth: string };
 
+      if (!keys?.p256dh || !keys?.auth) {
+        throw new Error('Invalid subscription keys');
+      }
+
       // Save to database
+      console.log('[Push] Saving subscription to database...');
       const { error } = await supabase.from('push_subscriptions').upsert(
         {
           user_id: user.id,
@@ -142,14 +185,19 @@ export function usePushNotifications() {
         { onConflict: 'user_id,endpoint' }
       );
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Push] Database save error:', error);
+        throw error;
+      }
 
       setState(prev => ({ ...prev, isSubscribed: true, isLoading: false }));
       toast.success('Push notifications enabled!');
+      console.log('[Push] Successfully subscribed!');
       return true;
     } catch (error) {
-      console.error('Error subscribing to push:', error);
-      toast.error('Failed to enable push notifications');
+      console.error('[Push] Error subscribing to push:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to enable push notifications: ${errorMessage.substring(0, 50)}`);
       setState(prev => ({ ...prev, isLoading: false }));
       return false;
     }
