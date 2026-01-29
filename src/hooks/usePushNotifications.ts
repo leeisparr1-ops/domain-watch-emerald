@@ -338,8 +338,8 @@ export function usePushNotifications() {
     }
 
     try {
-      // Use absolute URL for icon so it displays correctly in notifications
-      const iconUrl = `${window.location.origin}/icons/icon-192.png`;
+      // Use production domain for icon URL so it displays correctly in notifications
+      const iconUrl = 'https://expiredhawk.lovable.app/icons/icon-192.png';
       
       const invoke = () =>
         supabase.functions.invoke('send-push-notification', {
@@ -350,6 +350,7 @@ export function usePushNotifications() {
               body: 'Push notifications are working! You will receive alerts for pattern matches.',
               icon: iconUrl,
               badge: iconUrl,
+              image: iconUrl,
               tag: 'test',
               url: '/dashboard',
             },
