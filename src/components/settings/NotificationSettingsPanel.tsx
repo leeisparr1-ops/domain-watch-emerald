@@ -116,13 +116,14 @@ export function NotificationSettingsPanel() {
   }, [user]);
 
   const handleResubscribe = async () => {
-    // First unsubscribe to clear old state
-    await unsubscribePush();
-    // Wait a moment for cleanup
-    await new Promise(r => setTimeout(r, 500));
-    // Re-subscribe
+    // If we're already subscribed, clear old state first.
+    if (pushSubscribed) {
+      await unsubscribePush();
+      // Wait a moment for cleanup
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
     await subscribePush();
-    // Reload diagnostics
     await loadDiagnostics();
   };
 
@@ -274,60 +275,68 @@ export function NotificationSettingsPanel() {
           </div>
 
           {/* Push Notifications (Mobile) */}
-          {pushSupported && (
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-primary" />
-                    <Label className="text-base">Mobile Push Notifications</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {pushSubscribed 
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-primary" />
+                  <Label className="text-base">Mobile Push Notifications</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {!pushSupported
+                    ? 'Not supported on this device/browser.'
+                    : pushSubscribed
                       ? 'Receive alerts on your phone even when the browser is closed'
                       : 'Enable to receive alerts on your phone'}
-                  </p>
-                </div>
-                <Switch
-                  checked={pushSubscribed}
-                  onCheckedChange={handlePushToggle}
-                  disabled={pushLoading}
-                />
+                </p>
               </div>
-              
-              {/* Always show tools when toggle is on */}
-              <div className={`mt-4 space-y-3 ${!pushSubscribed ? 'hidden' : ''}`}>
-                <div className="flex flex-wrap gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={sendTestNotification}
-                    disabled={pushLoading}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Test Push
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleResubscribe}
-                    disabled={pushLoading}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Re-subscribe
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => {
-                      setShowDiagnostics(!showDiagnostics);
-                      if (!showDiagnostics) loadDiagnostics();
-                    }}
-                  >
-                    <Bug className="w-4 h-4 mr-2" />
-                    {showDiagnostics ? 'Hide' : 'Diagnostics'}
-                  </Button>
-                </div>
+              <Switch
+                checked={pushSubscribed}
+                onCheckedChange={handlePushToggle}
+                disabled={pushLoading || !pushSupported}
+              />
+            </div>
+
+            {/* Always show Diagnostics / Recovery tools (even if not subscribed yet) */}
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={sendTestNotification}
+                  disabled={pushLoading || !pushSubscribed}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Test Push
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResubscribe}
+                  disabled={pushLoading || !pushSupported}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  {pushSubscribed ? 'Re-subscribe' : 'Subscribe'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowDiagnostics(!showDiagnostics);
+                    if (!showDiagnostics) loadDiagnostics();
+                  }}
+                  disabled={!pushSupported}
+                >
+                  <Bug className="w-4 h-4 mr-2" />
+                  {showDiagnostics ? 'Hide' : 'Diagnostics'}
+                </Button>
+              </div>
+
+              {!pushSubscribed && pushSupported && (
+                <p className="text-xs text-muted-foreground">
+                  Turn on the toggle above to enable “Test Push”. If the toggle flips back off, hit “Subscribe”.
+                </p>
+              )}
 
                   {showDiagnostics && (
                     <div className="p-3 rounded-lg bg-muted/50 border border-border text-xs space-y-1.5">
@@ -347,25 +356,25 @@ export function NotificationSettingsPanel() {
                         <>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Service Worker:</span>
-                            <span className={diagnostics.swStatus.includes('Active') ? 'text-green-500' : 'text-yellow-500'}>
-                              {diagnostics.swStatus.includes('Active') ? '✓ Active' : diagnostics.swStatus}
+                            <span className={diagnostics.swStatus.includes('Active') ? 'text-primary' : 'text-muted-foreground'}>
+                              {diagnostics.swStatus.includes('Active') ? 'Active' : diagnostics.swStatus}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Permission:</span>
-                            <span className={diagnostics.permissionStatus === 'granted' ? 'text-green-500' : 'text-red-500'}>
+                            <span className={diagnostics.permissionStatus === 'granted' ? 'text-primary' : 'text-destructive'}>
                               {diagnostics.permissionStatus}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Browser Subscription:</span>
-                            <span className={diagnostics.browserSubscription === 'Active' ? 'text-green-500' : 'text-yellow-500'}>
+                            <span className={diagnostics.browserSubscription === 'Active' ? 'text-primary' : 'text-muted-foreground'}>
                               {diagnostics.browserSubscription}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">DB Subscriptions:</span>
-                            <span className={diagnostics.dbSubscriptionCount > 0 ? 'text-green-500' : 'text-yellow-500'}>
+                            <span className={diagnostics.dbSubscriptionCount > 0 ? 'text-primary' : 'text-muted-foreground'}>
                               {diagnostics.dbSubscriptionCount}
                             </span>
                           </div>
@@ -379,7 +388,7 @@ export function NotificationSettingsPanel() {
                           )}
                           <div className="pt-2 border-t border-border mt-2">
                             <p className="text-muted-foreground leading-relaxed">
-                              <AlertTriangle className="w-3 h-3 inline mr-1 text-yellow-500" />
+                              <AlertTriangle className="w-3 h-3 inline mr-1 text-muted-foreground" />
                               If all checks are green but notifications don't arrive, check your <strong>Android Settings → Apps → ExpiredHawk → Notifications</strong> and ensure they're enabled.
                             </p>
                           </div>
@@ -389,9 +398,8 @@ export function NotificationSettingsPanel() {
                       )}
                     </div>
                   )}
-              </div>
             </div>
-          )}
+          </div>
 
           {/* Email Notifications */}
           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
