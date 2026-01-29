@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as webpush from "jsr:@negrel/webpush@0.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface PushPayload {
@@ -31,7 +33,87 @@ type SendResult = {
   ok: boolean;
   shouldDelete: boolean;
   status?: number;
+  error?: string;
 };
+
+let appServerPromise: Promise<webpush.ApplicationServer> | null = null;
+
+function base64UrlToBytes(base64Url: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
+  const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function getAppServer(vapidPublicKey: string, vapidPrivateKey: string) {
+  if (appServerPromise) return appServerPromise;
+
+  appServerPromise = (async () => {
+    // VAPID keys are usually stored as URL-safe base64 strings:
+    // - public: 65 bytes uncompressed EC point (0x04 || X(32) || Y(32))
+    // - private: 32 bytes
+    const pub = base64UrlToBytes(vapidPublicKey);
+    const priv = base64UrlToBytes(vapidPrivateKey);
+
+    if (pub.length !== 65 || pub[0] !== 4) {
+      throw new Error(`Unexpected VAPID public key format (len=${pub.length})`);
+    }
+    if (priv.length !== 32) {
+      throw new Error(`Unexpected VAPID private key format (len=${priv.length})`);
+    }
+
+    const x = bytesToBase64Url(pub.slice(1, 33));
+    const y = bytesToBase64Url(pub.slice(33, 65));
+    const d = bytesToBase64Url(priv);
+
+    const publicJwk: JsonWebKey = {
+      kty: "EC",
+      crv: "P-256",
+      x,
+      y,
+      ext: true,
+    };
+
+    const privateJwk: JsonWebKey = {
+      ...publicJwk,
+      d,
+    };
+
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      publicJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["verify"],
+    );
+
+    const privateKey = await crypto.subtle.importKey(
+      "jwk",
+      privateJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign"],
+    );
+
+    const vapidKeys: CryptoKeyPair = { publicKey, privateKey };
+
+    return await webpush.ApplicationServer.new({
+      contactInformation: "mailto:support@expiredhawk.com",
+      vapidKeys,
+    });
+  })();
+
+  return appServerPromise;
+}
 
 // Send push notification using simple POST
 // Note: This works for basic testing. For production with encryption,
@@ -42,33 +124,44 @@ async function sendPushToSubscription(
   payload: PushPayload
 ): Promise<SendResult> {
   try {
-    console.log(`Sending push to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
-    
-    const payloadString = JSON.stringify(payload);
-    
-    const response = await fetch(subscription.endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "TTL": "86400",
-        "Urgency": "high",
+    console.log(`Sending web push to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
+    const appServer = await getAppServer(
+      Deno.env.get("VAPID_PUBLIC_KEY") || "",
+      Deno.env.get("VAPID_PRIVATE_KEY") || "",
+    );
+
+    const sub = appServer.subscribe({
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
       },
-      body: payloadString,
     });
 
-    console.log(`Push response: ${response.status} ${response.statusText}`);
+    await sub.pushTextMessage(JSON.stringify(payload), {
+      ttl: 86400,
+      urgency: webpush.Urgency.High,
+    });
 
-    // 410 Gone / 404 Not Found => subscription is no longer valid
-    if (response.status === 410 || response.status === 404) {
-      console.log("Subscription expired or not found; marking for removal");
-      return { ok: false, shouldDelete: true, status: response.status };
+    return { ok: true, shouldDelete: false, status: 201 };
+  } catch (error) {
+    const maybeResponse = (error as any)?.response;
+    const status = maybeResponse?.status;
+    const message = (error as any)?.message ? String((error as any).message) : String(error);
+
+    let shouldDelete = false;
+    try {
+      if (typeof (error as any)?.isGone === "function") {
+        shouldDelete = Boolean((error as any).isGone());
+      }
+    } catch {
+      // ignore
     }
 
-    const ok = response.status === 201 || response.status === 200;
-    return { ok, shouldDelete: false, status: response.status };
-  } catch (error) {
-    console.error("Error sending push:", error);
-    return { ok: false, shouldDelete: false };
+    if (status === 410 || status === 404) shouldDelete = true;
+
+    console.error("Error sending web push:", { status, message, shouldDelete });
+    return { ok: false, shouldDelete, status, error: message };
   }
 }
 
@@ -82,6 +175,16 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY") || "";
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      return new Response(
+        JSON.stringify({ success: false, message: "VAPID keys are not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Ensure the app server is initialized (and keys are valid)
+    await getAppServer(vapidPublicKey, vapidPrivateKey);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -159,6 +262,10 @@ serve(async (req) => {
     const successCount = results.filter((r) => r.ok).length;
     console.log(`Sent ${successCount}/${subscriptions.length} notifications`);
 
+    const failures = results
+      .map((r, i) => ({ ...r, subId: (subscriptions[i] as PushSubscription).id }))
+      .filter((r) => !r.ok);
+
     // Clean up expired subscriptions (410/404 only)
     for (let i = 0; i < results.length; i++) {
       if (results[i]?.shouldDelete) {
@@ -176,6 +283,7 @@ serve(async (req) => {
         success: true,
         sent: successCount,
         total: subscriptions.length,
+        failures: failures.slice(0, 3),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
