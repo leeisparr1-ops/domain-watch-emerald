@@ -273,7 +273,9 @@ export function DomainTable({
                         {valueIndicator && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <valueIndicator.icon className={cn("w-3 h-3", valueIndicator.color)} />
+                              <span className="inline-flex">
+                                <valueIndicator.icon className={cn("w-3 h-3", valueIndicator.color)} />
+                              </span>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{valueIndicator.label} valuation</p>
@@ -373,7 +375,9 @@ export function DomainTable({
                     <TableCell className="py-2 w-8">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                          <span className="inline-flex">
+                            <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent side="left">
                           <p>Click for details</p>
