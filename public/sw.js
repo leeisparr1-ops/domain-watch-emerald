@@ -1,8 +1,18 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v5';
+const CACHE_NAME = 'expiredhawk-v6';
 const OFFLINE_URL = '/';
+
+// IMPORTANT: In preview/dev, this service worker can interfere with Vite's module loading
+// (cached /node_modules/.vite/* chunks) and cause "Invalid hook call" / blank screens.
+// We disable caching (and unregister) in these environments.
+const HOST = self.location.hostname;
+const IS_PREVIEW_OR_DEV =
+  HOST.startsWith('id-preview--') ||
+  HOST.includes('lovableproject.com') ||
+  HOST.includes('localhost') ||
+  HOST.includes('127.0.0.1');
 
 // Assets to cache for offline support
 const STATIC_ASSETS = [
@@ -15,6 +25,13 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker installed');
+
+  // Don't cache anything in preview/dev to avoid stale React/Vite chunks.
+  if (IS_PREVIEW_OR_DEV) {
+    self.skipWaiting();
+    return;
+  }
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Caching static assets');
@@ -27,16 +44,22 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activated');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => clients.claim())
+    (async () => {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
+
+      // Unregister in preview/dev to prevent intercepting Vite module requests.
+      if (IS_PREVIEW_OR_DEV) {
+        try {
+          await self.registration.unregister();
+          console.log('[SW] Unregistered in preview/dev environment');
+        } catch (e) {
+          console.warn('[SW] Failed to unregister in preview/dev:', e);
+        }
+      }
+
+      await clients.claim();
+    })()
   );
 });
 
@@ -49,6 +72,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // In preview/dev, never intercept requests.
+  if (IS_PREVIEW_OR_DEV) {
     return;
   }
 
