@@ -1115,7 +1115,9 @@ export default function Dashboard() {
                           onChange={(e) => setHideEndedMatches(e.target.checked)}
                           className="rounded border-border"
                         />
-                        <span className="text-muted-foreground">Hide ended</span>
+                        <span className="text-muted-foreground">
+                          {hideEndedMatches ? "Ended hidden" : "Show ended"}
+                        </span>
                       </label>
                     </div>
                     <AlertDialog>
