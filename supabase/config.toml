@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.sync-closeout]
 verify_jwt = false
+
+[functions.bulk-upsert-auctions]
+verify_jwt = false
