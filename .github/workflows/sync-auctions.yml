@@ -44,7 +44,7 @@ jobs:
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
 
       - name: Log completion
