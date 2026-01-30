@@ -126,6 +126,36 @@ export default function Dashboard() {
   usePatternAlerts(); // Enable background pattern checking
   const [isSortPending, startSortTransition] = useTransition();
   const [isFetchingAuctions, setIsFetchingAuctions] = useState(false);
+  // Prevent slow/buggy dropdown interactions by canceling stale in-flight requests
+  // and ignoring late responses.
+  const activeFetchSeqRef = useRef(0);
+  const activeFetchControllerRef = useRef<AbortController | null>(null);
+  const activeFetchTimeoutRef = useRef<number | null>(null);
+  const beginNewFetch = useCallback(() => {
+    activeFetchSeqRef.current += 1;
+    const seq = activeFetchSeqRef.current;
+
+    if (activeFetchTimeoutRef.current) {
+      window.clearTimeout(activeFetchTimeoutRef.current);
+      activeFetchTimeoutRef.current = null;
+    }
+    if (activeFetchControllerRef.current) {
+      activeFetchControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    activeFetchControllerRef.current = controller;
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 10000);
+
+    return { seq, signal: controller.signal };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (activeFetchTimeoutRef.current) window.clearTimeout(activeFetchTimeoutRef.current);
+      activeFetchControllerRef.current?.abort();
+    };
+  }, []);
   const hasLoadedOnceRef = useRef(false);
   const wasHiddenRef = useRef(false);
   const [dialogMatches, setDialogMatches] = useState<Array<{
@@ -184,10 +214,13 @@ export default function Dashboard() {
   // Fetch favorite auctions directly by domain names with proper pagination
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
+    const { seq, signal } = beginNewFetch();
     try {
-      if (showLoadingSpinner) setLoading(true);
-      else setIsFetchingAuctions(true);
-      setError(null);
+      if (seq === activeFetchSeqRef.current) {
+        if (showLoadingSpinner) setLoading(true);
+        else setIsFetchingAuctions(true);
+        setError(null);
+      }
 
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
@@ -195,26 +228,24 @@ export default function Dashboard() {
       const now = new Date();
       const endTimeFilter = now.toISOString();
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
       // First get ALL user's favorite domain names (needed to filter auctions)
       const { data: favData, error: favError } = await supabase
         .from('favorites')
         .select('domain_name')
         .eq('user_id', user.id)
-        .abortSignal(controller.signal);
+        .abortSignal(signal);
 
       if (favError) throw favError;
 
       const favDomains = favData?.map(f => f.domain_name) || [];
       
       if (favDomains.length === 0) {
-        setAuctions([]);
-        setTotalCount(0);
-        setLastRefresh(new Date());
-        hasLoadedOnceRef.current = true;
-        clearTimeout(timeoutId);
+        if (seq === activeFetchSeqRef.current) {
+          setAuctions([]);
+          setTotalCount(0);
+          setLastRefresh(new Date());
+          hasLoadedOnceRef.current = true;
+        }
         return;
       }
 
@@ -234,8 +265,8 @@ export default function Dashboard() {
         countQuery = countQuery.eq('auction_type', filters.auctionType);
       }
 
-      const { count: totalFavCount } = await countQuery;
-      setTotalCount(totalFavCount || 0);
+       const { count: totalFavCount } = await countQuery;
+       if (seq === activeFetchSeqRef.current) setTotalCount(totalFavCount || 0);
 
       // Now fetch paginated auctions for those domains
       let query = supabase
@@ -247,7 +278,7 @@ export default function Dashboard() {
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to)
-        .abortSignal(controller.signal);
+        .abortSignal(signal);
 
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
@@ -256,8 +287,7 @@ export default function Dashboard() {
         query = query.eq('auction_type', filters.auctionType);
       }
 
-      const { data, error: queryError } = await query;
-      clearTimeout(timeoutId);
+       const { data, error: queryError } = await query;
 
       if (queryError) throw queryError;
 
@@ -273,31 +303,40 @@ export default function Dashboard() {
           auctionType: a.auction_type || 'auction',
           tld: a.tld || '',
         }));
-        setAuctions(mapped);
-        setLastRefresh(new Date());
-        hasLoadedOnceRef.current = true;
+        if (seq === activeFetchSeqRef.current) {
+          setAuctions(mapped);
+          setLastRefresh(new Date());
+          hasLoadedOnceRef.current = true;
+        }
       }
     } catch (err) {
+      // Ignore aborted/stale requests (common when rapidly changing sort/filter).
+      if (seq !== activeFetchSeqRef.current) return;
       if (err instanceof Error && err.name === 'AbortError') {
         setError('Database is busy - please try again in a moment');
-      } else {
-        console.error('Error fetching favorite auctions:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch favorites');
+        return;
       }
+      console.error('Error fetching favorite auctions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch favorites');
     } finally {
-      if (showLoadingSpinner) setLoading(false);
-      else setIsFetchingAuctions(false);
+      if (seq === activeFetchSeqRef.current) {
+        if (showLoadingSpinner) setLoading(false);
+        else setIsFetchingAuctions(false);
+      }
     }
-  }, [user, currentPage, sortBy, filters, itemsPerPage]);
+  }, [user, beginNewFetch, currentPage, sortBy, filters, itemsPerPage]);
 
   const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, retryCount = 0) => {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500; // 1.5 seconds between retries
+    const { seq, signal } = beginNewFetch();
     
     try {
-      if (showLoadingSpinner) setLoading(true);
-      else setIsFetchingAuctions(true);
-      setError(null);
+      if (seq === activeFetchSeqRef.current) {
+        if (showLoadingSpinner) setLoading(true);
+        else setIsFetchingAuctions(true);
+        setError(null);
+      }
       
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
@@ -307,10 +346,6 @@ export default function Dashboard() {
       
       const now = new Date();
       const endTimeFilter = now.toISOString();
-      
-      // Use AbortController with timeout to prevent hanging on overloaded DB
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       // Query from database with filters, sorting, and pagination
       // REMOVED count query to prevent timeouts - we estimate count from results instead
@@ -322,7 +357,7 @@ export default function Dashboard() {
         .lte('price', filters.maxPrice)
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to + 1) // Fetch one extra to detect if there are more pages
-        .abortSignal(controller.signal);
+        .abortSignal(signal);
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
@@ -335,8 +370,6 @@ export default function Dashboard() {
       }
       
       const { data, error: queryError } = await query;
-      
-      clearTimeout(timeoutId);
       
       if (queryError) {
         throw queryError;
@@ -358,6 +391,7 @@ export default function Dashboard() {
           auctionType: a.auction_type || 'auction',
           tld: a.tld || '',
         }));
+        if (seq !== activeFetchSeqRef.current) return;
         setAuctions(mapped);
         // Estimate total count: if we have more pages, keep increasing the estimate
         // This avoids expensive COUNT queries on large tables while allowing full navigation
@@ -373,6 +407,7 @@ export default function Dashboard() {
         hasLoadedOnceRef.current = true;
       }
     } catch (err) {
+      if (seq !== activeFetchSeqRef.current) return;
       // Handle timeout gracefully with retry logic
       const isTimeoutError = 
         (err instanceof Error && err.name === 'AbortError') ||
@@ -390,10 +425,12 @@ export default function Dashboard() {
         setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
       }
     } finally {
-      if (showLoadingSpinner) setLoading(false);
-      else setIsFetchingAuctions(false);
+      if (seq === activeFetchSeqRef.current) {
+        if (showLoadingSpinner) setLoading(false);
+        else setIsFetchingAuctions(false);
+      }
     }
-  }, [currentPage, sortBy, filters, itemsPerPage]);
+  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage]);
   
   // triggerSync removed - now using SyncAllDialog component
   
@@ -407,11 +444,6 @@ export default function Dashboard() {
     setCurrentPage(1);
   }
   
-  // Reset to page 1 when filters, sort, view mode, or items per page change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters, sortBy, viewMode, itemsPerPage]);
-
   // Reset matches page when matchesPerPage or hideEndedMatches changes
   useEffect(() => {
     setMatchesPage(1);
@@ -733,13 +765,12 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <button 
+                 <button 
                   onClick={() => {
                     setViewMode("all");
                     setSearch("");
                     setCurrentPage(1);
                     resetFilters();
-                    fetchAuctionsFromDb();
                   }}
                   className="text-left hover:opacity-80 transition-opacity"
                   title="Reset to dashboard home"
@@ -774,7 +805,10 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
                 <button
-                  onClick={() => setViewMode("all")}
+                   onClick={() => {
+                     setViewMode("all");
+                     setCurrentPage(1);
+                   }}
                   className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
                     viewMode === "all" 
                       ? "bg-background text-foreground shadow-sm" 
@@ -785,7 +819,10 @@ export default function Dashboard() {
                   <span className="sm:hidden">All</span>
                 </button>
                 <button
-                  onClick={() => setViewMode("favorites")}
+                   onClick={() => {
+                     setViewMode("favorites");
+                     setCurrentPage(1);
+                   }}
                   className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
                     viewMode === "favorites" 
                       ? "bg-background text-foreground shadow-sm" 
@@ -801,7 +838,10 @@ export default function Dashboard() {
                   )}
                 </button>
                 <button
-                  onClick={() => setViewMode("matches")}
+                   onClick={() => {
+                     setViewMode("matches");
+                     setCurrentPage(1);
+                   }}
                   className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 sm:px-3 py-1.5 text-sm font-medium transition-all gap-1 sm:gap-2 ${
                     viewMode === "matches" 
                       ? "bg-background text-foreground shadow-sm" 
@@ -844,7 +884,10 @@ export default function Dashboard() {
                 </Button>
                 <Select
                   value={sortBy}
-                  onValueChange={(value) => startSortTransition(() => setSortBy(value))}
+                   onValueChange={(value) => startSortTransition(() => {
+                     setCurrentPage(1);
+                     setSortBy(value);
+                   })}
                 >
                   <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
                     <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
@@ -886,7 +929,13 @@ export default function Dashboard() {
                 {/* TLD Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">TLD Extension</label>
-                  <Select value={filters.tld} onValueChange={(value) => setFilters(f => ({ ...f, tld: value }))}>
+                  <Select
+                    value={filters.tld}
+                    onValueChange={(value) => startSortTransition(() => {
+                      setCurrentPage(1);
+                      setFilters(f => ({ ...f, tld: value }));
+                    })}
+                  >
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select TLD" />
                     </SelectTrigger>
@@ -903,7 +952,13 @@ export default function Dashboard() {
                 {/* Auction Type Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Auction Type</label>
-                  <Select value={filters.auctionType} onValueChange={(value) => setFilters(f => ({ ...f, auctionType: value }))}>
+                  <Select
+                    value={filters.auctionType}
+                    onValueChange={(value) => startSortTransition(() => {
+                      setCurrentPage(1);
+                      setFilters(f => ({ ...f, auctionType: value }));
+                    })}
+                  >
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
@@ -926,7 +981,10 @@ export default function Dashboard() {
                         key={preset.label}
                         variant={filters.minPrice === preset.min && filters.maxPrice === preset.max ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setFilters(f => ({ ...f, minPrice: preset.min, maxPrice: preset.max }))}
+                        onClick={() => startSortTransition(() => {
+                          setCurrentPage(1);
+                          setFilters(f => ({ ...f, minPrice: preset.min, maxPrice: preset.max }));
+                        })}
                       >
                         {preset.label}
                       </Button>
@@ -1316,7 +1374,13 @@ export default function Dashboard() {
                   {/* Items per page selector */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Show:</span>
-                    <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(v) => startSortTransition(() => {
+                        setCurrentPage(1);
+                        setItemsPerPage(Number(v));
+                      })}
+                    >
                       <SelectTrigger className="w-20 h-8 bg-background">
                         <SelectValue />
                       </SelectTrigger>
