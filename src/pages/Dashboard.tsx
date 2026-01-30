@@ -394,13 +394,21 @@ export default function Dashboard() {
     setMatchesPage(1);
   }, [matchesPerPage, hideEndedMatches]);
   
-  // Fetch data based on view mode - only on initial load or explicit changes
-  // Skip refetch if page was just hidden and shown again (tab switch)
+  // Fetch data based on view mode with debounce to prevent UI blocking
   const lastFetchRef = useRef<number>(0);
+  const fetchDebounceRef = useRef<number | null>(null);
   const REFETCH_COOLDOWN = 30000; // 30 seconds minimum between auto-refetches
   
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+    
+    // Clear any pending debounced fetch
+    if (fetchDebounceRef.current) {
+      clearTimeout(fetchDebounceRef.current);
+    }
+    
+    // Debounce the fetch to prevent rapid state changes from blocking UI
+    fetchDebounceRef.current = window.setTimeout(() => {
       const now = Date.now();
       const timeSinceLastFetch = now - lastFetchRef.current;
       
@@ -417,7 +425,13 @@ export default function Dashboard() {
         fetchAuctionsFromDb();
       }
       // matches tab has its own fetch via fetchDialogMatches
-    }
+    }, 50); // Small debounce to let UI update first
+    
+    return () => {
+      if (fetchDebounceRef.current) {
+        clearTimeout(fetchDebounceRef.current);
+      }
+    };
   }, [user, viewMode, fetchAuctionsFromDb, fetchFavoriteAuctions]);
 
   // Initial matches count fetch
