@@ -35,6 +35,7 @@ import {
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
 import { DomainDetailSheet } from "@/components/dashboard/DomainDetailSheet";
+import { DomainTable } from "@/components/dashboard/DomainTable";
 
 interface AuctionDomain {
   id: string;
@@ -168,6 +169,13 @@ export default function Dashboard() {
     end_time: string | null;
     pattern_description: string;
     alert_id?: string;
+    bid_count?: number;
+    traffic_count?: number;
+    domain_age?: number;
+    auction_type?: string;
+    tld?: string;
+    valuation?: number;
+    inventory_source?: string;
   }>>([]);
   const [matchesPage, setMatchesPage] = useState(1);
   const [matchesPerPage, setMatchesPerPage] = useState(50);
@@ -557,7 +565,7 @@ export default function Dashboard() {
       // Get pattern alerts with joined auction data in a single query
       const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time)')
+        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)')
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false });
 
@@ -579,7 +587,7 @@ export default function Dashboard() {
         const auctionIds = fallbackAlerts.map(a => a.auction_id);
         const { data: auctionData } = await supabase
           .from('auctions')
-          .select('id, price, end_time')
+          .select('id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source')
           .in('id', auctionIds);
 
         const patternIds = [...new Set(fallbackAlerts.map(a => a.pattern_id))];
@@ -600,6 +608,13 @@ export default function Dashboard() {
             price: auction?.price || 0,
             end_time: auction?.end_time || null,
             pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+            bid_count: auction?.bid_count || 0,
+            traffic_count: auction?.traffic_count || 0,
+            domain_age: auction?.domain_age || 0,
+            auction_type: auction?.auction_type || 'Bid',
+            tld: auction?.tld || '',
+            valuation: auction?.valuation || undefined,
+            inventory_source: auction?.inventory_source || undefined,
           };
         });
 
@@ -631,7 +646,18 @@ export default function Dashboard() {
 
       // Build matches with auction data from join
       let allMatches = alerts.map(alert => {
-        const auction = alert.auctions as { id: string; price: number; end_time: string | null };
+        const auction = alert.auctions as { 
+          id: string; 
+          price: number; 
+          end_time: string | null;
+          bid_count: number;
+          traffic_count: number;
+          domain_age: number | null;
+          auction_type: string | null;
+          tld: string | null;
+          valuation: number | null;
+          inventory_source: string | null;
+        };
         return {
           alert_id: alert.id,
           auction_id: alert.auction_id,
@@ -639,6 +665,13 @@ export default function Dashboard() {
           price: auction?.price || 0,
           end_time: auction?.end_time || null,
           pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+          bid_count: auction?.bid_count || 0,
+          traffic_count: auction?.traffic_count || 0,
+          domain_age: auction?.domain_age || 0,
+          auction_type: auction?.auction_type || 'Bid',
+          tld: auction?.tld || '',
+          valuation: auction?.valuation || undefined,
+          inventory_source: auction?.inventory_source || undefined,
         };
       });
 
@@ -1114,86 +1147,40 @@ export default function Dashboard() {
                     </AlertDialog>
                   </div>
 
-                  {/* Grouped matches - already paginated from server */}
+                  {/* Matches table view */}
                   {(() => {
-                    const grouped = dialogMatches.reduce((groups, match) => {
-                      const key = match.pattern_description || 'Pattern';
-                      if (!groups[key]) groups[key] = [];
-                      groups[key].push(match);
-                      return groups;
-                    }, {} as Record<string, typeof dialogMatches>);
-                    
-                    return Object.entries(grouped).map(([patternName, matches]) => (
-                      <div key={patternName} className="p-3 sm:p-4 rounded-xl glass border border-border">
-                        <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs sm:text-sm">
-                            {patternName}
-                          </Badge>
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            {matches.length} match{matches.length !== 1 ? 'es' : ''}
-                          </span>
-                        </div>
-                        
-                        <div className="grid gap-2 sm:gap-3">
-                          {matches.map((match, i) => (
-                            <div
-                              key={match.alert_id || match.auction_id || i}
-                              className="p-2 sm:p-3 rounded-lg bg-muted/50 border border-border hover:border-primary/50 transition-all group"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <a
-                                  href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1"
-                                >
-                                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                    <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="font-mono text-primary text-xs sm:text-sm truncate">
-                                      {match.domain_name}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <span className="font-semibold text-foreground">
-                                        ${match.price.toLocaleString()}
-                                      </span>
-                                      {match.end_time && (
-                                        <span className="flex items-center gap-1">
-                                          <Clock className="w-3 h-3" />
-                                          {formatTimeRemaining(match.end_time)}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </a>
-                                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                                  <a
-                                    href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(match.domain_name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <Button variant="outline" size="sm" className="h-7 sm:h-8 px-2 sm:px-3">
-                                      <span className="hidden sm:inline">View</span>
-                                      <ExternalLink className="w-3 h-3 sm:ml-1" />
-                                    </Button>
-                                  </a>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 sm:h-8 px-2 text-muted-foreground hover:text-destructive"
-                                    onClick={() => match.alert_id && deleteMatch(match.alert_id)}
-                                    title="Remove match"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ));
+                    // Convert matches to AuctionDomain format for the table
+                    const matchesAsDomains: AuctionDomain[] = dialogMatches.map(match => ({
+                      id: match.auction_id,
+                      domain: match.domain_name,
+                      auctionEndTime: match.end_time || '',
+                      price: match.price,
+                      numberOfBids: match.bid_count || 0,
+                      traffic: match.traffic_count || 0,
+                      domainAge: match.domain_age || 0,
+                      auctionType: match.auction_type || 'Bid',
+                      tld: match.tld || '',
+                      valuation: match.valuation,
+                      inventorySource: match.inventory_source,
+                    }));
+
+                    // Create pattern descriptions map
+                    const patternMap: Record<string, string> = {};
+                    dialogMatches.forEach(match => {
+                      patternMap[match.auction_id] = match.pattern_description;
+                    });
+
+                    return (
+                      <DomainTable
+                        domains={matchesAsDomains}
+                        onDomainClick={(d) => {
+                          setSelectedDomain(d);
+                          setDetailSheetOpen(true);
+                        }}
+                        showPatternColumn={true}
+                        patternDescriptions={patternMap}
+                      />
+                    );
                   })()}
 
                   {/* Pagination for matches - configurable results per page */}
@@ -1323,59 +1310,19 @@ export default function Dashboard() {
                   </AlertDialog>
                 </div>
               )}
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="grid gap-3 sm:gap-4">
-              {filtered.map((d, i) => (
-                  <motion.div
-                    key={d.id || i}
-                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                    className="p-3 sm:p-4 rounded-xl glass border border-border hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group cursor-pointer"
-                    onClick={() => {
-                      setSelectedDomain(d);
-                      setDetailSheetOpen(true);
-                    }}
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Gavel className="w-5 h-5 text-primary" /></div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-mono text-base sm:text-lg text-primary group-hover:glow-text truncate">{d.domain}</div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-muted-foreground capitalize">{d.auctionType || 'Auction'}</span>
-                          <Badge variant="outline" className="text-xs">{d.tld}</Badge>
-                          <span className="text-sm font-bold sm:hidden">${d.price.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 md:gap-8">
-                      <div className="text-right hidden sm:block">
-                        <div className="font-bold">${d.price.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">{d.numberOfBids} bids</div>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />{formatTimeRemaining(d.auctionEndTime)}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleFavorite(d.domain, d.id);
-                        }}
-                        className={isFavorite(d.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
-                      >
-                        <Heart className={`w-5 h-5 ${isFavorite(d.domain) ? "fill-current" : ""}`} />
-                      </Button>
-                      <a
-                        href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
-                      </a>
-                    </div>
-                  </motion.div>
-                ))}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+                <DomainTable
+                  domains={filtered}
+                  onDomainClick={(d) => {
+                    setSelectedDomain(d);
+                    setDetailSheetOpen(true);
+                  }}
+                  sortBy={sortBy}
+                  onSortChange={(newSort) => startSortTransition(() => {
+                    setCurrentPage(1);
+                    setSortBy(newSort);
+                  })}
+                />
               </motion.div>
 
               {/* Pagination Controls */}
