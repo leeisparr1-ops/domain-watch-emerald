@@ -8,7 +8,8 @@ import {
   Minus,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,45 +170,54 @@ export function DomainTable({
   return (
     <TooltipProvider>
       <div className="rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <SortableHeader 
-                  column="domain_name" 
-                  label="Domain" 
-                  currentSort={sortBy}
-                  onSort={onSortChange}
-                  className="min-w-[180px]"
-                />
-                {showPatternColumn && (
-                  <TableHead className="whitespace-nowrap">Pattern</TableHead>
-                )}
-                <SortableHeader 
-                  column="price" 
-                  label="Price" 
-                  currentSort={sortBy}
-                  onSort={onSortChange}
-                />
-                <SortableHeader 
-                  column="bid_count" 
-                  label="Bids" 
-                  currentSort={sortBy}
-                  onSort={onSortChange}
-                />
-                <TableHead className="whitespace-nowrap hidden md:table-cell">Val.</TableHead>
-                <TableHead className="whitespace-nowrap hidden lg:table-cell">Age</TableHead>
-                <TableHead className="whitespace-nowrap hidden lg:table-cell">Len</TableHead>
-                <TableHead className="whitespace-nowrap hidden xl:table-cell">Traffic</TableHead>
-                <SortableHeader 
-                  column="end_time" 
-                  label="Ends" 
-                  currentSort={sortBy}
-                  onSort={onSortChange}
-                />
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <SortableHeader 
+                column="domain_name" 
+                label="Domain" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              {showPatternColumn && (
+                <TableHead className="whitespace-nowrap">Pattern</TableHead>
+              )}
+              <SortableHeader 
+                column="price" 
+                label="Price" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <SortableHeader 
+                column="bid_count" 
+                label="Bids" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <SortableHeader 
+                column="valuation" 
+                label="Val." 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <SortableHeader 
+                column="domain_age" 
+                label="Age" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <TableHead className="whitespace-nowrap">Len</TableHead>
+              <TableHead className="whitespace-nowrap">Traffic</TableHead>
+              <SortableHeader 
+                column="end_time" 
+                label="Ends" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <TableHead>Actions</TableHead>
+              <TableHead className="w-8"></TableHead>
+            </TableRow>
+          </TableHeader>
             <TableBody>
               {domains.map((d) => {
                 const timeInfo = formatTimeRemaining(d.auctionEndTime);
@@ -218,7 +228,7 @@ export function DomainTable({
                   <TableRow 
                     key={d.id}
                     className={cn(
-                      "cursor-pointer transition-colors",
+                      "cursor-pointer transition-colors group",
                       timeInfo.ended ? "opacity-60" : "hover:bg-muted/50"
                     )}
                     onClick={() => onDomainClick?.(d)}
@@ -279,7 +289,7 @@ export function DomainTable({
                     </TableCell>
 
                     {/* Valuation */}
-                    <TableCell className="py-2 text-sm hidden md:table-cell">
+                    <TableCell className="py-2 text-sm">
                       {d.valuation && d.valuation > 0 ? (
                         <span className="text-muted-foreground">
                           ${d.valuation.toLocaleString()}
@@ -290,7 +300,7 @@ export function DomainTable({
                     </TableCell>
 
                     {/* Age */}
-                    <TableCell className="py-2 text-sm hidden lg:table-cell">
+                    <TableCell className="py-2 text-sm">
                       {d.domainAge > 0 ? (
                         <span className="text-muted-foreground">{d.domainAge}y</span>
                       ) : (
@@ -299,12 +309,12 @@ export function DomainTable({
                     </TableCell>
 
                     {/* Length */}
-                    <TableCell className="py-2 text-sm hidden lg:table-cell">
+                    <TableCell className="py-2 text-sm">
                       <span className="text-muted-foreground">{domainWithoutTld.length}</span>
                     </TableCell>
 
                     {/* Traffic */}
-                    <TableCell className="py-2 text-sm hidden xl:table-cell">
+                    <TableCell className="py-2 text-sm">
                       {d.traffic > 0 ? (
                         <span className="text-muted-foreground">{d.traffic.toLocaleString()}</span>
                       ) : (
@@ -358,12 +368,23 @@ export function DomainTable({
                         </a>
                       </div>
                     </TableCell>
+
+                    {/* Click indicator */}
+                    <TableCell className="py-2 w-8">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          <p>Click for details</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
-        </div>
       </div>
     </TooltipProvider>
   );
