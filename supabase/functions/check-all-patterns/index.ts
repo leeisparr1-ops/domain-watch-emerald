@@ -16,6 +16,10 @@ interface UserPattern {
   max_price: number | null;
   min_price: number;
   tld_filter: string | null;
+  min_length: number | null;
+  max_length: number | null;
+  min_age: number | null;
+  max_age: number | null;
   enabled: boolean;
 }
 
@@ -25,6 +29,7 @@ interface Auction {
   price: number;
   tld: string | null;
   end_time: string | null;
+  domain_age: number | null;
 }
 
 interface MatchedDomain {
@@ -91,7 +96,7 @@ serve(async (req) => {
     for (let batch = 0; batch < maxBatches; batch++) {
       const { data: auctionBatch, error: auctionsError } = await supabase
         .from("auctions")
-        .select("id, domain_name, price, tld, end_time")
+        .select("id, domain_name, price, tld, end_time, domain_age")
         .gte("end_time", now)
         .order("end_time", { ascending: true })
         .range(batch * batchSize, (batch + 1) * batchSize - 1);
@@ -184,6 +189,14 @@ serve(async (req) => {
             const auctionTld = auction.tld.toUpperCase().replace(".", "");
             if (filterTld !== auctionTld) continue;
           }
+
+          // Check character length filter (domain name without TLD)
+          if (pattern.min_length && nameOnly.length < pattern.min_length) continue;
+          if (pattern.max_length && nameOnly.length > pattern.max_length) continue;
+
+          // Check domain age filter (in years)
+          if (pattern.min_age && (!auction.domain_age || auction.domain_age < pattern.min_age)) continue;
+          if (pattern.max_age && auction.domain_age && auction.domain_age > pattern.max_age) continue;
 
           // Match found!
           const match: MatchedDomain = {
