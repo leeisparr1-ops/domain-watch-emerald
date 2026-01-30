@@ -34,9 +34,9 @@ const LARGE_INVENTORY_TYPES = [
 const BATCH_SIZE = 1000;
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 
-// Get Supabase credentials from environment
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Get Supabase credentials from environment - trim to remove any accidental whitespace
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
+const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ Missing required environment variables:');
@@ -44,6 +44,13 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('   SUPABASE_SERVICE_ROLE_KEY');
   console.error('');
   console.error('Add these as GitHub repository secrets.');
+  process.exit(1);
+}
+
+// Validate the service role key format (should be a JWT)
+if (!SUPABASE_SERVICE_ROLE_KEY.startsWith('eyJ')) {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY does not look like a valid JWT (should start with "eyJ")');
+  console.error('   Please verify the secret value in GitHub repository settings.');
   process.exit(1);
 }
 
