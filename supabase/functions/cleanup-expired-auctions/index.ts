@@ -50,11 +50,13 @@ Deno.serve(async (req) => {
 
       // Fallback to regular delete if RPC not available
       if (deleteError?.code === 'PGRST202') {
-        // Get IDs of expired auctions
+        // Get IDs of expired auctions - EXCLUDE closeout inventory (buy-now, no real end time)
         const { data: expiredAuctions, error: selectError } = await supabase
           .from('auctions')
           .select('id')
           .lt('end_time', cutoffISO)
+          .not('auction_type', 'eq', 'closeout')
+          .not('inventory_source', 'eq', 'closeout')
           .order('end_time', { ascending: true })
           .limit(BATCH_SIZE);
 

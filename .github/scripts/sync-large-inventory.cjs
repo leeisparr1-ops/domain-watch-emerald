@@ -189,15 +189,23 @@ function parsePrice(priceRaw) {
 function parseAuction(item, inventoryType) {
   const domain = item.domainName || item.DomainName || item.domain || '';
   
+  // For closeout (buy-now) inventory, set a far-future end_time to prevent cleanup deletion
+  // Closeout domains don't have real auction end times - they're available until purchased
+  let endTime = item.auctionEndTime || item.AuctionEndTime || item.endTime || null;
+  if (inventoryType === 'closeout') {
+    // Set end_time 1 year in the future for closeout domains
+    endTime = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  }
+  
   return {
     domain_name: domain,
     price: parsePrice(item.price || item.Price || item.currentPrice || item.minBid || 0),
     bid_count: parseInt(item.numberOfBids || item.NumberOfBids || item.bids || 0, 10) || 0,
     traffic_count: parseInt(item.pageviews || item.traffic || item.Traffic || 0, 10) || 0,
-    end_time: item.auctionEndTime || item.AuctionEndTime || item.endTime || null,
+    end_time: endTime,
     inventory_source: inventoryType,
     tld: extractTld(domain),
-    auction_type: item.auctionType || item.AuctionType || item.type || 'auction',
+    auction_type: inventoryType === 'closeout' ? 'closeout' : (item.auctionType || item.AuctionType || item.type || 'auction'),
     valuation: parsePrice(item.valuation || item.Valuation || 0),
     domain_age: parseInt(item.domainAge || item.DomainAge || 0, 10) || 0,
   };
