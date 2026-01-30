@@ -257,6 +257,9 @@ serve(async (req) => {
 
       const topMatches = matches.slice(0, 3).map(m => m.domain_name).join(", ");
       const moreCount = matches.length > 3 ? ` +${matches.length - 3} more` : "";
+      
+      // Use absolute production URL for push notification icons
+      const iconUrl = "https://expiredhawk.lovable.app/icons/icon-192.png";
 
       // Send push notification
       try {
@@ -268,7 +271,9 @@ serve(async (req) => {
             payload: {
               title: `🎯 ${matches.length} Domain${matches.length > 1 ? 's' : ''} Match Your Patterns!`,
               body: `${topMatches}${moreCount}`,
-              icon: "/icons/icon-192.png",
+              icon: iconUrl,
+              badge: iconUrl,
+              image: iconUrl,
               tag: "pattern-match",
               url: "/dashboard",
             },
