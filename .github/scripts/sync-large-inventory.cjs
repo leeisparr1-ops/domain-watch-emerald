@@ -296,24 +296,69 @@ async function syncInventoryType({ type, url }) {
     
     // Handle different response formats - GoDaddy uses { meta, data }
     let items = [];
+    console.log(`   JSON structure keys: ${Object.keys(data).join(', ')}`);
+    console.log(`   data.data type: ${typeof data.data}, isArray: ${Array.isArray(data.data)}`);
+    
     if (Array.isArray(data)) {
       items = data;
+      console.log(`   Matched: direct array`);
     } else if (data.data && Array.isArray(data.data)) {
       // Handle { meta: {...}, data: [...] } format
       items = data.data;
-    } else if (data.data && data.data.domains) {
-      items = data.data.domains;
-    } else if (data.domains) {
+      console.log(`   Matched: data.data array`);
+    } else if (data.data && typeof data.data === 'object') {
+      // Handle nested data object - check all possible keys
+      const nested = data.data;
+      console.log(`   Nested data keys: ${Object.keys(nested).join(', ')}`);
+      if (nested.domains && Array.isArray(nested.domains)) {
+        items = nested.domains;
+        console.log(`   Matched: data.data.domains`);
+      } else if (nested.auctions && Array.isArray(nested.auctions)) {
+        items = nested.auctions;
+        console.log(`   Matched: data.data.auctions`);
+      } else if (nested.listings && Array.isArray(nested.listings)) {
+        items = nested.listings;
+        console.log(`   Matched: data.data.listings`);
+      } else if (nested.items && Array.isArray(nested.items)) {
+        items = nested.items;
+        console.log(`   Matched: data.data.items`);
+      } else {
+        // Try to find any array in the nested object
+        for (const [key, value] of Object.entries(nested)) {
+          if (Array.isArray(value) && value.length > 0) {
+            console.log(`   Found array in data.data.${key} with ${value.length} items`);
+            items = value;
+            break;
+          }
+        }
+      }
+    } else if (data.domains && Array.isArray(data.domains)) {
       items = data.domains;
-    } else if (data.auctions) {
+      console.log(`   Matched: domains`);
+    } else if (data.auctions && Array.isArray(data.auctions)) {
       items = data.auctions;
-    } else if (data.items) {
+      console.log(`   Matched: auctions`);
+    } else if (data.items && Array.isArray(data.items)) {
       items = data.items;
-    } else if (data.listings) {
+      console.log(`   Matched: items`);
+    } else if (data.listings && Array.isArray(data.listings)) {
       items = data.listings;
+      console.log(`   Matched: listings`);
+    } else {
+      // Last resort - find any large array in root
+      for (const [key, value] of Object.entries(data)) {
+        if (Array.isArray(value) && value.length > 100) {
+          console.log(`   Found array in root.${key} with ${value.length} items`);
+          items = value;
+          break;
+        }
+      }
     }
     
-    console.log(`   JSON structure keys: ${Object.keys(data).join(', ')}`);
+    if (items.length === 0) {
+      console.log(`   ⚠️ Could not find auction array! Dumping first 500 chars of data:`);
+      console.log(`   ${JSON.stringify(data).substring(0, 500)}`);
+    }
     console.log(`   Found ${items.length.toLocaleString()} auctions`);
     
     // Parse auctions - filter out entries without domain names
