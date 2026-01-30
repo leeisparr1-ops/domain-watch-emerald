@@ -1,3 +1,4 @@
+import * as React from "react";
 import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
