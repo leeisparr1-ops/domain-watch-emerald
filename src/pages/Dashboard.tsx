@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2 } from "lucide-react";
 
@@ -124,6 +124,10 @@ export default function Dashboard() {
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns } = useUserPatterns();
   usePatternAlerts(); // Enable background pattern checking
+  const [isSortPending, startSortTransition] = useTransition();
+  const [isFetchingAuctions, setIsFetchingAuctions] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
+  const wasHiddenRef = useRef(false);
   const [dialogMatches, setDialogMatches] = useState<Array<{
     auction_id: string;
     domain_name: string;
@@ -165,11 +169,24 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
+  // Track tab visibility so we can avoid expensive re-fetches on tab-switch
+  // while still allowing explicit user-driven changes (sort/filter/page) to fetch immediately.
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === "hidden") {
+        wasHiddenRef.current = true;
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
+
   // Fetch favorite auctions directly by domain names with proper pagination
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
     try {
       if (showLoadingSpinner) setLoading(true);
+      else setIsFetchingAuctions(true);
       setError(null);
 
       const from = (currentPage - 1) * itemsPerPage;
@@ -196,6 +213,7 @@ export default function Dashboard() {
         setAuctions([]);
         setTotalCount(0);
         setLastRefresh(new Date());
+        hasLoadedOnceRef.current = true;
         clearTimeout(timeoutId);
         return;
       }
@@ -257,6 +275,7 @@ export default function Dashboard() {
         }));
         setAuctions(mapped);
         setLastRefresh(new Date());
+        hasLoadedOnceRef.current = true;
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -266,7 +285,8 @@ export default function Dashboard() {
         setError(err instanceof Error ? err.message : 'Failed to fetch favorites');
       }
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) setLoading(false);
+      else setIsFetchingAuctions(false);
     }
   }, [user, currentPage, sortBy, filters, itemsPerPage]);
 
@@ -276,6 +296,7 @@ export default function Dashboard() {
     
     try {
       if (showLoadingSpinner) setLoading(true);
+      else setIsFetchingAuctions(true);
       setError(null);
       
       const from = (currentPage - 1) * itemsPerPage;
@@ -349,6 +370,7 @@ export default function Dashboard() {
           setTotalCount(from + mapped.length);
         }
         setLastRefresh(new Date());
+        hasLoadedOnceRef.current = true;
       }
     } catch (err) {
       // Handle timeout gracefully with retry logic
@@ -368,7 +390,8 @@ export default function Dashboard() {
         setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
       }
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) setLoading(false);
+      else setIsFetchingAuctions(false);
     }
   }, [currentPage, sortBy, filters, itemsPerPage]);
   
@@ -411,28 +434,42 @@ export default function Dashboard() {
     fetchDebounceRef.current = window.setTimeout(() => {
       const now = Date.now();
       const timeSinceLastFetch = now - lastFetchRef.current;
-      
-      // Skip fetch if we recently fetched (prevents tab-switch reload)
-      if (timeSinceLastFetch < REFETCH_COOLDOWN && lastFetchRef.current > 0) {
+
+      // Only apply cooldown when the tab was hidden and then shown again.
+      // For normal user interactions (sort/filter/page), fetch immediately.
+      if (wasHiddenRef.current && timeSinceLastFetch < REFETCH_COOLDOWN && lastFetchRef.current > 0) {
+        wasHiddenRef.current = false;
         return;
       }
-      
+
       lastFetchRef.current = now;
-      
+      wasHiddenRef.current = false;
+
+      const showLoadingSpinner = !hasLoadedOnceRef.current;
+
       if (viewMode === "favorites") {
-        fetchFavoriteAuctions();
+        fetchFavoriteAuctions(showLoadingSpinner);
       } else if (viewMode === "all") {
-        fetchAuctionsFromDb();
+        fetchAuctionsFromDb(showLoadingSpinner);
       }
       // matches tab has its own fetch via fetchDialogMatches
-    }, 50); // Small debounce to let UI update first
+    }, 150); // Let UI settle before kicking off network work
     
     return () => {
       if (fetchDebounceRef.current) {
         clearTimeout(fetchDebounceRef.current);
       }
     };
-  }, [user, viewMode, fetchAuctionsFromDb, fetchFavoriteAuctions]);
+  }, [
+    user,
+    viewMode,
+    currentPage,
+    itemsPerPage,
+    filters,
+    sortBy,
+    fetchAuctionsFromDb,
+    fetchFavoriteAuctions,
+  ]);
 
   // Initial matches count fetch
   useEffect(() => {
@@ -805,12 +842,18 @@ export default function Dashboard() {
                     </Badge>
                   )}
                 </Button>
-                <Select value={sortBy} onValueChange={setSortBy}>
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) => startSortTransition(() => setSortBy(value))}
+                >
                   <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
                     <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
                     <SelectValue placeholder="Sort by" />
+                    {(isSortPending || isFetchingAuctions) && (
+                      <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
                   </SelectTrigger>
-                  <SelectContent className="bg-background border border-border z-50">
+                  <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
                     {SORT_OPTIONS.map(option => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -847,7 +890,7 @@ export default function Dashboard() {
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select TLD" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50">
+                    <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
                       {TLD_OPTIONS.map(option => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
@@ -864,7 +907,7 @@ export default function Dashboard() {
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select Type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50">
+                    <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
                       {AUCTION_TYPE_OPTIONS.map(option => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
