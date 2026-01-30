@@ -45,9 +45,25 @@ async function downloadFile(url: string): Promise<Uint8Array> {
 }
 
 // Streaming JSON parser - yields items one at a time
+// Handles both direct arrays [...] and wrapped format { data: [...] }
 function* parseJsonArrayStreaming(text: string): Generator<any> {
-  const startIdx = text.indexOf('[');
-  if (startIdx === -1) return;
+  // First, try to find the "data" array in { meta: {...}, data: [...] } format
+  let startIdx = -1;
+  const dataMatch = text.match(/"data"\s*:\s*\[/);
+  if (dataMatch && dataMatch.index !== undefined) {
+    // Find the opening bracket of the data array
+    startIdx = text.indexOf('[', dataMatch.index);
+    console.log(`Found "data" array at position ${startIdx}`);
+  } else {
+    // Fall back to first array found
+    startIdx = text.indexOf('[');
+    console.log(`Using first array at position ${startIdx}`);
+  }
+  
+  if (startIdx === -1) {
+    console.log('No array found in JSON');
+    return;
+  }
   
   let depth = 0;
   let objectStart = -1;
@@ -62,11 +78,17 @@ function* parseJsonArrayStreaming(text: string): Generator<any> {
     if (char === '"') { inString = !inString; continue; }
     if (inString) continue;
     
-    if (char === '{') {
-      if (depth === 1) objectStart = i;
+    if (char === '[') {
       depth++;
-    } else if (char === '}') {
+    } else if (char === ']') {
       depth--;
+      if (depth === 0) {
+        // End of the array we're parsing
+        break;
+      }
+    } else if (char === '{') {
+      if (depth === 1) objectStart = i;
+    } else if (char === '}') {
       if (depth === 1 && objectStart !== -1) {
         try {
           const obj = JSON.parse(text.substring(objectStart, i + 1));
