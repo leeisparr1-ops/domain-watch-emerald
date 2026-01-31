@@ -75,8 +75,9 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Upsert auctions in batches of 500 to avoid timeouts
-    const BATCH_SIZE = 500;
+    // Upsert auctions in smaller batches of 100 to prevent statement timeouts
+    // on large tables (750k+ rows). Larger batches were causing Postgres 57014 errors.
+    const BATCH_SIZE = 100;
     let inserted = 0;
     let errors = 0;
 
