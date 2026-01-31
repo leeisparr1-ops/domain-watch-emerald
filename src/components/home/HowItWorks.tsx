@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Search, Bell, Smartphone, Check } from "lucide-react";
+import { forwardRef } from "react";
 
 const steps = [
   {
@@ -28,9 +29,9 @@ const steps = [
   },
 ];
 
-export function HowItWorks() {
+export const HowItWorks = forwardRef<HTMLElement>(function HowItWorks(_props, ref) {
   return (
-    <section className="py-20 bg-secondary/20">
+    <section ref={ref} className="py-20 bg-secondary/20">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -83,4 +84,4 @@ export function HowItWorks() {
       </div>
     </section>
   );
-}
+});

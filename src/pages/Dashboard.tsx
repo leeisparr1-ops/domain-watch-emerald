@@ -289,10 +289,21 @@ export default function Dashboard() {
         .in('domain_name', favDomains)
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice)
-        .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to)
-        .abortSignal(signal);
+        .lte('price', filters.maxPrice);
+      
+      // Add primary sort column
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+      
+      // Add secondary sort tie-breakers aligned with primary sort direction
+      if (currentSort.column !== 'end_time') {
+        query = query.order('end_time', { ascending: currentSort.ascending });
+      }
+      if (currentSort.column !== 'id') {
+        query = query.order('id', { ascending: currentSort.ascending });
+      }
+      
+      // Apply pagination and abort signal
+      query = query.range(from, to).abortSignal(signal);
 
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
@@ -365,15 +376,29 @@ export default function Dashboard() {
       
       // Query from database with filters, sorting, and pagination
       // REMOVED count query to prevent timeouts - we estimate count from results instead
+      // Build query with proper secondary sort tie-breakers for efficient index usage
+      // This aligns with our covering indexes (bid_count, end_time, id), etc.
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice)
-        .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to + 1) // Fetch one extra to detect if there are more pages
-        .abortSignal(signal);
+        .lte('price', filters.maxPrice);
+      
+      // Add primary sort column
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+      
+      // Add secondary sort tie-breakers aligned with primary sort direction for index efficiency
+      // This allows PostgreSQL to walk B-tree indexes in a single direction
+      if (currentSort.column !== 'end_time') {
+        query = query.order('end_time', { ascending: currentSort.ascending });
+      }
+      if (currentSort.column !== 'id') {
+        query = query.order('id', { ascending: currentSort.ascending });
+      }
+      
+      // Apply pagination
+      query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
