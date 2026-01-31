@@ -375,12 +375,15 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice);
       
-      // For valuation/domain_age sorts, filter out NULLs and add secondary sort to match covering index
+      // For valuation/domain_age sorts, filter out unknown values and add secondary sort to match covering index
       const needsSecondarySort = currentSort.column === 'valuation' || currentSort.column === 'domain_age';
       if (currentSort.column === 'valuation') {
-        query = query.not('valuation', 'is', null);
+        // Treat valuation=0 as "unknown" (UI shows '-' for 0), so exclude it.
+        // This also avoids scanning huge numbers of zero-valuations when sorting.
+        query = query.gt('valuation', 0);
       } else if (currentSort.column === 'domain_age') {
-        query = query.not('domain_age', 'is', null);
+        // Treat domain_age=0 as "unknown" (UI shows '-' for 0), so exclude it.
+        query = query.gt('domain_age', 0);
       }
       
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
