@@ -365,36 +365,15 @@ export default function Dashboard() {
       
       const now = new Date();
       const endTimeFilter = now.toISOString();
-
-      // Valuation/Age/Bids sorts were intermittently timing out because combining
-      // `end_time >= now()` with ordering by these columns can force expensive scans.
-      // For these sorts, we over-fetch a small window ordered by the sort column and
-      // filter out ended rows client-side.
-      const clientFilterEndedForSort =
-        currentSort.column === 'valuation' ||
-        currentSort.column === 'domain_age' ||
-        currentSort.column === 'bid_count';
-
-      const OVERFETCH_FACTOR = 5;
-      const effectiveFrom = clientFilterEndedForSort
-        ? (currentPage - 1) * itemsPerPage * OVERFETCH_FACTOR
-        : from;
-      const effectiveTo = clientFilterEndedForSort
-        ? effectiveFrom + (itemsPerPage * OVERFETCH_FACTOR) // +1 handled below
-        : to;
       
       // Query from database with filters, sorting, and pagination
       // REMOVED count query to prevent timeouts - we estimate count from results instead
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
+        .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice);
-
-      // For most sorts, keep server-side "active only" filter.
-      if (!clientFilterEndedForSort) {
-        query = query.gte('end_time', endTimeFilter);
-      }
       
       // For valuation/domain_age sorts, filter out unknown values and add secondary sort to match covering index
       const needsSecondarySort = currentSort.column === 'valuation' || currentSort.column === 'domain_age';
@@ -409,14 +388,19 @@ export default function Dashboard() {
       
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       
-      // Add secondary sort on end_time and id to match the covering index order
-      // This allows Postgres to use an index-only scan instead of a sequential scan
+      // Add tie-breakers to match the covering index ordering.
+      // IMPORTANT: when sorting DESC on the primary column we must also sort DESC on
+      // the tie-breakers, otherwise Postgres can't use a pure backward index scan
+      // and will fall back to an incremental sort (often hitting statement_timeout).
       if (needsSecondarySort) {
-        query = query.order('end_time', { ascending: true }).order('id', { ascending: true });
+        const secondaryAscending = currentSort.ascending;
+        query = query
+          .order('end_time', { ascending: secondaryAscending })
+          .order('id', { ascending: secondaryAscending });
       }
       
       query = query
-        .range(effectiveFrom, effectiveTo + 1) // Fetch one extra to detect if there are more pages
+        .range(from, to + 1) // Fetch one extra to detect if there are more pages
         .abortSignal(signal);
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
@@ -436,13 +420,9 @@ export default function Dashboard() {
       }
       
       if (data) {
-        const activeOnly = clientFilterEndedForSort
-          ? data.filter((a) => !!a.end_time && new Date(a.end_time).getTime() >= now.getTime())
-          : data;
-
         // Check if there are more results (we fetched one extra)
-        const hasMore = activeOnly.length > itemsPerPage;
-        const resultsToShow = hasMore ? activeOnly.slice(0, itemsPerPage) : activeOnly;
+        const hasMore = data.length > itemsPerPage;
+        const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
         
         const mapped: AuctionDomain[] = resultsToShow.map(a => ({
           id: a.id,
