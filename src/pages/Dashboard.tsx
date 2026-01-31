@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useTransition } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2, Info } from "lucide-react";
 
@@ -12,6 +12,7 @@ import { useUserPatterns } from "@/hooks/useUserPatterns";
 import { usePatternAlerts } from "@/hooks/usePatternAlerts";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getCachedAuctions, setCachedAuctions, getCachedMatches, setCachedMatches } from "@/lib/dashboardCache";
 import {
   Select,
   SelectContent,
@@ -218,6 +219,30 @@ export default function Dashboard() {
     filters.auctionType !== "all",
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
+
+  // INSTANT LOADING: Load cached data immediately on mount before any network requests
+  // This makes the dashboard feel instant while fresh data loads in the background
+  const cacheLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!user || cacheLoadedRef.current) return;
+    cacheLoadedRef.current = true;
+    
+    // Load cached auctions immediately
+    const cached = getCachedAuctions(user.id);
+    if (cached && cached.auctions.length > 0) {
+      setAuctions(cached.auctions);
+      setTotalCount(cached.totalCount);
+      setLoading(false); // Show data immediately
+      hasLoadedOnceRef.current = true;
+      // Don't set lastRefresh - we'll update when fresh data arrives
+    }
+    
+    // Also load cached matches for the badge count
+    const cachedMatches = getCachedMatches(user.id);
+    if (cachedMatches) {
+      setTotalMatchesCount(cachedMatches.totalCount);
+    }
+  }, [user]);
 
   // Track tab visibility so we can avoid expensive re-fetches on tab-switch
   // while still allowing explicit user-driven changes (sort/filter/page) to fetch immediately.
@@ -486,6 +511,12 @@ export default function Dashboard() {
         }));
         if (seq !== activeFetchSeqRef.current) return;
         setAuctions(mapped);
+        
+        // Cache results for instant loading on next visit (only first page with default filters)
+        if (user && currentPage === 1 && sortBy === 'price_asc' && filters.tld === 'all' && filters.auctionType === 'all' && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
+          setCachedAuctions(user.id, mapped, hasMore ? from + itemsPerPage * 1000 : from + mapped.length);
+        }
+        
         // Estimate total count: if we have more pages, keep increasing the estimate
         // This avoids expensive COUNT queries on large tables while allowing full navigation
         if (hasMore) {
@@ -634,9 +665,21 @@ export default function Dashboard() {
   const matchesLoadedOnceRef = useRef(false);
 
   // Fetch pattern matches from database with TRUE server-side pagination
-  // This is much faster than fetching all matches and paginating client-side
+  // Uses cache-first strategy for instant loading
   const fetchDialogMatches = useCallback(async (page: number = 1, forceRefresh = false) => {
     if (!user) return;
+    
+    // Load from cache immediately on first load (before any network request)
+    if (!matchesLoadedOnceRef.current && page === 1) {
+      const cached = getCachedMatches(user.id);
+      if (cached && cached.matches.length > 0) {
+        setDialogMatches(cached.matches as typeof dialogMatches);
+        setTotalMatchesCount(cached.totalCount);
+        matchesLoadedOnceRef.current = true;
+        // Don't show loading - we have cached data
+        // Continue to fetch fresh data in background
+      }
+    }
     
     // Cancel any existing fetch to prevent race conditions
     if (matchesFetchRef.current) {
@@ -645,8 +688,8 @@ export default function Dashboard() {
     const controller = new AbortController();
     matchesFetchRef.current = controller;
     
-    // Only show loading spinner if we haven't loaded before or forcing refresh
-    if (!matchesLoadedOnceRef.current || forceRefresh) {
+    // Only show loading spinner if we have no data yet
+    if (!matchesLoadedOnceRef.current) {
       setLoadingMatches(true);
     }
     
@@ -741,6 +784,11 @@ export default function Dashboard() {
       setTotalMatchesCount(count || filteredMatches.length);
       setDialogMatches(filteredMatches);
       matchesLoadedOnceRef.current = true;
+      
+      // Cache first page of matches for instant loading next time
+      if (page === 1) {
+        setCachedMatches(user.id, filteredMatches, count || filteredMatches.length);
+      }
     } catch (error) {
       // Ignore abort errors
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -904,18 +952,22 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className="w-4 h-4 text-primary" />
-                  <span className="hidden sm:inline">Updated {formatLastRefresh()}</span>
-                  <span className="sm:hidden">{formatLastRefresh()}</span>
+                  <RefreshCw className={`w-4 h-4 text-primary ${(isFetchingAuctions || loadingMatches) ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">
+                    {isFetchingAuctions ? 'Refreshing...' : `Updated ${formatLastRefresh()}`}
+                  </span>
+                  <span className="sm:hidden">
+                    {isFetchingAuctions ? 'Refreshing' : formatLastRefresh()}
+                  </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => viewMode === "favorites" ? fetchFavoriteAuctions() : fetchAuctionsFromDb()}
-                  disabled={loading}
+                  onClick={() => viewMode === "favorites" ? fetchFavoriteAuctions() : viewMode === "matches" ? fetchDialogMatches(matchesPage, true) : fetchAuctionsFromDb()}
+                  disabled={loading && !hasLoadedOnceRef.current}
                   title="Refresh data"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${loading && !hasLoadedOnceRef.current ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -1173,7 +1225,8 @@ export default function Dashboard() {
           {/* Pattern Matches View */}
           {viewMode === "matches" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-              {loadingMatches ? (
+              {/* Only show skeleton when we have NO cached matches data */}
+              {loadingMatches && dialogMatches.length === 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1326,8 +1379,8 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Standard Auctions View */}
-          {viewMode !== "matches" && loading && (
+          {/* Standard Auctions View - Only show skeleton if no cached data */}
+          {viewMode !== "matches" && loading && auctions.length === 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1344,7 +1397,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {viewMode !== "matches" && !loading && !error && filtered.length === 0 && (
+          {/* Show "no results" only when NOT loading and truly empty */}
+          {viewMode !== "matches" && !loading && !error && filtered.length === 0 && auctions.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p className="mb-2">No auctions found matching your criteria.</p>
               {activeFilterCount > 0 && (
@@ -1353,7 +1407,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {viewMode !== "matches" && !loading && !error && filtered.length > 0 && (
+          {/* Show data when we have any data (cached or fresh), even if still loading in background */}
+          {viewMode !== "matches" && !error && filtered.length > 0 && (
             <>
               {/* Favorites header with Clear All button */}
               {viewMode === "favorites" && totalCount > 0 && (
