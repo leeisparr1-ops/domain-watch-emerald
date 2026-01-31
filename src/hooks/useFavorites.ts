@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { getCachedFavorites, setCachedFavorites } from "@/lib/dashboardCache";
 
 export function useFavorites() {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const fetchControllerRef = useRef<AbortController | null>(null);
+  const hasFetchedRef = useRef(false);
 
   const fetchFavorites = useCallback(async () => {
     if (!user) {
@@ -15,11 +18,27 @@ export function useFavorites() {
       return;
     }
 
-    try {
-      // Use AbortController with timeout to prevent long-running queries
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+    // Load from cache immediately for instant display
+    if (!hasFetchedRef.current) {
+      const cached = getCachedFavorites(user.id);
+      if (cached) {
+        setFavorites(cached);
+        setLoading(false);
+      }
+    }
 
+    // Cancel any existing fetch
+    if (fetchControllerRef.current) {
+      fetchControllerRef.current.abort();
+    }
+    
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
+    
+    // Longer timeout - 10s for favorites
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
       const { data, error } = await supabase
         .from('favorites')
         .select('domain_name')
@@ -27,24 +46,31 @@ export function useFavorites() {
         .abortSignal(controller.signal);
 
       clearTimeout(timeoutId);
-
+      
+      if (controller.signal.aborted) return;
       if (error) throw error;
 
-      setFavorites(new Set(data?.map(f => f.domain_name) || []));
+      const newFavorites = new Set(data?.map(f => f.domain_name) || []);
+      setFavorites(newFavorites);
+      setCachedFavorites(user.id, newFavorites);
+      hasFetchedRef.current = true;
     } catch (err) {
-      // Silently fail on timeout - favorites aren't critical for page load
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('Favorites fetch timed out - DB may be under load');
-      } else {
-        console.error('Error fetching favorites:', err);
-      }
+      if (controller.signal.aborted) return;
+      // Silently fail - cached data is already displayed
+      console.warn('Favorites fetch failed, using cache');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [user]);
 
   useEffect(() => {
+    hasFetchedRef.current = false;
     fetchFavorites();
+    return () => {
+      fetchControllerRef.current?.abort();
+    };
   }, [fetchFavorites]);
 
   const toggleFavorite = useCallback(async (domainName: string, auctionId?: string) => {
