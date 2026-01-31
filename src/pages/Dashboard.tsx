@@ -139,7 +139,7 @@ export default function Dashboard() {
   const activeFetchSeqRef = useRef(0);
   const activeFetchControllerRef = useRef<AbortController | null>(null);
   const activeFetchTimeoutRef = useRef<number | null>(null);
-  const beginNewFetch = useCallback(() => {
+  const beginNewFetch = useCallback((timeoutMs: number = 25000) => {
     activeFetchSeqRef.current += 1;
     const seq = activeFetchSeqRef.current;
 
@@ -153,7 +153,9 @@ export default function Dashboard() {
 
     const controller = new AbortController();
     activeFetchControllerRef.current = controller;
-    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 10000);
+    // NOTE: This is a client-side safety timeout only. If it is too low, it will
+    // abort otherwise-valid queries on a busy backend, causing "Failed to fetch auctions".
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), timeoutMs);
 
     return { seq, signal: controller.signal };
   }, []);
@@ -231,7 +233,7 @@ export default function Dashboard() {
   // Fetch favorite auctions directly by domain names with proper pagination
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
-    const { seq, signal } = beginNewFetch();
+    const { seq, signal } = beginNewFetch(showLoadingSpinner ? 25000 : 12000);
     try {
       if (seq === activeFetchSeqRef.current) {
         if (showLoadingSpinner) setLoading(true);
@@ -361,7 +363,8 @@ export default function Dashboard() {
     } catch (err) {
       // Ignore aborted/stale requests (common when rapidly changing sort/filter).
       if (seq !== activeFetchSeqRef.current) return;
-      if (err instanceof Error && err.name === 'AbortError') {
+      const msg = typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : '';
+      if ((err instanceof Error && err.name === 'AbortError') || msg.includes('AbortError')) {
         setError('Database is busy - please try again in a moment');
         return;
       }
@@ -378,7 +381,9 @@ export default function Dashboard() {
   const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, retryCount = 0) => {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500; // 1.5 seconds between retries
-    const { seq, signal } = beginNewFetch();
+    // Initial load can legitimately take longer on a big dataset; user-driven changes
+    // should remain snappy and cancel quickly.
+    const { seq, signal } = beginNewFetch(showLoadingSpinner ? 25000 : 12000);
     
     try {
       if (seq === activeFetchSeqRef.current) {
@@ -496,9 +501,12 @@ export default function Dashboard() {
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
       // Handle timeout gracefully with retry logic
-      const isTimeoutError = 
+      const msg = typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : '';
+      const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code: unknown }).code ?? '') : '';
+      const isTimeoutError =
         (err instanceof Error && err.name === 'AbortError') ||
-        (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '57014');
+        msg.includes('AbortError') ||
+        code === '57014';
       
       if (isTimeoutError && retryCount < MAX_RETRIES) {
         console.log(`Database timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
