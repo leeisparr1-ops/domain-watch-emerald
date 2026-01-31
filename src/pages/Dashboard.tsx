@@ -629,60 +629,80 @@ export default function Dashboard() {
     }
   }, [user]);
 
+  // Track ongoing matches fetch to prevent duplicates
+  const matchesFetchRef = useRef<AbortController | null>(null);
+  const matchesLoadedOnceRef = useRef(false);
+
   // Fetch pattern matches from database with TRUE server-side pagination
   // This is much faster than fetching all matches and paginating client-side
-  const fetchDialogMatches = useCallback(async (page: number = 1) => {
+  const fetchDialogMatches = useCallback(async (page: number = 1, forceRefresh = false) => {
     if (!user) return;
-    setLoadingMatches(true);
+    
+    // Cancel any existing fetch to prevent race conditions
+    if (matchesFetchRef.current) {
+      matchesFetchRef.current.abort();
+    }
+    const controller = new AbortController();
+    matchesFetchRef.current = controller;
+    
+    // Only show loading spinner if we haven't loaded before or forcing refresh
+    if (!matchesLoadedOnceRef.current || forceRefresh) {
+      setLoadingMatches(true);
+    }
+    
     try {
-      // Auto-cleanup old matches first (runs in background, don't block)
+      // Auto-cleanup old matches in background (non-blocking)
       cleanupOldMatches().catch(console.error);
 
       const from = (page - 1) * matchesPerPage;
       const now = new Date().toISOString();
 
-      // Build query with TRUE server-side pagination and filtering
-      let query = supabase
+      // Use LEFT JOIN (no !inner) to get ALL pattern alerts
+      // Then filter client-side for ended status - this prevents disappearing matches
+      const query = supabase
         .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)', { count: 'estimated' })
+        .select('id, auction_id, domain_name, pattern_id, alerted_at, auctions(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)', { count: 'estimated' })
         .eq('user_id', user.id)
-        .order('alerted_at', { ascending: false });
-
-      // Apply server-side filter for ended auctions - much faster than client-side
-      if (hideEndedMatches) {
-        query = query.gte('auctions.end_time', now);
-      }
-
-      // Apply pagination at the database level
-      query = query.range(from, from + matchesPerPage - 1);
+        .order('alerted_at', { ascending: false })
+        .range(from, from + matchesPerPage - 1)
+        .abortSignal(controller.signal);
 
       const { data: alerts, count, error: alertsError } = await query;
 
+      // Check if this request was aborted
+      if (controller.signal.aborted) return;
+
       if (alertsError) {
         console.error('Matches query error:', alertsError);
-        // Simplified fallback - just show error state
-        setDialogMatches([]);
-        setTotalMatchesCount(0);
+        // Don't clear existing matches on error - keep stale data visible
+        if (!matchesLoadedOnceRef.current) {
+          setDialogMatches([]);
+          setTotalMatchesCount(0);
+        }
         return;
       }
 
       if (!alerts || alerts.length === 0) {
         setDialogMatches([]);
         setTotalMatchesCount(count || 0);
+        matchesLoadedOnceRef.current = true;
         return;
       }
 
-      // Get pattern descriptions in parallel (minimal DB hit - just unique pattern IDs)
+      // Get pattern descriptions in parallel (minimal DB hit)
       const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
       const { data: patternData } = await supabase
         .from('user_patterns')
         .select('id, description')
-        .in('id', patternIds);
+        .in('id', patternIds)
+        .abortSignal(controller.signal);
+
+      if (controller.signal.aborted) return;
 
       const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
 
-      // Map results
-      const matches = alerts.map(alert => {
+      // Map results - LEFT JOIN means auction may be null
+      const allMatches = alerts.map(alert => {
         const auction = alert.auctions as { 
           id: string; 
           price: number; 
@@ -694,7 +714,8 @@ export default function Dashboard() {
           tld: string | null;
           valuation: number | null;
           inventory_source: string | null;
-        };
+        } | null;
+        
         return {
           alert_id: alert.id,
           auction_id: alert.auction_id,
@@ -712,14 +733,27 @@ export default function Dashboard() {
         };
       });
 
-      setTotalMatchesCount(count || matches.length);
-      setDialogMatches(matches);
+      // Apply ended filter client-side (prevents matches from disappearing unexpectedly)
+      const filteredMatches = hideEndedMatches 
+        ? allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now))
+        : allMatches;
+
+      setTotalMatchesCount(count || filteredMatches.length);
+      setDialogMatches(filteredMatches);
+      matchesLoadedOnceRef.current = true;
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Error fetching pattern matches:', error);
-      setDialogMatches([]);
-      setTotalMatchesCount(0);
+      // Keep existing data on error
+      if (!matchesLoadedOnceRef.current) {
+        setDialogMatches([]);
+        setTotalMatchesCount(0);
+      }
     } finally {
-      setLoadingMatches(false);
+      if (!controller.signal.aborted) {
+        setLoadingMatches(false);
+      }
     }
   }, [user, cleanupOldMatches, matchesPerPage, hideEndedMatches]);
 
@@ -768,12 +802,26 @@ export default function Dashboard() {
     return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
   }, [fetchDialogMatches]);
 
-  // Fetch matches when switching to matches tab or changing page
+  // Fetch matches when switching to matches tab or changing page/filter
+  // Debounced to prevent rapid re-fetches when hideEndedMatches toggles
+  const matchesFetchDebounceRef = useRef<number | null>(null);
   useEffect(() => {
     if (viewMode === "matches") {
-      fetchDialogMatches(matchesPage);
+      // Clear any pending debounced fetch
+      if (matchesFetchDebounceRef.current) {
+        clearTimeout(matchesFetchDebounceRef.current);
+      }
+      // Debounce the fetch slightly to batch rapid changes
+      matchesFetchDebounceRef.current = window.setTimeout(() => {
+        fetchDialogMatches(matchesPage);
+      }, 50);
     }
-  }, [viewMode, matchesPage, fetchDialogMatches]);
+    return () => {
+      if (matchesFetchDebounceRef.current) {
+        clearTimeout(matchesFetchDebounceRef.current);
+      }
+    };
+  }, [viewMode, matchesPage, hideEndedMatches, fetchDialogMatches]);
 
   
   // Update time remaining display every 30 seconds
