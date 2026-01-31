@@ -33,6 +33,74 @@ export default function Login() {
     }
   };
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const isRetryableSignInError = (err: unknown) => {
+    const msg =
+      typeof err === "object" && err !== null && "message" in err
+        ? String((err as { message: unknown }).message)
+        : String(err);
+
+    const status =
+      typeof err === "object" && err !== null && "status" in err
+        ? Number((err as { status: unknown }).status)
+        : NaN;
+
+    const code =
+      typeof err === "object" && err !== null && "code" in err
+        ? String((err as { code: unknown }).code ?? "")
+        : "";
+
+    // Do NOT retry bad credentials.
+    if (code === "invalid_credentials" || msg.toLowerCase().includes("invalid login credentials")) {
+      return false;
+    }
+
+    // Retry only for transient issues.
+    return (
+      msg === "REQUEST_TIMEOUT" ||
+      status === 504 ||
+      code === "request_timeout" ||
+      msg.toLowerCase().includes("timeout") ||
+      msg.toLowerCase().includes("failed to fetch")
+    );
+  };
+
+  const signInWithRetry = async () => {
+    const MAX_ATTEMPTS = 3;
+    const TIMEOUT_MS = 25000;
+    let delay = 1000;
+    let showedRetryToast = false;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const { error } = await withTimeout(
+          supabase.auth.signInWithPassword({
+            email,
+            password,
+          }),
+          TIMEOUT_MS
+        );
+
+        if (error) throw error;
+        return;
+      } catch (err) {
+        const retryable = isRetryableSignInError(err);
+        const isLast = attempt === MAX_ATTEMPTS;
+
+        if (!retryable || isLast) throw err;
+
+        if (!showedRetryToast) {
+          toast.info("Backend is busy — retrying sign-in…");
+          showedRetryToast = true;
+        }
+
+        await sleep(delay);
+        delay *= 2;
+      }
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -48,19 +116,7 @@ export default function Login() {
 
       // If remember me is checked, we want a longer session
       // If not, we'll sign out when the browser closes (handled by session storage)
-      const { error } = await withTimeout(
-        supabase.auth.signInWithPassword({
-          email,
-          password,
-        }),
-        12000
-      );
-
-      if (error) {
-        toast.error(error.message);
-        setLoading(false);
-        return;
-      }
+      await signInWithRetry();
 
       if (rememberMe) {
         // Store preference for persistent session
@@ -80,6 +136,12 @@ export default function Login() {
 
       if (message === "REQUEST_TIMEOUT") {
         toast.error("Sign-in is taking too long (backend busy). Please try again in a moment.");
+        return;
+      }
+
+      // If the backend responded but is overloaded.
+      if (message.toLowerCase().includes("timeout") || message.toLowerCase().includes("failed to fetch")) {
+        toast.error("Backend is busy right now. Please try again in a moment.");
         return;
       }
 
