@@ -105,6 +105,17 @@ const COLUMN_SORT_MAP: Record<SortableColumn, { asc: string; desc: string }> = {
   valuation: { asc: "valuation_asc", desc: "valuation_desc" },
 };
 
+// UX: when a user clicks a column header for the first time, they usually
+// expect the "meaningful" direction (e.g. Most Bids, Highest Valuation).
+const DEFAULT_SORT_DIRECTION: Record<SortableColumn, "asc" | "desc"> = {
+  domain_name: "asc",
+  price: "asc",
+  end_time: "asc", // "Ending soon" is typically the default
+  bid_count: "desc",
+  valuation: "desc",
+  domain_age: "desc",
+};
+
 function SortableHeader({ 
   column, 
   label, 
@@ -122,14 +133,19 @@ function SortableHeader({
   const isAsc = currentSort === sortConfig.asc;
   const isDesc = currentSort === sortConfig.desc;
   const isActive = isAsc || isDesc;
+  const defaultDirection = DEFAULT_SORT_DIRECTION[column];
   
   const handleClick = () => {
     if (!onSort) return;
-    if (isAsc) {
-      onSort(sortConfig.desc);
-    } else {
-      onSort(sortConfig.asc);
+
+    // First click on an inactive column should go to the default direction.
+    if (!isActive) {
+      onSort(defaultDirection === "asc" ? sortConfig.asc : sortConfig.desc);
+      return;
     }
+
+    // Otherwise, toggle.
+    onSort(isAsc ? sortConfig.desc : sortConfig.asc);
   };
   
   return (
