@@ -523,7 +523,7 @@ export default function Dashboard() {
         fetchAuctionsFromDb(showLoadingSpinner);
       }
       // matches tab has its own fetch via fetchDialogMatches
-    }, 150); // Let UI settle before kicking off network work
+    }, 50); // Reduced from 150ms - queries are now fast with covering indexes
     
     return () => {
       if (fetchDebounceRef.current) {
