@@ -173,12 +173,7 @@ export function DomainTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <SortableHeader 
-                column="domain_name" 
-                label="Domain" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
+              <TableHead className="whitespace-nowrap">Domain</TableHead>
               {showPatternColumn && (
                 <TableHead className="whitespace-nowrap">Pattern</TableHead>
               )}
@@ -188,32 +183,12 @@ export function DomainTable({
                 currentSort={sortBy}
                 onSort={onSortChange}
               />
-              <SortableHeader 
-                column="bid_count" 
-                label="Bids" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
-              <SortableHeader 
-                column="valuation" 
-                label="Val." 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
-              <SortableHeader 
-                column="domain_age" 
-                label="Age" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
+              <TableHead className="whitespace-nowrap">Bids</TableHead>
+              <TableHead className="whitespace-nowrap">Val.</TableHead>
+              <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
-              <SortableHeader 
-                column="end_time" 
-                label="Ends" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
+              <TableHead className="whitespace-nowrap">Ends</TableHead>
               <TableHead>Actions</TableHead>
               <TableHead className="w-8"></TableHead>
             </TableRow>
