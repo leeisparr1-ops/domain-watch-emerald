@@ -43,7 +43,7 @@ export function Hero() {
           >
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary">
               <Globe className="w-4 h-4" />
-              {domainCount ? `${domainCount.toLocaleString()}+ Domains Monitored` : 'Millions of Domains Monitored'}
+              {domainCount ? `${domainCount.toLocaleString()}+ Domains Monitored` : 'Thousands of Domains Monitored'}
             </span>
           </motion.div>
 
