@@ -20,17 +20,41 @@ export default function Login() {
   
   const navigate = useNavigate();
 
+  const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error("REQUEST_TIMEOUT")), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // If already signed in (stale UI state), skip re-auth and go straight to dashboard.
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing.session) {
+        toast.success("You're already signed in.");
+        navigate("/dashboard");
+        return;
+      }
+
       // If remember me is checked, we want a longer session
       // If not, we'll sign out when the browser closes (handled by session storage)
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+        12000
+      );
 
       if (error) {
         toast.error(error.message);
@@ -51,7 +75,14 @@ export default function Login() {
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error("Login error:", err);
+
+      if (message === "REQUEST_TIMEOUT") {
+        toast.error("Sign-in is taking too long (backend busy). Please try again in a moment.");
+        return;
+      }
+
       toast.error("An error occurred during login");
     } finally {
       setLoading(false);
