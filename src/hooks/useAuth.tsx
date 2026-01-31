@@ -20,9 +20,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety net: if the auth backend is slow/unreachable (timeouts), don't leave the app
+    // stuck in a perpetual loading state.
+    const safetyTimeout = window.setTimeout(() => {
+      setLoading(false);
+    }, 8000);
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        window.clearTimeout(safetyTimeout);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -30,13 +37,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        window.clearTimeout(safetyTimeout);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        window.clearTimeout(safetyTimeout);
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      window.clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
