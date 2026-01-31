@@ -105,17 +105,6 @@ const COLUMN_SORT_MAP: Record<SortableColumn, { asc: string; desc: string }> = {
   valuation: { asc: "valuation_asc", desc: "valuation_desc" },
 };
 
-// UX: when a user clicks a column header for the first time, they usually
-// expect the "meaningful" direction (e.g. Most Bids, Highest Valuation).
-const DEFAULT_SORT_DIRECTION: Record<SortableColumn, "asc" | "desc"> = {
-  domain_name: "asc",
-  price: "asc",
-  end_time: "asc", // "Ending soon" is typically the default
-  bid_count: "desc",
-  valuation: "desc",
-  domain_age: "desc",
-};
-
 function SortableHeader({ 
   column, 
   label, 
@@ -133,25 +122,21 @@ function SortableHeader({
   const isAsc = currentSort === sortConfig.asc;
   const isDesc = currentSort === sortConfig.desc;
   const isActive = isAsc || isDesc;
-  const defaultDirection = DEFAULT_SORT_DIRECTION[column];
   
   const handleClick = () => {
     if (!onSort) return;
-
-    // First click on an inactive column should go to the default direction.
-    if (!isActive) {
-      onSort(defaultDirection === "asc" ? sortConfig.asc : sortConfig.desc);
-      return;
+    if (isAsc) {
+      onSort(sortConfig.desc);
+    } else {
+      onSort(sortConfig.asc);
     }
-
-    // Otherwise, toggle.
-    onSort(isAsc ? sortConfig.desc : sortConfig.asc);
   };
   
   return (
     <TableHead 
       className={cn(
         "cursor-pointer select-none hover:bg-muted/50 transition-colors whitespace-nowrap",
+        isActive && "text-primary",
         className
       )}
       onClick={handleClick}
@@ -159,11 +144,7 @@ function SortableHeader({
       <div className="flex items-center gap-1">
         <span>{label}</span>
         {isActive ? (
-          isAsc ? (
-            <ArrowUp className="w-3 h-3 text-green-500" />
-          ) : (
-            <ArrowDown className="w-3 h-3 text-green-500" />
-          )
+          isAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
         ) : (
           <ArrowUpDown className="w-3 h-3 opacity-50" />
         )}
@@ -183,14 +164,7 @@ export function DomainTable({
   const { isFavorite, toggleFavorite } = useFavorites();
 
   if (domains.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-6 text-center">
-        <div className="text-sm font-medium text-foreground">No results</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          Try a different sort or clear filters.
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -199,7 +173,12 @@ export function DomainTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="whitespace-nowrap">Domain</TableHead>
+              <SortableHeader 
+                column="domain_name" 
+                label="Domain" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               {showPatternColumn && (
                 <TableHead className="whitespace-nowrap">Pattern</TableHead>
               )}
@@ -209,12 +188,32 @@ export function DomainTable({
                 currentSort={sortBy}
                 onSort={onSortChange}
               />
-              <TableHead className="whitespace-nowrap">Bids</TableHead>
-              <TableHead className="whitespace-nowrap">Val.</TableHead>
-              <TableHead className="whitespace-nowrap">Age</TableHead>
+              <SortableHeader 
+                column="bid_count" 
+                label="Bids" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <SortableHeader 
+                column="valuation" 
+                label="Val." 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
+              <SortableHeader 
+                column="domain_age" 
+                label="Age" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
-              <TableHead className="whitespace-nowrap">Ends</TableHead>
+              <SortableHeader 
+                column="end_time" 
+                label="Ends" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <TableHead>Actions</TableHead>
               <TableHead className="w-8"></TableHead>
             </TableRow>

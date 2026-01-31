@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2, Info } from "lucide-react";
 
@@ -12,7 +12,6 @@ import { useUserPatterns } from "@/hooks/useUserPatterns";
 import { usePatternAlerts } from "@/hooks/usePatternAlerts";
 import { Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getCachedAuctions, setCachedAuctions, getCachedMatches, setCachedMatches } from "@/lib/dashboardCache";
 import {
   Select,
   SelectContent,
@@ -36,7 +35,6 @@ import {
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
 import { DomainDetailSheet } from "@/components/dashboard/DomainDetailSheet";
-import { DomainTableSkeleton } from "@/components/dashboard/DomainTableSkeleton";
 import { DomainTable } from "@/components/dashboard/DomainTable";
 
 interface AuctionDomain {
@@ -76,10 +74,6 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "bid_count_asc", label: "Least Bids", column: "bid_count", ascending: true },
   { value: "domain_name_asc", label: "Domain: A-Z", column: "domain_name", ascending: true },
   { value: "domain_name_desc", label: "Domain: Z-A", column: "domain_name", ascending: false },
-  { value: "valuation_asc", label: "Valuation: Low to High", column: "valuation", ascending: true },
-  { value: "valuation_desc", label: "Valuation: High to Low", column: "valuation", ascending: false },
-  { value: "domain_age_asc", label: "Age: Youngest First", column: "domain_age", ascending: true },
-  { value: "domain_age_desc", label: "Age: Oldest First", column: "domain_age", ascending: false },
 ];
 
 const TLD_OPTIONS = [
@@ -141,7 +135,7 @@ export default function Dashboard() {
   const activeFetchSeqRef = useRef(0);
   const activeFetchControllerRef = useRef<AbortController | null>(null);
   const activeFetchTimeoutRef = useRef<number | null>(null);
-  const beginNewFetch = useCallback((timeoutMs: number = 25000) => {
+  const beginNewFetch = useCallback(() => {
     activeFetchSeqRef.current += 1;
     const seq = activeFetchSeqRef.current;
 
@@ -155,9 +149,7 @@ export default function Dashboard() {
 
     const controller = new AbortController();
     activeFetchControllerRef.current = controller;
-    // NOTE: This is a client-side safety timeout only. If it is too low, it will
-    // abort otherwise-valid queries on a busy backend, causing "Failed to fetch auctions".
-    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), timeoutMs);
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 10000);
 
     return { seq, signal: controller.signal };
   }, []);
@@ -220,30 +212,6 @@ export default function Dashboard() {
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
 
-  // INSTANT LOADING: Load cached data immediately on mount before any network requests
-  // This makes the dashboard feel instant while fresh data loads in the background
-  const cacheLoadedRef = useRef(false);
-  useEffect(() => {
-    if (!user || cacheLoadedRef.current) return;
-    cacheLoadedRef.current = true;
-    
-    // Load cached auctions immediately
-    const cached = getCachedAuctions(user.id);
-    if (cached && cached.auctions.length > 0) {
-      setAuctions(cached.auctions);
-      setTotalCount(cached.totalCount);
-      setLoading(false); // Show data immediately
-      hasLoadedOnceRef.current = true;
-      // Don't set lastRefresh - we'll update when fresh data arrives
-    }
-    
-    // Also load cached matches for the badge count
-    const cachedMatches = getCachedMatches(user.id);
-    if (cachedMatches) {
-      setTotalMatchesCount(cachedMatches.totalCount);
-    }
-  }, [user]);
-
   // Track tab visibility so we can avoid expensive re-fetches on tab-switch
   // while still allowing explicit user-driven changes (sort/filter/page) to fetch immediately.
   useEffect(() => {
@@ -259,7 +227,7 @@ export default function Dashboard() {
   // Fetch favorite auctions directly by domain names with proper pagination
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
-    const { seq, signal } = beginNewFetch(showLoadingSpinner ? 25000 : 12000);
+    const { seq, signal } = beginNewFetch();
     try {
       if (seq === activeFetchSeqRef.current) {
         if (showLoadingSpinner) setLoading(true);
@@ -320,40 +288,10 @@ export default function Dashboard() {
         .in('domain_name', favDomains)
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
-
-      // Keep expensive sorts from scanning huge ranges of unknown values.
-      // (Unknown values are shown as '-' in the UI.)
-      if (currentSort.column === 'valuation') {
-        query = query.gt('valuation', 0);
-      } else if (currentSort.column === 'domain_age') {
-        query = query.gt('domain_age', 0);
-      } else if (currentSort.column === 'bid_count' && !currentSort.ascending) {
-        // “Most bids” is the common use-case; filtering out 0 bids drastically reduces scan size.
-        query = query.gt('bid_count', 0);
-      }
-
-      // Columns that benefit from stable tie-breakers / covering-index order.
-      const needsSecondarySort =
-        currentSort.column === 'valuation' ||
-        currentSort.column === 'domain_age' ||
-        currentSort.column === 'bid_count' ||
-        currentSort.column === 'end_time' ||
-        currentSort.column === 'domain_name';
-
-      query = query.order(currentSort.column, { ascending: currentSort.ascending });
-
-      // Tie-breakers for stable ordering and to better match covering indexes.
-      // Important: when the primary sort is end_time, don't add end_time again.
-      if (needsSecondarySort) {
-        if (currentSort.column === 'end_time') {
-          query = query.order('id', { ascending: currentSort.ascending });
-        } else {
-          query = query.order('end_time', { ascending: currentSort.ascending }).order('id', { ascending: currentSort.ascending });
-        }
-      }
-
-      query = query.range(from, to).abortSignal(signal);
+        .lte('price', filters.maxPrice)
+        .order(currentSort.column, { ascending: currentSort.ascending })
+        .range(from, to)
+        .abortSignal(signal);
 
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
@@ -389,8 +327,7 @@ export default function Dashboard() {
     } catch (err) {
       // Ignore aborted/stale requests (common when rapidly changing sort/filter).
       if (seq !== activeFetchSeqRef.current) return;
-      const msg = typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : '';
-      if ((err instanceof Error && err.name === 'AbortError') || msg.includes('AbortError')) {
+      if (err instanceof Error && err.name === 'AbortError') {
         setError('Database is busy - please try again in a moment');
         return;
       }
@@ -407,9 +344,7 @@ export default function Dashboard() {
   const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, retryCount = 0) => {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500; // 1.5 seconds between retries
-    // Initial load can legitimately take longer on a big dataset; user-driven changes
-    // should remain snappy and cancel quickly.
-    const { seq, signal } = beginNewFetch(showLoadingSpinner ? 25000 : 12000);
+    const { seq, signal } = beginNewFetch();
     
     try {
       if (seq === activeFetchSeqRef.current) {
@@ -434,44 +369,8 @@ export default function Dashboard() {
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
-      
-      // Columns that have covering indexes requiring secondary tie-breakers
-      const needsSecondarySort =
-        currentSort.column === 'valuation' ||
-        currentSort.column === 'domain_age' ||
-        currentSort.column === 'bid_count' ||
-        currentSort.column === 'end_time' ||
-        currentSort.column === 'domain_name';
-
-       // For valuation/domain_age, exclude unknown (0) values – the UI shows '-'.
-       // This dramatically reduces the scan size.
-       if (currentSort.column === 'valuation') {
-         query = query.gt('valuation', 0);
-       } else if (currentSort.column === 'domain_age') {
-         query = query.gt('domain_age', 0);
-       } else if (currentSort.column === 'bid_count' && !currentSort.ascending) {
-         // “Most bids” is the common use-case; filtering out 0 bids drastically reduces scan size.
-         query = query.gt('bid_count', 0);
-       }
-
-      query = query.order(currentSort.column, { ascending: currentSort.ascending });
-
-       // Add tie-breakers to enable index-only scans. The secondary columns must
-       // follow the covering-index order; for DESC scans we flip them DESC too
-       // so Postgres can walk the B-tree backward.
-       if (needsSecondarySort) {
-         const sec = currentSort.ascending;
-
-         // If we're already sorting by end_time, don't add end_time again.
-         if (currentSort.column === 'end_time') {
-           query = query.order('id', { ascending: sec });
-         } else {
-           query = query.order('end_time', { ascending: sec }).order('id', { ascending: sec });
-         }
-       }
-      
-      query = query
+        .lte('price', filters.maxPrice)
+        .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to + 1) // Fetch one extra to detect if there are more pages
         .abortSignal(signal);
       
@@ -511,12 +410,6 @@ export default function Dashboard() {
         }));
         if (seq !== activeFetchSeqRef.current) return;
         setAuctions(mapped);
-        
-        // Cache results for instant loading on next visit (only first page with default filters)
-        if (user && currentPage === 1 && sortBy === 'price_asc' && filters.tld === 'all' && filters.auctionType === 'all' && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
-          setCachedAuctions(user.id, mapped, hasMore ? from + itemsPerPage * 1000 : from + mapped.length);
-        }
-        
         // Estimate total count: if we have more pages, keep increasing the estimate
         // This avoids expensive COUNT queries on large tables while allowing full navigation
         if (hasMore) {
@@ -533,12 +426,9 @@ export default function Dashboard() {
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
       // Handle timeout gracefully with retry logic
-      const msg = typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : '';
-      const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code: unknown }).code ?? '') : '';
-      const isTimeoutError =
+      const isTimeoutError = 
         (err instanceof Error && err.name === 'AbortError') ||
-        msg.includes('AbortError') ||
-        code === '57014';
+        (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '57014');
       
       if (isTimeoutError && retryCount < MAX_RETRIES) {
         console.log(`Database timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
@@ -612,7 +502,7 @@ export default function Dashboard() {
         fetchAuctionsFromDb(showLoadingSpinner);
       }
       // matches tab has its own fetch via fetchDialogMatches
-    }, 50); // Reduced from 150ms - queries are now fast with covering indexes
+    }, 150); // Let UI settle before kicking off network work
     
     return () => {
       if (fetchDebounceRef.current) {
@@ -660,92 +550,102 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // Track ongoing matches fetch to prevent duplicates
-  const matchesFetchRef = useRef<AbortController | null>(null);
-  const matchesLoadedOnceRef = useRef(false);
-
-  // Fetch pattern matches from database with TRUE server-side pagination
-  // Uses cache-first strategy for instant loading
-  const fetchDialogMatches = useCallback(async (page: number = 1, forceRefresh = false) => {
+  // Fetch pattern matches from database with server-side pagination
+  // Optionally filters out ended auctions based on hideEndedMatches state
+  const fetchDialogMatches = useCallback(async (page: number = 1) => {
     if (!user) return;
-    
-    // Load from cache immediately on first load (before any network request)
-    if (!matchesLoadedOnceRef.current && page === 1) {
-      const cached = getCachedMatches(user.id);
-      if (cached && cached.matches.length > 0) {
-        setDialogMatches(cached.matches as typeof dialogMatches);
-        setTotalMatchesCount(cached.totalCount);
-        matchesLoadedOnceRef.current = true;
-        // Don't show loading - we have cached data
-        // Continue to fetch fresh data in background
-      }
-    }
-    
-    // Cancel any existing fetch to prevent race conditions
-    if (matchesFetchRef.current) {
-      matchesFetchRef.current.abort();
-    }
-    const controller = new AbortController();
-    matchesFetchRef.current = controller;
-    
-    // Only show loading spinner if we have no data yet
-    if (!matchesLoadedOnceRef.current) {
-      setLoadingMatches(true);
-    }
-    
+    setLoadingMatches(true);
     try {
-      // Auto-cleanup old matches in background (non-blocking)
-      cleanupOldMatches().catch(console.error);
+      // Auto-cleanup old matches first
+      await cleanupOldMatches();
 
       const from = (page - 1) * matchesPerPage;
       const now = new Date().toISOString();
 
-      // Use LEFT JOIN (no !inner) to get ALL pattern alerts
-      // Then filter client-side for ended status - this prevents disappearing matches
-      const query = supabase
+      // Get pattern alerts with joined auction data in a single query
+      const { data: alerts, error: alertsError } = await supabase
         .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id, alerted_at, auctions(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)', { count: 'estimated' })
+        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)')
         .eq('user_id', user.id)
-        .order('alerted_at', { ascending: false })
-        .range(from, from + matchesPerPage - 1)
-        .abortSignal(controller.signal);
-
-      const { data: alerts, count, error: alertsError } = await query;
-
-      // Check if this request was aborted
-      if (controller.signal.aborted) return;
+        .order('alerted_at', { ascending: false });
 
       if (alertsError) {
-        console.error('Matches query error:', alertsError);
-        // Don't clear existing matches on error - keep stale data visible
-        if (!matchesLoadedOnceRef.current) {
+        // Fallback to separate queries if join fails
+        console.log('Join failed, using fallback method');
+        const { data: fallbackAlerts } = await supabase
+          .from('pattern_alerts')
+          .select('id, auction_id, domain_name, pattern_id')
+          .eq('user_id', user.id)
+          .order('alerted_at', { ascending: false });
+
+        if (!fallbackAlerts || fallbackAlerts.length === 0) {
           setDialogMatches([]);
           setTotalMatchesCount(0);
+          return;
         }
+
+        const auctionIds = fallbackAlerts.map(a => a.auction_id);
+        const { data: auctionData } = await supabase
+          .from('auctions')
+          .select('id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source')
+          .in('id', auctionIds);
+
+        const patternIds = [...new Set(fallbackAlerts.map(a => a.pattern_id))];
+        const { data: patternData } = await supabase
+          .from('user_patterns')
+          .select('id, description')
+          .in('id', patternIds);
+
+        const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
+        const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
+
+        let allMatches = fallbackAlerts.map(alert => {
+          const auction = auctionMap.get(alert.auction_id);
+          return {
+            alert_id: alert.id,
+            auction_id: alert.auction_id,
+            domain_name: alert.domain_name,
+            price: auction?.price || 0,
+            end_time: auction?.end_time || null,
+            pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+            bid_count: auction?.bid_count || 0,
+            traffic_count: auction?.traffic_count || 0,
+            domain_age: auction?.domain_age || 0,
+            auction_type: auction?.auction_type || 'Bid',
+            tld: auction?.tld || '',
+            valuation: auction?.valuation || undefined,
+            inventory_source: auction?.inventory_source || undefined,
+          };
+        });
+
+        // Filter out ended auctions if enabled
+        if (hideEndedMatches) {
+          allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
+        }
+
+        setTotalMatchesCount(allMatches.length);
+        const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
+        setDialogMatches(paginatedMatches);
         return;
       }
 
       if (!alerts || alerts.length === 0) {
         setDialogMatches([]);
-        setTotalMatchesCount(count || 0);
-        matchesLoadedOnceRef.current = true;
+        setTotalMatchesCount(0);
         return;
       }
 
-      // Get pattern descriptions in parallel (minimal DB hit)
+      // Get pattern descriptions
       const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
       const { data: patternData } = await supabase
         .from('user_patterns')
         .select('id, description')
-        .in('id', patternIds)
-        .abortSignal(controller.signal);
-
-      if (controller.signal.aborted) return;
+        .in('id', patternIds);
 
       const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
 
-      // Map results - LEFT JOIN means auction may be null
-      const allMatches = alerts.map(alert => {
+      // Build matches with auction data from join
+      let allMatches = alerts.map(alert => {
         const auction = alert.auctions as { 
           id: string; 
           price: number; 
@@ -757,8 +657,7 @@ export default function Dashboard() {
           tld: string | null;
           valuation: number | null;
           inventory_source: string | null;
-        } | null;
-        
+        };
         return {
           alert_id: alert.id,
           auction_id: alert.auction_id,
@@ -776,32 +675,20 @@ export default function Dashboard() {
         };
       });
 
-      // Apply ended filter client-side (prevents matches from disappearing unexpectedly)
-      const filteredMatches = hideEndedMatches 
-        ? allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now))
-        : allMatches;
+      // Filter out ended auctions if enabled
+      if (hideEndedMatches) {
+        allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
+      }
 
-      setTotalMatchesCount(count || filteredMatches.length);
-      setDialogMatches(filteredMatches);
-      matchesLoadedOnceRef.current = true;
-      
-      // Cache first page of matches for instant loading next time
-      if (page === 1) {
-        setCachedMatches(user.id, filteredMatches, count || filteredMatches.length);
-      }
+      setTotalMatchesCount(allMatches.length);
+      const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
+      setDialogMatches(paginatedMatches);
     } catch (error) {
-      // Ignore abort errors
-      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Error fetching pattern matches:', error);
-      // Keep existing data on error
-      if (!matchesLoadedOnceRef.current) {
-        setDialogMatches([]);
-        setTotalMatchesCount(0);
-      }
+      setDialogMatches([]);
+      setTotalMatchesCount(0);
     } finally {
-      if (!controller.signal.aborted) {
-        setLoadingMatches(false);
-      }
+      setLoadingMatches(false);
     }
   }, [user, cleanupOldMatches, matchesPerPage, hideEndedMatches]);
 
@@ -850,26 +737,12 @@ export default function Dashboard() {
     return () => window.removeEventListener('openPatternMatches', handleOpenMatches);
   }, [fetchDialogMatches]);
 
-  // Fetch matches when switching to matches tab or changing page/filter
-  // Debounced to prevent rapid re-fetches when hideEndedMatches toggles
-  const matchesFetchDebounceRef = useRef<number | null>(null);
+  // Fetch matches when switching to matches tab or changing page
   useEffect(() => {
     if (viewMode === "matches") {
-      // Clear any pending debounced fetch
-      if (matchesFetchDebounceRef.current) {
-        clearTimeout(matchesFetchDebounceRef.current);
-      }
-      // Debounce the fetch slightly to batch rapid changes
-      matchesFetchDebounceRef.current = window.setTimeout(() => {
-        fetchDialogMatches(matchesPage);
-      }, 50);
+      fetchDialogMatches(matchesPage);
     }
-    return () => {
-      if (matchesFetchDebounceRef.current) {
-        clearTimeout(matchesFetchDebounceRef.current);
-      }
-    };
-  }, [viewMode, matchesPage, hideEndedMatches, fetchDialogMatches]);
+  }, [viewMode, matchesPage, fetchDialogMatches]);
 
   
   // Update time remaining display every 30 seconds
@@ -952,22 +825,18 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className={`w-4 h-4 text-primary ${(isFetchingAuctions || loadingMatches) ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">
-                    {isFetchingAuctions ? 'Refreshing...' : `Updated ${formatLastRefresh()}`}
-                  </span>
-                  <span className="sm:hidden">
-                    {isFetchingAuctions ? 'Refreshing' : formatLastRefresh()}
-                  </span>
+                  <RefreshCw className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Updated {formatLastRefresh()}</span>
+                  <span className="sm:hidden">{formatLastRefresh()}</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => viewMode === "favorites" ? fetchFavoriteAuctions() : viewMode === "matches" ? fetchDialogMatches(matchesPage, true) : fetchAuctionsFromDb()}
-                  disabled={loading && !hasLoadedOnceRef.current}
+                  onClick={() => viewMode === "favorites" ? fetchFavoriteAuctions() : fetchAuctionsFromDb()}
+                  disabled={loading}
                   title="Refresh data"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading && !hasLoadedOnceRef.current ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -1225,14 +1094,10 @@ export default function Dashboard() {
           {/* Pattern Matches View */}
           {viewMode === "matches" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-              {/* Only show skeleton when we have NO cached matches data */}
-              {loadingMatches && dialogMatches.length === 0 ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading matches...</span>
-                  </div>
-                  <DomainTableSkeleton rows={10} />
+              {loadingMatches ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <span className="ml-3 text-muted-foreground">Loading matches...</span>
                 </div>
               ) : dialogMatches.length > 0 ? (
                 <div className="space-y-4">
@@ -1379,14 +1244,11 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Standard Auctions View - Only show skeleton if no cached data */}
-          {viewMode !== "matches" && loading && auctions.length === 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading auctions...</span>
-              </div>
-              <DomainTableSkeleton rows={itemsPerPage > 50 ? 25 : 15} />
+          {/* Standard Auctions View */}
+          {viewMode !== "matches" && loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <span className="ml-3 text-muted-foreground">Loading auctions...</span>
             </div>
           )}
 
@@ -1397,8 +1259,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Show "no results" only when NOT loading and truly empty */}
-          {viewMode !== "matches" && !loading && !error && filtered.length === 0 && auctions.length === 0 && (
+          {viewMode !== "matches" && !loading && !error && filtered.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p className="mb-2">No auctions found matching your criteria.</p>
               {activeFilterCount > 0 && (
@@ -1407,8 +1268,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Show data when we have any data (cached or fresh), even if still loading in background */}
-          {viewMode !== "matches" && !error && filtered.length > 0 && (
+          {viewMode !== "matches" && !loading && !error && filtered.length > 0 && (
             <>
               {/* Favorites header with Clear All button */}
               {viewMode === "favorites" && totalCount > 0 && (
