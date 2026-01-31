@@ -375,28 +375,30 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice);
       
-      // For valuation/domain_age sorts, filter out unknown values and add secondary sort to match covering index
-      const needsSecondarySort = currentSort.column === 'valuation' || currentSort.column === 'domain_age';
+      // Columns that have covering indexes requiring secondary tie-breakers
+      const needsSecondarySort =
+        currentSort.column === 'valuation' ||
+        currentSort.column === 'domain_age' ||
+        currentSort.column === 'bid_count' ||
+        currentSort.column === 'end_time' ||
+        currentSort.column === 'domain_name';
+
+      // For valuation/domain_age, exclude unknown (0) values – the UI shows '-'.
+      // This dramatically reduces the scan size.
       if (currentSort.column === 'valuation') {
-        // Treat valuation=0 as "unknown" (UI shows '-' for 0), so exclude it.
-        // This also avoids scanning huge numbers of zero-valuations when sorting.
         query = query.gt('valuation', 0);
       } else if (currentSort.column === 'domain_age') {
-        // Treat domain_age=0 as "unknown" (UI shows '-' for 0), so exclude it.
         query = query.gt('domain_age', 0);
       }
-      
+
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
-      
-      // Add tie-breakers to match the covering index ordering.
-      // IMPORTANT: when sorting DESC on the primary column we must also sort DESC on
-      // the tie-breakers, otherwise Postgres can't use a pure backward index scan
-      // and will fall back to an incremental sort (often hitting statement_timeout).
+
+      // Add tie-breakers to enable index-only scans.  The secondary columns must
+      // follow the covering-index order; for DESC scans we flip them DESC too
+      // so Postgres can walk the B-tree backward.
       if (needsSecondarySort) {
-        const secondaryAscending = currentSort.ascending;
-        query = query
-          .order('end_time', { ascending: secondaryAscending })
-          .order('id', { ascending: secondaryAscending });
+        const sec = currentSort.ascending;
+        query = query.order('end_time', { ascending: sec }).order('id', { ascending: sec });
       }
       
       query = query
