@@ -65,15 +65,12 @@ interface SortOption {
   ascending: boolean;
 }
 
+// Reduced sort options to only those with reliable index performance on 750k+ rows
+// Other sorts (Most Bids, Domain A-Z, etc.) cause statement timeouts
 const SORT_OPTIONS: SortOption[] = [
   { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
   { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
-  { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
-  { value: "bid_count_desc", label: "Most Bids", column: "bid_count", ascending: false },
-  { value: "bid_count_asc", label: "Least Bids", column: "bid_count", ascending: true },
-  { value: "domain_name_asc", label: "Domain: A-Z", column: "domain_name", ascending: true },
-  { value: "domain_name_desc", label: "Domain: Z-A", column: "domain_name", ascending: false },
 ];
 
 const TLD_OPTIONS = [
@@ -282,35 +279,33 @@ export default function Dashboard() {
        const { count: totalFavCount } = await countQuery;
        if (seq === activeFetchSeqRef.current) setTotalCount(totalFavCount || 0);
 
-      // Now fetch paginated auctions for those domains
+      // Now fetch paginated auctions for those domains - optimized query
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
         .in('domain_name', favDomains)
-        .gte('end_time', endTimeFilter)
-        .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
+        .gte('end_time', endTimeFilter);
       
-      // Add primary sort column
-      query = query.order(currentSort.column, { ascending: currentSort.ascending });
-      
-      // Add secondary sort tie-breakers aligned with primary sort direction
-      if (currentSort.column !== 'end_time') {
-        query = query.order('end_time', { ascending: currentSort.ascending });
+      // Only apply price filters if they differ from defaults
+      if (filters.minPrice > 0) {
+        query = query.gte('price', filters.minPrice);
       }
-      if (currentSort.column !== 'id') {
-        query = query.order('id', { ascending: currentSort.ascending });
+      if (filters.maxPrice < 1000000) {
+        query = query.lte('price', filters.maxPrice);
       }
       
-      // Apply pagination and abort signal
-      query = query.range(from, to).abortSignal(signal);
-
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
       }
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
       }
+      
+      // Add primary sort column only
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+      
+      // Apply pagination and abort signal
+      query = query.range(from, to).abortSignal(signal);
 
        const { data, error: queryError } = await query;
 
@@ -375,30 +370,19 @@ export default function Dashboard() {
       const endTimeFilter = now.toISOString();
       
       // Query from database with filters, sorting, and pagination
-      // REMOVED count query to prevent timeouts - we estimate count from results instead
-      // Build query with proper secondary sort tie-breakers for efficient index usage
-      // This aligns with our covering indexes (bid_count, end_time, id), etc.
+      // Optimized for 750k+ rows - minimal filters to maximize index usage
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
-        .gte('end_time', endTimeFilter)
-        .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
+        .gte('end_time', endTimeFilter);
       
-      // Add primary sort column
-      query = query.order(currentSort.column, { ascending: currentSort.ascending });
-      
-      // Add secondary sort tie-breakers aligned with primary sort direction for index efficiency
-      // This allows PostgreSQL to walk B-tree indexes in a single direction
-      if (currentSort.column !== 'end_time') {
-        query = query.order('end_time', { ascending: currentSort.ascending });
+      // Only apply price filters if they differ from defaults (reduces query complexity)
+      if (filters.minPrice > 0) {
+        query = query.gte('price', filters.minPrice);
       }
-      if (currentSort.column !== 'id') {
-        query = query.order('id', { ascending: currentSort.ascending });
+      if (filters.maxPrice < 1000000) {
+        query = query.lte('price', filters.maxPrice);
       }
-      
-      // Apply pagination
-      query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
       // Apply TLD filter (convert to uppercase to match DB format like .COM)
       if (filters.tld !== "all") {
@@ -409,6 +393,12 @@ export default function Dashboard() {
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
       }
+      
+      // Add primary sort column only - skip secondary sorts to use simpler query plan
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+      
+      // Apply pagination
+      query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
       const { data, error: queryError } = await query;
       
