@@ -375,15 +375,23 @@ export default function Dashboard() {
         .gte('price', filters.minPrice)
         .lte('price', filters.maxPrice);
       
-      // For valuation/domain_age sorts, filter out NULLs to use optimized indexes
+      // For valuation/domain_age sorts, filter out NULLs and add secondary sort to match covering index
+      const needsSecondarySort = currentSort.column === 'valuation' || currentSort.column === 'domain_age';
       if (currentSort.column === 'valuation') {
         query = query.not('valuation', 'is', null);
       } else if (currentSort.column === 'domain_age') {
         query = query.not('domain_age', 'is', null);
       }
       
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+      
+      // Add secondary sort on end_time and id to match the covering index order
+      // This allows Postgres to use an index-only scan instead of a sequential scan
+      if (needsSecondarySort) {
+        query = query.order('end_time', { ascending: true }).order('id', { ascending: true });
+      }
+      
       query = query
-        .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to + 1) // Fetch one extra to detect if there are more pages
         .abortSignal(signal);
       
