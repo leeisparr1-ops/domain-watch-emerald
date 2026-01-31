@@ -373,7 +373,16 @@ export default function Dashboard() {
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice)
+        .lte('price', filters.maxPrice);
+      
+      // For valuation/domain_age sorts, filter out NULLs to use optimized indexes
+      if (currentSort.column === 'valuation') {
+        query = query.not('valuation', 'is', null);
+      } else if (currentSort.column === 'domain_age') {
+        query = query.not('domain_age', 'is', null);
+      }
+      
+      query = query
         .order(currentSort.column, { ascending: currentSort.ascending })
         .range(from, to + 1) // Fetch one extra to detect if there are more pages
         .abortSignal(signal);
