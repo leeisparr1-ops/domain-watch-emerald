@@ -35,6 +35,7 @@ import {
 import { PatternDialog } from "@/components/dashboard/PatternDialog";
 import { SavedPatternsDialog } from "@/components/dashboard/SavedPatternsDialog";
 import { DomainDetailSheet } from "@/components/dashboard/DomainDetailSheet";
+import { DomainTableSkeleton } from "@/components/dashboard/DomainTableSkeleton";
 import { DomainTable } from "@/components/dashboard/DomainTable";
 
 interface AuctionDomain {
@@ -628,92 +629,50 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // Fetch pattern matches from database with server-side pagination
-  // Optionally filters out ended auctions based on hideEndedMatches state
+  // Fetch pattern matches from database with TRUE server-side pagination
+  // This is much faster than fetching all matches and paginating client-side
   const fetchDialogMatches = useCallback(async (page: number = 1) => {
     if (!user) return;
     setLoadingMatches(true);
     try {
-      // Auto-cleanup old matches first
-      await cleanupOldMatches();
+      // Auto-cleanup old matches first (runs in background, don't block)
+      cleanupOldMatches().catch(console.error);
 
       const from = (page - 1) * matchesPerPage;
       const now = new Date().toISOString();
 
-      // Get pattern alerts with joined auction data in a single query
-      const { data: alerts, error: alertsError } = await supabase
+      // Build query with TRUE server-side pagination and filtering
+      let query = supabase
         .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)')
+        .select('id, auction_id, domain_name, pattern_id, auctions!inner(id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source)', { count: 'estimated' })
         .eq('user_id', user.id)
         .order('alerted_at', { ascending: false });
 
-      if (alertsError) {
-        // Fallback to separate queries if join fails
-        console.log('Join failed, using fallback method');
-        const { data: fallbackAlerts } = await supabase
-          .from('pattern_alerts')
-          .select('id, auction_id, domain_name, pattern_id')
-          .eq('user_id', user.id)
-          .order('alerted_at', { ascending: false });
-
-        if (!fallbackAlerts || fallbackAlerts.length === 0) {
-          setDialogMatches([]);
-          setTotalMatchesCount(0);
-          return;
-        }
-
-        const auctionIds = fallbackAlerts.map(a => a.auction_id);
-        const { data: auctionData } = await supabase
-          .from('auctions')
-          .select('id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source')
-          .in('id', auctionIds);
-
-        const patternIds = [...new Set(fallbackAlerts.map(a => a.pattern_id))];
-        const { data: patternData } = await supabase
-          .from('user_patterns')
-          .select('id, description')
-          .in('id', patternIds);
-
-        const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
-        const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
-
-        let allMatches = fallbackAlerts.map(alert => {
-          const auction = auctionMap.get(alert.auction_id);
-          return {
-            alert_id: alert.id,
-            auction_id: alert.auction_id,
-            domain_name: alert.domain_name,
-            price: auction?.price || 0,
-            end_time: auction?.end_time || null,
-            pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
-            bid_count: auction?.bid_count || 0,
-            traffic_count: auction?.traffic_count || 0,
-            domain_age: auction?.domain_age || 0,
-            auction_type: auction?.auction_type || 'Bid',
-            tld: auction?.tld || '',
-            valuation: auction?.valuation || undefined,
-            inventory_source: auction?.inventory_source || undefined,
-          };
-        });
-
-        // Filter out ended auctions if enabled
-        if (hideEndedMatches) {
-          allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
-        }
-
-        setTotalMatchesCount(allMatches.length);
-        const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
-        setDialogMatches(paginatedMatches);
-        return;
+      // Apply server-side filter for ended auctions - much faster than client-side
+      if (hideEndedMatches) {
+        query = query.gte('auctions.end_time', now);
       }
 
-      if (!alerts || alerts.length === 0) {
+      // Apply pagination at the database level
+      query = query.range(from, from + matchesPerPage - 1);
+
+      const { data: alerts, count, error: alertsError } = await query;
+
+      if (alertsError) {
+        console.error('Matches query error:', alertsError);
+        // Simplified fallback - just show error state
         setDialogMatches([]);
         setTotalMatchesCount(0);
         return;
       }
 
-      // Get pattern descriptions
+      if (!alerts || alerts.length === 0) {
+        setDialogMatches([]);
+        setTotalMatchesCount(count || 0);
+        return;
+      }
+
+      // Get pattern descriptions in parallel (minimal DB hit - just unique pattern IDs)
       const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
       const { data: patternData } = await supabase
         .from('user_patterns')
@@ -722,8 +681,8 @@ export default function Dashboard() {
 
       const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
 
-      // Build matches with auction data from join
-      let allMatches = alerts.map(alert => {
+      // Map results
+      const matches = alerts.map(alert => {
         const auction = alert.auctions as { 
           id: string; 
           price: number; 
@@ -753,14 +712,8 @@ export default function Dashboard() {
         };
       });
 
-      // Filter out ended auctions if enabled
-      if (hideEndedMatches) {
-        allMatches = allMatches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
-      }
-
-      setTotalMatchesCount(allMatches.length);
-      const paginatedMatches = allMatches.slice(from, from + matchesPerPage);
-      setDialogMatches(paginatedMatches);
+      setTotalMatchesCount(count || matches.length);
+      setDialogMatches(matches);
     } catch (error) {
       console.error('Error fetching pattern matches:', error);
       setDialogMatches([]);
@@ -1173,9 +1126,12 @@ export default function Dashboard() {
           {viewMode === "matches" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
               {loadingMatches ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <span className="ml-3 text-muted-foreground">Loading matches...</span>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading matches...</span>
+                  </div>
+                  <DomainTableSkeleton rows={10} />
                 </div>
               ) : dialogMatches.length > 0 ? (
                 <div className="space-y-4">
@@ -1324,9 +1280,12 @@ export default function Dashboard() {
 
           {/* Standard Auctions View */}
           {viewMode !== "matches" && loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <span className="ml-3 text-muted-foreground">Loading auctions...</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading auctions...</span>
+              </div>
+              <DomainTableSkeleton rows={itemsPerPage > 50 ? 25 : 15} />
             </div>
           )}
 
