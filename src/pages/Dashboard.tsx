@@ -292,10 +292,40 @@ export default function Dashboard() {
         .in('domain_name', favDomains)
         .gte('end_time', endTimeFilter)
         .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice)
-        .order(currentSort.column, { ascending: currentSort.ascending })
-        .range(from, to)
-        .abortSignal(signal);
+        .lte('price', filters.maxPrice);
+
+      // Keep expensive sorts from scanning huge ranges of unknown values.
+      // (Unknown values are shown as '-' in the UI.)
+      if (currentSort.column === 'valuation') {
+        query = query.gt('valuation', 0);
+      } else if (currentSort.column === 'domain_age') {
+        query = query.gt('domain_age', 0);
+      } else if (currentSort.column === 'bid_count' && !currentSort.ascending) {
+        // “Most bids” is the common use-case; filtering out 0 bids drastically reduces scan size.
+        query = query.gt('bid_count', 0);
+      }
+
+      // Columns that benefit from stable tie-breakers / covering-index order.
+      const needsSecondarySort =
+        currentSort.column === 'valuation' ||
+        currentSort.column === 'domain_age' ||
+        currentSort.column === 'bid_count' ||
+        currentSort.column === 'end_time' ||
+        currentSort.column === 'domain_name';
+
+      query = query.order(currentSort.column, { ascending: currentSort.ascending });
+
+      // Tie-breakers for stable ordering and to better match covering indexes.
+      // Important: when the primary sort is end_time, don't add end_time again.
+      if (needsSecondarySort) {
+        if (currentSort.column === 'end_time') {
+          query = query.order('id', { ascending: currentSort.ascending });
+        } else {
+          query = query.order('end_time', { ascending: currentSort.ascending }).order('id', { ascending: currentSort.ascending });
+        }
+      }
+
+      query = query.range(from, to).abortSignal(signal);
 
       if (filters.tld !== "all") {
         query = query.eq('tld', filters.tld.toUpperCase());
@@ -383,23 +413,32 @@ export default function Dashboard() {
         currentSort.column === 'end_time' ||
         currentSort.column === 'domain_name';
 
-      // For valuation/domain_age, exclude unknown (0) values – the UI shows '-'.
-      // This dramatically reduces the scan size.
-      if (currentSort.column === 'valuation') {
-        query = query.gt('valuation', 0);
-      } else if (currentSort.column === 'domain_age') {
-        query = query.gt('domain_age', 0);
-      }
+       // For valuation/domain_age, exclude unknown (0) values – the UI shows '-'.
+       // This dramatically reduces the scan size.
+       if (currentSort.column === 'valuation') {
+         query = query.gt('valuation', 0);
+       } else if (currentSort.column === 'domain_age') {
+         query = query.gt('domain_age', 0);
+       } else if (currentSort.column === 'bid_count' && !currentSort.ascending) {
+         // “Most bids” is the common use-case; filtering out 0 bids drastically reduces scan size.
+         query = query.gt('bid_count', 0);
+       }
 
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
 
-      // Add tie-breakers to enable index-only scans.  The secondary columns must
-      // follow the covering-index order; for DESC scans we flip them DESC too
-      // so Postgres can walk the B-tree backward.
-      if (needsSecondarySort) {
-        const sec = currentSort.ascending;
-        query = query.order('end_time', { ascending: sec }).order('id', { ascending: sec });
-      }
+       // Add tie-breakers to enable index-only scans. The secondary columns must
+       // follow the covering-index order; for DESC scans we flip them DESC too
+       // so Postgres can walk the B-tree backward.
+       if (needsSecondarySort) {
+         const sec = currentSort.ascending;
+
+         // If we're already sorting by end_time, don't add end_time again.
+         if (currentSort.column === 'end_time') {
+           query = query.order('id', { ascending: sec });
+         } else {
+           query = query.order('end_time', { ascending: sec }).order('id', { ascending: sec });
+         }
+       }
       
       query = query
         .range(from, to + 1) // Fetch one extra to detect if there are more pages
