@@ -74,6 +74,10 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "bid_count_asc", label: "Least Bids", column: "bid_count", ascending: true },
   { value: "domain_name_asc", label: "Domain: A-Z", column: "domain_name", ascending: true },
   { value: "domain_name_desc", label: "Domain: Z-A", column: "domain_name", ascending: false },
+  { value: "valuation_asc", label: "Valuation: Low to High", column: "valuation", ascending: true },
+  { value: "valuation_desc", label: "Valuation: High to Low", column: "valuation", ascending: false },
+  { value: "domain_age_asc", label: "Age: Youngest First", column: "domain_age", ascending: true },
+  { value: "domain_age_desc", label: "Age: Oldest First", column: "domain_age", ascending: false },
 ];
 
 const TLD_OPTIONS = [
