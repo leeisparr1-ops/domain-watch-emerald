@@ -136,7 +136,6 @@ function SortableHeader({
     <TableHead 
       className={cn(
         "cursor-pointer select-none hover:bg-muted/50 transition-colors whitespace-nowrap",
-        isActive && "text-primary",
         className
       )}
       onClick={handleClick}
@@ -144,7 +143,11 @@ function SortableHeader({
       <div className="flex items-center gap-1">
         <span>{label}</span>
         {isActive ? (
-          isAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+          isAsc ? (
+            <ArrowUp className="w-3 h-3 text-green-500" />
+          ) : (
+            <ArrowDown className="w-3 h-3 text-green-500" />
+          )
         ) : (
           <ArrowUpDown className="w-3 h-3 opacity-50" />
         )}
