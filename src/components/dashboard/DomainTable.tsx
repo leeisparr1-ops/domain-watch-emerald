@@ -167,7 +167,14 @@ export function DomainTable({
   const { isFavorite, toggleFavorite } = useFavorites();
 
   if (domains.length === 0) {
-    return null;
+    return (
+      <div className="rounded-lg border border-border bg-card p-6 text-center">
+        <div className="text-sm font-medium text-foreground">No results</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          Try a different sort or clear filters.
+        </div>
+      </div>
+    );
   }
 
   return (
