@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Mail, Lock, Globe, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +24,6 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // If remember me is checked, we want a longer session
-      // If not, we'll sign out when the browser closes (handled by session storage)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -39,12 +36,9 @@ export default function Login() {
       }
 
       if (rememberMe) {
-        // Store preference for persistent session
         localStorage.setItem("rememberMe", "true");
       } else {
         localStorage.removeItem("rememberMe");
-        // For non-remember sessions, we rely on sessionStorage
-        // Supabase defaults to localStorage, but session will still work
         sessionStorage.setItem("tempSession", "true");
       }
       
@@ -86,16 +80,10 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background Effects */}
+      {/* Simplified background - no heavy blur effects */}
       <div className="absolute inset-0 pattern-grid opacity-20" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md p-8 rounded-2xl glass border border-border relative z-10"
-      >
+      <div className="w-full max-w-md p-8 rounded-2xl glass border border-border relative z-10 animate-in fade-in duration-300">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
@@ -178,11 +166,7 @@ export default function Login() {
           </button>
           
           {showResendSection && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="mt-3"
-            >
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <p className="text-xs text-muted-foreground mb-2 text-center">
                 Enter your email above and click below to resend
               </p>
@@ -200,7 +184,7 @@ export default function Login() {
                 )}
                 Resend Verification Email
               </Button>
-            </motion.div>
+            </div>
           )}
         </div>
 
@@ -210,7 +194,7 @@ export default function Login() {
             Sign up
           </Link>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
