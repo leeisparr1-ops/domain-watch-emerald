@@ -17,7 +17,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border animate-in slide-in-from-top duration-300">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -86,7 +86,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden glass border-t border-border animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden bg-background border-t border-border animate-fade-in">
           <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
             <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
               Home

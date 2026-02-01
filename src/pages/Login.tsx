@@ -80,10 +80,10 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Simplified background - no heavy blur effects */}
-      <div className="absolute inset-0 pattern-grid opacity-20" />
+      {/* Lightweight background pattern */}
+      <div className="absolute inset-0 pattern-grid opacity-10" />
 
-      <div className="w-full max-w-md p-8 rounded-2xl glass border border-border relative z-10 animate-in fade-in duration-300">
+      <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border relative z-10 animate-fade-in">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
