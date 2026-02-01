@@ -97,26 +97,31 @@ serve(async (req) => {
       });
     }
 
-    // Get active auctions
+    // Get active auctions - limit to 2000 to avoid timeout
     const now = new Date().toISOString();
     const { data: auctions, error: auctionsError } = await supabase
       .from("auctions")
       .select("id, domain_name, price, tld, end_time, domain_age")
       .gte("end_time", now)
-      .limit(10000);
+      .order("end_time", { ascending: true })
+      .limit(2000);
 
     if (auctionsError) {
+      console.error("Auctions query error:", auctionsError);
       throw auctionsError;
     }
 
-    // Get already-alerted combinations for this user
+    // Get recently alerted combinations for this user (last 7 days to limit query size)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: existingAlerts, error: alertsError } = await supabase
       .from("pattern_alerts")
       .select("pattern_id, auction_id")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .gte("created_at", weekAgo);
 
     if (alertsError) {
-      throw alertsError;
+      console.error("Alerts query error:", alertsError);
+      // Don't throw - just proceed without dedup to avoid blocking
     }
 
     const alertedSet = new Set(
