@@ -112,14 +112,14 @@ export function usePatternAlerts(deps: PatternAlertsDeps) {
     }
   }, [user, settings.enabled, enabledCount, checkPatterns, sendNotification]);
 
-  // Periodic pattern checking
+  // Periodic pattern checking - deferred to avoid blocking initial page load
   useEffect(() => {
     if (!user || !settings.enabled || enabledCount === 0) return;
 
-    // Initial check after a delay
-    const initialTimeout = setTimeout(runPatternCheck, 5000);
+    // Delay initial check significantly to let the page load first
+    const initialTimeout = setTimeout(runPatternCheck, 15000);
 
-    // Periodic checks
+    // Periodic checks at longer intervals
     const interval = setInterval(runPatternCheck, CHECK_INTERVAL);
 
     return () => {

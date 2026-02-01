@@ -587,7 +587,8 @@ export default function Dashboard() {
     setLoadingMatches(true);
     try {
       const from = (page - 1) * perPage;
-      const to = from + perPage - 1;
+      // Fetch one extra to detect if there are more pages (avoids expensive COUNT query)
+      const to = from + perPage;
       const nowIso = new Date().toISOString();
 
       // Single DB call with joins + true pagination.
@@ -595,16 +596,6 @@ export default function Dashboard() {
       const select = currentHideEnded
         ? 'id, auction_id, domain_name, pattern_id, alerted_at, auctions!inner(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)'
         : 'id, auction_id, domain_name, pattern_id, alerted_at, auctions(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)';
-
-      const countSelect = currentHideEnded
-        ? 'id, auctions!inner(id)'
-        : 'id';
-
-      let countQuery = supabase
-        .from('pattern_alerts')
-        .select(countSelect, { count: 'estimated', head: true })
-        .eq('user_id', user.id)
-        .abortSignal(controller.signal);
 
       let dataQuery = supabase
         .from('pattern_alerts')
@@ -615,16 +606,18 @@ export default function Dashboard() {
         .abortSignal(controller.signal);
 
       if (currentHideEnded) {
-        countQuery = countQuery.gte('auctions.end_time', nowIso);
         dataQuery = dataQuery.gte('auctions.end_time', nowIso);
       }
 
-      const [countResult, dataResult] = await Promise.all([countQuery, dataQuery]);
-      if (dataResult.error) throw dataResult.error;
+      const { data, error: dataError } = await dataQuery;
+      if (dataError) throw dataError;
       if (seq !== matchesFetchSeqRef.current) return;
 
-      const rows = (dataResult.data || []) as Array<any>;
-      const matches = rows.map((row) => {
+      const rows = (data || []) as Array<any>;
+      const hasMore = rows.length > perPage;
+      const resultsToShow = hasMore ? rows.slice(0, perPage) : rows;
+      
+      const matches = resultsToShow.map((row) => {
         const auction = Array.isArray(row.auctions) ? row.auctions[0] : row.auctions;
         const pattern = Array.isArray(row.user_patterns) ? row.user_patterns[0] : row.user_patterns;
         return {
@@ -645,7 +638,14 @@ export default function Dashboard() {
       });
 
       setDialogMatches(matches);
-      setTotalMatchesCount(countResult.count || 0);
+      // Estimate total: if there are more results, keep increasing estimate
+      if (hasMore) {
+        const newEstimate = from + perPage * 100; // Estimate at least 100 more pages
+        setTotalMatchesCount(prev => Math.max(prev, newEstimate));
+      } else {
+        // We've reached the end - set exact count
+        setTotalMatchesCount(from + matches.length);
+      }
     } catch (error) {
       // Ignore aborted requests
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -658,7 +658,7 @@ export default function Dashboard() {
         setLoadingMatches(false);
       }
     }
-  }, [user, cleanupOldMatches, matchesPerPage, hideEndedMatches]);
+  }, [user, matchesPerPage, hideEndedMatches]);
 
   // Reset matches page AND refetch when matchesPerPage or hideEndedMatches changes
   useEffect(() => {
