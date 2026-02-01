@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, useTransition } from "react";
-import { motion } from "framer-motion";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -772,7 +771,7 @@ export default function Dashboard() {
       <Navbar />
       <main className="pt-24 pb-12 px-4">
         <div className="container mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 sm:mb-8">
+          <div className="mb-6 sm:mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                  <button 
@@ -808,10 +807,10 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* View Mode Toggle */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="mb-4">
+          <div className="mb-4 animate-in fade-in duration-300">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
                 <button
@@ -868,11 +867,11 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Search and Actions Bar - Hidden in matches view */}
           {viewMode !== "matches" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4 animate-in fade-in duration-300 delay-100">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
@@ -915,16 +914,13 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Filters Panel - Hidden in matches view */}
           {showFilters && viewMode !== "matches" && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }} 
-              animate={{ opacity: 1, height: 'auto' }} 
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6 p-4 rounded-xl glass border border-border"
+            <div 
+              className="mb-6 p-4 rounded-xl glass border border-border animate-in fade-in slide-in-from-top-2 duration-200"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Filter Auctions</h3>
@@ -1026,12 +1022,12 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* Add Patterns, Saved Patterns, and Alerts - Hidden in matches view */}
           {viewMode !== "matches" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3 animate-in fade-in duration-300 delay-150">
               <PatternDialog patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onClearPatterns={clearPatterns} maxPatterns={maxPatterns} />
               <Link to="/settings">
                 <Button
@@ -1056,12 +1052,12 @@ export default function Dashboard() {
                 onUpdatePattern={updatePattern}
                 maxPatterns={maxPatterns}
               />
-            </motion.div>
+            </div>
           )}
 
           {/* Pattern Matches View */}
           {viewMode === "matches" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+            <div className="animate-in fade-in duration-300 delay-100">
               {loadingMatches ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -1209,7 +1205,7 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* Standard Auctions View */}
@@ -1280,7 +1276,7 @@ export default function Dashboard() {
                   </AlertDialog>
                 </div>
               )}
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+              <div className="animate-in fade-in duration-300 delay-200">
                 <DomainTable
                   domains={filtered}
                   onDomainClick={(d) => {
@@ -1293,14 +1289,12 @@ export default function Dashboard() {
                     setSortBy(newSort);
                   })}
                 />
-              </motion.div>
+              </div>
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <motion.div 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }} 
-                  className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4"
+                <div 
+                  className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300"
                 >
                   {/* Items per page selector */}
                   <div className="flex items-center gap-2">
@@ -1407,7 +1401,7 @@ export default function Dashboard() {
                       of {totalPages.toLocaleString()}
                     </span>
                   </div>
-                </motion.div>
+                </div>
               )}
               
             </>

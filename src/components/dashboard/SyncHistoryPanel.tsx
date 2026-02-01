@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { History, CheckCircle2, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +23,6 @@ export function SyncHistoryPanel() {
   async function fetchHistory() {
     setLoading(true);
     try {
-      // Fetch recent sync history (last 50 entries)
       const { data, error } = await supabase
         .from('sync_history')
         .select('*')
@@ -36,7 +34,6 @@ export function SyncHistoryPanel() {
       if (data) {
         setHistory(data);
         
-        // Calculate stats
         const successful = data.filter(h => h.success).length;
         const failed = data.filter(h => !h.success).length;
         const lastSync = data.length > 0 ? data[0].synced_at : '';
@@ -84,11 +81,7 @@ export function SyncHistoryPanel() {
     : 0;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-6 rounded-xl glass border border-border overflow-hidden"
-    >
+    <div className="mb-6 rounded-xl glass border border-border overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Header - Always visible */}
       <div 
         className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/30 transition-colors"
@@ -139,11 +132,7 @@ export function SyncHistoryPanel() {
 
       {/* Expanded content */}
       {expanded && (
-        <motion.div 
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="border-t border-border"
-        >
+        <div className="border-t border-border animate-in fade-in duration-200">
           {loading ? (
             <div className="p-6 text-center text-muted-foreground">
               Loading sync history...
@@ -225,8 +214,8 @@ export function SyncHistoryPanel() {
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }

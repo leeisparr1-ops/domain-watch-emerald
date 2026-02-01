@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Mail, CheckCircle, XCircle, Loader2, User, CreditCard, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
 import { useSubscription, PLAN_CONFIG } from "@/hooks/useSubscription";
+
 export default function Settings() {
   const { user, loading } = useAuth();
   const { plan, subscribed, subscriptionEnd, loading: subLoading, checkSubscription, openCustomerPortal } = useSubscription();
@@ -103,11 +103,11 @@ export default function Settings() {
       <Navbar />
       <main className="pt-24 pb-12 px-4">
         <div className="container mx-auto max-w-2xl">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h1 className="text-3xl font-bold">Account <span className="gradient-text">Settings</span></h1>
-          </motion.div>
+          </div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-500 delay-100">
             <div className="p-6 rounded-xl glass border border-border">
               <div className="flex items-center gap-3 mb-4">
                 <User className="w-5 h-5 text-primary" />
@@ -288,7 +288,7 @@ export default function Settings() {
                 </>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
       </main>
     </div>
