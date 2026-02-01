@@ -65,7 +65,7 @@ export function Hero() {
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[400ms]">
+          <div className="flex flex-wrap justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '400ms' }}>
             {[
               { icon: Bell, text: "Custom Alert Frequency" },
               { icon: Smartphone, text: "Push Notifications" },
