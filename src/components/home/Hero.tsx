@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Bell, Smartphone, Zap, Globe, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ export function Hero() {
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        // Avoid expensive COUNT(*) on large tables (can cause statement timeouts)
         const { count, error } = await supabase
           .from("auctions")
           .select("id", { count: "planned", head: true });
@@ -35,44 +33,24 @@ export function Hero() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-6"
-          >
+          <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary">
               <Globe className="w-4 h-4" />
               {domainCount ? `${domainCount.toLocaleString()}+ Domains Monitored` : 'Thousands of Domains Monitored'}
             </span>
-          </motion.div>
+          </div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl md:text-7xl font-bold mb-6"
-          >
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
             Pattern-Based{" "}
             <span className="gradient-text">Domain Alerts</span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
-          >
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
             Get alerted when expiring domain names matching your criteria become 
             available at auction or closeout.
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
-          >
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
             <Link to="/signup">
               <Button variant="hero" size="xl">
                 <Bell className="w-5 h-5 mr-2" />
@@ -84,15 +62,10 @@ export function Hero() {
                 View Pricing
               </Button>
             </Link>
-          </motion.div>
+          </div>
 
           {/* Feature Pills */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-wrap justify-center gap-4"
-          >
+          <div className="flex flex-wrap justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[400ms]">
             {[
               { icon: Bell, text: "Custom Alert Frequency" },
               { icon: Smartphone, text: "Push Notifications" },
@@ -107,7 +80,7 @@ export function Hero() {
                 {feature.text}
               </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
