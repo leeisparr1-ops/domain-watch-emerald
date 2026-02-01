@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Smartphone, Zap, Shield, Globe, Mail } from "lucide-react";
+import { Bell, Smartphone, Zap, Globe, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Hero = forwardRef<HTMLElement>(function Hero(_props, ref) {
+export function Hero() {
   const [domainCount, setDomainCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export const Hero = forwardRef<HTMLElement>(function Hero(_props, ref) {
   }, []);
 
   return (
-    <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Effects */}
       <div className="absolute inset-0 pattern-grid opacity-30" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -112,4 +112,4 @@ export const Hero = forwardRef<HTMLElement>(function Hero(_props, ref) {
       </div>
     </section>
   );
-});
+}
