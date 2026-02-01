@@ -476,10 +476,9 @@ export default function Dashboard() {
     setCurrentPage(1);
   }
   
-  // Reset matches page when matchesPerPage or hideEndedMatches changes
-  useEffect(() => {
-    setMatchesPage(1);
-  }, [matchesPerPage, hideEndedMatches]);
+  // Refs for tracking previous values to detect changes (used by effect after fetchDialogMatches)
+  const prevHideEndedRef = useRef(hideEndedMatches);
+  const prevMatchesPerPageRef = useRef(matchesPerPage);
   
   // Fetch data based on view mode with debounce to prevent UI blocking
   const lastFetchRef = useRef<number>(0);
@@ -567,97 +566,212 @@ export default function Dashboard() {
 
   // Fetch pattern matches from database with TRUE server-side pagination
   // Uses range() for efficient DB-level pagination instead of fetching all then slicing
-  const fetchDialogMatches = useCallback(async (page: number = 1) => {
+  // Includes abort controller to prevent race conditions on rapid page changes
+  const matchesFetchSeqRef = useRef(0);
+  const matchesFetchControllerRef = useRef<AbortController | null>(null);
+  
+  const fetchDialogMatches = useCallback(async (page: number = 1, currentHideEnded: boolean = hideEndedMatches, perPage: number = matchesPerPage) => {
     if (!user) return;
+    
+    // Increment sequence and cancel any in-flight request
+    matchesFetchSeqRef.current += 1;
+    const seq = matchesFetchSeqRef.current;
+    
+    if (matchesFetchControllerRef.current) {
+      matchesFetchControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    matchesFetchControllerRef.current = controller;
+    
     setLoadingMatches(true);
     try {
       // Auto-cleanup old matches first (non-blocking)
       cleanupOldMatches();
 
-      const from = (page - 1) * matchesPerPage;
-      const to = from + matchesPerPage - 1;
+      const from = (page - 1) * perPage;
+      const to = from + perPage - 1;
       const now = new Date().toISOString();
 
-      // Build base query with server-side pagination
-      let countQuery = supabase
-        .from('pattern_alerts')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      let dataQuery = supabase
-        .from('pattern_alerts')
-        .select('id, auction_id, domain_name, pattern_id, alerted_at')
-        .eq('user_id', user.id)
-        .order('alerted_at', { ascending: false })
-        .range(from, to);
-
-      // Execute count and data queries in parallel
-      const [countResult, dataResult] = await Promise.all([countQuery, dataQuery]);
-
-      if (dataResult.error) throw dataResult.error;
+      // When hiding ended auctions, we need to filter at the DB level via the auction join
+      // First, get active auction IDs, then query pattern_alerts for those
       
-      const alerts = dataResult.data || [];
-      
-      if (alerts.length === 0) {
-        setDialogMatches([]);
-        setTotalMatchesCount(countResult.count || 0);
-        return;
-      }
-
-      // Fetch auction data for these specific alerts
-      const auctionIds = alerts.map(a => a.auction_id);
-      const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
-      
-      const [auctionResult, patternResult] = await Promise.all([
-        supabase
+      if (currentHideEnded) {
+        // Strategy: Join pattern_alerts with auctions to filter by end_time at DB level
+        // This avoids client-side filtering issues with pagination
+        
+        // Get all user's pattern_alert auction_ids that are still active
+        const { data: activeAlerts, error: alertsError } = await supabase
+          .from('pattern_alerts')
+          .select('id, auction_id, domain_name, pattern_id, alerted_at')
+          .eq('user_id', user.id)
+          .order('alerted_at', { ascending: false })
+          .abortSignal(controller.signal);
+        
+        if (alertsError) throw alertsError;
+        if (seq !== matchesFetchSeqRef.current) return; // Stale request
+        
+        if (!activeAlerts || activeAlerts.length === 0) {
+          setDialogMatches([]);
+          setTotalMatchesCount(0);
+          return;
+        }
+        
+        // Get auction end times to filter
+        const auctionIds = activeAlerts.map(a => a.auction_id);
+        const { data: auctionData, error: auctionError } = await supabase
           .from('auctions')
           .select('id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source')
-          .in('id', auctionIds),
-        supabase
+          .in('id', auctionIds)
+          .gte('end_time', now)
+          .abortSignal(controller.signal);
+        
+        if (auctionError) throw auctionError;
+        if (seq !== matchesFetchSeqRef.current) return; // Stale request
+        
+        const activeAuctionIds = new Set((auctionData || []).map(a => a.id));
+        const auctionMap = new Map((auctionData || []).map(a => [a.id, a]));
+        
+        // Filter alerts to only those with active auctions
+        const filteredAlerts = activeAlerts.filter(a => activeAuctionIds.has(a.auction_id));
+        
+        // Apply pagination to filtered results
+        const paginatedAlerts = filteredAlerts.slice(from, to + 1);
+        const patternIds = [...new Set(paginatedAlerts.map(a => a.pattern_id))];
+        
+        // Fetch pattern descriptions
+        const { data: patternData } = await supabase
           .from('user_patterns')
           .select('id, description')
           .in('id', patternIds)
-      ]);
+          .abortSignal(controller.signal);
+        
+        if (seq !== matchesFetchSeqRef.current) return; // Stale request
+        
+        const patternMap = new Map((patternData || []).map(p => [p.id, p.description]));
+        
+        const matches = paginatedAlerts.map(alert => {
+          const auction = auctionMap.get(alert.auction_id);
+          return {
+            alert_id: alert.id,
+            auction_id: alert.auction_id,
+            domain_name: alert.domain_name,
+            price: auction?.price || 0,
+            end_time: auction?.end_time || null,
+            pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+            bid_count: auction?.bid_count || 0,
+            traffic_count: auction?.traffic_count || 0,
+            domain_age: auction?.domain_age || 0,
+            auction_type: auction?.auction_type || 'Bid',
+            tld: auction?.tld || '',
+            valuation: auction?.valuation || undefined,
+            inventory_source: auction?.inventory_source || undefined,
+          };
+        });
+        
+        setTotalMatchesCount(filteredAlerts.length);
+        setDialogMatches(matches);
+      } else {
+        // No filtering - use standard pagination
+        const countQuery = supabase
+          .from('pattern_alerts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .abortSignal(controller.signal);
 
-      const auctionMap = new Map((auctionResult.data || []).map(a => [a.id, a]));
-      const patternMap = new Map((patternResult.data || []).map(p => [p.id, p.description]));
+        const dataQuery = supabase
+          .from('pattern_alerts')
+          .select('id, auction_id, domain_name, pattern_id, alerted_at')
+          .eq('user_id', user.id)
+          .order('alerted_at', { ascending: false })
+          .range(from, to)
+          .abortSignal(controller.signal);
 
-      // Build matches with auction data
-      let matches = alerts.map(alert => {
-        const auction = auctionMap.get(alert.auction_id);
-        return {
-          alert_id: alert.id,
-          auction_id: alert.auction_id,
-          domain_name: alert.domain_name,
-          price: auction?.price || 0,
-          end_time: auction?.end_time || null,
-          pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
-          bid_count: auction?.bid_count || 0,
-          traffic_count: auction?.traffic_count || 0,
-          domain_age: auction?.domain_age || 0,
-          auction_type: auction?.auction_type || 'Bid',
-          tld: auction?.tld || '',
-          valuation: auction?.valuation || undefined,
-          inventory_source: auction?.inventory_source || undefined,
-        };
-      });
+        const [countResult, dataResult] = await Promise.all([countQuery, dataQuery]);
 
-      // Filter out ended auctions client-side if enabled
-      // Note: For truly large match sets, this filtering could be moved to the DB
-      if (hideEndedMatches) {
-        matches = matches.filter(m => m.end_time && new Date(m.end_time) > new Date(now));
+        if (dataResult.error) throw dataResult.error;
+        if (seq !== matchesFetchSeqRef.current) return; // Stale request
+        
+        const alerts = dataResult.data || [];
+        
+        if (alerts.length === 0) {
+          setDialogMatches([]);
+          setTotalMatchesCount(countResult.count || 0);
+          return;
+        }
+
+        // Fetch auction data for these specific alerts
+        const auctionIds = alerts.map(a => a.auction_id);
+        const patternIds = [...new Set(alerts.map(a => a.pattern_id))];
+        
+        const [auctionResult, patternResult] = await Promise.all([
+          supabase
+            .from('auctions')
+            .select('id, price, end_time, bid_count, traffic_count, domain_age, auction_type, tld, valuation, inventory_source')
+            .in('id', auctionIds)
+            .abortSignal(controller.signal),
+          supabase
+            .from('user_patterns')
+            .select('id, description')
+            .in('id', patternIds)
+            .abortSignal(controller.signal)
+        ]);
+
+        if (seq !== matchesFetchSeqRef.current) return; // Stale request
+
+        const auctionMap = new Map((auctionResult.data || []).map(a => [a.id, a]));
+        const patternMap = new Map((patternResult.data || []).map(p => [p.id, p.description]));
+
+        const matches = alerts.map(alert => {
+          const auction = auctionMap.get(alert.auction_id);
+          return {
+            alert_id: alert.id,
+            auction_id: alert.auction_id,
+            domain_name: alert.domain_name,
+            price: auction?.price || 0,
+            end_time: auction?.end_time || null,
+            pattern_description: patternMap.get(alert.pattern_id) || 'Pattern',
+            bid_count: auction?.bid_count || 0,
+            traffic_count: auction?.traffic_count || 0,
+            domain_age: auction?.domain_age || 0,
+            auction_type: auction?.auction_type || 'Bid',
+            tld: auction?.tld || '',
+            valuation: auction?.valuation || undefined,
+            inventory_source: auction?.inventory_source || undefined,
+          };
+        });
+
+        setTotalMatchesCount(countResult.count || 0);
+        setDialogMatches(matches);
       }
-
-      setTotalMatchesCount(countResult.count || 0);
-      setDialogMatches(matches);
     } catch (error) {
+      // Ignore aborted requests
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (seq !== matchesFetchSeqRef.current) return;
       console.error('Error fetching pattern matches:', error);
       setDialogMatches([]);
       setTotalMatchesCount(0);
     } finally {
-      setLoadingMatches(false);
+      if (seq === matchesFetchSeqRef.current) {
+        setLoadingMatches(false);
+      }
     }
   }, [user, cleanupOldMatches, matchesPerPage, hideEndedMatches]);
+
+  // Reset matches page AND refetch when matchesPerPage or hideEndedMatches changes
+  useEffect(() => {
+    // Only trigger if these specific values changed (not on initial render)
+    if (prevHideEndedRef.current !== hideEndedMatches || prevMatchesPerPageRef.current !== matchesPerPage) {
+      prevHideEndedRef.current = hideEndedMatches;
+      prevMatchesPerPageRef.current = matchesPerPage;
+      
+      // Reset to page 1 and fetch with new settings
+      setMatchesPage(1);
+      if (viewMode === "matches") {
+        // Call with explicit params to ensure we use the latest values
+        fetchDialogMatches(1, hideEndedMatches, matchesPerPage);
+      }
+    }
+  }, [matchesPerPage, hideEndedMatches, viewMode, fetchDialogMatches]);
 
   // Delete a single match
   const deleteMatch = async (alertId: string) => {
