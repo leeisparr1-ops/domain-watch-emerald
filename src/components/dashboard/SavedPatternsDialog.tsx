@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Bookmark, Trash2, Pencil, ToggleLeft, ToggleRight, Settings2 } from "lucide-react";
+import { Bookmark, Trash2, ToggleLeft, ToggleRight, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,7 +60,6 @@ export function SavedPatternsDialog({
     if (onUpdatePattern) {
       return await onUpdatePattern(id, updates);
     }
-    // Fallback to just renaming if onUpdatePattern not provided
     if (updates.description !== undefined) {
       onRenamePattern(id, updates.description || "");
     }
@@ -108,11 +106,9 @@ export function SavedPatternsDialog({
             ) : (
               <div className="space-y-2">
                 {patterns.map((pattern) => (
-                  <motion.div
+                  <div
                     key={pattern.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex items-center justify-between p-3 rounded-lg bg-background/50 border ${
+                    className={`flex items-center justify-between p-3 rounded-lg bg-background/50 border transition-all ${
                       pattern.enabled ? "border-primary/30" : "border-border opacity-60"
                     }`}
                   >
@@ -195,7 +191,7 @@ export function SavedPatternsDialog({
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
