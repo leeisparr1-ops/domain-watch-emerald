@@ -278,10 +278,19 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
+    // Extract detailed error message for better debugging
+    let errorMessage = "Unknown error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === "object" && error !== null && "message" in error) {
+      errorMessage = String((error as { message: unknown }).message);
+    } else if (typeof error === "string") {
+      errorMessage = error;
+    }
     console.error("Error in check-pattern-alerts:", error);
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Unknown error" 
+      error: errorMessage 
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
