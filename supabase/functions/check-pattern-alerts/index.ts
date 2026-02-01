@@ -48,7 +48,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -56,25 +56,35 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get user from token
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    if (userError || !user) {
+    // Create client with user's auth for JWT validation
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    
+    // Validate JWT using getClaims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    const userId = claimsData.claims.sub as string;
+    
+    // Create service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get user's enabled patterns
     const { data: patterns, error: patternsError } = await supabase
       .from("user_patterns")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("enabled", true);
 
     if (patternsError) {
@@ -103,7 +113,7 @@ serve(async (req) => {
     const { data: existingAlerts, error: alertsError } = await supabase
       .from("pattern_alerts")
       .select("pattern_id, auction_id")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     if (alertsError) {
       throw alertsError;
@@ -167,7 +177,7 @@ serve(async (req) => {
         });
 
         newAlerts.push({
-          user_id: user.id,
+          user_id: userId,
           pattern_id: pattern.id,
           auction_id: auction.id,
           domain_name: auction.domain_name,
@@ -208,7 +218,7 @@ serve(async (req) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              user_id: user.id,
+              user_id: userId,
               payload: {
                 title: `🎯 ${matchedDomains.length} Domain${matchedDomains.length > 1 ? 's' : ''} Match Your Patterns!`,
                 body: `${topMatches}${moreCount}`,
@@ -234,7 +244,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               type: "pattern_match",
-              userId: user.id,
+              userId: userId,
               data: {
                 matches: matchedDomains.slice(0, 10).map(m => ({
                   domain: m.domain_name,
