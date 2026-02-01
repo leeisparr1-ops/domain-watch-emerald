@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Search, Bell, Smartphone, Check } from "lucide-react";
 
 const steps = [
@@ -32,28 +31,19 @@ export function HowItWorks() {
   return (
     <section className="py-20 bg-secondary/20">
       <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
+        <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             How It <span className="gradient-text">Works</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Get started in minutes and never miss a domain opportunity again.
           </p>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {steps.map((item, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
               className="relative"
             >
               {/* Connector line for desktop */}
@@ -77,7 +67,7 @@ export function HowItWorks() {
                   {item.description}
                 </p>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

@@ -25,6 +25,9 @@ export function Logo({ className = "", size = "md" }: LogoProps) {
       alt="ExpiredHawk Logo" 
       width={width}
       height={height}
+      loading="eager"
+      decoding="async"
+      fetchPriority="high"
       className={`${sizes[size]} rounded-lg ${className}`}
     />
   );

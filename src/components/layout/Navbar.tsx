@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogIn, User, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,11 +17,7 @@ export function Navbar() {
   };
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      className="fixed top-0 left-0 right-0 z-50 glass border-b border-border"
-    >
+    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border animate-in slide-in-from-top duration-300">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -90,56 +85,49 @@ export function Navbar() {
       </div>
 
       {/* Mobile Menu */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass border-t border-border"
-          >
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
-              <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
-                Home
-              </Link>
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
-                Pricing
-              </Link>
-              {user ? (
-                <>
-                  <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
-                    Dashboard
-                  </Link>
-                  <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
-                    Settings
-                  </Link>
-                  <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                    <HelpCircle className="w-4 h-4" />
-                    Help
-                  </Link>
-                  <Button variant="outline" onClick={handleLogout}>
-                    Logout
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                    <HelpCircle className="w-4 h-4" />
-                    Help
-                  </Link>
-                  <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                    <LogIn className="w-4 h-4" />
-                    Sign In
-                  </Link>
-                  <Link to="/signup" onClick={() => setIsOpen(false)}>
-                    <Button variant="hero" className="w-full">Get Started</Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+      {isOpen && (
+        <div className="md:hidden glass border-t border-border animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
+            <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+              Home
+            </Link>
+            <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+              Pricing
+            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+                  Dashboard
+                </Link>
+                <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+                  Settings
+                </Link>
+                <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <HelpCircle className="w-4 h-4" />
+                  Help
+                </Link>
+                <Button variant="outline" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <HelpCircle className="w-4 h-4" />
+                  Help
+                </Link>
+                <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </Link>
+                <Link to="/signup" onClick={() => setIsOpen(false)}>
+                  <Button variant="hero" className="w-full">Get Started</Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
   );
 }
