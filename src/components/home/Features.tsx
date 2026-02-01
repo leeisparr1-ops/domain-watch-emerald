@@ -1,7 +1,5 @@
-import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Search, Bell, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react";
-
 const features = [
   {
     icon: Search,
@@ -40,9 +38,9 @@ const features = [
   },
 ];
 
-export const Features = forwardRef<HTMLElement>(function Features(_, ref) {
+export function Features() {
   return (
-    <section ref={ref} className="py-20">
+    <section className="py-20">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -84,6 +82,4 @@ export const Features = forwardRef<HTMLElement>(function Features(_, ref) {
       </div>
     </section>
   );
-});
-
-Features.displayName = "Features";
+}
