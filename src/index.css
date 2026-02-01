@@ -104,9 +104,19 @@
   }
 
   .glass {
-    background: hsl(var(--glass-bg));
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    /* Performance: Use solid semi-transparent bg instead of expensive blur */
+    background: hsl(156 25% 8% / 0.95);
+  }
+  
+  /* Optional glass effect only for users who prefer motion/animations */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (backdrop-filter: blur(8px)) {
+      .glass-optional {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background: hsl(var(--glass-bg));
+      }
+    }
   }
 
   .gradient-primary {

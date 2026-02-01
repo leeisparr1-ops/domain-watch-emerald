@@ -41,20 +41,22 @@ export function HowItWorks() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {steps.map((item, index) => (
-            <div
-              key={index}
-              className="relative"
-            >
-              {/* Connector line for desktop */}
-              {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-12 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-primary/50 to-transparent" />
-              )}
-              
-              <div className="flex flex-col items-center text-center p-6 rounded-2xl glass border border-border hover:border-primary/30 transition-all">
-                <div className="relative mb-4">
-                  <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center">
-                    <item.icon className="w-7 h-7 text-primary-foreground" />
+          {steps.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={index}
+                className="relative"
+              >
+                {/* Connector line for desktop */}
+                {index < steps.length - 1 && (
+                  <div className="hidden lg:block absolute top-12 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-primary/50 to-transparent" />
+                )}
+                
+                <div className="flex flex-col items-center text-center p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-colors">
+                  <div className="relative mb-4">
+                    <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center">
+                      <Icon className="w-7 h-7 text-primary-foreground" />
                   </div>
                   <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-background border-2 border-primary flex items-center justify-center text-sm font-bold text-primary">
                     {item.step}
@@ -63,12 +65,13 @@ export function HowItWorks() {
                 <h3 className="text-lg font-semibold mb-2 text-foreground">
                   {item.title}
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                  {item.description}
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {item.description}
+              </p>
             </div>
-          ))}
+          </div>
+            );
+          })}
         </div>
       </div>
     </section>

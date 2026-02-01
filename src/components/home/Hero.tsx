@@ -5,25 +5,25 @@ import { Button } from "@/components/ui/button";
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Background Effects */}
-      <div className="absolute inset-0 pattern-grid opacity-30" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+      {/* Lightweight Background - removed expensive blur-3xl effects */}
+      <div className="absolute inset-0 pattern-grid opacity-20" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full opacity-50" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/3 rounded-full opacity-50" />
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
 
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in">
             Pattern-Based{" "}
             <span className="gradient-text">Domain Alerts</span>
           </h1>
 
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
             Get alerted when expiring domain names matching your criteria become 
             available at auction or closeout.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
             <Link to="/signup">
               <Button variant="hero" size="xl">
                 <Bell className="w-5 h-5 mr-2" />
@@ -38,7 +38,7 @@ export function Hero() {
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '400ms' }}>
+          <div className="flex flex-wrap justify-center gap-4 animate-fade-in">
             {[
               { icon: Bell, text: "Custom Alert Frequency" },
               { icon: Smartphone, text: "Push Notifications" },

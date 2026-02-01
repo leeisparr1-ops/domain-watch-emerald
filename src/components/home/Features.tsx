@@ -52,13 +52,15 @@ export function Features() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="p-6 rounded-2xl glass border border-border hover:border-primary/30 transition-all hover:-translate-y-1 group"
-            >
-              <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4 group-hover:glow-primary transition-all">
-                <feature.icon className="w-6 h-6 text-primary-foreground" />
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={index}
+                className="p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6 text-primary-foreground" />
               </div>
               <h3 className="text-xl font-semibold mb-2 text-foreground">
                 {feature.title}
@@ -67,7 +69,8 @@ export function Features() {
                 {feature.description}
               </p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
