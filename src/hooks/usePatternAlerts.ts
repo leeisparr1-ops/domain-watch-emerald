@@ -1,16 +1,21 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./useAuth";
 import { useNotificationSettings } from "./useNotificationSettings";
-import { useUserPatterns, PatternMatch } from "./useUserPatterns";
+import type { PatternMatch } from "./useUserPatterns";
 import { toast } from "sonner";
 
 const NOTIFICATION_COOLDOWN_KEY = 'pattern-alert-last-notification';
 const NOTIFICATION_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours between in-app notifications
 
-export function usePatternAlerts() {
+export type PatternAlertsDeps = {
+  enabledCount: number;
+  checkPatterns: () => Promise<{ matches: PatternMatch[]; newMatches: number }>;
+};
+
+export function usePatternAlerts(deps: PatternAlertsDeps) {
   const { user } = useAuth();
   const { settings } = useNotificationSettings();
-  const { patterns, checkPatterns, enabledCount } = useUserPatterns();
+  const { enabledCount, checkPatterns } = deps;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastCheckRef = useRef<number>(0);
   const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
