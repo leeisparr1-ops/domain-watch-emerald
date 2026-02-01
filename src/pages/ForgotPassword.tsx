@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Mail, Globe, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +32,8 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       <div className="absolute inset-0 pattern-grid opacity-20" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md p-8 rounded-2xl glass border border-border relative z-10"
-      >
+      <div className="w-full max-w-md p-8 rounded-2xl glass border border-border relative z-10 animate-in fade-in duration-300">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
@@ -94,7 +88,7 @@ export default function ForgotPassword() {
             Back to login
           </Link>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
