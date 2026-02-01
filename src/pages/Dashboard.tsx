@@ -537,32 +537,44 @@ export default function Dashboard() {
   // NOTE: We intentionally avoid fetching a full matches COUNT on initial dashboard load.
   // That count can be expensive when users have many matches.
   
-  // Auto-cleanup old matches (older than 8 days)
+  // Auto-cleanup old matches (older than 8 days) - runs in background with low priority
   const cleanupOldMatches = useCallback(async () => {
     if (!user) return;
     try {
       const eightDaysAgo = new Date();
       eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
       
-      await supabase
+      // Use a limited delete to avoid timeouts on large datasets
+      // Delete in small batches to not block other queries
+      const { data: oldMatches } = await supabase
         .from('pattern_alerts')
-        .delete()
+        .select('id')
         .eq('user_id', user.id)
-        .lt('alerted_at', eightDaysAgo.toISOString());
+        .lt('alerted_at', eightDaysAgo.toISOString())
+        .limit(100);
+      
+      if (oldMatches && oldMatches.length > 0) {
+        const idsToDelete = oldMatches.map(m => m.id);
+        await supabase
+          .from('pattern_alerts')
+          .delete()
+          .in('id', idsToDelete);
+      }
     } catch (error) {
-      console.error('Error cleaning up old matches:', error);
+      // Silently fail - cleanup is not critical
     }
   }, [user]);
 
-  // Cleanup old matches once per page-load (non-blocking)
+  // Cleanup old matches - significantly deferred to not impact page load (60s delay)
   const didCleanupMatchesRef = useRef(false);
   useEffect(() => {
     if (!user) return;
     if (didCleanupMatchesRef.current) return;
     didCleanupMatchesRef.current = true;
-    window.setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       cleanupOldMatches();
-    }, 0);
+    }, 60000); // Wait 60 seconds before cleanup
+    return () => clearTimeout(timeoutId);
   }, [user, cleanupOldMatches]);
 
   // Fetch pattern matches from database with TRUE server-side pagination
@@ -583,6 +595,9 @@ export default function Dashboard() {
     }
     const controller = new AbortController();
     matchesFetchControllerRef.current = controller;
+    
+    // Auto-abort after 15 seconds to prevent hanging
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     setLoadingMatches(true);
     try {
@@ -610,6 +625,7 @@ export default function Dashboard() {
       }
 
       const { data, error: dataError } = await dataQuery;
+      clearTimeout(timeoutId);
       if (dataError) throw dataError;
       if (seq !== matchesFetchSeqRef.current) return;
 
@@ -647,10 +663,16 @@ export default function Dashboard() {
         setTotalMatchesCount(from + matches.length);
       }
     } catch (error) {
-      // Ignore aborted requests
-      if (error instanceof Error && error.name === 'AbortError') return;
+      // Ignore aborted requests (including timeouts) - show empty state gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (seq === matchesFetchSeqRef.current) {
+          setDialogMatches([]);
+          setTotalMatchesCount(0);
+          setLoadingMatches(false);
+        }
+        return;
+      }
       if (seq !== matchesFetchSeqRef.current) return;
-      console.error('Error fetching pattern matches:', error);
       setDialogMatches([]);
       setTotalMatchesCount(0);
     } finally {
