@@ -1,29 +1,8 @@
 import { Link } from "react-router-dom";
-import { Bell, Smartphone, Zap, Globe, Mail } from "lucide-react";
+import { Bell, Smartphone, Zap, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export function Hero() {
-  const [domainCount, setDomainCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const { count, error } = await supabase
-          .from("auctions")
-          .select("id", { count: "planned", head: true });
-
-        if (error) throw error;
-        setDomainCount(count ?? null);
-      } catch {
-        setDomainCount(null);
-      }
-    };
-
-    fetchCount();
-  }, []);
-
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Effects */}
@@ -33,12 +12,6 @@ export function Hero() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary">
-              <Globe className="w-4 h-4" />
-              {domainCount ? `${domainCount.toLocaleString()}+ Domains Monitored` : 'Thousands of Domains Monitored'}
-            </span>
-          </div>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
             Pattern-Based{" "}
