@@ -2,8 +2,8 @@ name: Sync Auctions
 
 on:
   schedule:
-    # Run every 6 hours
-    - cron: '0 */6 * * *'
+    # Run every 12 hours to reduce database load
+    - cron: '0 */12 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 # Prevent overlapping runs from saturating the database
