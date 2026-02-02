@@ -28,9 +28,9 @@ export function useEmailNotifications() {
           .from('user_settings')
           .select('email_notifications_enabled, notification_email, notification_frequency_hours')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           console.error('Error loading email settings:', error);
           return;
         }
