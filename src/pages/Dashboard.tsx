@@ -732,6 +732,37 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch initial match count on mount (for badge display)
+  // This is a lightweight count query that doesn't fetch full data
+  const didFetchInitialCountRef = useRef(false);
+  useEffect(() => {
+    if (!user || didFetchInitialCountRef.current) return;
+    didFetchInitialCountRef.current = true;
+    
+    const fetchInitialMatchCount = async () => {
+      try {
+        const nowIso = new Date().toISOString();
+        // Use count query with hideEnded filter (matches default state)
+        const { count, error } = await supabase
+          .from('pattern_alerts')
+          .select('id, auctions!inner(end_time)', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('auctions.end_time', nowIso);
+        
+        if (!error && count !== null) {
+          setTotalMatchesCount(count);
+        }
+      } catch (error) {
+        // Silently fail - count will be fetched when user clicks Matches tab
+        console.error('Error fetching initial match count:', error);
+      }
+    };
+    
+    // Delay slightly to not compete with initial page render
+    const timeoutId = setTimeout(fetchInitialMatchCount, 500);
+    return () => clearTimeout(timeoutId);
+  }, [user]);
+
   // Listen for custom event to open pattern matches tab
   useEffect(() => {
     const handleOpenMatches = () => {
