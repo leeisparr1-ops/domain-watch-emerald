@@ -24,7 +24,9 @@ export default function Signup() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        // Route through a dedicated callback handler so email verification works
+        // for both legacy hash links and newer PKCE (?code=...) links.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         data: {
           full_name: fullName,
         },

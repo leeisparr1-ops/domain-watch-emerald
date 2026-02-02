@@ -8,10 +8,29 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+function getSupabaseAuthTokenStorageKey(): string | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) return key;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    try {
+      return localStorage.getItem("eh_remember_me") !== "0";
+    } catch {
+      return true;
+    }
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -30,16 +49,36 @@ export default function Login() {
       });
 
       if (error) {
+        // Common case: user hasn’t verified their email yet.
+        if (error.message.toLowerCase().includes("confirm")) {
+          setShowResendSection(true);
+        }
         toast.error(error.message);
         setLoading(false);
         return;
       }
 
-      if (rememberMe) {
-        localStorage.setItem("rememberMe", "true");
+      if (!data.session) {
+        toast.error("Signed in, but no session was returned. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Persist preference
+      try {
+        localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
+      } catch {
+        // ignore
+      }
+
+      if (!rememberMe) {
+        // Implement "don't remember": keep the in-memory session, but remove the persisted token.
+        // This prevents staying signed-in after a reload / new tab.
+        sessionStorage.setItem("eh_non_persistent_session", "1");
+        const key = getSupabaseAuthTokenStorageKey();
+        if (key) localStorage.removeItem(key);
       } else {
-        localStorage.removeItem("rememberMe");
-        sessionStorage.setItem("tempSession", "true");
+        sessionStorage.removeItem("eh_non_persistent_session");
       }
       
       toast.success("Welcome back!");
