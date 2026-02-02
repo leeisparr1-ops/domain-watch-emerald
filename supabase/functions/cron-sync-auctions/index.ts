@@ -38,6 +38,7 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   // Generate unique lock holder ID for this sync run
@@ -105,6 +106,8 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            // Provide a valid JWT so this still works even if verify_jwt is enabled later.
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         });
 
@@ -185,6 +188,8 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            // Provide a valid JWT so this still works even if verify_jwt is enabled later.
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         });
 
@@ -246,6 +251,38 @@ serve(async (req) => {
           error_message: errorMessage,
           duration_ms: durationMs
         });
+      }
+    }
+
+    // IMPORTANT: Do expensive follow-up work ONCE per full sync run.
+    // Previously, sync-auctions triggered pattern checks/cleanup after every source,
+    // which created sustained DB load and could starve authentication (/token) requests.
+    const totalSyncedSoFar = results.reduce((sum, r) => sum + (r.count || 0), 0);
+    if (totalSyncedSoFar > 0) {
+      try {
+        console.log('Running one-time cleanup of expired auctions...');
+        await fetch(`${projectUrl}/functions/v1/cleanup-expired-auctions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+        });
+      } catch (e) {
+        console.error('Cleanup step failed (non-fatal):', e);
+      }
+
+      try {
+        console.log('Running one-time pattern check for all users...');
+        await fetch(`${projectUrl}/functions/v1/check-all-patterns`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+        });
+      } catch (e) {
+        console.error('Pattern check failed (non-fatal):', e);
       }
     }
   } finally {

@@ -178,32 +178,7 @@ serve(async (req) => {
       }
     }
 
-    // Clean up old expired auctions (older than 7 days)
-    const { error: cleanupError } = await supabase
-      .from('auctions')
-      .delete()
-      .lt('end_time', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-    if (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
-    }
-
     console.log(`Sync complete: ${totalUpserted} auctions synced`);
-
-    // Trigger pattern checking for all users after successful sync
-    if (totalUpserted > 0) {
-      try {
-        console.log("Triggering pattern check for all users...");
-        const patternCheckResponse = await fetch(`${supabaseUrl}/functions/v1/check-all-patterns`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        const patternResult = await patternCheckResponse.json();
-        console.log("Pattern check result:", patternResult);
-      } catch (patternError) {
-        console.error("Error triggering pattern check:", patternError);
-      }
-    }
 
     return new Response(
       JSON.stringify({
