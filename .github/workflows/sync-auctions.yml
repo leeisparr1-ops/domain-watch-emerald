@@ -6,6 +6,11 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
+# Prevent overlapping runs from saturating the database
+concurrency:
+  group: sync-auctions
+  cancel-in-progress: false
+
 jobs:
   # Job 1: Trigger edge function for smaller inventory types
   trigger-small-sync:

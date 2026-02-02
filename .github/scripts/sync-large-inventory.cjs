@@ -30,8 +30,9 @@ const LARGE_INVENTORY_TYPES = [
   { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/all_listings.json.zip' },
 ];
 
-// Configuration
-const BATCH_SIZE = 1000; // Send 1000 auctions per edge function call
+// Configuration - REDUCED to prevent database saturation during auth
+const BATCH_SIZE = 100; // Smaller batches reduce I/O pressure on DB
+const BATCH_DELAY_MS = 500; // Delay between batches to let auth queries through
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 
 // Get credentials from environment - trim to remove any accidental whitespace
@@ -224,6 +225,7 @@ async function upsertAuctionsViaEdgeFunction(auctions, inventorySource) {
   let inserted = 0;
   let errors = 0;
   
+  // Process batches SEQUENTIALLY with delays to avoid saturating the database
   for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
     const batch = auctions.slice(i, i + BATCH_SIZE);
     
@@ -257,6 +259,11 @@ async function upsertAuctionsViaEdgeFunction(auctions, inventorySource) {
     }
     
     process.stdout.write(`\r   Inserted: ${inserted}/${auctions.length} (${errors} errors)`);
+    
+    // Add delay between batches to allow auth/other queries to complete
+    if (i + BATCH_SIZE < auctions.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
   }
   
   console.log(''); // New line
@@ -435,8 +442,9 @@ async function main() {
     const result = await syncInventoryType(inventory);
     results.push(result);
     
-    // Small delay between syncs to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Longer delay between inventory types to let the database breathe
+    console.log('   ⏳ Pausing 10s before next inventory type...');
+    await new Promise(resolve => setTimeout(resolve, 10000));
   }
   
   // Summary
