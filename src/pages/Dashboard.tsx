@@ -733,7 +733,7 @@ export default function Dashboard() {
   };
 
   // Fetch initial match count on mount (for badge display)
-  // This is a lightweight count query that doesn't fetch full data
+  // This runs once to populate the badge before user clicks Matches tab
   const didFetchInitialCountRef = useRef(false);
   useEffect(() => {
     if (!user || didFetchInitialCountRef.current) return;
@@ -743,11 +743,13 @@ export default function Dashboard() {
       try {
         const nowIso = new Date().toISOString();
         // Use count query with hideEnded filter (matches default state)
+        // Note: Using limit(0) with count: 'exact' to get count without fetching rows
         const { count, error } = await supabase
           .from('pattern_alerts')
-          .select('id, auctions!inner(end_time)', { count: 'exact', head: true })
+          .select('id, auctions!inner(end_time)', { count: 'exact' })
           .eq('user_id', user.id)
-          .gte('auctions.end_time', nowIso);
+          .gte('auctions.end_time', nowIso)
+          .limit(0);
         
         if (!error && count !== null) {
           setTotalMatchesCount(count);
