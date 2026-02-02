@@ -87,17 +87,23 @@ serve(async (req) => {
 
     console.log(`Found ${allPatterns.length} enabled patterns across all users`);
 
-    // Get active auctions ending soon - paginate in batches
-    const now = new Date().toISOString();
+    // Get active auctions ending soon - limit to auctions ending within 7 days
+    // and use the new index on (end_time, price) for faster queries
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const nowIso = now.toISOString();
+    const weekIso = weekFromNow.toISOString();
+    
     const allAuctions: Auction[] = [];
     const batchSize = 1000;
-    const maxBatches = 20; // Cap at 20k auctions for performance
+    const maxBatches = 10; // Cap at 10k auctions for better performance
     
     for (let batch = 0; batch < maxBatches; batch++) {
       const { data: auctionBatch, error: auctionsError } = await supabase
         .from("auctions")
         .select("id, domain_name, price, tld, end_time, domain_age")
-        .gte("end_time", now)
+        .gte("end_time", nowIso)
+        .lte("end_time", weekIso) // Only check auctions ending within 7 days
         .order("end_time", { ascending: true })
         .range(batch * batchSize, (batch + 1) * batchSize - 1);
 
@@ -120,10 +126,10 @@ serve(async (req) => {
     const auctions = allAuctions;
     
     if (auctions.length === 0) {
-      console.log("No active auctions found");
+      console.log("No active auctions found within the next 7 days");
       return new Response(JSON.stringify({ 
         success: true,
-        message: "No active auctions",
+        message: "No active auctions within 7 days",
         duration_ms: Date.now() - startTime,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

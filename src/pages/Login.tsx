@@ -42,53 +42,82 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    // Retry logic with exponential backoff for 504 gateway timeouts
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (error) {
-        // Common case: user hasn’t verified their email yet.
-        if (error.message.toLowerCase().includes("confirm")) {
-          setShowResendSection(true);
-        }
-        toast.error(error.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!data.session) {
-        toast.error("Signed in, but no session was returned. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      // Persist preference
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
-      } catch {
-        // ignore
-      }
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (!rememberMe) {
-        // Implement "don't remember": keep the in-memory session, but remove the persisted token.
-        // This prevents staying signed-in after a reload / new tab.
-        sessionStorage.setItem("eh_non_persistent_session", "1");
-        const key = getSupabaseAuthTokenStorageKey();
-        if (key) localStorage.removeItem(key);
-      } else {
-        sessionStorage.removeItem("eh_non_persistent_session");
+        if (error) {
+          // Check if this is a timeout/gateway error that should be retried
+          const isRetryable = 
+            error.message.includes("504") || 
+            error.message.includes("timeout") ||
+            error.message.includes("Gateway") ||
+            error.message.includes("network");
+
+          if (isRetryable && attempt < maxRetries) {
+            console.log(`Login attempt ${attempt} failed with retryable error, retrying...`);
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000); // 1s, 2s, 4s
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+
+          // Common case: user hasn't verified their email yet.
+          if (error.message.toLowerCase().includes("confirm")) {
+            setShowResendSection(true);
+          }
+          toast.error(error.message);
+          setLoading(false);
+          return;
+        }
+
+        if (!data.session) {
+          toast.error("Signed in, but no session was returned. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Persist preference
+        try {
+          localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
+        } catch {
+          // ignore
+        }
+
+        if (!rememberMe) {
+          // Implement "don't remember": keep the in-memory session, but remove the persisted token.
+          // This prevents staying signed-in after a reload / new tab.
+          sessionStorage.setItem("eh_non_persistent_session", "1");
+          const key = getSupabaseAuthTokenStorageKey();
+          if (key) localStorage.removeItem(key);
+        } else {
+          sessionStorage.removeItem("eh_non_persistent_session");
+        }
+        
+        toast.success("Welcome back!");
+        navigate("/dashboard");
+        return; // Success, exit the retry loop
+      } catch (err) {
+        console.error(`Login attempt ${attempt} error:`, err);
+        lastError = err instanceof Error ? err : new Error("Unknown error");
+        
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
       }
-      
-      toast.success("Welcome back!");
-      navigate("/dashboard");
-    } catch (err) {
-      console.error("Login error:", err);
-      toast.error("An error occurred during login");
-    } finally {
-      setLoading(false);
     }
+
+    // All retries failed
+    toast.error(lastError?.message || "An error occurred during login. Please try again.");
+    setLoading(false);
   };
 
   const handleResendVerification = async () => {
