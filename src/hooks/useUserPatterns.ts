@@ -34,7 +34,7 @@ export interface PatternMatch {
 
 // Plan limits for pattern counts
 export const PLAN_LIMITS = {
-  free: 2,
+  free: 5,
   basic: 50,
   advanced: 125,
 };

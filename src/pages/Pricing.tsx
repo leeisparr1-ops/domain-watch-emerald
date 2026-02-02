@@ -15,7 +15,7 @@ const plans = [
     period: "forever",
     description: "Get started with basic monitoring",
     features: [
-      "2 monitoring patterns",
+      "5 monitoring patterns",
       "Email & push alerts",
       "Full auction data",
       "7-day history",
