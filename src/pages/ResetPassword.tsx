@@ -18,11 +18,14 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    if (!hashParams.get("access_token")) {
-      toast.error("Invalid or expired reset link");
-      navigate("/forgot-password");
-    }
+    // With the /auth/callback route, password reset links establish a session
+    // before redirecting here. If there's no session, the link is invalid/expired.
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        toast.error("Invalid or expired reset link");
+        navigate("/forgot-password", { replace: true });
+      }
+    });
   }, [navigate]);
 
   const handleReset = async (e: React.FormEvent) => {

@@ -17,7 +17,9 @@ export default function ForgotPassword() {
     setLoading(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      // Route through a dedicated callback handler so password recovery works
+      // for both legacy hash links and newer PKCE (?code=...) links.
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
 
     if (error) {
