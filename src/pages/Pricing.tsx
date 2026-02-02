@@ -17,7 +17,7 @@ const plans = [
     features: [
       "2 monitoring patterns",
       "Email & push alerts",
-      "Basic auction data",
+      "Full auction data",
       "7-day history",
     ],
     cta: "Get Started",
