@@ -38,6 +38,24 @@ export default function Login() {
   
   const navigate = useNavigate();
 
+  function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const t = window.setTimeout(() => {
+        reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s. Please try again.`));
+      }, ms);
+
+      promise
+        .then((v) => {
+          window.clearTimeout(t);
+          resolve(v);
+        })
+        .catch((err) => {
+          window.clearTimeout(t);
+          reject(err);
+        });
+    });
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -48,10 +66,11 @@ export default function Login() {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data, error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          12000,
+          "Sign-in"
+        );
 
         if (error) {
           // Check if this is a timeout/gateway error that should be retried
@@ -106,8 +125,15 @@ export default function Login() {
       } catch (err) {
         console.error(`Login attempt ${attempt} error:`, err);
         lastError = err instanceof Error ? err : new Error("Unknown error");
+
+        const msg = lastError.message.toLowerCase();
+        const isRetryable =
+          msg.includes("timeout") ||
+          msg.includes("504") ||
+          msg.includes("gateway") ||
+          msg.includes("network");
         
-        if (attempt < maxRetries) {
+        if (isRetryable && attempt < maxRetries) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
