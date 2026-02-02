@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 
 function getSupabaseAuthTokenStorageKey(): string | null {
   try {
@@ -35,6 +36,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [showResendSection, setShowResendSection] = useState(false);
+  const [showMaintenance, setShowMaintenance] = useState(false);
   
   const navigate = useNavigate();
 
@@ -56,9 +58,15 @@ export default function Login() {
     });
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+    
     setLoading(true);
+    setShowMaintenance(false);
 
     // Retry logic with exponential backoff for 504 gateway timeouts
     const maxRetries = 3;
@@ -68,27 +76,38 @@ export default function Login() {
       try {
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({ email, password }),
-          12000,
+          15000, // Increased to 15s
           "Sign-in"
         );
 
         if (error) {
           // Check if this is a timeout/gateway error that should be retried
+          const msg = error.message.toLowerCase();
           const isRetryable = 
-            error.message.includes("504") || 
-            error.message.includes("timeout") ||
-            error.message.includes("Gateway") ||
-            error.message.includes("network");
+            msg.includes("504") || 
+            msg.includes("timeout") ||
+            msg.includes("gateway") ||
+            msg.includes("network") ||
+            msg.includes("upstream") ||
+            msg.includes("deadline");
 
           if (isRetryable && attempt < maxRetries) {
             console.log(`Login attempt ${attempt} failed with retryable error, retrying...`);
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000); // 1s, 2s, 4s
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
 
+          // If it's a timeout-related error after all retries, show maintenance banner
+          if (isRetryable) {
+            setShowMaintenance(true);
+            toast.error("Service is temporarily unavailable. Please try again in a few minutes.");
+            setLoading(false);
+            return;
+          }
+
           // Common case: user hasn't verified their email yet.
-          if (error.message.toLowerCase().includes("confirm")) {
+          if (msg.includes("confirm")) {
             setShowResendSection(true);
           }
           toast.error(error.message);
@@ -110,8 +129,6 @@ export default function Login() {
         }
 
         if (!rememberMe) {
-          // Implement "don't remember": keep the in-memory session, but remove the persisted token.
-          // This prevents staying signed-in after a reload / new tab.
           sessionStorage.setItem("eh_non_persistent_session", "1");
           const key = getSupabaseAuthTokenStorageKey();
           if (key) localStorage.removeItem(key);
@@ -121,7 +138,7 @@ export default function Login() {
         
         toast.success("Welcome back!");
         navigate("/dashboard");
-        return; // Success, exit the retry loop
+        return;
       } catch (err) {
         console.error(`Login attempt ${attempt} error:`, err);
         lastError = err instanceof Error ? err : new Error("Unknown error");
@@ -131,7 +148,9 @@ export default function Login() {
           msg.includes("timeout") ||
           msg.includes("504") ||
           msg.includes("gateway") ||
-          msg.includes("network");
+          msg.includes("network") ||
+          msg.includes("upstream") ||
+          msg.includes("deadline");
         
         if (isRetryable && attempt < maxRetries) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
@@ -141,8 +160,9 @@ export default function Login() {
       }
     }
 
-    // All retries failed
-    toast.error(lastError?.message || "An error occurred during login. Please try again.");
+    // All retries failed - show maintenance banner
+    setShowMaintenance(true);
+    toast.error("Service is temporarily unavailable. Please try again in a few minutes.");
     setLoading(false);
   };
 
@@ -178,6 +198,14 @@ export default function Login() {
       <div className="absolute inset-0 pattern-grid opacity-10" />
 
       <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border relative z-10 animate-fade-in">
+        {/* Maintenance Banner */}
+        {showMaintenance && (
+          <MaintenanceBanner 
+            onRetry={() => handleLogin()} 
+            isRetrying={loading} 
+          />
+        )}
+
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
