@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           domain_age: number | null
           domain_name: string
+          domain_risk: Json | null
           end_time: string | null
           id: string
           inventory_source: string | null
@@ -36,6 +37,7 @@ export type Database = {
           created_at?: string
           domain_age?: number | null
           domain_name: string
+          domain_risk?: Json | null
           end_time?: string | null
           id?: string
           inventory_source?: string | null
@@ -51,6 +53,7 @@ export type Database = {
           created_at?: string
           domain_age?: number | null
           domain_name?: string
+          domain_risk?: Json | null
           end_time?: string | null
           id?: string
           inventory_source?: string | null

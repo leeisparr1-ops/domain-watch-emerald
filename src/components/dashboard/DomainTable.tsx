@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useFavorites } from "@/hooks/useFavorites";
+import { SpamRiskBadge } from "./SpamRiskBadge";
 import { cn } from "@/lib/utils";
 
 interface DomainData {
@@ -219,6 +220,10 @@ export function DomainTable({
                             <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
                               {d.tld}
                             </Badge>
+                            <SpamRiskBadge 
+                              domainName={d.domain} 
+                              showOnlyIfRisk={true}
+                            />
                             <span className="text-[10px] text-muted-foreground capitalize">
                               {d.auctionType || 'Bid'}
                             </span>
