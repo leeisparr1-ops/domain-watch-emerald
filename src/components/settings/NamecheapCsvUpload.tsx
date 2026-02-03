@@ -31,8 +31,8 @@ export function NamecheapCsvUpload() {
       return;
     }
 
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("File too large. Maximum size is 100MB.");
+    if (file.size > 250 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 250MB.");
       return;
     }
 
