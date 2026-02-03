@@ -10,10 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
 import { useSubscription, PLAN_CONFIG } from "@/hooks/useSubscription";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { NamecheapCsvUpload } from "@/components/settings/NamecheapCsvUpload";
 
 export default function Settings() {
   const { user, loading } = useAuth();
   const { plan, subscribed, subscriptionEnd, loading: subLoading, checkSubscription, openCustomerPortal } = useSubscription();
+  const { isAdmin } = useAdminRole();
   const [resending, setResending] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
   const [searchParams] = useSearchParams();
@@ -222,6 +225,9 @@ export default function Settings() {
 
             {/* Notification Settings */}
             <NotificationSettingsPanel />
+
+            {/* Admin: Namecheap CSV Upload */}
+            {isAdmin && <NamecheapCsvUpload />}
 
             <div className="p-6 rounded-xl glass border border-border">
               <div className="flex items-center gap-3 mb-4">
