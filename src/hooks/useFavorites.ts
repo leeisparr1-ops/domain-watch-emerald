@@ -77,12 +77,15 @@ export function useFavorites() {
         if (error) throw error;
         toast.success("Removed from favorites");
       } else {
+        // Only include auction_id if it's a valid UUID
+        const isValidUuid = auctionId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(auctionId);
+        
         const { error } = await supabase
           .from('favorites')
           .insert({
             user_id: user.id,
             domain_name: domainName,
-            auction_id: auctionId || null,
+            auction_id: isValidUuid ? auctionId : null,
           });
 
         if (error) throw error;

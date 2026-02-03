@@ -33,9 +33,17 @@ async function checkSURBL(domain: string): Promise<{ listed: boolean; lists: str
     const result = await Deno.resolveDns(surblDomain, "A");
     
     if (result && result.length > 0) {
+      const ip = result[0];
+      
+      // Only consider responses in 127.x.x.x range as valid blacklist hits
+      // Other responses are DNS anomalies or resolver issues
+      if (!ip.startsWith("127.")) {
+        console.log(`SURBL returned non-loopback IP for ${domain}: ${ip} - ignoring`);
+        return { listed: false, lists: [] };
+      }
+      
       // Decode the response to identify which lists the domain is on
       const lists: string[] = [];
-      const ip = result[0];
       const lastOctet = parseInt(ip.split(".")[3], 10);
       
       // SURBL response codes (bit flags in last octet)
@@ -56,15 +64,26 @@ async function checkSURBL(domain: string): Promise<{ listed: boolean; lists: str
     }
     
     return { listed: false, lists: [] };
-  } catch (error) {
+  } catch (error: unknown) {
     // NXDOMAIN or other DNS errors mean the domain is NOT listed
-    if (error instanceof Deno.errors.NotFound) {
+    // In Deno edge functions, DNS failures manifest as different error types
+    const errorName = error instanceof Error ? error.name : "";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Common patterns for "not found" in DNS
+    if (
+      error instanceof Deno.errors.NotFound ||
+      errorName === "NotFound" ||
+      errorMessage.includes("NXDOMAIN") ||
+      errorMessage.includes("no record") ||
+      errorMessage.includes("not found") ||
+      errorMessage.includes("ENOTFOUND")
+    ) {
       return { listed: false, lists: [] };
     }
     
-    // Log other errors but don't fail the check
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.log(`SURBL check error for ${domain}:`, message);
+    // Log other errors but treat as not listed (fail-safe)
+    console.log(`SURBL check error for ${domain}: ${errorMessage}`);
     return { listed: false, lists: [] };
   }
 }
@@ -86,6 +105,13 @@ async function checkSpamhausDbl(domain: string): Promise<{ listed: boolean; cate
     if (result && result.length > 0) {
       const ip = result[0];
       
+      // Only consider responses in 127.0.1.x range as valid Spamhaus DBL hits
+      // Other responses are DNS anomalies or resolver issues
+      if (!ip.startsWith("127.0.1.")) {
+        console.log(`Spamhaus DBL returned unexpected IP for ${domain}: ${ip} - ignoring`);
+        return { listed: false, category: null };
+      }
+      
       // Decode Spamhaus DBL response codes
       const categoryMap: Record<string, string> = {
         "127.0.1.2": "Spam domain",
@@ -101,18 +127,28 @@ async function checkSpamhausDbl(domain: string): Promise<{ listed: boolean; cate
       
       return { 
         listed: true, 
-        category: categoryMap[ip] || "Listed on Spamhaus DBL" 
+        category: categoryMap[ip] || `Listed on Spamhaus DBL (${ip})`
       };
     }
     
     return { listed: false, category: null };
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
+  } catch (error: unknown) {
+    // NXDOMAIN or other DNS errors mean the domain is NOT listed
+    const errorName = error instanceof Error ? error.name : "";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (
+      error instanceof Deno.errors.NotFound ||
+      errorName === "NotFound" ||
+      errorMessage.includes("NXDOMAIN") ||
+      errorMessage.includes("no record") ||
+      errorMessage.includes("not found") ||
+      errorMessage.includes("ENOTFOUND")
+    ) {
       return { listed: false, category: null };
     }
     
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.log(`Spamhaus DBL check error for ${domain}:`, message);
+    console.log(`Spamhaus DBL check error for ${domain}: ${errorMessage}`);
     return { listed: false, category: null };
   }
 }
