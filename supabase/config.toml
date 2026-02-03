@@ -39,8 +39,6 @@ verify_jwt = false
 [functions.check-domain-risk]
 verify_jwt = false
 
-[functions.send-ending-soon-alerts]
-verify_jwt = false
 
 [functions.check-all-patterns]
 verify_jwt = false
