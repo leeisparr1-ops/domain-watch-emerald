@@ -45,36 +45,44 @@ serve(async (req: Request): Promise<Response> => {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
             <h1 style="color: white; margin: 0; font-size: 32px;">🦅 ExpiredHawk</h1>
-            <p style="color: rgba(255,255,255,0.95); margin: 15px 0 0 0; font-size: 18px;">Great News!</p>
+            <p style="color: rgba(255,255,255,0.95); margin: 15px 0 0 0; font-size: 18px;">New Features Just Launched!</p>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0; font-size: 24px;">🎉 Full Auction Data Now Available for All Plans!</h2>
+            <h2 style="color: #1f2937; margin-top: 0; font-size: 24px;">🎉 Exciting Updates for You!</h2>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              We're excited to announce that <strong>all ExpiredHawk users now have access to full auction data</strong> — including those on the Free plan!
+              We've been working hard to make ExpiredHawk even better. Here's what's new:
             </p>
             
+            <!-- Free Plan Upgrade -->
             <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 24px 0;">
-              <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">📊 What You Can See:</h3>
-              <ul style="color: #4b5563; line-height: 2; padding-left: 20px; margin-bottom: 0;">
-                <li><strong>Current Price</strong> – Real-time auction pricing</li>
-                <li><strong>Bid Count</strong> – Number of competing bids</li>
-                <li><strong>Domain Valuation</strong> – Estimated market value</li>
-                <li><strong>Domain Age</strong> – How long the domain has been registered</li>
-                <li><strong>Traffic Stats</strong> – Visitor data when available</li>
-                <li><strong>Auction End Time</strong> – Exact time remaining</li>
-                <li><strong>TLD & Domain Length</strong> – Filter by extension and character count</li>
-              </ul>
+              <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">🆓 Free Plan Now Includes 5 Patterns!</h3>
+              <p style="color: #4b5563; line-height: 1.7; font-size: 15px; margin-bottom: 0;">
+                Great news for our free users — you can now create <strong>up to 5 domain patterns</strong> to monitor! 
+                Set up alerts for keywords, prefixes, suffixes, or even regex patterns and get notified when matching domains go to auction.
+              </p>
             </div>
             
-            <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              This means you now have all the information you need to make informed decisions about which domains to bid on — no matter which plan you're on.
-            </p>
+            <!-- Spam Risk Detection -->
+            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 24px 0;">
+              <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">🛡️ NEW: Spam Risk Detection</h3>
+              <p style="color: #4b5563; line-height: 1.7; font-size: 15px;">
+                Avoid domains with a bad history! We now check domains against major spam and phishing databases including <strong>SURBL</strong> and <strong>Spamhaus DBL</strong>.
+              </p>
+              <ul style="color: #4b5563; line-height: 1.8; padding-left: 20px; margin-bottom: 0; font-size: 15px;">
+                <li><span style="color: #22c55e; font-weight: 600;">🟢 Clean</span> – No issues detected</li>
+                <li><span style="color: #eab308; font-weight: 600;">🟡 Medium Risk</span> – Some concerns found</li>
+                <li><span style="color: #ef4444; font-weight: 600;">🔴 High Risk</span> – Domain flagged on blocklists</li>
+              </ul>
+              <p style="color: #6b7280; line-height: 1.6; font-size: 14px; margin-top: 12px; margin-bottom: 0;">
+                Just click on any domain in your dashboard to see its spam risk status!
+              </p>
+            </div>
             
             <div style="text-align: center; margin-top: 30px;">
               <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                Browse Auctions Now →
+                Try It Now →
               </a>
             </div>
           </div>
@@ -98,7 +106,7 @@ serve(async (req: Request): Promise<Response> => {
         const emailResponse: any = await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           to: [user.email],
-          subject: "🎉 Full Auction Data Now Available for All Plans!",
+          subject: "🚀 New Features: 5 Free Patterns + Spam Risk Detection!",
           html: announcementHtml,
         });
 
