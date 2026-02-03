@@ -38,21 +38,22 @@ export function NamecheapCsvUpload() {
 
     setUploading(true);
     setProgress(0);
-    setStatusText("Reading file...");
+    setStatusText("Reading file (streamed)...");
     setResult(null);
 
     try {
-      const csvContent = await file.text();
-      const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
+      // Stream the file to avoid memory exhaustion on mobile
+      const dataLines = await streamParseCSV(file, (pct) => {
+        setProgress(Math.round(pct * 5)); // 0-5% for reading
+        setStatusText(`Reading file... ${Math.round(pct)}%`);
+      });
 
-      if (lines.length < 2) {
+      if (dataLines.lines.length < 1) {
         throw new Error("CSV file appears to be empty or invalid");
       }
 
-      const headerLine = lines[0].toLowerCase();
-      const headers = parseCSVHeader(headerLine);
-      const dataLines = lines.slice(1);
-      const totalRows = dataLines.length;
+      const headers = dataLines.headers;
+      const totalRows = dataLines.lines.length;
 
       setStatusText(`Found ${totalRows.toLocaleString()} domains. Creating job...`);
       setProgress(5);
@@ -73,13 +74,13 @@ export function NamecheapCsvUpload() {
       console.log(`Created job: ${jobId}`);
 
       // Split into chunks and process
-      const totalChunks = Math.ceil(dataLines.length / CHUNK_SIZE);
+      const totalChunks = Math.ceil(dataLines.lines.length / CHUNK_SIZE);
       let totalInserted = 0;
       let totalErrors = 0;
 
-      for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
+      for (let i = 0; i < dataLines.lines.length; i += CHUNK_SIZE) {
         const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
-        const chunk = dataLines.slice(i, i + CHUNK_SIZE);
+        const chunk = dataLines.lines.slice(i, i + CHUNK_SIZE);
         const csvChunk = chunk.join("\n");
 
         setStatusText(`Processing chunk ${chunkIndex}/${totalChunks}...`);
@@ -108,7 +109,7 @@ export function NamecheapCsvUpload() {
         }
 
         // Small delay between chunks to avoid rate limits
-        if (i + CHUNK_SIZE < dataLines.length) {
+        if (i + CHUNK_SIZE < dataLines.lines.length) {
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
       }
@@ -167,6 +168,70 @@ export function NamecheapCsvUpload() {
     }
     result.push(current.trim());
     return result;
+  }
+
+  /**
+   * Stream-parse the CSV file in 1 MB slices to avoid mobile memory exhaustion.
+   * Returns the header array and all data lines as strings.
+   */
+  async function streamParseCSV(
+    file: File,
+    onProgress: (pct: number) => void
+  ): Promise<{ headers: string[]; lines: string[] }> {
+    return new Promise((resolve, reject) => {
+      const SLICE_SIZE = 1 * 1024 * 1024; // 1 MB
+      const reader = new FileReader();
+      const lines: string[] = [];
+      let headers: string[] = [];
+      let leftover = "";
+      let offset = 0;
+      let headerParsed = false;
+
+      function readNextSlice() {
+        const slice = file.slice(offset, offset + SLICE_SIZE);
+        reader.readAsText(slice);
+      }
+
+      reader.onload = () => {
+        const text = (leftover + (reader.result as string));
+        const parts = text.split(/\r?\n/);
+        // Last part may be incomplete
+        leftover = parts.pop() || "";
+
+        for (const line of parts) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          if (!headerParsed) {
+            headers = parseCSVHeader(trimmed.toLowerCase());
+            headerParsed = true;
+          } else {
+            lines.push(trimmed);
+          }
+        }
+
+        offset += SLICE_SIZE;
+        onProgress((offset / file.size) * 100);
+
+        if (offset < file.size) {
+          // Yield to UI thread before next slice
+          setTimeout(readNextSlice, 0);
+        } else {
+          // Handle any leftover data
+          if (leftover.trim()) {
+            if (!headerParsed) {
+              headers = parseCSVHeader(leftover.trim().toLowerCase());
+            } else {
+              lines.push(leftover.trim());
+            }
+          }
+          resolve({ headers, lines });
+        }
+      };
+
+      reader.onerror = () => reject(new Error("Failed to read file"));
+
+      readNextSlice();
+    });
   }
 
   return (
