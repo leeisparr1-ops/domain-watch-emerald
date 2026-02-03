@@ -5,16 +5,21 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const CHUNK_SIZE = 5000; // rows per chunk
+
+interface UploadResult {
+  success: boolean;
+  total_parsed?: number;
+  inserted?: number;
+  errors?: number;
+  error?: string;
+}
+
 export function NamecheapCsvUpload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<{
-    success: boolean;
-    total_parsed?: number;
-    inserted?: number;
-    errors?: number;
-    error?: string;
-  } | null>(null);
+  const [statusText, setStatusText] = useState("");
+  const [result, setResult] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26,50 +31,110 @@ export function NamecheapCsvUpload() {
       return;
     }
 
-    // Check file size (max 50MB for ~1M rows)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("File too large. Maximum size is 50MB.");
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 100MB.");
       return;
     }
 
     setUploading(true);
-    setProgress(10);
+    setProgress(0);
+    setStatusText("Reading file...");
     setResult(null);
 
     try {
-      // Read file content
       const csvContent = await file.text();
-      setProgress(30);
+      const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
 
-      // Count lines for user feedback
-      const lineCount = csvContent.split("\n").length - 1;
-      toast.info(`Processing ${lineCount.toLocaleString()} domains...`);
+      if (lines.length < 2) {
+        throw new Error("CSV file appears to be empty or invalid");
+      }
 
-      setProgress(50);
+      const headerLine = lines[0].toLowerCase();
+      const headers = parseCSVHeader(headerLine);
+      const dataLines = lines.slice(1);
+      const totalRows = dataLines.length;
 
-      // Call edge function
-      const { data, error } = await supabase.functions.invoke(
+      setStatusText(`Found ${totalRows.toLocaleString()} domains. Creating job...`);
+      setProgress(5);
+
+      // Create the processing job
+      const { data: jobData, error: jobError } = await supabase.functions.invoke(
         "namecheap-csv-upload",
         {
-          body: { csvContent },
+          body: { action: "create-job", totalRows },
+        }
+      );
+
+      if (jobError || !jobData?.jobId) {
+        throw new Error(jobError?.message || jobData?.error || "Failed to create job");
+      }
+
+      const jobId = jobData.jobId;
+      console.log(`Created job: ${jobId}`);
+
+      // Split into chunks and process
+      const totalChunks = Math.ceil(dataLines.length / CHUNK_SIZE);
+      let totalInserted = 0;
+      let totalErrors = 0;
+
+      for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
+        const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+        const chunk = dataLines.slice(i, i + CHUNK_SIZE);
+        const csvChunk = chunk.join("\n");
+
+        setStatusText(`Processing chunk ${chunkIndex}/${totalChunks}...`);
+        setProgress(5 + Math.round((chunkIndex / totalChunks) * 85));
+
+        const { data: chunkData, error: chunkError } = await supabase.functions.invoke(
+          "namecheap-csv-upload",
+          {
+            body: {
+              action: "process-chunk",
+              jobId,
+              csvChunk,
+              headers,
+              chunkIndex,
+              totalChunks,
+            },
+          }
+        );
+
+        if (chunkError) {
+          console.error(`Chunk ${chunkIndex} error:`, chunkError);
+          totalErrors++;
+        } else if (chunkData) {
+          totalInserted += chunkData.inserted || 0;
+          totalErrors += chunkData.errors || 0;
+        }
+
+        // Small delay between chunks to avoid rate limits
+        if (i + CHUNK_SIZE < dataLines.length) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+
+      setStatusText("Finalizing...");
+      setProgress(95);
+
+      // Complete the job
+      const { data: completeData } = await supabase.functions.invoke(
+        "namecheap-csv-upload",
+        {
+          body: { action: "complete-job", jobId },
         }
       );
 
       setProgress(100);
+      setResult({
+        success: true,
+        total_parsed: totalRows,
+        inserted: completeData?.job?.inserted_rows || totalInserted,
+        errors: completeData?.job?.error_count || totalErrors,
+      });
 
-      if (error) {
-        console.error("Upload error:", error);
-        setResult({ success: false, error: error.message });
-        toast.error("Upload failed: " + error.message);
-      } else if (data?.error) {
-        setResult({ success: false, error: data.error });
-        toast.error("Upload failed: " + data.error);
-      } else {
-        setResult(data);
-        toast.success(
-          `Successfully imported ${data.inserted?.toLocaleString()} Namecheap auctions!`
-        );
-      }
+      toast.success(
+        `Successfully imported ${(completeData?.job?.inserted_rows || totalInserted).toLocaleString()} Namecheap auctions!`
+      );
     } catch (err) {
       console.error("Upload error:", err);
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
@@ -77,12 +142,32 @@ export function NamecheapCsvUpload() {
       toast.error("Upload failed: " + errorMsg);
     } finally {
       setUploading(false);
-      // Reset file input
+      setStatusText("");
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
+
+  function parseCSVHeader(headerLine: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < headerLine.length; i++) {
+      const char = headerLine[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
 
   return (
     <div className="p-6 rounded-xl glass border border-border">
@@ -105,7 +190,7 @@ export function NamecheapCsvUpload() {
         >
           Namecheap Market
         </a>{" "}
-        using the "Download as CSV" button.
+        using the "Download as CSV" button. Large files (900k+ rows) are processed in chunks.
       </p>
 
       <div className="space-y-4">
@@ -128,7 +213,7 @@ export function NamecheapCsvUpload() {
           {uploading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Uploading...
+              Processing...
             </>
           ) : (
             <>
@@ -142,7 +227,7 @@ export function NamecheapCsvUpload() {
           <div className="space-y-2">
             <Progress value={progress} className="h-2" />
             <p className="text-xs text-muted-foreground">
-              Processing... This may take a few minutes for large files.
+              {statusText || "Processing..."}
             </p>
           </div>
         )}
