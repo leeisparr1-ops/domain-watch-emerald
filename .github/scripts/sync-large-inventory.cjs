@@ -2,8 +2,7 @@
 
 /**
  * GitHub Actions script to sync large GoDaddy inventory files via edge function.
- * The edge function handles privileged database inserts using the service role key,
- * so this script only needs a simple SYNC_SECRET for authentication.
+ * OPTIMIZED: Uses larger batches and parallel processing to complete within 2 hours.
  * 
  * Required secrets:
  * - SUPABASE_URL
@@ -30,9 +29,10 @@ const LARGE_INVENTORY_TYPES = [
   { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/all_listings.json.zip' },
 ];
 
-// Configuration - REDUCED to prevent database saturation during auth
-const BATCH_SIZE = 100; // Smaller batches reduce I/O pressure on DB
-const BATCH_DELAY_MS = 500; // Delay between batches to let auth queries through
+// OPTIMIZED Configuration - Much faster processing
+const BATCH_SIZE = 1000; // 10x larger batches (was 100)
+const PARALLEL_REQUESTS = 5; // Send 5 batches in parallel
+const BATCH_DELAY_MS = 50; // Minimal delay between parallel waves (was 500ms)
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 
 // Get credentials from environment - trim to remove any accidental whitespace
@@ -219,49 +219,82 @@ function parseAuction(item, inventoryType) {
 }
 
 /**
- * Send auctions to the edge function for privileged upsert
+ * Send a single batch to the edge function
+ */
+async function sendBatch(batch, inventorySource) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-sync-secret': SYNC_SECRET,
+      },
+      body: JSON.stringify({
+        auctions: batch,
+        inventory_source: inventorySource,
+      }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      return { success: false, error: error.substring(0, 200), count: 0 };
+    }
+    
+    const result = await response.json();
+    return { 
+      success: true, 
+      count: result.inserted || batch.length,
+      errors: result.errors || 0
+    };
+  } catch (err) {
+    return { success: false, error: err.message, count: 0 };
+  }
+}
+
+/**
+ * Send auctions to the edge function using parallel batch processing
  */
 async function upsertAuctionsViaEdgeFunction(auctions, inventorySource) {
   let inserted = 0;
   let errors = 0;
   
-  // Process batches SEQUENTIALLY with delays to avoid saturating the database
+  // Create all batches upfront
+  const batches = [];
   for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
-    const batch = auctions.slice(i, i + BATCH_SIZE);
+    batches.push(auctions.slice(i, i + BATCH_SIZE));
+  }
+  
+  console.log(`   Processing ${batches.length} batches of ${BATCH_SIZE} records (${PARALLEL_REQUESTS} parallel)...`);
+  
+  // Process batches in parallel waves
+  for (let i = 0; i < batches.length; i += PARALLEL_REQUESTS) {
+    const wave = batches.slice(i, i + PARALLEL_REQUESTS);
     
-    try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-sync-secret': SYNC_SECRET,
-        },
-        body: JSON.stringify({
-          auctions: batch,
-          inventory_source: inventorySource,
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        console.error(`\n   Batch error: ${error.substring(0, 200)}`);
-        errors++;
+    // Send all batches in this wave in parallel
+    const results = await Promise.all(
+      wave.map(batch => sendBatch(batch, inventorySource))
+    );
+    
+    // Aggregate results
+    for (const result of results) {
+      if (result.success) {
+        inserted += result.count;
+        errors += result.errors || 0;
       } else {
-        const result = await response.json();
-        inserted += result.inserted || batch.length;
-        if (result.errors) {
-          errors += result.errors;
+        errors++;
+        // Log but don't spam - only first error per wave
+        if (results.indexOf(result) === 0) {
+          console.error(`\n   Batch error: ${result.error}`);
         }
       }
-    } catch (err) {
-      console.error(`\n   Network error: ${err.message}`);
-      errors++;
     }
     
-    process.stdout.write(`\r   Inserted: ${inserted}/${auctions.length} (${errors} errors)`);
+    const processed = Math.min((i + PARALLEL_REQUESTS), batches.length);
+    const percent = Math.round((processed / batches.length) * 100);
+    process.stdout.write(`\r   Progress: ${percent}% | Inserted: ${inserted.toLocaleString()} | Errors: ${errors}`);
     
-    // Add delay between batches to allow auth/other queries to complete
-    if (i + BATCH_SIZE < auctions.length) {
+    // Small delay between waves to prevent overwhelming the database
+    if (i + PARALLEL_REQUESTS < batches.length) {
       await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
     }
   }
@@ -434,6 +467,7 @@ async function main() {
   console.log('==========================================================');
   console.log(`Supabase URL: ${SUPABASE_URL.substring(0, 30)}...`);
   console.log(`Inventory types: ${LARGE_INVENTORY_TYPES.map(t => t.type).join(', ')}`);
+  console.log(`Config: BATCH_SIZE=${BATCH_SIZE}, PARALLEL=${PARALLEL_REQUESTS}`);
   console.log(`Started at: ${new Date().toISOString()}`);
   
   const results = [];
@@ -442,9 +476,9 @@ async function main() {
     const result = await syncInventoryType(inventory);
     results.push(result);
     
-    // Longer delay between inventory types to let the database breathe
-    console.log('   ⏳ Pausing 10s before next inventory type...');
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Short delay between inventory types
+    console.log('   ⏳ Pausing 3s before next inventory type...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
   
   // Summary
