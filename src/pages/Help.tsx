@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Bookmark,
   Pencil,
-  Target
+  Target,
+  ShieldAlert
 } from "lucide-react";
 
 export default function Help() {
@@ -54,6 +55,11 @@ export default function Help() {
       icon: <Heart className="w-6 h-6 text-primary" />,
       title: "6. Save Favorites",
       description: "Click the heart icon to save domains. Use 'Clear All Favorites' (with confirmation) to reset your list."
+    },
+    {
+      icon: <ShieldAlert className="w-6 h-6 text-primary" />,
+      title: "7. Check Spam Risk",
+      description: "Click any domain to view its spam risk level. Domains are checked against SURBL and Spamhaus DBL for blacklist status."
     }
   ];
 
@@ -113,6 +119,14 @@ export default function Help() {
     {
       question: "Why am I not receiving notifications?",
       answer: "Check: 1) Alerts enabled in Settings, 2) Email correct, 3) Pattern enabled in Saved Patterns, 4) Spam folder. Notifications respect your frequency setting (2/4/6 hours)."
+    },
+    {
+      question: "What does the spam risk badge mean?",
+      answer: "The spam risk badge shows if a domain is listed on blacklists. Green (Clean) = no issues. Yellow (Low Risk) = minor indicators. Orange (Medium Risk) = found on spam blacklists. Red (High Risk) = flagged for phishing/malware. Click any domain to see full risk details."
+    },
+    {
+      question: "How is spam risk checked?",
+      answer: "Domains are checked against SURBL and Spamhaus DBL via DNS lookups. Results are cached for 7 days to ensure fast loading. Risk checks happen when you view domain details."
     }
   ];
 
