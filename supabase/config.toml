@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.bulk-upsert-auctions]
 verify_jwt = false
+
+[functions.check-domain-risk]
+verify_jwt = false

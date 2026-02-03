@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer } from "lucide-react";
+import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,7 +15,9 @@ import {
   TableCell,
   TableRow,
 } from "@/components/ui/table";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFavorites } from "@/hooks/useFavorites";
+import { SpamRiskBadge } from "./SpamRiskBadge";
 import { Heart } from "lucide-react";
 
 interface DomainData {
@@ -156,43 +158,45 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
   ];
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="space-y-3 pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="font-mono text-xl text-primary">
-              {domain.domain}
-            </SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleFavorite(domain.id, domain.domain);
-              }}
-              className={isFavorite(domain.id) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
-            >
-              <Heart className={`w-5 h-5 ${isFavorite(domain.id) ? "fill-current" : ""}`} />
-            </Button>
-          </div>
-          <SheetDescription className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="text-xs">
-              {domain.tld}
-            </Badge>
-            <Badge 
-              variant={hasEnded ? "destructive" : "secondary"} 
-              className="text-xs"
-            >
-              {hasEnded ? "Ended" : domain.auctionType || "Auction"}
-            </Badge>
-            {!hasEnded && (
-              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                <Clock className="w-3 h-3 mr-1" />
-                {formatTimeRemaining(domain.auctionEndTime)}
+    <TooltipProvider>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-3 pb-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="font-mono text-xl text-primary">
+                {domain.domain}
+              </SheetTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleFavorite(domain.id, domain.domain);
+                }}
+                className={isFavorite(domain.id) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
+              >
+                <Heart className={`w-5 h-5 ${isFavorite(domain.id) ? "fill-current" : ""}`} />
+              </Button>
+            </div>
+            <SheetDescription className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs">
+                {domain.tld}
               </Badge>
-            )}
-          </SheetDescription>
-        </SheetHeader>
+              <SpamRiskBadge domainName={domain.domain} size="md" />
+              <Badge 
+                variant={hasEnded ? "destructive" : "secondary"} 
+                className="text-xs"
+              >
+                {hasEnded ? "Ended" : domain.auctionType || "Auction"}
+              </Badge>
+              {!hasEnded && (
+                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {formatTimeRemaining(domain.auctionEndTime)}
+                </Badge>
+              )}
+            </SheetDescription>
+          </SheetHeader>
 
         {/* Price highlight section */}
         <div className="py-6 border-b border-border">
@@ -290,5 +294,6 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
         </div>
       </SheetContent>
     </Sheet>
+    </TooltipProvider>
   );
 }
