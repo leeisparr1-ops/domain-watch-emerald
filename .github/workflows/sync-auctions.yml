@@ -31,8 +31,10 @@ jobs:
 
   # Job 2: Run Node.js script for large inventory files
   # This bypasses edge function timeout/memory limits
+  # Timeout set to 3 hours (should complete in ~1-2 hours with optimized batching)
   sync-large-inventory:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     needs: trigger-small-sync
     steps:
       - name: Checkout repository
