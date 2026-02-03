@@ -41,6 +41,3 @@ verify_jwt = false
 
 [functions.check-all-patterns]
 verify_jwt = false
-
-[functions.namecheap-csv-upload]
-verify_jwt = false
