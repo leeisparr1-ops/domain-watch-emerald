@@ -20,7 +20,6 @@ interface ParsedAuction {
 }
 
 function parseTimeLeft(timeLeft: string): string | null {
-  // Parse formats like "2d 5h", "5h 30m", "30m", etc.
   if (!timeLeft || timeLeft.trim() === "" || timeLeft === "-") {
     return null;
   }
@@ -66,14 +65,7 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-function parseCSV(csvContent: string): ParsedAuction[] {
-  const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) return [];
-
-  // Parse header to find column indices
-  const headerLine = lines[0].toLowerCase();
-  const headers = parseCSVLine(headerLine);
-
+function parseCSVChunk(csvLines: string[], headers: string[]): ParsedAuction[] {
   // Find column indices (flexible matching)
   const domainIdx = headers.findIndex(
     (h) => h.includes("domain") && !h.includes("age")
@@ -86,29 +78,21 @@ function parseCSV(csvContent: string): ParsedAuction[] {
     (h) => h.includes("time") || h.includes("left") || h.includes("end")
   );
 
-  console.log("CSV headers found:", headers);
-  console.log(
-    `Column indices - domain: ${domainIdx}, price: ${priceIdx}, bids: ${bidsIdx}, timeLeft: ${timeLeftIdx}`
-  );
-
   const auctions: ParsedAuction[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
+  for (const line of csvLines) {
     try {
-      const values = parseCSVLine(lines[i]);
+      const values = parseCSVLine(line);
       if (values.length < 2) continue;
 
       const domainName = values[domainIdx >= 0 ? domainIdx : 0]?.trim();
       if (!domainName || !domainName.includes(".")) continue;
 
-      // Parse price - remove currency symbols and commas
       const priceStr = values[priceIdx >= 0 ? priceIdx : 1] || "0";
       const price = parseFloat(priceStr.replace(/[$,]/g, "")) || 0;
 
-      // Parse bid count
       const bidCount = parseInt(values[bidsIdx >= 0 ? bidsIdx : 2] || "0") || 0;
 
-      // Parse time left to end_time
       const timeLeftStr = values[timeLeftIdx >= 0 ? timeLeftIdx : 3] || "";
       const endTime = parseTimeLeft(timeLeftStr);
 
@@ -125,7 +109,7 @@ function parseCSV(csvContent: string): ParsedAuction[] {
         domain_age: 0,
       });
     } catch (err) {
-      console.error(`Error parsing line ${i}:`, err);
+      console.error(`Error parsing line:`, err);
     }
   }
 
@@ -138,7 +122,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get auth token from request
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -151,7 +134,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Create client with user's token to verify identity
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -167,7 +149,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if user is admin using service role client
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -187,87 +168,183 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse the CSV from request body
-    const { csvContent } = await req.json();
-    if (!csvContent || typeof csvContent !== "string") {
-      return new Response(JSON.stringify({ error: "No CSV content provided" }), {
-        status: 400,
+    const body = await req.json();
+    const { action, jobId, csvChunk, headers, chunkIndex, totalChunks, totalRows } = body;
+
+    // Action: create-job - Create a new processing job
+    if (action === "create-job") {
+      const { data: job, error: jobError } = await adminClient
+        .from("csv_upload_jobs")
+        .insert({
+          user_id: user.id,
+          status: "processing",
+          total_rows: totalRows || 0,
+          processed_rows: 0,
+          inserted_rows: 0,
+          error_count: 0,
+          inventory_source: "namecheap",
+        })
+        .select()
+        .single();
+
+      if (jobError) {
+        console.error("Failed to create job:", jobError.message);
+        return new Response(JSON.stringify({ error: "Failed to create job" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, jobId: job.id }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Processing CSV with ${csvContent.length} characters`);
-
-    // Parse CSV
-    const auctions = parseCSV(csvContent);
-    console.log(`Parsed ${auctions.length} auctions from CSV`);
-
-    if (auctions.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No valid auctions found in CSV" }),
-        {
+    // Action: process-chunk - Process a chunk of CSV data
+    if (action === "process-chunk") {
+      if (!jobId || !csvChunk || !headers) {
+        return new Response(JSON.stringify({ error: "Missing required fields" }), {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const csvLines = csvChunk.split(/\r?\n/).filter((line: string) => line.trim());
+      const auctions = parseCSVChunk(csvLines, headers);
+
+      console.log(`Processing chunk ${chunkIndex}/${totalChunks}: ${auctions.length} auctions`);
+
+      const BATCH_SIZE = 100;
+      const BATCH_DELAY_MS = 50;
+      let inserted = 0;
+      let errors = 0;
+
+      for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
+        const batch = auctions.slice(i, i + BATCH_SIZE);
+
+        const { error } = await adminClient.from("auctions").upsert(batch, {
+          onConflict: "domain_name",
+          ignoreDuplicates: false,
+        });
+
+        if (error) {
+          console.error(`Batch error: ${error.message}`);
+          errors++;
+        } else {
+          inserted += batch.length;
+        }
+
+        if (i + BATCH_SIZE < auctions.length) {
+          await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+        }
+      }
+
+      // Update job progress
+      const { data: currentJob } = await adminClient
+        .from("csv_upload_jobs")
+        .select("processed_rows, inserted_rows, error_count")
+        .eq("id", jobId)
+        .single();
+
+      if (currentJob) {
+        await adminClient
+          .from("csv_upload_jobs")
+          .update({
+            processed_rows: currentJob.processed_rows + csvLines.length,
+            inserted_rows: currentJob.inserted_rows + inserted,
+            error_count: currentJob.error_count + errors,
+          })
+          .eq("id", jobId);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          chunkIndex,
+          inserted,
+          errors,
+        }),
+        {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
 
-    // Process in batches using service role client
-    const BATCH_SIZE = 50;
-    const BATCH_DELAY_MS = 100;
-    let inserted = 0;
-    let errors = 0;
-
-    for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
-      const batch = auctions.slice(i, i + BATCH_SIZE);
-
-      const { error } = await adminClient.from("auctions").upsert(batch, {
-        onConflict: "domain_name",
-        ignoreDuplicates: false,
-      });
-
-      if (error) {
-        console.error(`Batch error at ${i}: ${error.message}`);
-        errors++;
-      } else {
-        inserted += batch.length;
+    // Action: complete-job - Mark job as completed
+    if (action === "complete-job") {
+      if (!jobId) {
+        return new Response(JSON.stringify({ error: "Missing jobId" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // Progress log every 10000 records
-      if (i > 0 && i % 10000 === 0) {
-        console.log(`Progress: ${i}/${auctions.length} processed`);
+      const { data: job } = await adminClient
+        .from("csv_upload_jobs")
+        .select("*")
+        .eq("id", jobId)
+        .single();
+
+      if (job) {
+        await adminClient
+          .from("csv_upload_jobs")
+          .update({
+            status: job.error_count > 0 ? "completed" : "completed",
+          })
+          .eq("id", jobId);
+
+        // Log to sync_history
+        await adminClient.from("sync_history").insert({
+          inventory_source: "namecheap",
+          auctions_count: job.inserted_rows,
+          success: job.error_count === 0,
+          error_message: job.error_count > 0 ? `${job.error_count} batch errors` : null,
+        });
       }
 
-      if (i + BATCH_SIZE < auctions.length) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-      }
-    }
-
-    // Log to sync_history
-    await adminClient.from("sync_history").insert({
-      inventory_source: "namecheap",
-      auctions_count: inserted,
-      success: errors === 0,
-      error_message: errors > 0 ? `${errors} batch errors` : null,
-    });
-
-    console.log(`Upload complete: ${inserted} inserted, ${errors} batch errors`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        total_parsed: auctions.length,
-        inserted,
-        errors,
-      }),
-      {
+      return new Response(JSON.stringify({ success: true, job }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Action: get-status - Get job status
+    if (action === "get-status") {
+      if (!jobId) {
+        return new Response(JSON.stringify({ error: "Missing jobId" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-    );
+
+      const { data: job, error: jobError } = await adminClient
+        .from("csv_upload_jobs")
+        .select("*")
+        .eq("id", jobId)
+        .single();
+
+      if (jobError || !job) {
+        return new Response(JSON.stringify({ error: "Job not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, job }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid action" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error processing CSV:", errorMessage);
+    console.error("Error processing request:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

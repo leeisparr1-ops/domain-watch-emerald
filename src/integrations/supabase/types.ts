@@ -65,6 +65,48 @@ export type Database = {
         }
         Relationships: []
       }
+      csv_upload_jobs: {
+        Row: {
+          created_at: string
+          error_count: number | null
+          error_message: string | null
+          id: string
+          inserted_rows: number | null
+          inventory_source: string
+          processed_rows: number | null
+          status: string
+          total_rows: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          inserted_rows?: number | null
+          inventory_source?: string
+          processed_rows?: number | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          inserted_rows?: number | null
+          inventory_source?: string
+          processed_rows?: number | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emailed_domains: {
         Row: {
           auction_id: string
