@@ -284,6 +284,20 @@ serve(async (req) => {
       } catch (e) {
         console.error('Pattern check failed (non-fatal):', e);
       }
+
+      try {
+        console.log('Sending ending-soon alerts (2h window)...');
+        await fetch(`${projectUrl}/functions/v1/send-ending-soon-alerts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ thresholdHours: 2 }),
+        });
+      } catch (e) {
+        console.error('Ending-soon alerts failed (non-fatal):', e);
+      }
     }
   } finally {
     // Always release the lock when done
