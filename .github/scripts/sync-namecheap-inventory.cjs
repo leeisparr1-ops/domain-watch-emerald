@@ -81,6 +81,8 @@ async function downloadCsvWithPlaywright() {
     launchOptions.executablePath = resolvedExecutablePath;
   }
 
+  console.log(`   Launch options: headless=${launchOptions.headless}, executablePath=${launchOptions.executablePath || '(default)'}`);
+
   const browser = await chromium.launch(launchOptions);
   
   const context = await browser.newContext({
