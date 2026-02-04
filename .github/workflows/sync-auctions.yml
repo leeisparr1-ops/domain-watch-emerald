@@ -81,14 +81,24 @@ jobs:
         run: |
           npm install playwright
           npx playwright --version
-          # Install Chromium (also pulls the required chromium-headless-shell unless disabled).
-          npx playwright install --with-deps chromium
+          # Install full Chromium + the required headless shell
+          npx playwright install --with-deps chromium chromium-headless-shell
 
-      - name: Verify Playwright browser install
+      - name: Preflight browser launch
+        # Fail fast if the browser binaries are still missing
         run: |
-          node -e "const { chromium } = require('playwright'); console.log('Chromium executablePath:', chromium.executablePath());"
           echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
-          ls -la "$PLAYWRIGHT_BROWSERS_PATH" 2>/dev/null || true
+          ls -la "$PLAYWRIGHT_BROWSERS_PATH" || true
+          node -e "
+            const { chromium } = require('playwright');
+            (async () => {
+              console.log('Preflight: launching Chromium headless...');
+              const browser = await chromium.launch({ headless: true });
+              console.log('Preflight: browser version =', await browser.version());
+              await browser.close();
+              console.log('Preflight: OK');
+            })();
+          "
 
       - name: Run Namecheap inventory sync
         env:
