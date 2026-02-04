@@ -64,7 +64,6 @@ async function downloadCsvWithPlaywright() {
   
   const browser = await chromium.launch({
     headless: true,
-    channel: 'chromium',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
   
