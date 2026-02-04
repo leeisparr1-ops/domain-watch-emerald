@@ -70,15 +70,18 @@ async function downloadCsvWithPlaywright() {
     console.log(`   Chromium executablePath unavailable: ${e?.message || e}`);
   }
   
-  // Playwright may prefer launching the dedicated chromium-headless-shell binary in CI.
-  // In some GitHub Actions environments, that binary can go missing despite browser installs.
-  // For reliability, we force Playwright to use the resolved Chromium executablePath.
   const launchOptions = {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   };
-  if (resolvedExecutablePath) {
+
+  // Only set executablePath if it *actually exists*.
+  // In some CI setups, Playwright may have downloaded only a headless shell or changed paths,
+  // and forcing a non-existent path causes a hard failure.
+  if (resolvedExecutablePath && existsSync(resolvedExecutablePath)) {
     launchOptions.executablePath = resolvedExecutablePath;
+  } else if (resolvedExecutablePath) {
+    console.log('   Note: resolved Chromium executablePath does not exist on disk; letting Playwright choose.');
   }
 
   console.log(`   Launch options: headless=${launchOptions.headless}, executablePath=${launchOptions.executablePath || '(default)'}`);
