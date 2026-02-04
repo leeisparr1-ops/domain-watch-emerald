@@ -29,7 +29,7 @@ jobs:
           echo "Response: $response"
           echo "✅ Small inventory sync triggered"
 
-  # Job 2: Run Node.js script for large inventory files
+  # Job 2: Run Node.js script for large GoDaddy inventory files
   # This bypasses edge function timeout/memory limits
   # Timeout set to 3 hours (should complete in ~1-2 hours with optimized batching)
   sync-large-inventory:
@@ -55,4 +55,60 @@ jobs:
         run: node .github/scripts/sync-large-inventory.cjs
 
       - name: Log completion
-        run: echo "Full auction sync completed at $(date)"
+        run: echo "GoDaddy auction sync completed at $(date)"
+
+  # Job 3: Sync Namecheap inventory via Playwright browser automation
+  # Downloads the ~170MB CSV export and syncs ~916k records
+  # Timeout set to 4 hours to allow for large file download and processing
+  sync-namecheap-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    needs: sync-large-inventory
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium
+          npx playwright install-deps chromium
+
+      - name: Run Namecheap inventory sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: node .github/scripts/sync-namecheap-inventory.cjs
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: namecheap-debug-screenshots
+          path: .temp-inventory/*.png
+          retention-days: 7
+
+      - name: Log completion
+        run: echo "Namecheap auction sync completed at $(date)"
+
+  # Final summary job
+  sync-summary:
+    runs-on: ubuntu-latest
+    needs: [trigger-small-sync, sync-large-inventory, sync-namecheap-inventory]
+    if: always()
+    steps:
+      - name: Sync Summary
+        run: |
+          echo "=========================================="
+          echo "Full Auction Sync Completed"
+          echo "=========================================="
+          echo "Time: $(date)"
+          echo "Small sync status: ${{ needs.trigger-small-sync.result }}"
+          echo "GoDaddy sync status: ${{ needs.sync-large-inventory.result }}"
+          echo "Namecheap sync status: ${{ needs.sync-namecheap-inventory.result }}"
+          echo "=========================================="
