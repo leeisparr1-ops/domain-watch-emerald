@@ -65,6 +65,48 @@ export type Database = {
         }
         Relationships: []
       }
+      csv_upload_jobs: {
+        Row: {
+          created_at: string
+          error_count: number | null
+          error_message: string | null
+          id: string
+          inserted_rows: number | null
+          inventory_source: string
+          processed_rows: number | null
+          status: string
+          total_rows: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          inserted_rows?: number | null
+          inventory_source?: string
+          processed_rows?: number | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_count?: number | null
+          error_message?: string | null
+          id?: string
+          inserted_rows?: number | null
+          inventory_source?: string
+          processed_rows?: number | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emailed_domains: {
         Row: {
           auction_id: string
@@ -319,6 +361,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           created_at: string
@@ -364,6 +427,13 @@ export type Database = {
         Args: { lock_duration_minutes?: number; lock_holder: string }
         Returns: boolean
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_sync_locked: {
         Args: never
         Returns: {
@@ -377,7 +447,7 @@ export type Database = {
       trigger_auction_sync: { Args: never; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -504,6 +574,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
