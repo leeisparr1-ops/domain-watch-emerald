@@ -65,8 +65,9 @@ jobs:
     timeout-minutes: 240
     needs: sync-large-inventory
     env:
-      # Install browsers into node_modules so Playwright can always find them
-      PLAYWRIGHT_BROWSERS_PATH: '0'
+      # Use a single explicit browsers path so the Playwright CLI install and runtime
+      # always agree on where Chromium + chromium-headless-shell live.
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,21 +80,21 @@ jobs:
       - name: Install Playwright
         run: |
           npm install playwright
-          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright --version
-          # Install Chromium (Playwright will also manage the required headless shell unless explicitly disabled).
-          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
+          npx playwright --version
+          # Install Chromium (also pulls the required chromium-headless-shell unless disabled).
+          npx playwright install --with-deps chromium
 
       - name: Verify Playwright browser install
         run: |
           node -e "const { chromium } = require('playwright'); console.log('Chromium executablePath:', chromium.executablePath());"
-          ls -la node_modules/playwright-core/.local-browsers 2>/dev/null || true
-          ls -la node_modules/playwright/.local-browsers 2>/dev/null || true
+          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
+          ls -la "$PLAYWRIGHT_BROWSERS_PATH" 2>/dev/null || true
 
       - name: Run Namecheap inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-          PLAYWRIGHT_BROWSERS_PATH: '0'
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
       - name: Upload debug artifacts on failure
