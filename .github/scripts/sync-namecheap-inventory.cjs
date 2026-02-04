@@ -61,6 +61,12 @@ if (!existsSync(TEMP_DIR)) {
  */
 async function downloadCsvWithPlaywright() {
   console.log('🌐 Launching browser...');
+  console.log(`   PLAYWRIGHT_BROWSERS_PATH=${process.env.PLAYWRIGHT_BROWSERS_PATH || '(default)'}`);
+  try {
+    console.log(`   Chromium executablePath: ${chromium.executablePath()}`);
+  } catch (e) {
+    console.log(`   Chromium executablePath unavailable: ${e?.message || e}`);
+  }
   
   const browser = await chromium.launch({
     headless: true,
