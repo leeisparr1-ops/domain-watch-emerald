@@ -62,16 +62,26 @@ if (!existsSync(TEMP_DIR)) {
 async function downloadCsvWithPlaywright() {
   console.log('🌐 Launching browser...');
   console.log(`   PLAYWRIGHT_BROWSERS_PATH=${process.env.PLAYWRIGHT_BROWSERS_PATH || '(default)'}`);
+  let resolvedExecutablePath;
   try {
-    console.log(`   Chromium executablePath: ${chromium.executablePath()}`);
+    resolvedExecutablePath = chromium.executablePath();
+    console.log(`   Chromium executablePath: ${resolvedExecutablePath}`);
   } catch (e) {
     console.log(`   Chromium executablePath unavailable: ${e?.message || e}`);
   }
   
-  const browser = await chromium.launch({
+  // Playwright may prefer launching the dedicated chromium-headless-shell binary in CI.
+  // In some GitHub Actions environments, that binary can go missing despite browser installs.
+  // For reliability, we force Playwright to use the resolved Chromium executablePath.
+  const launchOptions = {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  });
+  };
+  if (resolvedExecutablePath) {
+    launchOptions.executablePath = resolvedExecutablePath;
+  }
+
+  const browser = await chromium.launch(launchOptions);
   
   const context = await browser.newContext({
     acceptDownloads: true,
