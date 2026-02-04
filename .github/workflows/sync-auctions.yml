@@ -79,8 +79,11 @@ jobs:
       - name: Install Playwright
         run: |
           npm install playwright
-          # Explicitly install both Chromium and the headless-shell that Playwright launches in CI
-          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium chromium-headless-shell
+          # Install Chromium plus the dedicated headless-shell binary Playwright may prefer in CI.
+          # The headless shell is installed via `--only-shell` (it is NOT a separate browser name).
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright --version
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium --only-shell
 
       - name: Verify Playwright browser install
         run: |
