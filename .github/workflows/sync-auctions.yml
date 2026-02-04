@@ -76,8 +76,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm install playwright
-          npx playwright install chromium
-          npx playwright install-deps chromium
+          npx playwright install --with-deps chromium
 
       - name: Run Namecheap inventory sync
         env:
