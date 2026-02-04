@@ -76,12 +76,14 @@ jobs:
       - name: Install Playwright
         run: |
           npm install playwright
-          npx playwright install --with-deps chromium
+          # Force browsers to be installed within node_modules to avoid cache/path mismatches
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps --only-shell chromium
 
       - name: Run Namecheap inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+          PLAYWRIGHT_BROWSERS_PATH: 0
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
       - name: Upload debug artifacts on failure
