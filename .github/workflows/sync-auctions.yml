@@ -77,12 +77,19 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Playwright
+      - name: Install Playwright (pinned) + browsers
         run: |
-          npm install playwright
+          # Ensure we don't reuse stale/partial downloads
+          rm -rf "$PLAYWRIGHT_BROWSERS_PATH" || true
+
+          # Pin Playwright to keep browser revision stable across runs
+          npm install playwright@1.57.0
+
+          node -e "console.log('playwright pkg version =', require('playwright/package.json').version)"
           npx playwright --version
-          # Install full Chromium + the required headless shell
-          npx playwright install --with-deps chromium chromium-headless-shell
+
+          # Install full Chromium + the required headless shell (force to avoid partial installs)
+          npx playwright install --force --with-deps chromium chromium-headless-shell
 
       - name: Preflight browser launch
         # Fail fast if the browser binaries are still missing
@@ -91,7 +98,13 @@ jobs:
           ls -la "$PLAYWRIGHT_BROWSERS_PATH" || true
           node -e "
             const { chromium } = require('playwright');
+            const fs = require('fs');
             (async () => {
+              console.log('Preflight: playwright pkg version =', require('playwright/package.json').version);
+              console.log('Preflight: chromium.executablePath() =', chromium.executablePath());
+              if (!fs.existsSync(chromium.executablePath())) {
+                throw new Error('Preflight: Chromium executable missing at expected path. Browser download likely incomplete.');
+              }
               console.log('Preflight: launching Chromium headless...');
               const browser = await chromium.launch({ headless: true });
               console.log('Preflight: browser version =', await browser.version());
