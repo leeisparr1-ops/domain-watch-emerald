@@ -75,10 +75,10 @@ Deno.serve(async (req) => {
       },
     });
 
-    // CRITICAL: Ultra-small batches with delays to prevent DB saturation
-    // The 750k+ row table causes statement timeouts on larger batches
-    const BATCH_SIZE = 25; // Reduced from 100
-    const BATCH_DELAY_MS = 200; // Pause between batches to let other queries through
+  // Optimized batching - larger batches complete faster without saturating DB
+  // Each incoming request has up to 1000 records; process in reasonable chunks
+  const BATCH_SIZE = 100; // Increased from 25 for faster throughput
+  const BATCH_DELAY_MS = 50; // Reduced delay - DB can handle this
     let inserted = 0;
     let errors = 0;
 
@@ -95,8 +95,8 @@ Deno.serve(async (req) => {
       if (error) {
         console.error(`Batch error at ${i}: ${error.message}`);
         errors++;
-        // On error, wait longer before retrying
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // On error, wait before next attempt
+      await new Promise(resolve => setTimeout(resolve, 200));
       } else {
         inserted += batch.length;
       }

@@ -31,10 +31,10 @@ jobs:
 
   # Job 2: Run Node.js script for large GoDaddy inventory files
   # This bypasses edge function timeout/memory limits
-  # Timeout set to 3 hours (should complete in ~1-2 hours with optimized batching)
+  # Timeout set to 6 hours to handle 780k+ records with network variability
   sync-large-inventory:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
     needs: trigger-small-sync
     steps:
       - name: Checkout repository

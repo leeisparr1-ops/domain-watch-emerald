@@ -30,9 +30,9 @@ const LARGE_INVENTORY_TYPES = [
 ];
 
 // OPTIMIZED Configuration - Much faster processing
-const BATCH_SIZE = 1000; // 10x larger batches (was 100)
-const PARALLEL_REQUESTS = 5; // Send 5 batches in parallel
-const BATCH_DELAY_MS = 50; // Minimal delay between parallel waves (was 500ms)
+const BATCH_SIZE = 2000; // Larger batches to reduce API call overhead
+const PARALLEL_REQUESTS = 10; // More parallel requests
+const BATCH_DELAY_MS = 100; // Slightly more delay for stability
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 
 // Get credentials from environment - trim to remove any accidental whitespace
