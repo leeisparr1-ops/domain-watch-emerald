@@ -310,50 +310,91 @@ function parseCSVLine(line) {
 }
 
 /**
- * Parse a Namecheap CSV record to our auction format
- * Expected columns (based on typical Namecheap export):
- * - Domain, Price (USD), Bids, Time Left, etc.
+ * Parse a Namecheap CSV record to our auction format.
+ * Namecheap’s export schema changes; we support multiple header variants.
+ * Known headers (2026-02 export):
+ * - name, url, startdate, enddate, price, startprice, renewprice, bidcount, ...
  */
 function parseNamecheapRecord(record) {
-  // Try different column name variations
-  const domain = record['domain'] || record['domain name'] || record['domainname'] || '';
-  
-  if (!domain || !domain.includes('.')) {
-    return null;
-  }
-  
+  const extractDomainFromUrl = (url) => {
+    if (!url) return '';
+    try {
+      const u = new URL(url);
+      const host = (u.hostname || '').toLowerCase();
+      return host.startsWith('www.') ? host.slice(4) : host;
+    } catch {
+      // Fallback: try to find something that looks like a domain
+      const m = String(url)
+        .toLowerCase()
+        .match(/([a-z0-9-]+\.)+[a-z]{2,}/);
+      return m?.[0] || '';
+    }
+  };
+
+  const domain = (
+    record['domain'] ||
+    record['domain name'] ||
+    record['domainname'] ||
+    record['name'] ||
+    extractDomainFromUrl(record['url']) ||
+    ''
+  ).trim();
+
+  // Basic validation
+  if (!domain || !domain.includes('.') || /\s/.test(domain)) return null;
+
   // Parse price (remove $ and commas)
-  const priceRaw = record['price'] || record['price (usd)'] || record['current price'] || record['min bid'] || '0';
-  const price = parseFloat(priceRaw.replace(/[$,]/g, '')) || 0;
-  
+  const priceRaw =
+    record['price'] ||
+    record['price (usd)'] ||
+    record['current price'] ||
+    record['min bid'] ||
+    record['startprice'] ||
+    '0';
+  const price = parseFloat(String(priceRaw).replace(/[$,\s]/g, '')) || 0;
+
   // Parse bids
-  const bids = parseInt(record['bids'] || record['bid count'] || '0', 10) || 0;
-  
-  // Parse end time - Namecheap uses various formats
+  const bidsRaw = record['bids'] || record['bid count'] || record['bidcount'] || '0';
+  const bids = parseInt(String(bidsRaw).replace(/[,\s]/g, ''), 10) || 0;
+
+  // Parse end time
   let endTime = null;
-  const timeLeft = record['time left'] || record['timeleft'] || record['ends'] || record['end time'] || '';
-  if (timeLeft) {
-    endTime = parseTimeLeft(timeLeft);
+  const endRaw =
+    record['enddate'] ||
+    record['end date'] ||
+    record['end time'] ||
+    record['ends'] ||
+    '';
+
+  if (endRaw) {
+    const d = new Date(endRaw);
+    if (!Number.isNaN(d.getTime())) endTime = d.toISOString();
   }
-  
+
+  // Fallback: parse “time left” style fields if present
+  if (!endTime) {
+    const timeLeft = record['time left'] || record['timeleft'] || '';
+    if (timeLeft) endTime = parseTimeLeft(timeLeft);
+  }
+
   // Extract TLD
   const parts = domain.split('.');
   const tld = parts.length > 1 ? `.${parts[parts.length - 1]}` : '';
-  
-  // Auction type - Namecheap has auctions and buy-now
+
+  // Namecheap market sales export represents auctions; keep label stable
   const auctionType = bids > 0 ? 'auction' : 'buy-now';
-  
+
   return {
     domain_name: domain.toLowerCase(),
     price,
     bid_count: bids,
-    traffic_count: 0, // Namecheap CSV doesn't include traffic
+    traffic_count: 0,
     end_time: endTime,
     inventory_source: 'namecheap',
     tld,
     auction_type: auctionType,
-    valuation: 0, // Not available in CSV
-    domain_age: 0, // Not available in CSV
+    valuation: 0,
+    domain_age: 0,
   };
 }
 
