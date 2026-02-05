@@ -32,6 +32,14 @@ const BATCH_DELAY_MS = 50;
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 const DOWNLOAD_TIMEOUT_MS = 600000; // 10 minutes for 170MB file
 
+// Navigation config: Namecheap is highly dynamic and often never becomes "networkidle"
+const PAGE_GOTO_TIMEOUT_MS = 120000; // 2 minutes
+const PAGE_GOTO_RETRIES = 3;
+const DOWNLOAD_BUTTON_TIMEOUT_MS = 45000; // 45s
+const RETRY_BASE_DELAY_MS = 5000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Get credentials from environment
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
 const SYNC_SECRET = (process.env.SYNC_SECRET || '').trim();
@@ -97,12 +105,37 @@ async function downloadCsvWithPlaywright() {
   
   try {
     console.log(`   Navigating to ${NAMECHEAP_AUCTIONS_URL}...`);
-    await page.goto(NAMECHEAP_AUCTIONS_URL, { 
-      waitUntil: 'networkidle',
-      timeout: 60000 
-    });
-    
-    // Wait for the page to fully load
+
+    // Namecheap continuously streams resources; waiting for "networkidle" is flaky in CI.
+    // Use domcontentloaded + retries/backoff instead.
+    let lastNavError;
+    for (let attempt = 1; attempt <= PAGE_GOTO_RETRIES; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`   Retry navigation (attempt ${attempt}/${PAGE_GOTO_RETRIES})...`);
+        }
+
+        await page.goto(NAMECHEAP_AUCTIONS_URL, {
+          waitUntil: 'domcontentloaded',
+          timeout: PAGE_GOTO_TIMEOUT_MS,
+        });
+
+        lastNavError = undefined;
+        break;
+      } catch (e) {
+        lastNavError = e;
+        console.log(`   Navigation attempt ${attempt} failed: ${e?.message || e}`);
+        if (attempt < PAGE_GOTO_RETRIES) {
+          const backoff = RETRY_BASE_DELAY_MS * attempt;
+          console.log(`   Waiting ${Math.round(backoff / 1000)}s before retry...`);
+          await sleep(backoff);
+        }
+      }
+    }
+
+    if (lastNavError) throw lastNavError;
+
+    // Give client-side JS time to render export UI
     await page.waitForTimeout(3000);
     
     // Look for the CSV download link/button - try multiple selectors
@@ -120,16 +153,21 @@ async function downloadCsvWithPlaywright() {
     ];
     
     let downloadButton = null;
-    for (const selector of downloadSelectors) {
-      try {
-        downloadButton = await page.locator(selector).first();
-        if (await downloadButton.isVisible({ timeout: 2000 })) {
-          console.log(`   Found download button with selector: ${selector}`);
-          break;
-        }
-      } catch {
-        // Continue to next selector
-      }
+
+    try {
+      const winner = await Promise.any(
+        downloadSelectors.map((selector) => {
+          const locator = page.locator(selector).first();
+          return locator
+            .waitFor({ state: 'visible', timeout: DOWNLOAD_BUTTON_TIMEOUT_MS })
+            .then(() => ({ selector, locator }));
+        })
+      );
+
+      downloadButton = winner.locator;
+      console.log(`   Found download button with selector: ${winner.selector}`);
+    } catch {
+      downloadButton = null;
     }
     
     if (!downloadButton) {
