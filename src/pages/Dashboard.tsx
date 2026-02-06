@@ -226,19 +226,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (didFetchTotalRef.current) return;
     didFetchTotalRef.current = true;
-    // Start with hardcoded value immediately
+    // Use hardcoded production count. The RPC is unreliable (missing in prod,
+    // returns lower Test-DB counts in preview). No background override needed.
     setTotalDomainCount(1998000);
-    // Try RPC in background — if it works, great; if not, the hardcoded value stands
-    (async () => {
-      try {
-        const { data, error } = await supabase.rpc('get_auction_count');
-        if (!error && data !== null && Number(data) > 100000) {
-          setTotalDomainCount(Number(data));
-        }
-      } catch {
-        // Silently ignore — hardcoded value already set
-      }
-    })();
   }, []);
 
   // Track tab visibility so we can avoid expensive re-fetches on tab-switch
