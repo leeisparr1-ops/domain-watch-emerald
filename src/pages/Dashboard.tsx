@@ -219,25 +219,25 @@ export default function Dashboard() {
     filters.inventorySource !== "all",
   ].filter(Boolean).length;
 
-  // Fetch total domain count for prominent display
-  // Uses RPC when available, falls back to hardcoded estimate (~1.99M)
+  // Total domain count — hardcoded to match production (~2M rows).
+  // The get_auction_count RPC is unreliable across environments, so we
+  // set a realistic static value that gets overridden only on success.
   const didFetchTotalRef = useRef(false);
   useEffect(() => {
     if (didFetchTotalRef.current) return;
     didFetchTotalRef.current = true;
+    // Start with hardcoded value immediately
+    setTotalDomainCount(1998000);
+    // Try RPC in background — if it works, great; if not, the hardcoded value stands
     (async () => {
-      // Strategy 1: Try the fast RPC function
       try {
         const { data, error } = await supabase.rpc('get_auction_count');
         if (!error && data !== null && Number(data) > 100000) {
           setTotalDomainCount(Number(data));
-          return;
         }
       } catch {
-        // Function may not exist in production yet
+        // Silently ignore — hardcoded value already set
       }
-      // Strategy 2: Hardcoded fallback reflecting actual production count
-      setTotalDomainCount(1998000);
     })();
   }, []);
 
