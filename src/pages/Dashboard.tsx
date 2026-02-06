@@ -449,7 +449,21 @@ export default function Dashboard() {
       // Apply pagination
       query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
+      console.log('[Dashboard] Fetching auctions', { 
+        source: filters.inventorySource, 
+        effectiveSort: effectiveSortBy,
+        sortColumn: currentSort.column,
+        page: currentPage,
+        range: `${from}-${to + 1}`,
+      });
+      
       const { data, error: queryError } = await query;
+      
+      console.log('[Dashboard] Query result', { 
+        rows: data?.length ?? 0, 
+        error: queryError?.message ?? null,
+        firstDomain: data?.[0]?.domain_name ?? null,
+      });
       
       if (queryError) {
         throw queryError;
