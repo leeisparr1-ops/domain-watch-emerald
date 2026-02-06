@@ -994,6 +994,24 @@ export default function Dashboard() {
                 <Input placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-input" />
               </div>
               <div className="flex gap-2 sm:gap-4 overflow-x-auto">
+                <Select
+                  value={filters.inventorySource}
+                  onValueChange={(value) => startSortTransition(() => {
+                    setCurrentPage(1);
+                    setFilters(f => ({ ...f, inventorySource: value }));
+                  })}
+                >
+                  <SelectTrigger className="w-[130px] sm:w-[160px] bg-background flex-shrink-0">
+                    <SelectValue placeholder="Marketplace" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
+                    {SOURCE_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button 
                   variant={showFilters ? "secondary" : "outline"} 
                   onClick={() => setShowFilters(!showFilters)}
