@@ -87,8 +87,8 @@ const TLD_OPTIONS = [
 
 const AUCTION_TYPE_OPTIONS = [
   { value: "all", label: "All Types" },
-  { value: "Bid", label: "Bid Auctions" },
-  { value: "BuyNow", label: "Buy Now" },
+  { value: "bid", label: "Bid Auctions" },
+  { value: "buynow", label: "Buy Now" },
 ];
 
 const SOURCE_OPTIONS = [
@@ -294,10 +294,12 @@ export default function Dashboard() {
         .lte('price', filters.maxPrice);
 
       if (filters.tld !== "all") {
-        countQuery = countQuery.eq('tld', filters.tld.toUpperCase());
+        countQuery = countQuery.ilike('tld', filters.tld);
       }
-      if (filters.auctionType !== "all") {
-        countQuery = countQuery.eq('auction_type', filters.auctionType);
+      if (filters.auctionType === "bid") {
+        countQuery = countQuery.in('auction_type', ['Bid', 'auction']);
+      } else if (filters.auctionType === "buynow") {
+        countQuery = countQuery.in('auction_type', ['BuyNow', 'buy-now']);
       }
       if (filters.inventorySource === "namecheap") {
         countQuery = countQuery.eq('inventory_source', 'namecheap');
@@ -324,10 +326,12 @@ export default function Dashboard() {
       }
       
       if (filters.tld !== "all") {
-        query = query.eq('tld', filters.tld.toUpperCase());
+        query = query.ilike('tld', filters.tld);
       }
-      if (filters.auctionType !== "all") {
-        query = query.eq('auction_type', filters.auctionType);
+      if (filters.auctionType === "bid") {
+        query = query.in('auction_type', ['Bid', 'auction']);
+      } else if (filters.auctionType === "buynow") {
+        query = query.in('auction_type', ['BuyNow', 'buy-now']);
       }
       if (filters.inventorySource === "namecheap") {
         query = query.eq('inventory_source', 'namecheap');
@@ -418,14 +422,16 @@ export default function Dashboard() {
         query = query.lte('price', filters.maxPrice);
       }
       
-      // Apply TLD filter (convert to uppercase to match DB format like .COM)
+      // Apply TLD filter (case-insensitive to handle GoDaddy=.COM vs Namecheap=.com)
       if (filters.tld !== "all") {
-        query = query.eq('tld', filters.tld.toUpperCase());
+        query = query.ilike('tld', filters.tld);
       }
       
-      // Apply auction type filter
-      if (filters.auctionType !== "all") {
-        query = query.eq('auction_type', filters.auctionType);
+      // Apply auction type filter (handles GoDaddy=Bid/BuyNow vs Namecheap=auction/buy-now)
+      if (filters.auctionType === "bid") {
+        query = query.in('auction_type', ['Bid', 'auction']);
+      } else if (filters.auctionType === "buynow") {
+        query = query.in('auction_type', ['BuyNow', 'buy-now']);
       }
       
       // Apply inventory source filter
