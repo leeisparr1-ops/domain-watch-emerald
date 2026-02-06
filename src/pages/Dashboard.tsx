@@ -219,8 +219,8 @@ export default function Dashboard() {
     filters.inventorySource !== "all",
   ].filter(Boolean).length;
 
-  // Fetch total domain count (estimated) for prominent display
-  // Falls back to hardcoded estimate if RPC function doesn't exist yet
+  // Fetch total domain count for prominent display
+  // Uses RPC when available, falls back to direct count query, then hardcoded estimate
   const didFetchTotalRef = useRef(false);
   useEffect(() => {
     if (didFetchTotalRef.current) return;
