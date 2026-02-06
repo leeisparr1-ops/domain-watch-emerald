@@ -226,7 +226,7 @@ export default function Dashboard() {
     didFetchTotalRef.current = true;
     (async () => {
       try {
-        const { data, error } = await supabase.rpc('get_auction_count');
+        const { data, error } = await supabase.rpc('get_auction_count'); // v2
         if (!error && data !== null) setTotalDomainCount(Number(data));
       } catch {}
     })();
