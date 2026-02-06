@@ -399,7 +399,12 @@ export default function Dashboard() {
       const to = from + itemsPerPage - 1;
       
       // Get current sort option
-      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+      // When filtering by a specific inventory source, force sort to "Ending Soon"
+      // to leverage the existing covering index (end_time, id) in production.
+      // The composite index on (inventory_source, end_time, price) hasn't deployed
+      // to production, so price-sorting on 900k+ source-filtered rows times out.
+      const effectiveSortBy = filters.inventorySource !== "all" ? "end_time_asc" : sortBy;
+      const currentSort = SORT_OPTIONS.find(s => s.value === effectiveSortBy) || SORT_OPTIONS[0];
       
       const now = new Date();
       const endTimeFilter = now.toISOString();
