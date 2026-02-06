@@ -299,8 +299,10 @@ export default function Dashboard() {
       if (filters.auctionType !== "all") {
         countQuery = countQuery.eq('auction_type', filters.auctionType);
       }
-      if (filters.inventorySource !== "all") {
-        countQuery = countQuery.eq('inventory_source', filters.inventorySource);
+      if (filters.inventorySource === "namecheap") {
+        countQuery = countQuery.eq('inventory_source', 'namecheap');
+      } else if (filters.inventorySource === "godaddy") {
+        countQuery = countQuery.neq('inventory_source', 'namecheap');
       }
 
        const { count: totalFavCount } = await countQuery;
@@ -327,8 +329,10 @@ export default function Dashboard() {
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
       }
-      if (filters.inventorySource !== "all") {
-        query = query.eq('inventory_source', filters.inventorySource);
+      if (filters.inventorySource === "namecheap") {
+        query = query.eq('inventory_source', 'namecheap');
+      } else if (filters.inventorySource === "godaddy") {
+        query = query.neq('inventory_source', 'namecheap');
       }
       
       // Add primary sort column only
@@ -425,8 +429,10 @@ export default function Dashboard() {
       }
       
       // Apply inventory source filter
-      if (filters.inventorySource !== "all") {
-        query = query.eq('inventory_source', filters.inventorySource);
+      if (filters.inventorySource === "namecheap") {
+        query = query.eq('inventory_source', 'namecheap');
+      } else if (filters.inventorySource === "godaddy") {
+        query = query.neq('inventory_source', 'namecheap');
       }
       
       // Add primary sort column only - skip secondary sorts to use simpler query plan
