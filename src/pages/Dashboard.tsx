@@ -55,6 +55,7 @@ interface Filters {
   auctionType: string;
   minPrice: number;
   maxPrice: number;
+  inventorySource: string;
 }
 
 interface SortOption {
@@ -88,6 +89,12 @@ const AUCTION_TYPE_OPTIONS = [
   { value: "all", label: "All Types" },
   { value: "Bid", label: "Bid Auctions" },
   { value: "BuyNow", label: "Buy Now" },
+];
+
+const SOURCE_OPTIONS = [
+  { value: "all", label: "All Sources" },
+  { value: "godaddy", label: "GoDaddy" },
+  { value: "namecheap", label: "Namecheap" },
 ];
 
 const PRICE_PRESETS = [
@@ -197,6 +204,7 @@ export default function Dashboard() {
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
+    inventorySource: "all",
   });
   const [sortBy, setSortBy] = useState("price_asc");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -208,6 +216,7 @@ export default function Dashboard() {
     filters.tld !== "all",
     filters.auctionType !== "all",
     filters.minPrice > 0 || filters.maxPrice < 1000000,
+    filters.inventorySource !== "all",
   ].filter(Boolean).length;
 
   // Fetch total domain count (estimated) for prominent display
@@ -290,6 +299,9 @@ export default function Dashboard() {
       if (filters.auctionType !== "all") {
         countQuery = countQuery.eq('auction_type', filters.auctionType);
       }
+      if (filters.inventorySource !== "all") {
+        countQuery = countQuery.eq('inventory_source', filters.inventorySource);
+      }
 
        const { count: totalFavCount } = await countQuery;
        if (seq === activeFetchSeqRef.current) setTotalCount(totalFavCount || 0);
@@ -314,6 +326,9 @@ export default function Dashboard() {
       }
       if (filters.auctionType !== "all") {
         query = query.eq('auction_type', filters.auctionType);
+      }
+      if (filters.inventorySource !== "all") {
+        query = query.eq('inventory_source', filters.inventorySource);
       }
       
       // Add primary sort column only
@@ -409,6 +424,11 @@ export default function Dashboard() {
         query = query.eq('auction_type', filters.auctionType);
       }
       
+      // Apply inventory source filter
+      if (filters.inventorySource !== "all") {
+        query = query.eq('inventory_source', filters.inventorySource);
+      }
+      
       // Add primary sort column only - skip secondary sorts to use simpler query plan
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       
@@ -445,7 +465,7 @@ export default function Dashboard() {
         // This avoids expensive COUNT queries on large tables while allowing full navigation
         if (hasMore) {
           // Use the estimated total domain count if available, otherwise use a large estimate
-          if (totalDomainCount && filters.tld === "all" && filters.auctionType === "all" && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
+          if (totalDomainCount && filters.tld === "all" && filters.auctionType === "all" && filters.inventorySource === "all" && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
             setTotalCount(totalDomainCount);
           } else {
             const newEstimate = from + itemsPerPage * 1000;
@@ -492,6 +512,7 @@ export default function Dashboard() {
       auctionType: "all",
       minPrice: 0,
       maxPrice: 1000000,
+      inventorySource: "all",
     });
     setCurrentPage(1);
   }
@@ -1027,7 +1048,7 @@ export default function Dashboard() {
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* TLD Filter */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">TLD Extension</label>
@@ -1074,7 +1095,29 @@ export default function Dashboard() {
                   </Select>
                 </div>
 
-                {/* Price Range Filter */}
+                {/* Inventory Source Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Marketplace</label>
+                  <Select
+                    value={filters.inventorySource}
+                    onValueChange={(value) => startSortTransition(() => {
+                      setCurrentPage(1);
+                      setFilters(f => ({ ...f, inventorySource: value }));
+                    })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select Source" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
+                      {SOURCE_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Price Range</label>
                   <div className="flex flex-wrap gap-2">
@@ -1108,6 +1151,12 @@ export default function Dashboard() {
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Type: {filters.auctionType}
                       <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(f => ({ ...f, auctionType: "all" }))} />
+                    </Badge>
+                  )}
+                  {filters.inventorySource !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Source: {SOURCE_OPTIONS.find(s => s.value === filters.inventorySource)?.label}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => setFilters(f => ({ ...f, inventorySource: "all" }))} />
                     </Badge>
                   )}
                   {(filters.minPrice > 0 || filters.maxPrice < 1000000) && (
