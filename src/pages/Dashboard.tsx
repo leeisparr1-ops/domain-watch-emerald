@@ -220,23 +220,24 @@ export default function Dashboard() {
   ].filter(Boolean).length;
 
   // Fetch total domain count for prominent display
-  // Uses RPC when available, falls back to hardcoded estimate
+  // Uses RPC when available, falls back to hardcoded estimate (~1.99M)
   const didFetchTotalRef = useRef(false);
   useEffect(() => {
     if (didFetchTotalRef.current) return;
     didFetchTotalRef.current = true;
     (async () => {
+      // Strategy 1: Try the fast RPC function
       try {
         const { data, error } = await supabase.rpc('get_auction_count');
-        if (!error && data !== null && Number(data) > 0) {
+        if (!error && data !== null && Number(data) > 100000) {
           setTotalDomainCount(Number(data));
           return;
         }
       } catch {
         // Function may not exist in production yet
       }
-      // Hardcoded fallback - kept in sync with actual production count
-      setTotalDomainCount(1990000);
+      // Strategy 2: Hardcoded fallback reflecting actual production count
+      setTotalDomainCount(1998000);
     })();
   }, []);
 
