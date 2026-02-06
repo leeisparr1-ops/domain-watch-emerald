@@ -21,9 +21,9 @@ jobs:
           echo "Triggering small inventory sync..."
           
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://orbygspxutudncbyipst.supabase.co/functions/v1/cron-sync-auctions" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cron-sync-auctions" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yYnlnc3B4dXR1ZG5jYnlpcHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MjE2NjQsImV4cCI6MjA4Mzk5NzY2NH0.956zo-yz_1rikHRWfppReftYeDmQf0xy60gezsbONec" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             --max-time 300 || true)
           
           echo "Response: $response"
