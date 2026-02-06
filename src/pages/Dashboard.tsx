@@ -202,12 +202,28 @@ export default function Dashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
   const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
+  const [totalDomainCount, setTotalDomainCount] = useState<number | null>(null);
   
   const activeFilterCount = [
     filters.tld !== "all",
     filters.auctionType !== "all",
     filters.minPrice > 0 || filters.maxPrice < 1000000,
   ].filter(Boolean).length;
+
+  // Fetch total domain count (estimated) for prominent display
+  const didFetchTotalRef = useRef(false);
+  useEffect(() => {
+    if (didFetchTotalRef.current) return;
+    didFetchTotalRef.current = true;
+    (async () => {
+      try {
+        const { count } = await supabase
+          .from('auctions')
+          .select('id', { count: 'estimated', head: true });
+        if (count !== null) setTotalDomainCount(count);
+      } catch {}
+    })();
+  }, []);
 
   // Track tab visibility so we can avoid expensive re-fetches on tab-switch
   // while still allowing explicit user-driven changes (sort/filter/page) to fetch immediately.
@@ -428,9 +444,13 @@ export default function Dashboard() {
         // Estimate total count: if we have more pages, keep increasing the estimate
         // This avoids expensive COUNT queries on large tables while allowing full navigation
         if (hasMore) {
-          // If there are more results, estimate at least 1000 more pages from current position
-          const newEstimate = from + itemsPerPage * 1000;
-          setTotalCount(prev => Math.max(prev, newEstimate));
+          // Use the estimated total domain count if available, otherwise use a large estimate
+          if (totalDomainCount && filters.tld === "all" && filters.auctionType === "all" && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
+            setTotalCount(totalDomainCount);
+          } else {
+            const newEstimate = from + itemsPerPage * 1000;
+            setTotalCount(prev => Math.max(prev, newEstimate));
+          }
         } else {
           // We've reached the end - set exact count
           setTotalCount(from + mapped.length);
@@ -760,8 +780,8 @@ export default function Dashboard() {
       }
     };
     
-    // Delay slightly to not compete with initial page render
-    const timeoutId = setTimeout(fetchInitialMatchCount, 500);
+    // Fire immediately - no delay needed; the render is already done by this point
+    const timeoutId = setTimeout(fetchInitialMatchCount, 0);
     return () => clearTimeout(timeoutId);
   }, [user]);
 
@@ -858,9 +878,13 @@ export default function Dashboard() {
                 >
                   <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Domain <span className="gradient-text">Dashboard</span></h1>
                 </button>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Browse and filter domain auctions
-                </p>
+                 <p className="text-sm sm:text-base text-muted-foreground">
+                   {totalDomainCount !== null ? (
+                     <>Tracking <span className="font-semibold text-foreground">{totalDomainCount.toLocaleString()}</span> domains across all marketplaces</>
+                   ) : (
+                     <>Browse and filter domain auctions</>
+                   )}
+                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
