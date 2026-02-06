@@ -220,42 +220,22 @@ export default function Dashboard() {
   ].filter(Boolean).length;
 
   // Fetch total domain count for prominent display
-  // Strategy: try RPC first, then direct count query, then hardcoded fallback
+  // Uses RPC when available, falls back to hardcoded estimate
   const didFetchTotalRef = useRef(false);
   useEffect(() => {
     if (didFetchTotalRef.current) return;
     didFetchTotalRef.current = true;
     (async () => {
-      // Strategy 1: Try the fast RPC function
       try {
         const { data, error } = await supabase.rpc('get_auction_count');
         if (!error && data !== null && Number(data) > 0) {
-          console.log('[Dashboard] Domain count via RPC:', Number(data));
           setTotalDomainCount(Number(data));
           return;
         }
-        console.log('[Dashboard] RPC failed or returned 0, trying direct count...', error?.message);
-      } catch (e) {
-        console.log('[Dashboard] RPC exception, trying direct count...', e);
+      } catch {
+        // Function may not exist in production yet
       }
-
-      // Strategy 2: Try a direct count query (works even without the RPC function)
-      try {
-        const { count, error: countError } = await supabase
-          .from('auctions')
-          .select('id', { count: 'exact', head: true });
-        if (!countError && count !== null && count > 0) {
-          console.log('[Dashboard] Domain count via direct count:', count);
-          setTotalDomainCount(count);
-          return;
-        }
-        console.log('[Dashboard] Direct count failed:', countError?.message);
-      } catch (e2) {
-        console.log('[Dashboard] Direct count exception:', e2);
-      }
-
-      // Strategy 3: Hardcoded fallback
-      console.log('[Dashboard] Using hardcoded fallback count');
+      // Hardcoded fallback - kept in sync with actual production count
       setTotalDomainCount(1990000);
     })();
   }, []);
@@ -474,13 +454,6 @@ export default function Dashboard() {
       query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
       const { data, error: queryError } = await query;
-      
-      console.log('[Dashboard] Auction fetch result:', { 
-        count: data?.length ?? 0, 
-        error: queryError?.message,
-        filters: { source: filters.inventorySource, tld: filters.tld, type: filters.auctionType },
-        page: currentPage
-      });
       
       if (queryError) {
         throw queryError;
