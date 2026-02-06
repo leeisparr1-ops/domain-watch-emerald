@@ -228,7 +228,7 @@ export default function Dashboard() {
       try {
         const { count } = await supabase
           .from('auctions')
-          .select('id', { count: 'estimated', head: true });
+          .select('id', { count: 'exact', head: true });
         if (count !== null) setTotalDomainCount(count);
       } catch {}
     })();
