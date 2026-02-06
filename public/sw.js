@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v6';
+const CACHE_NAME = 'expiredhawk-v7';
 const OFFLINE_URL = '/';
 
 // IMPORTANT: In preview/dev, this service worker can interfere with Vite's module loading
@@ -90,14 +90,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for static assets
+  // Navigation requests (HTML pages) use network-first so new deploys take effect immediately
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          // Cache the latest HTML for offline fallback
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  // Cache-first strategy for static assets (JS, CSS, images)
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
         return response;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Cache successful responses for next time
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -105,11 +123,6 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Return offline page for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match(OFFLINE_URL);
-        }
       });
     })
   );
