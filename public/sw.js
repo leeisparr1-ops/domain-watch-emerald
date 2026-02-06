@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v7';
+const CACHE_NAME = 'expiredhawk-v8';
 const OFFLINE_URL = '/';
 
 // IMPORTANT: In preview/dev, this service worker can interfere with Vite's module loading

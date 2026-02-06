@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2, Info } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -449,21 +450,16 @@ export default function Dashboard() {
       // Apply pagination
       query = query.range(from, to + 1).abortSignal(signal); // Fetch one extra to detect if there are more pages
       
-      console.log('[Dashboard] Fetching auctions', { 
-        source: filters.inventorySource, 
-        effectiveSort: effectiveSortBy,
-        sortColumn: currentSort.column,
-        page: currentPage,
-        range: `${from}-${to + 1}`,
-      });
-      
       const { data, error: queryError } = await query;
       
-      console.log('[Dashboard] Query result', { 
-        rows: data?.length ?? 0, 
-        error: queryError?.message ?? null,
-        firstDomain: data?.[0]?.domain_name ?? null,
-      });
+      // Visible diagnostics for source filter debugging (temporary)
+      if (filters.inventorySource !== "all") {
+        const diagMsg = `[v2] Source=${filters.inventorySource} Sort=${effectiveSortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`;
+        console.log('[Dashboard]', diagMsg);
+        if ((data?.length ?? 0) === 0) {
+          toast.info(`Debug: ${diagMsg}`);
+        }
+      }
       
       if (queryError) {
         throw queryError;
@@ -509,20 +505,26 @@ export default function Dashboard() {
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
       // Handle timeout gracefully with retry logic
+      const errCode = (typeof err === 'object' && err !== null && 'code' in err) ? (err as { code: string }).code : '';
+      const errMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? (err as { message: string }).message : String(err);
       const isTimeoutError = 
         (err instanceof Error && err.name === 'AbortError') ||
-        (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '57014');
+        errCode === '57014';
+      
+      // Show visible toast for source filter errors
+      if (filters.inventorySource !== "all") {
+        toast.error(`Query error: ${errMsg} (code: ${errCode}, timeout: ${isTimeoutError}, retry: ${retryCount})`);
+      }
       
       if (isTimeoutError && retryCount < MAX_RETRIES) {
         console.log(`Database timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
-        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
       } else if (isTimeoutError) {
         setError('Database is busy - please try again in a moment');
       } else {
         console.error('Error fetching auctions:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch auctions');
+        setError(errMsg || 'Failed to fetch auctions');
       }
     } finally {
       if (seq === activeFetchSeqRef.current) {
