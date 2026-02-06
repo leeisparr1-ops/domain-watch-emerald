@@ -427,6 +427,7 @@ export type Database = {
         Args: { lock_duration_minutes?: number; lock_holder: string }
         Returns: boolean
       }
+      get_auction_count: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
