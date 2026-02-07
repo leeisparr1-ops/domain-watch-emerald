@@ -205,7 +205,7 @@ export default function Dashboard() {
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
-    inventorySource: "all",
+    inventorySource: "godaddy",
   });
   const [sortBy, setSortBy] = useState("price_asc");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -812,15 +812,12 @@ export default function Dashboard() {
     
     const fetchInitialMatchCount = async () => {
       try {
-        const nowIso = new Date().toISOString();
-        // Use count query with hideEnded filter (matches default state)
-        // Note: Using limit(0) with count: 'exact' to get count without fetching rows
+        // Simple count without expensive join - just count all pattern_alerts for user
+        // This is fast because it only hits the small pattern_alerts table
         const { count, error } = await supabase
           .from('pattern_alerts')
-          .select('id, auctions!inner(end_time)', { count: 'exact' })
-          .eq('user_id', user.id)
-          .gte('auctions.end_time', nowIso)
-          .limit(0);
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
         
         if (!error && count !== null) {
           setTotalMatchesCount(count);
@@ -831,8 +828,8 @@ export default function Dashboard() {
       }
     };
     
-    // Fire immediately - no delay needed; the render is already done by this point
-    const timeoutId = setTimeout(fetchInitialMatchCount, 0);
+    // Delay significantly to avoid competing with the main auction query on a saturated DB
+    const timeoutId = setTimeout(fetchInitialMatchCount, 10000);
     return () => clearTimeout(timeoutId);
   }, [user]);
 
