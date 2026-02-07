@@ -153,8 +153,8 @@ export default function Dashboard() {
 
     const controller = new AbortController();
     activeFetchControllerRef.current = controller;
-    // Extended timeout (25s) to handle heavy database load with 750k+ rows
-    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 25000);
+    // Shorter timeout (12s) - fail fast and show retry rather than hanging
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 12000);
 
     return { seq, signal: controller.signal };
   }, []);

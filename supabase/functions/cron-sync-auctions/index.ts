@@ -160,8 +160,8 @@ serve(async (req) => {
           });
         }
         
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Longer delay between requests to prevent DB saturation
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
       } catch (error: unknown) {
         const durationMs = Date.now() - typeStartTime;
@@ -239,7 +239,7 @@ serve(async (req) => {
           });
         }
         
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Longer delay for large files
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Much longer delay for large files
         
       } catch (error: unknown) {
         const durationMs = Date.now() - typeStartTime;

@@ -75,10 +75,10 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Throttled batching - smaller batches with longer delays prevent DB saturation
-    // that blocks auth (/token) requests from completing
-    const BATCH_SIZE = 50;
-    const BATCH_DELAY_MS = 300; // Longer delay to allow auth queries through
+    // Aggressively throttled batching - the DB has ~2M rows and concurrent
+    // bulk-upsert calls were starving ALL other queries (auth, dashboard reads).
+    const BATCH_SIZE = 25;
+    const BATCH_DELAY_MS = 500; // Half-second gap between batches
     let inserted = 0;
     let errors = 0;
 
