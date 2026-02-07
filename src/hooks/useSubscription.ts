@@ -29,7 +29,7 @@ export const PLAN_CONFIG = {
     priceId: null,
     productId: null,
     price: 0,
-    maxPatterns: 2,
+    maxPatterns: 5,
   },
 } as const;
 
