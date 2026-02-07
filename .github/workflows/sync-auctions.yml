@@ -18,22 +18,32 @@ jobs:
     steps:
       - name: Clean up expired GoDaddy auctions (by end_time)
         run: |
-          echo "Cleaning up expired auctions..."
+          echo "Cleaning up expired auctions (pass 1)..."
           curl -s -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=200" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            --max-time 120 || true
-          echo "✅ Expired auction cleanup done"
+            --max-time 300 || true
+          echo "✅ Expired auction cleanup pass 1 done"
 
-      - name: Clean up stale Namecheap listings (not updated in 3 days)
+      - name: Clean up expired GoDaddy auctions (pass 2)
+        run: |
+          echo "Cleaning up expired auctions (pass 2)..."
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 300 || true
+          echo "✅ Expired auction cleanup pass 2 done"
+
+      - name: Clean up stale Namecheap listings (not updated in 1 day)
         run: |
           echo "Cleaning up stale Namecheap auctions..."
           curl -s -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=3&maxBatches=200" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=1&maxBatches=500" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            --max-time 120 || true
+            --max-time 300 || true
           echo "✅ Stale Namecheap cleanup done"
 
   # Job 1: Trigger edge function for smaller inventory types
