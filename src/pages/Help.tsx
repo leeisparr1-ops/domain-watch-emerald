@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/layout/Navbar";
+import { Helmet } from "react-helmet-async";
 import { Footer } from "@/components/layout/Footer";
 import { 
   Accordion,
@@ -78,7 +79,7 @@ export default function Help() {
     },
     {
       question: "How many patterns can I save?",
-      answer: "Free plan: 2 patterns. Basic ($4.99/mo): 50 patterns. Advanced ($9.99/mo): 125 patterns. Upgrade anytime from the Pricing page."
+      answer: "Free plan: 5 patterns. Basic ($4.99/mo): 50 patterns. Advanced ($9.99/mo): 125 patterns. Upgrade anytime from the Pricing page."
     },
     {
       question: "How often are auctions updated?",
@@ -131,6 +132,21 @@ export default function Help() {
   ];
 
   return (
+    <>
+      <Helmet>
+        <title>Help & Getting Started - ExpiredHawk</title>
+        <meta name="description" content="Learn how to use ExpiredHawk to monitor domain patterns, set up alerts, and never miss the perfect domain. FAQs and getting started guide." />
+        <link rel="canonical" href="https://expiredhawk.com/help" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": faqs.map(faq => ({
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+          }))
+        })}</script>
+      </Helmet>
     <div className="min-h-screen bg-background">
       <Navbar />
       
@@ -269,5 +285,6 @@ export default function Help() {
 
       <Footer />
     </div>
+    </>
   );
 }

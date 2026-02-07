@@ -1,5 +1,6 @@
 import { Check, Smartphone, Bell, Zap, Loader2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -169,6 +170,12 @@ export default function Pricing() {
   };
 
   return (
+    <>
+      <Helmet>
+        <title>Pricing - ExpiredHawk Domain Monitoring Plans</title>
+        <meta name="description" content="Start free with 5 patterns. Upgrade to Basic ($4.99/mo) or Advanced ($9.99/mo) for more patterns and priority alerts." />
+        <link rel="canonical" href="https://expiredhawk.com/pricing" />
+      </Helmet>
     <div className="min-h-screen bg-background">
       <Navbar />
       <section className="pt-32 pb-20">
@@ -256,5 +263,6 @@ export default function Pricing() {
       </section>
       <Footer />
     </div>
+    </>
   );
 }
