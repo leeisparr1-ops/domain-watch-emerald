@@ -6,10 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// ULTRA SMALL batches + delays to avoid competing with auth under high load
-const BATCH_SIZE = 25;
-const MAX_BATCHES = 100;
-const BATCH_DELAY_MS = 200;
+// Larger batches for cleanup — this runs when syncs aren't active
+const BATCH_SIZE = 100;
+const MAX_BATCHES = 500;
+const BATCH_DELAY_MS = 100;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
