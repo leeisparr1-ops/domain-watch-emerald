@@ -334,7 +334,7 @@ export default function Dashboard() {
       if (filters.inventorySource === "namecheap") {
         query = query.eq('inventory_source', 'namecheap');
       } else if (filters.inventorySource === "godaddy") {
-        query = query.eq('inventory_source', 'godaddy');
+        query = query.neq('inventory_source', 'namecheap');
       }
       
       // Add primary sort column only
@@ -438,7 +438,7 @@ export default function Dashboard() {
       if (filters.inventorySource === "namecheap") {
         query = query.eq('inventory_source', 'namecheap');
       } else if (filters.inventorySource === "godaddy") {
-        query = query.eq('inventory_source', 'godaddy');
+        query = query.neq('inventory_source', 'namecheap');
       }
       
       // Add primary sort column only - skip secondary sorts to use simpler query plan
