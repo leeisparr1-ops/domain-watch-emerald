@@ -233,6 +233,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Authenticate: require SYNC_SECRET
+  const syncSecret = Deno.env.get('SYNC_SECRET');
+  const authHeader = req.headers.get('Authorization');
+  const providedSecret = authHeader?.replace('Bearer ', '') || req.headers.get('X-Sync-Secret');
+  if (!syncSecret || providedSecret !== syncSecret) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);

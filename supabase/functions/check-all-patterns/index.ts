@@ -55,6 +55,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Authenticate: require SYNC_SECRET
+  const syncSecret = Deno.env.get('SYNC_SECRET');
+  const authHeader = req.headers.get('Authorization');
+  const providedSecret = authHeader?.replace('Bearer ', '') || req.headers.get('X-Sync-Secret');
+  if (!syncSecret || providedSecret !== syncSecret) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const startTime = Date.now();
   
   try {

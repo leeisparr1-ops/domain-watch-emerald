@@ -104,6 +104,27 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Authenticate: require SYNC_SECRET or valid user JWT
+  const syncSecret = Deno.env.get('SYNC_SECRET');
+  const authHeader = req.headers.get('Authorization');
+  const providedToken = authHeader?.replace('Bearer ', '') || '';
+  const hasSyncSecret = syncSecret && (providedToken === syncSecret || req.headers.get('X-Sync-Secret') === syncSecret);
+  
+  if (!hasSyncSecret) {
+    // Fallback: check for valid user JWT
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, anonKey, {
+      global: { headers: { Authorization: `Bearer ${providedToken}` } },
+    });
+    const { data, error } = await authClient.auth.getUser(providedToken);
+    if (error || !data?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
