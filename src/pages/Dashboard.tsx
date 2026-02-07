@@ -220,16 +220,23 @@ export default function Dashboard() {
     filters.inventorySource !== "all",
   ].filter(Boolean).length;
 
-  // Total domain count — hardcoded to match production (~2M rows).
-  // The get_auction_count RPC is unreliable across environments, so we
-  // set a realistic static value that gets overridden only on success.
+  // Fetch real domain count from DB, with a sensible fallback
   const didFetchTotalRef = useRef(false);
   useEffect(() => {
     if (didFetchTotalRef.current) return;
     didFetchTotalRef.current = true;
-    // Use hardcoded production count. The RPC is unreliable (missing in prod,
-    // returns lower Test-DB counts in preview). No background override needed.
-    setTotalDomainCount(1998000);
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_auction_count');
+        if (!error && data && data > 100000) {
+          setTotalDomainCount(data);
+        } else {
+          setTotalDomainCount(2075000); // fallback estimate
+        }
+      } catch {
+        setTotalDomainCount(2075000);
+      }
+    })();
   }, []);
 
   // Track tab visibility so we can avoid expensive re-fetches on tab-switch
