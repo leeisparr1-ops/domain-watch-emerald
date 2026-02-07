@@ -68,15 +68,15 @@ export default function Login() {
     setLoading(true);
     setShowMaintenance(false);
 
-    // Retry logic with exponential backoff for 504 gateway timeouts
-    const maxRetries = 3;
+    // Retry logic with short timeout for fast feedback
+    const maxRetries = 2;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({ email, password }),
-          15000, // Increased to 15s
+          8000, // 8s timeout - fail fast
           "Sign-in"
         );
 
@@ -93,7 +93,7 @@ export default function Login() {
 
           if (isRetryable && attempt < maxRetries) {
             console.log(`Login attempt ${attempt} failed with retryable error, retrying...`);
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+            const delay = 1500;
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
@@ -153,7 +153,7 @@ export default function Login() {
           msg.includes("deadline");
         
         if (isRetryable && attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+          const delay = 1500;
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
