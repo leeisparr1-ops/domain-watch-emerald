@@ -261,7 +261,11 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
         {/* Action buttons */}
         <div className="pt-4 border-t border-border space-y-3">
           <a
-            href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`}
+            href={
+              domain.inventorySource === 'namecheap'
+                ? `https://www.namecheap.com/market/buynow/${encodeURIComponent(domain.domain)}/`
+                : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="block"
