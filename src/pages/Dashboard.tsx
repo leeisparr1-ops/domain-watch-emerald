@@ -185,7 +185,7 @@ export default function Dashboard() {
   const [matchesPage, setMatchesPage] = useState(1);
   const [matchesPerPage, setMatchesPerPage] = useState(50);
   const [totalMatchesCount, setTotalMatchesCount] = useState(0);
-  const [hideEndedMatches, setHideEndedMatches] = useState(true); // Default: hide ended auctions
+  const [hideEndedMatches, setHideEndedMatches] = useState(false); // Default: show all matches including ended
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
