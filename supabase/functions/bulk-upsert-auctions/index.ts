@@ -75,10 +75,10 @@ Deno.serve(async (req) => {
       },
     });
 
-  // Optimized batching - larger batches complete faster without saturating DB
-  // Each incoming request has up to 1000 records; process in reasonable chunks
-  const BATCH_SIZE = 100; // Increased from 25 for faster throughput
-  const BATCH_DELAY_MS = 50; // Reduced delay - DB can handle this
+    // Throttled batching - smaller batches with longer delays prevent DB saturation
+    // that blocks auth (/token) requests from completing
+    const BATCH_SIZE = 50;
+    const BATCH_DELAY_MS = 300; // Longer delay to allow auth queries through
     let inserted = 0;
     let errors = 0;
 
