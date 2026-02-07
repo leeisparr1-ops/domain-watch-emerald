@@ -399,10 +399,7 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      // Force end_time_asc sort for all queries to leverage the only reliable index.
-      // Price sorts on 1M+ rows cause statement timeouts without composite indexes.
-      const effectiveSortBy = "end_time_asc";
-      const currentSort = SORT_OPTIONS.find(s => s.value === effectiveSortBy) || SORT_OPTIONS[0];
+      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
       
       const now = new Date();
       const endTimeFilter = now.toISOString();
@@ -451,7 +448,7 @@ export default function Dashboard() {
       
       // Log source filter diagnostics (console only, no toasts)
       if (filters.inventorySource !== "all") {
-        console.log('[Dashboard]', `Source=${filters.inventorySource} Sort=${effectiveSortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`);
+        console.log('[Dashboard]', `Source=${filters.inventorySource} Sort=${sortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`);
       }
       
       if (queryError) {
