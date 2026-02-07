@@ -175,8 +175,9 @@ serve(async (req) => {
 
     console.log(`Prepared ${auctionsToUpsert.length} auctions for upsert`);
 
-    // Upsert in batches of 500
-    const batchSize = 500;
+    // Upsert in small batches with delays to avoid starving auth/other queries
+    const batchSize = 50;
+    const BATCH_DELAY_MS = 300;
     let totalUpserted = 0;
     let errors: string[] = [];
 
@@ -193,9 +194,14 @@ serve(async (req) => {
       if (error) {
         console.error(`Batch ${i / batchSize + 1} error:`, error);
         errors.push(error.message);
+        await new Promise(resolve => setTimeout(resolve, 500));
       } else {
         totalUpserted += batch.length;
-        console.log(`Upserted batch ${i / batchSize + 1}: ${batch.length} auctions`);
+      }
+
+      // Pause between batches to let auth and other queries through
+      if (i + batchSize < auctionsToUpsert.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
 
