@@ -7,20 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MaintenanceBanner } from "@/components/MaintenanceBanner";
-
-function getSupabaseAuthTokenStorageKey(): string | null {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) return key;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -36,27 +22,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [showResendSection, setShowResendSection] = useState(false);
-  const [showMaintenance, setShowMaintenance] = useState(false);
   
   const navigate = useNavigate();
-
-  function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const t = window.setTimeout(() => {
-        reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s. Please try again.`));
-      }, ms);
-
-      promise
-        .then((v) => {
-          window.clearTimeout(t);
-          resolve(v);
-        })
-        .catch((err) => {
-          window.clearTimeout(t);
-          reject(err);
-        });
-    });
-  }
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -66,104 +33,47 @@ export default function Login() {
     }
     
     setLoading(true);
-    setShowMaintenance(false);
 
-    // Retry logic with short timeout for fast feedback
-    const maxRetries = 3;
-    let lastError: Error | null = null;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const { data, error } = await withTimeout(
-          supabase.auth.signInWithPassword({ email, password }),
-          15000, // 15s timeout - balance between fast fail and giving auth time
-          "Sign-in"
-        );
-
-        if (error) {
-          // Check if this is a timeout/gateway error that should be retried
-          const msg = error.message.toLowerCase();
-          const isRetryable = 
-            msg.includes("504") || 
-            msg.includes("timeout") ||
-            msg.includes("gateway") ||
-            msg.includes("network") ||
-            msg.includes("upstream") ||
-            msg.includes("deadline");
-
-          if (isRetryable && attempt < maxRetries) {
-            console.log(`Login attempt ${attempt} failed with retryable error, retrying...`);
-            const delay = 1500;
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-
-          // If it's a timeout-related error after all retries, show maintenance banner
-          if (isRetryable) {
-            setShowMaintenance(true);
-            toast.error("Service is temporarily unavailable. Please try again in a few minutes.");
-            setLoading(false);
-            return;
-          }
-
-          // Common case: user hasn't verified their email yet.
-          if (msg.includes("confirm")) {
-            setShowResendSection(true);
-          }
-          toast.error(error.message);
-          setLoading(false);
-          return;
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("confirm") || msg.includes("not confirmed")) {
+          setShowResendSection(true);
         }
-
-        if (!data.session) {
-          toast.error("Signed in, but no session was returned. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        // Persist preference
-        try {
-          localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
-        } catch {
-          // ignore
-        }
-
-        if (!rememberMe) {
-          sessionStorage.setItem("eh_non_persistent_session", "1");
-          const key = getSupabaseAuthTokenStorageKey();
-          if (key) localStorage.removeItem(key);
-        } else {
-          sessionStorage.removeItem("eh_non_persistent_session");
-        }
-        
-        toast.success("Welcome back!");
-        navigate("/dashboard");
+        toast.error(error.message);
+        setLoading(false);
         return;
-      } catch (err) {
-        console.error(`Login attempt ${attempt} error:`, err);
-        lastError = err instanceof Error ? err : new Error("Unknown error");
-
-        const msg = lastError.message.toLowerCase();
-        const isRetryable =
-          msg.includes("timeout") ||
-          msg.includes("504") ||
-          msg.includes("gateway") ||
-          msg.includes("network") ||
-          msg.includes("upstream") ||
-          msg.includes("deadline");
-        
-        if (isRetryable && attempt < maxRetries) {
-          const delay = 1500;
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
       }
-    }
 
-    // All retries failed - show maintenance banner
-    setShowMaintenance(true);
-    toast.error("Service is temporarily unavailable. Please try again in a few minutes.");
-    setLoading(false);
+      if (!data.session) {
+        toast.error("Signed in, but no session was returned. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Persist preference
+      try {
+        localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
+      } catch {
+        // ignore
+      }
+
+      if (!rememberMe) {
+        sessionStorage.setItem("eh_non_persistent_session", "1");
+      } else {
+        sessionStorage.removeItem("eh_non_persistent_session");
+      }
+      
+      toast.success("Welcome back!");
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Login error:", err);
+      toast.error(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResendVerification = async () => {
@@ -198,14 +108,6 @@ export default function Login() {
       <div className="absolute inset-0 pattern-grid opacity-10" />
 
       <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border relative z-10 animate-fade-in">
-        {/* Maintenance Banner */}
-        {showMaintenance && (
-          <MaintenanceBanner 
-            onRetry={() => handleLogin()} 
-            isRetrying={loading} 
-          />
-        )}
-
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
