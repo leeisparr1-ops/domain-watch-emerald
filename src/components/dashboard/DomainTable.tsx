@@ -339,7 +339,11 @@ export function DomainTable({
                           />
                         </Button>
                         <a
-                          href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`}
+                          href={
+                            d.inventorySource === 'namecheap'
+                              ? `https://www.namecheap.com/market/buynow/${encodeURIComponent(d.domain)}/`
+                              : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}

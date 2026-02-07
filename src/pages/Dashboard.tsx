@@ -66,12 +66,12 @@ interface SortOption {
   ascending: boolean;
 }
 
-// Reduced sort options to only those with reliable index performance on 750k+ rows
-// Other sorts (Most Bids, Domain A-Z, etc.) cause statement timeouts
+// ONLY end_time sort is reliable on 1M+ rows without composite indexes.
+// Price sorts cause statement timeouts on filtered queries.
 const SORT_OPTIONS: SortOption[] = [
+  { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
   { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
-  { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
 ];
 
 const TLD_OPTIONS = [
@@ -207,7 +207,7 @@ export default function Dashboard() {
     maxPrice: 1000000,
     inventorySource: "godaddy",
   });
-  const [sortBy, setSortBy] = useState("price_asc");
+  const [sortBy, setSortBy] = useState("end_time_asc");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
   const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
@@ -399,12 +399,9 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       
-      // Get current sort option
-      // When filtering by a specific inventory source, force sort to "Ending Soon"
-      // to leverage the existing covering index (end_time, id) in production.
-      // The composite index on (inventory_source, end_time, price) hasn't deployed
-      // to production, so price-sorting on 900k+ source-filtered rows times out.
-      const effectiveSortBy = filters.inventorySource !== "all" ? "end_time_asc" : sortBy;
+      // Force end_time_asc sort for all queries to leverage the only reliable index.
+      // Price sorts on 1M+ rows cause statement timeouts without composite indexes.
+      const effectiveSortBy = "end_time_asc";
       const currentSort = SORT_OPTIONS.find(s => s.value === effectiveSortBy) || SORT_OPTIONS[0];
       
       const now = new Date();
