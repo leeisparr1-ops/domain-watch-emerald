@@ -371,11 +371,11 @@ export default function Dashboard() {
       // Ignore aborted/stale requests (common when rapidly changing sort/filter).
       if (seq !== activeFetchSeqRef.current) return;
       if (err instanceof Error && err.name === 'AbortError') {
-        setError('Database is busy - please try again in a moment');
+        setError('The server is under heavy load. Please tap Retry or wait a moment.');
         return;
       }
       console.error('Error fetching favorite auctions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch favorites');
+      setError('Unable to load favorites right now. Please tap Retry.');
     } finally {
       if (seq === activeFetchSeqRef.current) {
         if (showLoadingSpinner) setLoading(false);
@@ -521,10 +521,10 @@ export default function Dashboard() {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
       } else if (isTimeoutError) {
-        setError('Database is busy - please try again in a moment');
+        setError('The server is under heavy load. Please tap Retry or wait a moment.');
       } else {
         console.error('Error fetching auctions:', err);
-        setError(errMsg || 'Failed to fetch auctions');
+        setError('Unable to load domains right now. Please tap Retry.');
       }
     } finally {
       if (seq === activeFetchSeqRef.current) {
