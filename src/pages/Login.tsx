@@ -69,14 +69,14 @@ export default function Login() {
     setShowMaintenance(false);
 
     // Retry logic with short timeout for fast feedback
-    const maxRetries = 2;
+    const maxRetries = 3;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({ email, password }),
-          8000, // 8s timeout - fail fast
+          15000, // 15s timeout - balance between fast fail and giving auth time
           "Sign-in"
         );
 
