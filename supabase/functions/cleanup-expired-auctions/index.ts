@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     const cutoffISO = cutoffDate.toISOString();
 
     console.log(
-      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago)`
+      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago) — excluding namecheap`
     );
 
     while (batchCount < maxBatches && consecutiveErrors < 3) {
@@ -141,6 +141,7 @@ Deno.serve(async (req) => {
           .from("auctions")
           .select("id")
           .lt("end_time", cutoffISO)
+          .neq("inventory_source", "namecheap")
           .limit(BATCH_SIZE);
 
         if (selectError) {
