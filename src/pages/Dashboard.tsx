@@ -153,8 +153,8 @@ export default function Dashboard() {
 
     const controller = new AbortController();
     activeFetchControllerRef.current = controller;
-    // Shorter timeout (12s) - fail fast and show retry rather than hanging
-    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 12000);
+    // 25s timeout - enough for filtered queries with the new inventory_source index
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 25000);
 
     return { seq, signal: controller.signal };
   }, []);
@@ -334,7 +334,7 @@ export default function Dashboard() {
       if (filters.inventorySource === "namecheap") {
         query = query.eq('inventory_source', 'namecheap');
       } else if (filters.inventorySource === "godaddy") {
-        query = query.neq('inventory_source', 'namecheap');
+        query = query.eq('inventory_source', 'godaddy');
       }
       
       // Add primary sort column only
@@ -438,7 +438,7 @@ export default function Dashboard() {
       if (filters.inventorySource === "namecheap") {
         query = query.eq('inventory_source', 'namecheap');
       } else if (filters.inventorySource === "godaddy") {
-        query = query.neq('inventory_source', 'namecheap');
+        query = query.eq('inventory_source', 'godaddy');
       }
       
       // Add primary sort column only - skip secondary sorts to use simpler query plan
@@ -449,13 +449,9 @@ export default function Dashboard() {
       
       const { data, error: queryError } = await query;
       
-      // Visible diagnostics for source filter debugging (temporary)
+      // Log source filter diagnostics (console only, no toasts)
       if (filters.inventorySource !== "all") {
-        const diagMsg = `[v2] Source=${filters.inventorySource} Sort=${effectiveSortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`;
-        console.log('[Dashboard]', diagMsg);
-        if ((data?.length ?? 0) === 0) {
-          toast.info(`Debug: ${diagMsg}`);
-        }
+        console.log('[Dashboard]', `Source=${filters.inventorySource} Sort=${effectiveSortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`);
       }
       
       if (queryError) {
@@ -508,9 +504,9 @@ export default function Dashboard() {
         (err instanceof Error && err.name === 'AbortError') ||
         errCode === '57014';
       
-      // Show visible toast for source filter errors
-      if (filters.inventorySource !== "all") {
-        toast.error(`Query error: ${errMsg} (code: ${errCode}, timeout: ${isTimeoutError}, retry: ${retryCount})`);
+      // Show error toast only for non-abort errors
+      if (!isTimeoutError || retryCount >= MAX_RETRIES) {
+        toast.error(`Query error: ${errMsg}`);
       }
       
       if (isTimeoutError && retryCount < MAX_RETRIES) {

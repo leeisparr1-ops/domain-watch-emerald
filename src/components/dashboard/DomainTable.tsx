@@ -341,7 +341,7 @@ export function DomainTable({
                         <a
                           href={
                             d.inventorySource === 'namecheap'
-                              ? `https://www.namecheap.com/market/buynow/${encodeURIComponent(d.domain)}/`
+                              ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(d.domain.replace(/\.[^.]+$/, ''))}`
                               : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
                           }
                           target="_blank"

@@ -263,7 +263,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
           <a
             href={
               domain.inventorySource === 'namecheap'
-                ? `https://www.namecheap.com/market/buynow/${encodeURIComponent(domain.domain)}/`
+                ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
                 : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
             }
             target="_blank"
