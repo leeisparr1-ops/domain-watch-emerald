@@ -149,13 +149,10 @@ serve(async (req) => {
 
     console.log(`Checking ${allPatterns.length} patterns against ${auctions.length} auctions`);
 
-    // Get existing alerts from the last 14 days to avoid duplicates
-    // (bounded query to prevent performance degradation as table grows)
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    // Get all existing alerts to avoid duplicates
     const { data: existingAlerts, error: alertsError } = await supabase
       .from("pattern_alerts")
-      .select("user_id, pattern_id, auction_id")
-      .gte("alerted_at", fourteenDaysAgo);
+      .select("user_id, pattern_id, auction_id");
 
     if (alertsError) {
       console.error("Error fetching existing alerts:", alertsError);
