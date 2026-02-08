@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
-import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useUserPatterns } from "@/hooks/useUserPatterns";
 import { usePatternAlerts } from "@/hooks/usePatternAlerts";
 import { Navigate, Link } from "react-router-dom";
@@ -129,7 +129,8 @@ function formatTimeRemaining(endTime: string): string {
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { isFavorite, toggleFavorite, count: favoritesCount, clearAllFavorites } = useFavorites();
-  const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
+  const { settings: notifSettings } = useNotificationSettings();
+  const notificationsEnabled = notifSettings.enabled;
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns, enabledCount } = useUserPatterns();
   usePatternAlerts({ enabledCount, checkPatterns }); // Enable background pattern checking
   const [isSortPending, startSortTransition] = useTransition();
