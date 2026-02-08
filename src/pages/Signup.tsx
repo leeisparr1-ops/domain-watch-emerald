@@ -11,6 +11,7 @@ import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicato
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +19,10 @@ export default function Signup() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
     setLoading(true);
 
     const { error } = await supabase.auth.signUp({
@@ -121,6 +126,23 @@ export default function Signup() {
               </button>
             </div>
             <PasswordStrengthIndicator password={password} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="pl-10 bg-input border-border"
+                minLength={8}
+                required
+              />
+            </div>
           </div>
 
           <Button type="submit" variant="hero" className="w-full" disabled={loading}>
