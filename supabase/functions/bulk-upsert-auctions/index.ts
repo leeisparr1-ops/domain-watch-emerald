@@ -75,12 +75,13 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Aggressively throttled batching - the DB has ~2M rows and concurrent
-    // bulk-upsert calls were starving ALL other queries (auth, dashboard reads).
+    // Very conservative batching — the DB has ~2M rows and even a single
+    // bulk-upsert call can starve auth/dashboard if batches are too large.
     const BATCH_SIZE = 25;
     const BATCH_DELAY_MS = 500; // Half-second gap between batches
     let inserted = 0;
     let errors = 0;
+    let consecutiveErrors = 0;
 
     for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
       const batch = auctions.slice(i, i + BATCH_SIZE);
@@ -95,10 +96,18 @@ Deno.serve(async (req) => {
       if (error) {
         console.error(`Batch error at ${i}: ${error.message}`);
         errors++;
-      // On error, wait before next attempt
-      await new Promise(resolve => setTimeout(resolve, 200));
+        consecutiveErrors++;
+        // Back off more aggressively on consecutive errors
+        const backoff = Math.min(consecutiveErrors * 1000, 5000);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        // If too many consecutive errors, abort to stop hammering the DB
+        if (consecutiveErrors >= 10) {
+          console.error(`Aborting: ${consecutiveErrors} consecutive errors — DB likely saturated`);
+          break;
+        }
       } else {
         inserted += batch.length;
+        consecutiveErrors = 0; // Reset on success
       }
       
       // Always pause between batches to allow auth/other queries to complete
