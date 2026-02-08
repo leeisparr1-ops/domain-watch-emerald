@@ -25,10 +25,11 @@ if (typeof fetch !== 'function') {
 const NAMECHEAP_AUCTIONS_URL = 'https://www.namecheap.com/market/auctions/';
 const EXPECTED_CSV_FILENAME = 'Namecheap_Market_Sales.csv';
 
-// Processing configuration - optimized for ~1M records
-const BATCH_SIZE = 1000;
-const PARALLEL_REQUESTS = 5;
-const BATCH_DELAY_MS = 50;
+// SAFE Configuration - Serial processing to prevent DB saturation
+// Same conservative approach as GoDaddy sync
+const BATCH_SIZE = 500;
+const PARALLEL_REQUESTS = 1; // SERIAL: one call at a time
+const BATCH_DELAY_MS = 2000; // 2s gap between calls
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 const DOWNLOAD_TIMEOUT_MS = 600000; // 10 minutes for 170MB file
 

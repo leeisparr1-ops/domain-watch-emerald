@@ -2,7 +2,8 @@
 
 /**
  * GitHub Actions script to sync large GoDaddy inventory files via edge function.
- * OPTIMIZED: Uses larger batches and parallel processing to complete within 2 hours.
+ * INCREMENTAL: Deduplicates against existing data to minimize DB writes.
+ * Runs once daily at 3 AM UTC with serial processing.
  * 
  * Required secrets:
  * - SUPABASE_URL
@@ -320,7 +321,7 @@ async function recordSyncHistory(inventorySource, success, auctionsCount, durati
 /**
  * Sync a single inventory type
  */
-async function syncInventoryType({ type, url }) {
+async function syncInventoryType({ type, url }, seenDomains = new Set()) {
   const startTime = Date.now();
   const zipPath = join(TEMP_DIR, `${type}.json.zip`);
   
@@ -408,8 +409,22 @@ async function syncInventoryType({ type, url }) {
     
     console.log(`   Valid auctions: ${auctions.length.toLocaleString()}`);
     
+    // Deduplicate: skip domains we've already synced in a previous inventory type this run
+    const newAuctions = auctions.filter(a => {
+      const key = a.domain_name;
+      if (seenDomains.has(key)) return false;
+      seenDomains.add(key);
+      return true;
+    });
+    
+    const skipped = auctions.length - newAuctions.length;
+    if (skipped > 0) {
+      console.log(`   ⏭️  Skipped ${skipped.toLocaleString()} duplicates (already synced in earlier file)`);
+    }
+    console.log(`   Sending ${newAuctions.length.toLocaleString()} unique auctions`);
+    
     // Upsert via edge function
-    const { inserted, errors } = await upsertAuctionsViaEdgeFunction(auctions, type);
+    const { inserted, errors } = await upsertAuctionsViaEdgeFunction(newAuctions, type);
     
     const duration = Date.now() - startTime;
     await recordSyncHistory(type, true, inserted, duration);
@@ -468,18 +483,30 @@ async function main() {
   console.log('==========================================================');
   console.log(`Supabase URL: ${SUPABASE_URL.substring(0, 30)}...`);
   console.log(`Inventory types: ${LARGE_INVENTORY_TYPES.map(t => t.type).join(', ')}`);
-  console.log(`Config: BATCH_SIZE=${BATCH_SIZE}, PARALLEL=${PARALLEL_REQUESTS}`);
+  console.log(`Config: BATCH_SIZE=${BATCH_SIZE}, PARALLEL=${PARALLEL_REQUESTS}, DELAY=${BATCH_DELAY_MS}ms`);
   console.log(`Started at: ${new Date().toISOString()}`);
+  
+  // Track domains across all inventory types to avoid duplicate upserts.
+  // GoDaddy files overlap heavily (allListings ⊃ endingToday, allBiddable, etc.)
+  // Processing allListings LAST means we sync the smaller, unique files first,
+  // then allListings only adds domains not already covered.
+  const seenDomains = new Set();
+  
+  // Reorder: process smaller/unique files first, allListings last (largest, most overlap)
+  const ordered = [
+    ...LARGE_INVENTORY_TYPES.filter(t => t.type !== 'allListings'),
+    ...LARGE_INVENTORY_TYPES.filter(t => t.type === 'allListings'),
+  ];
   
   const results = [];
   
-  for (const inventory of LARGE_INVENTORY_TYPES) {
-    const result = await syncInventoryType(inventory);
+  for (const inventory of ordered) {
+    const result = await syncInventoryType(inventory, seenDomains);
     results.push(result);
     
     // Short delay between inventory types
-    console.log('   ⏳ Pausing 3s before next inventory type...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('   ⏳ Pausing 5s before next inventory type...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
   // Summary
