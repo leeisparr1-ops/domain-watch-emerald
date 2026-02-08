@@ -20,15 +20,9 @@ const INVENTORY_TYPES = [
   'auctionsEndingTomorrow'
 ];
 
-// Large inventory types - handled by sync-large-inventory function with streaming/limits
-// These contain the bulk of the domain listings
-const LARGE_INVENTORY_TYPES = [
-  'closeout',      // ~8.6MB - closeout deals
-  'endingToday',   // ~10MB - urgent listings
-  'allBiddable',   // ~19MB - active auctions
-  'allExpiring',   // ~28MB - expiring domains
-  'allListings',   // ~28MB - complete inventory
-];
+// Large inventory types are handled EXCLUSIVELY by the GitHub Actions script
+// (.github/scripts/sync-large-inventory.cjs) which syncs only allListings.
+// Do NOT sync them here to avoid double-writing ~780K rows.
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -185,82 +179,8 @@ serve(async (req) => {
       }
     }
 
-    // Now sync large inventory types using the specialized function
-    console.log(`Syncing ${LARGE_INVENTORY_TYPES.length} large inventory sources...`);
-    
-    for (const type of LARGE_INVENTORY_TYPES) {
-      const typeStartTime = Date.now();
-      try {
-        console.log(`Syncing large inventory type: ${type}`);
-        
-        const response = await fetch(`${projectUrl}/functions/v1/sync-large-inventory?type=${type}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${syncSecret}`,
-          },
-        });
-
-        const data = await response.json();
-        const durationMs = Date.now() - typeStartTime;
-        
-        if (response.ok && data.success) {
-          const count = data.count || data.totalUpserted || 0;
-          results.push({ 
-            type, 
-            success: true, 
-            count,
-            duration_ms: durationMs
-          });
-          console.log(`✓ ${type}: synced ${count} auctions in ${durationMs}ms`);
-          
-          await supabase.from('sync_history').insert({
-            inventory_source: type,
-            auctions_count: count,
-            success: true,
-            duration_ms: durationMs
-          });
-        } else {
-          const errorMsg = data.error || 'Unknown error';
-          results.push({ 
-            type, 
-            success: false, 
-            error: errorMsg,
-            duration_ms: durationMs
-          });
-          console.error(`✗ ${type}: ${errorMsg}`);
-          
-          await supabase.from('sync_history').insert({
-            inventory_source: type,
-            auctions_count: 0,
-            success: false,
-            error_message: errorMsg,
-            duration_ms: durationMs
-          });
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Much longer delay for large files
-        
-      } catch (error: unknown) {
-        const durationMs = Date.now() - typeStartTime;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({ 
-          type, 
-          success: false, 
-          error: errorMessage,
-          duration_ms: durationMs
-        });
-        console.error(`✗ ${type}: ${errorMessage}`);
-        
-        await supabase.from('sync_history').insert({
-          inventory_source: type,
-          auctions_count: 0,
-          success: false,
-          error_message: errorMessage,
-          duration_ms: durationMs
-        });
-      }
-    }
+    // Large inventory types (allListings, Namecheap) are handled by GitHub Actions scripts.
+    // They are NOT synced here to prevent double-writing hundreds of thousands of rows.
 
     // IMPORTANT: Do expensive follow-up work ONCE per full sync run.
     // Previously, sync-auctions triggered pattern checks/cleanup after every source,
@@ -306,7 +226,7 @@ serve(async (req) => {
     }
   }
 
-  const allTypes = [...INVENTORY_TYPES, ...LARGE_INVENTORY_TYPES];
+  const allTypes = INVENTORY_TYPES;
   const duration = ((Date.now() - overallStartTime) / 1000).toFixed(1);
   const successful = results.filter(r => r.success).length;
   const totalSynced = results.reduce((sum, r) => sum + (r.count || 0), 0);
