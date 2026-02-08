@@ -21,12 +21,11 @@ if (typeof fetch !== 'function') {
   process.exit(1);
 }
 
-// Large inventory files from GoDaddy - correct URLs
+// Large inventory files from GoDaddy
+// OPTIMIZED: Only sync allListings since it's a superset of all other files
+// (endingToday, allBiddable, allExpiring, closeout are all subsets)
+// This cuts GoDaddy sync writes by ~60-70%
 const LARGE_INVENTORY_TYPES = [
-  { type: 'closeout', url: 'https://inventory.auctions.godaddy.com/closeout_listings.json.zip' },
-  { type: 'endingToday', url: 'https://inventory.auctions.godaddy.com/all_listings_ending_today.json.zip' },
-  { type: 'allBiddable', url: 'https://inventory.auctions.godaddy.com/all_biddable_auctions.json.zip' },
-  { type: 'allExpiring', url: 'https://inventory.auctions.godaddy.com/all_expiring_auctions.json.zip' },
   { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/all_listings.json.zip' },
 ];
 
@@ -486,27 +485,12 @@ async function main() {
   console.log(`Config: BATCH_SIZE=${BATCH_SIZE}, PARALLEL=${PARALLEL_REQUESTS}, DELAY=${BATCH_DELAY_MS}ms`);
   console.log(`Started at: ${new Date().toISOString()}`);
   
-  // Track domains across all inventory types to avoid duplicate upserts.
-  // GoDaddy files overlap heavily (allListings ⊃ endingToday, allBiddable, etc.)
-  // Processing allListings LAST means we sync the smaller, unique files first,
-  // then allListings only adds domains not already covered.
   const seenDomains = new Set();
-  
-  // Reorder: process smaller/unique files first, allListings last (largest, most overlap)
-  const ordered = [
-    ...LARGE_INVENTORY_TYPES.filter(t => t.type !== 'allListings'),
-    ...LARGE_INVENTORY_TYPES.filter(t => t.type === 'allListings'),
-  ];
-  
   const results = [];
   
-  for (const inventory of ordered) {
+  for (const inventory of LARGE_INVENTORY_TYPES) {
     const result = await syncInventoryType(inventory, seenDomains);
     results.push(result);
-    
-    // Short delay between inventory types
-    console.log('   ⏳ Pausing 5s before next inventory type...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
   // Summary
