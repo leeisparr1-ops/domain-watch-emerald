@@ -151,7 +151,7 @@ export default function Signup() {
         </form>
 
         <p className="mt-4 text-xs text-center text-muted-foreground">
-          Free tier includes 2 search patterns. Upgrade anytime for more.
+          Free tier includes 5 search patterns. Upgrade anytime for more.
         </p>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
