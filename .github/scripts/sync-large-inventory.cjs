@@ -29,10 +29,11 @@ const LARGE_INVENTORY_TYPES = [
   { type: 'allListings', url: 'https://inventory.auctions.godaddy.com/all_listings.json.zip' },
 ];
 
-// OPTIMIZED Configuration - Much faster processing
-const BATCH_SIZE = 2000; // Larger batches to reduce API call overhead
-const PARALLEL_REQUESTS = 10; // More parallel requests
-const BATCH_DELAY_MS = 100; // Slightly more delay for stability
+// SAFE Configuration - Serial processing to prevent DB saturation
+// With 2M+ rows, parallel upserts starve auth & dashboard queries.
+const BATCH_SIZE = 500; // Smaller batches = less lock contention per edge function call
+const PARALLEL_REQUESTS = 1; // SERIAL: one edge function call at a time
+const BATCH_DELAY_MS = 2000; // 2s gap between calls to let auth/reads breathe
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 
 // Get credentials from environment - trim to remove any accidental whitespace
