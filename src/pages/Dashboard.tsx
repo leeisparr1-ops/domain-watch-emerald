@@ -231,10 +231,10 @@ export default function Dashboard() {
         if (!error && data && data > 100000) {
           setTotalDomainCount(data);
         } else {
-          setTotalDomainCount(2075000); // fallback estimate
+          setTotalDomainCount(1300000); // fallback estimate
         }
       } catch {
-        setTotalDomainCount(2075000);
+        setTotalDomainCount(1300000);
       }
     })();
   }, []);
