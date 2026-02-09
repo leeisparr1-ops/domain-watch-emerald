@@ -98,24 +98,21 @@ serve(async (req) => {
 
     console.log(`Found ${allPatterns.length} enabled patterns across all users`);
 
-    // Get active auctions ending soon - limit to auctions ending within 7 days
-    // and use the new index on (end_time, price) for faster queries
-    const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const nowIso = now.toISOString();
-    const weekIso = weekFromNow.toISOString();
+    // Get RECENTLY SYNCED auctions — domains ingested/updated in the last 25 hours.
+    // This ensures users are notified when a domain is first discovered, not when
+    // it's about to end. Also captures Buy Now listings that have no end_time.
+    const recentCutoff = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
     
     const allAuctions: Auction[] = [];
     const batchSize = 1000;
-    const maxBatches = 10; // Cap at 10k auctions for better performance
+    const maxBatches = 20; // Up to 20k recently synced auctions
     
     for (let batch = 0; batch < maxBatches; batch++) {
       const { data: auctionBatch, error: auctionsError } = await supabase
         .from("auctions")
         .select("id, domain_name, price, tld, end_time, domain_age")
-        .gte("end_time", nowIso)
-        .lte("end_time", weekIso) // Only check auctions ending within 7 days
-        .order("end_time", { ascending: true })
+        .gte("updated_at", recentCutoff)
+        .order("updated_at", { ascending: false })
         .range(batch * batchSize, (batch + 1) * batchSize - 1);
 
       if (auctionsError) {
@@ -137,10 +134,10 @@ serve(async (req) => {
     const auctions = allAuctions;
     
     if (auctions.length === 0) {
-      console.log("No active auctions found within the next 7 days");
+      console.log("No recently synced auctions found");
       return new Response(JSON.stringify({ 
         success: true,
-        message: "No active auctions within 7 days",
+        message: "No recently synced auctions",
         duration_ms: Date.now() - startTime,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,10 +146,12 @@ serve(async (req) => {
 
     console.log(`Checking ${allPatterns.length} patterns against ${auctions.length} auctions`);
 
-    // Get all existing alerts to avoid duplicates
+    // Only fetch recent alerts (last 30 days) to avoid unbounded query growth
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: existingAlerts, error: alertsError } = await supabase
       .from("pattern_alerts")
-      .select("user_id, pattern_id, auction_id");
+      .select("user_id, pattern_id, auction_id")
+      .gte("alerted_at", thirtyDaysAgo);
 
     if (alertsError) {
       console.error("Error fetching existing alerts:", alertsError);
