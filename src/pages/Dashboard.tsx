@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useTransition } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
 import { Search, ExternalLink, Clock, Gavel, Loader2, Filter, X, ChevronLeft, ChevronRight, ArrowUpDown, Heart, RefreshCw, Bell, BellOff, Settings, Target, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
@@ -188,6 +188,7 @@ export default function Dashboard() {
   const [hideEndedMatches, setHideEndedMatches] = useState(false); // Default: show all matches including ended
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<AuctionDomain | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
@@ -209,9 +210,8 @@ export default function Dashboard() {
   });
   const [sortBy, setSortBy] = useState("end_time_asc");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [timeKey, setTimeKey] = useState(0); // Force re-render for time remaining
-  const TIME_UPDATE_INTERVAL = 30 * 1000; // 30 seconds for time display update
   const [totalDomainCount, setTotalDomainCount] = useState<number | null>(null);
+  const TIME_UPDATE_INTERVAL = 60 * 1000; // 60 seconds for time display update
   
   const activeFilterCount = [
     filters.tld !== "all",
@@ -849,10 +849,18 @@ export default function Dashboard() {
   }, [viewMode, matchesPage, fetchDialogMatches]);
 
   
-  // Update time remaining display every 30 seconds
+  // Debounce search input to avoid re-filtering on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Update time remaining display every 60 seconds - only re-render DomainTable rows
+  // Instead of forcing full component re-render with timeKey, we trigger a shallow
+  // auctions identity change so only the table re-renders
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeKey(k => k + 1);
+      setAuctions(prev => [...prev]); // Shallow copy triggers table re-render only
     }, TIME_UPDATE_INTERVAL);
     
     return () => clearInterval(interval);
@@ -892,16 +900,15 @@ export default function Dashboard() {
     
     return pages;
   };
-  
+  // Memoize filtered results to avoid recomputation on unrelated state changes
+  const filtered = useMemo(() => {
+    if (!debouncedSearch) return auctions;
+    const lowerSearch = debouncedSearch.toLowerCase();
+    return auctions.filter(d => d.domain.toLowerCase().includes(lowerSearch));
+  }, [auctions, debouncedSearch]);
+
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
-
-  // Filter auctions - only apply search filter client-side
-  // Pattern matching is handled separately in the "Matches" tab via pattern_alerts
-  const filtered = auctions.filter(d => {
-    const matchesSearch = d.domain.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
-  });
 
   return (
     <div className="min-h-screen bg-background">
