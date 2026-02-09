@@ -117,7 +117,7 @@ serve(async (req) => {
       .from("pattern_alerts")
       .select("pattern_id, auction_id")
       .eq("user_id", userId)
-      .gte("created_at", weekAgo);
+      .gte("alerted_at", weekAgo);
 
     if (alertsError) {
       console.error("Alerts query error:", alertsError);

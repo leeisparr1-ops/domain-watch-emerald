@@ -185,7 +185,7 @@ export default function Dashboard() {
   const [matchesPage, setMatchesPage] = useState(1);
   const [matchesPerPage, setMatchesPerPage] = useState(50);
   const [totalMatchesCount, setTotalMatchesCount] = useState(0);
-  const [hideEndedMatches, setHideEndedMatches] = useState(false); // Default: show all matches including ended
+  const [hideEndedMatches, setHideEndedMatches] = useState(true); // Default: hide ended matches
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -1274,7 +1274,7 @@ export default function Dashboard() {
                           className="rounded border-border"
                         />
                         <span className="text-muted-foreground">
-                          {hideEndedMatches ? "Ended hidden" : "Show ended"}
+                          {hideEndedMatches ? "Hide ended" : "Show ended"}
                         </span>
                       </label>
                     </div>
