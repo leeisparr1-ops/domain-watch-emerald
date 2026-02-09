@@ -109,9 +109,12 @@ export function Navbar() {
                   <HelpCircle className="w-4 h-4" />
                   Help
                 </Link>
-                <Button variant="outline" onClick={handleLogout}>
-                  Logout
-                </Button>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Button variant="outline" onClick={handleLogout}>
+                    Logout
+                  </Button>
+                </div>
               </>
             ) : (
               <>
@@ -123,9 +126,12 @@ export function Navbar() {
                   <LogIn className="w-4 h-4" />
                   Sign In
                 </Link>
-                <Link to="/signup" onClick={() => setIsOpen(false)}>
-                  <Button variant="hero" className="w-full">Get Started</Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Link to="/signup" onClick={() => setIsOpen(false)}>
+                    <Button variant="hero" className="w-full">Get Started</Button>
+                  </Link>
+                </div>
               </>
             )}
           </div>
