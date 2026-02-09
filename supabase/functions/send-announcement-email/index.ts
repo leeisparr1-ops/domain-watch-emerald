@@ -44,58 +44,47 @@ serve(async (req: Request): Promise<Response> => {
       const announcementHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 32px;">🦅 ExpiredHawk</h1>
-            <p style="color: rgba(255,255,255,0.95); margin: 15px 0 0 0; font-size: 18px;">New Features Just Launched!</p>
+            <h1 style="color: white; margin: 0; font-size: 32px;">🦅 Expired Hawk</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0; font-size: 24px;">🎉 Exciting Updates for You!</h2>
+            <h2 style="color: #1f2937; margin-top: 0; font-size: 22px;">Thank You for Being an Early User 🎯</h2>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              We've been working hard to make ExpiredHawk even better. Here's what's new:
+              Hi there,
             </p>
             
-            <!-- Free Plan Upgrade -->
-            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 24px 0;">
-              <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">🆓 Free Plan Now Includes 5 Patterns!</h3>
-              <p style="color: #4b5563; line-height: 1.7; font-size: 15px; margin-bottom: 0;">
-                Great news for our free users — you can now create <strong>up to 5 domain patterns</strong> to monitor! 
-                Set up alerts for keywords, prefixes, suffixes, or even regex patterns and get notified when matching domains go to auction.
-              </p>
-            </div>
-            
-            <!-- Spam Risk Detection -->
-            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 24px 0;">
-              <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">🛡️ NEW: Spam Risk Detection</h3>
-              <p style="color: #4b5563; line-height: 1.7; font-size: 15px;">
-                Avoid domains with a bad history! We now check domains against major spam and phishing databases including <strong>SURBL</strong> and <strong>Spamhaus DBL</strong>.
-              </p>
-              <ul style="color: #4b5563; line-height: 1.8; padding-left: 20px; margin-bottom: 0; font-size: 15px;">
-                <li><span style="color: #22c55e; font-weight: 600;">🟢 Clean</span> – No issues detected</li>
-                <li><span style="color: #eab308; font-weight: 600;">🟡 Medium Risk</span> – Some concerns found</li>
-                <li><span style="color: #ef4444; font-weight: 600;">🔴 High Risk</span> – Domain flagged on blocklists</li>
-              </ul>
-              <p style="color: #6b7280; line-height: 1.6; font-size: 14px; margin-top: 12px; margin-bottom: 0;">
-                Just click on any domain in your dashboard to see its spam risk status!
-              </p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                Try It Now →
-              </a>
-            </div>
-          </div>
-          
-          <div style="text-align: center; margin-top: 24px; padding: 20px;">
-            <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">
-              Thank you for being part of ExpiredHawk!
+            <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
+              We wanted to reach out personally to thank you for being one of the first users of <strong>Expired Hawk</strong>.
             </p>
-            <a href="mailto:support@expiredhawk.com" style="color: #22c55e; text-decoration: none; font-weight: 500;">support@expiredhawk.com</a>
+            
+            <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
+              Over the past week, we've been making significant improvements behind the scenes — faster domain syncing, smarter pattern matching, and improved notifications. During this process, you may have experienced some brief disruptions, and we sincerely apologize for any inconvenience.
+            </p>
+            
+            <h3 style="color: #1f2937; font-size: 18px; margin-top: 24px;">Here's what's improved:</h3>
+            
+            <div style="background: white; padding: 16px 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 16px 0;">
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">⚡ <strong>Faster syncs</strong> — Domain data now updates more efficiently</p>
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">🔔 <strong>Better notifications</strong> — You'll now be alerted as soon as a matching domain is discovered, as there were delays before</p>
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">🛡️ <strong>Improved reliability</strong> — We've resolved the sync timeout issues</p>
+            </div>
+            
+            <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
+              We're committed to making Expired Hawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback or suggestions, drop us an email at <a href="mailto:support@expiredhawk.com" style="color: #22c55e; font-weight: 600;">support@expiredhawk.com</a> — we read every message.
+            </p>
+            
+            <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
+              Happy hunting! 🎯
+            </p>
+            
+            <p style="color: #4b5563; font-size: 16px; margin-bottom: 0;">
+              — The Expired Hawk Team
+            </p>
           </div>
           
           <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-            © ${new Date().getFullYear()} ExpiredHawk - Domain Monitoring Made Simple
+            © ${new Date().getFullYear()} Expired Hawk - Domain Monitoring Made Simple
           </p>
         </div>
       `;
@@ -106,7 +95,7 @@ serve(async (req: Request): Promise<Response> => {
         const emailResponse: any = await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           to: [user.email],
-          subject: "🚀 New Features: 5 Free Patterns + Spam Risk Detection!",
+          subject: "Thank You for Being an Early Expired Hawk User 🦅",
           html: announcementHtml,
         });
 
