@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,6 +50,7 @@ export function Navbar() {
                   <HelpCircle className="w-4 h-4" />
                   Help
                 </Link>
+                <ThemeToggle />
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
@@ -59,6 +61,7 @@ export function Navbar() {
                   <HelpCircle className="w-4 h-4" />
                   Help
                 </Link>
+                <ThemeToggle />
                 <Link to="/login">
                   <Button variant="ghost" size="sm">
                     <LogIn className="w-4 h-4 mr-2" />
