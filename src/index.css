@@ -129,7 +129,7 @@
 
   .glass {
     /* Performance: Use solid semi-transparent bg instead of expensive blur */
-    background: hsl(156 25% 8% / 0.95);
+    background: hsl(var(--card));
   }
   
   /* Optional glass effect only for users who prefer motion/animations */
