@@ -12,7 +12,7 @@ const TermsOfService = () => {
       </Helmet>
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-16 max-w-4xl">
+        <main className="container mx-auto px-4 pt-24 pb-16 max-w-4xl">
           <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
           <p className="text-muted-foreground mb-8">Last updated: January 23, 2026</p>
 
@@ -27,7 +27,7 @@ const TermsOfService = () => {
             <section>
               <h2 className="text-2xl font-semibold mb-4">2. Description of Service</h2>
               <p className="text-muted-foreground">
-                ExpiredHawk is a domain monitoring service that allows you to set up patterns and receive alerts when matching domains become available in GoDaddy auctions. We aggregate publicly available auction data and provide notification services.
+                ExpiredHawk is a domain monitoring service that allows you to set up patterns and receive alerts when matching domains become available at auction or closeout. We aggregate publicly available auction data from marketplaces including GoDaddy and Namecheap, and provide notification services.
               </p>
             </section>
 
@@ -72,7 +72,7 @@ const TermsOfService = () => {
             <section>
               <h2 className="text-2xl font-semibold mb-4">6. Domain Information Disclaimer</h2>
               <p className="text-muted-foreground">
-                The domain auction information provided through our Service is aggregated from third-party sources, primarily GoDaddy Auctions. We do not guarantee the accuracy, completeness, or timeliness of this information. Domain availability, pricing, and auction status may change at any time. We are not responsible for any decisions you make based on this information.
+                The domain auction information provided through our Service is aggregated from third-party sources, including GoDaddy Auctions and Namecheap Marketplace. We do not guarantee the accuracy, completeness, or timeliness of this information. Domain availability, pricing, and auction status may change at any time. We are not responsible for any decisions you make based on this information.
               </p>
             </section>
 

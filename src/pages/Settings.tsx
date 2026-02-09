@@ -50,8 +50,8 @@ export default function Settings() {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
     
@@ -187,7 +187,7 @@ export default function Settings() {
                 <h2 className="text-lg font-semibold">Change Password</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Update your account password. Choose a strong password with at least 6 characters.
+                Update your account password. Choose a strong password with at least 8 characters.
               </p>
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div className="space-y-2">
