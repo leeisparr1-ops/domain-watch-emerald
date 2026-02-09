@@ -75,10 +75,11 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Very conservative batching — the DB has ~2M rows and even a single
-    // bulk-upsert call can starve auth/dashboard if batches are too large.
-    const BATCH_SIZE = 25;
-    const BATCH_DELAY_MS = 500; // Half-second gap between batches
+    // The GitHub script already throttles at 2s between calls, so we can
+    // afford larger sub-batches here. 200 rows per upsert keeps lock time
+    // short while completing each 500-record payload in ~3 sub-batches.
+    const BATCH_SIZE = 200;
+    const BATCH_DELAY_MS = 100; // Minimal gap — throttling happens at caller level
     let inserted = 0;
     let errors = 0;
     let consecutiveErrors = 0;
