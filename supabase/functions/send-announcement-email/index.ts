@@ -9,6 +9,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMAIL_HEADERS = {
+  "List-Unsubscribe": "<https://expiredhawk.com/settings>",
+  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+};
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,9 +26,8 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Fetching all users to send announcement emails...");
 
-    // Get all users from auth
     const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
-    
+
     if (usersError) {
       throw new Error(`Failed to fetch users: ${usersError.message}`);
     }
@@ -41,21 +45,23 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
+      const text = `Thank You for Being an Early User – ExpiredHawk\n\nHi there,\n\nWe wanted to reach out personally to thank you for being one of the first users of ExpiredHawk.\n\nOver the past week, we've been making significant improvements behind the scenes — faster domain syncing, smarter pattern matching, and improved notifications. During this process, you may have experienced some brief disruptions, and we sincerely apologize for any inconvenience.\n\nHere's what's improved:\n- Faster syncs – Domain data now updates more efficiently\n- Better notifications – You'll now be alerted as soon as a matching domain is discovered\n- Improved reliability – We've resolved the sync timeout issues\n\nWe're committed to making ExpiredHawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback, email us at support@expiredhawk.com — we read every message.\n\nHappy hunting,\n— The ExpiredHawk Team\n\nManage email preferences: https://expiredhawk.com/settings`;
+
       const announcementHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 32px;">🦅 Expired Hawk</h1>
+            <h1 style="color: white; margin: 0; font-size: 32px;">ExpiredHawk</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0; font-size: 22px;">Thank You for Being an Early User 🎯</h2>
+            <h2 style="color: #1f2937; margin-top: 0; font-size: 22px;">Thank You for Being an Early User</h2>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
               Hi there,
             </p>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              We wanted to reach out personally to thank you for being one of the first users of <strong>Expired Hawk</strong>.
+              We wanted to reach out personally to thank you for being one of the first users of <strong>ExpiredHawk</strong>.
             </p>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
@@ -65,38 +71,42 @@ serve(async (req: Request): Promise<Response> => {
             <h3 style="color: #1f2937; font-size: 18px; margin-top: 24px;">Here's what's improved:</h3>
             
             <div style="background: white; padding: 16px 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 16px 0;">
-              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">⚡ <strong>Faster syncs</strong> — Domain data now updates more efficiently</p>
-              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">🔔 <strong>Better notifications</strong> — You'll now be alerted as soon as a matching domain is discovered, as there were delays before</p>
-              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;">🛡️ <strong>Improved reliability</strong> — We've resolved the sync timeout issues</p>
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;"><strong>Faster syncs</strong> — Domain data now updates more efficiently</p>
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;"><strong>Better notifications</strong> — You'll now be alerted as soon as a matching domain is discovered</p>
+              <p style="color: #4b5563; margin: 8px 0; font-size: 15px;"><strong>Improved reliability</strong> — We've resolved the sync timeout issues</p>
             </div>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              We're committed to making Expired Hawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback or suggestions, drop us an email at <a href="mailto:support@expiredhawk.com" style="color: #22c55e; font-weight: 600;">support@expiredhawk.com</a> — we read every message.
+              We're committed to making ExpiredHawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback or suggestions, drop us an email at <a href="mailto:support@expiredhawk.com" style="color: #22c55e; font-weight: 600;">support@expiredhawk.com</a> — we read every message.
             </p>
             
             <p style="color: #4b5563; line-height: 1.7; font-size: 16px;">
-              Happy hunting! 🎯
+              Happy hunting,
             </p>
             
             <p style="color: #4b5563; font-size: 16px; margin-bottom: 0;">
-              — The Expired Hawk Team
+              — The ExpiredHawk Team
             </p>
           </div>
           
           <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-            © ${new Date().getFullYear()} Expired Hawk - Domain Monitoring Made Simple
+            ExpiredHawk – Domain Monitoring Made Simple<br>
+            <a href="https://expiredhawk.com/settings" style="color: #9ca3af;">Manage email preferences</a>
           </p>
         </div>
       `;
 
       try {
         console.log(`Sending announcement email to: ${user.email}`);
-        
+
         const emailResponse: any = await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
+          replyTo: "support@expiredhawk.com",
           to: [user.email],
-          subject: "Thank You for Being an Early Expired Hawk User 🦅",
+          subject: "Thank You for Being an Early ExpiredHawk User",
           html: announcementHtml,
+          text,
+          headers: EMAIL_HEADERS,
         });
 
         if (emailResponse?.error) {
@@ -109,7 +119,6 @@ serve(async (req: Request): Promise<Response> => {
           successCount++;
         }
 
-        // Delay to avoid rate limiting from Resend (2 requests/sec max)
         await new Promise(resolve => setTimeout(resolve, 600));
       } catch (err: any) {
         console.error(`Error sending to ${user.email}:`, err.message);
@@ -121,12 +130,12 @@ serve(async (req: Request): Promise<Response> => {
     console.log(`Announcement emails complete. Success: ${successCount}, Failed: ${failCount}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         totalUsers: users.length,
         successCount,
         failCount,
-        results 
+        results
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
