@@ -9,10 +9,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMAIL_HEADERS = {
-  "List-Unsubscribe": "<https://expiredhawk.com/settings>",
-  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-};
+const FOOTER_HTML = `
+  <div style="text-align: center; padding: 24px 20px; font-size: 12px; color: #a1a1aa;">
+    <p style="margin: 0 0 8px 0;">ExpiredHawk – Domain Monitoring Made Simple</p>
+    <p style="margin: 0 0 8px 0;">
+      <a href="https://expiredhawk.com/settings" style="color: #a1a1aa; text-decoration: underline;">Manage email preferences</a>
+    </p>
+    <p style="margin: 0; color: #d4d4d8;">
+      ExpiredHawk · United Kingdom
+    </p>
+  </div>
+`;
+
+const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
+
+function makeEmailHeaders(): Record<string, string> {
+  return {
+    "List-Unsubscribe": "<https://expiredhawk.com/settings>",
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    "X-Entity-Ref-ID": crypto.randomUUID(),
+  };
+}
+
+function wrapHtml(bodyContent: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+${bodyContent}
+${FOOTER_HTML}
+</div>
+</body>
+</html>`;
+}
 
 interface MatchedDomain {
   domain: string;
@@ -139,32 +169,26 @@ serve(async (req: Request): Promise<Response> => {
 
     if (payload.type === "test") {
       subject = "ExpiredHawk – Test Notification";
-      text = `ExpiredHawk – Test Notification\n\nYour email notifications are configured correctly. You'll receive alerts when:\n- A domain matches one of your keyword patterns\n- New auctions appear for your tracked keywords\n\nManage your preferences: https://expiredhawk.com/settings\n\nTo stop receiving these emails, update your notification settings at https://expiredhawk.com/settings`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">ExpiredHawk</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Email Notifications Active</p>
-          </div>
-          <div style="background: #f9fafb; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0;">Test Successful</h2>
-            <p style="color: #4b5563; line-height: 1.6;">
-              Your email notifications are configured correctly. You'll receive alerts when:
-            </p>
-            <ul style="color: #4b5563; line-height: 1.8;">
-              <li>A domain matches one of your keyword patterns</li>
-              <li>New auctions appear for your tracked keywords</li>
-            </ul>
-            <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
-              You can manage your notification preferences in your <a href="https://expiredhawk.com/settings" style="color: #22c55e;">account settings</a>.
-            </p>
-          </div>
-          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">
-            ExpiredHawk – Domain Monitoring Made Simple<br>
-            <a href="https://expiredhawk.com/settings" style="color: #9ca3af;">Unsubscribe or manage preferences</a>
+      text = `ExpiredHawk – Test Notification\n\nYour email notifications are configured correctly. You will receive alerts when:\n- A domain matches one of your keyword patterns\n- New auctions appear for your tracked keywords\n\nManage your preferences: https://expiredhawk.com/settings${FOOTER_TEXT}`;
+      html = wrapHtml(`
+        <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:30px;border-radius:16px 16px 0 0;text-align:center;">
+          <h1 style="color:white;margin:0;font-size:28px;">ExpiredHawk</h1>
+          <p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">Email Notifications Active</p>
+        </div>
+        <div style="background:white;padding:32px 30px;border-radius:0 0 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <h2 style="color:#18181b;margin-top:0;">Test Successful</h2>
+          <p style="color:#3f3f46;line-height:1.6;">
+            Your email notifications are configured correctly. You will receive alerts when:
+          </p>
+          <ul style="color:#3f3f46;line-height:1.8;">
+            <li>A domain matches one of your keyword patterns</li>
+            <li>New auctions appear for your tracked keywords</li>
+          </ul>
+          <p style="color:#71717a;font-size:14px;margin-bottom:0;">
+            You can manage your notification preferences in your <a href="https://expiredhawk.com/settings" style="color:#22c55e;">account settings</a>.
           </p>
         </div>
-      `;
+      `);
     } else if (payload.type === "pattern_match") {
       let matches = payload.data?.matches || [];
 
@@ -199,19 +223,19 @@ serve(async (req: Request): Promise<Response> => {
       let domainListText = "";
       if (matches.length > 0) {
         domainList = matches.map(m => `
-          <li style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+          <li style="padding:12px 16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <strong style="color: #1f2937; font-family: monospace;">${m.domain}</strong>
-              <br><span style="color: #6b7280; font-size: 12px;">Pattern: ${m.pattern}</span>
+              <strong style="color:#1f2937;font-family:monospace;">${m.domain}</strong>
+              <br><span style="color:#6b7280;font-size:12px;">Pattern: ${m.pattern}</span>
             </div>
-            <div style="text-align: right;">
-              <strong style="color: #059669;">$${m.price.toLocaleString()}</strong>
+            <div style="text-align:right;">
+              <strong style="color:#059669;">$${m.price.toLocaleString()}</strong>
             </div>
           </li>
         `).join("");
         domainListText = matches.map(m => `- ${m.domain} ($${m.price.toLocaleString()}) – Pattern: ${m.pattern}`).join("\n");
       } else if (payload.matchedDomains) {
-        domainList = payload.matchedDomains.slice(0, 10).map(d => `<li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${d}</li>`).join("");
+        domainList = payload.matchedDomains.slice(0, 10).map(d => `<li style="padding:8px 0;border-bottom:1px solid #e5e7eb;">${d}</li>`).join("");
         domainListText = payload.matchedDomains.slice(0, 10).map(d => `- ${d}`).join("\n");
       }
 
@@ -225,33 +249,27 @@ serve(async (req: Request): Promise<Response> => {
         pattern_id: m.pattern_id,
       }));
 
-      subject = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} match your patterns – ExpiredHawk`;
-      text = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} match your patterns\n\n${domainListText}\n${moreCount > 0 ? `\n...and ${moreCount} more\n` : ""}\nView all matches: https://expiredhawk.com/dashboard\n\nTo stop receiving these emails, update your notification settings at https://expiredhawk.com/settings`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">ExpiredHawk</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Pattern Match Alert</p>
-          </div>
-          <div style="background: #f9fafb; padding: 24px; border-radius: 12px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; margin-top: 0;">${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Found</h2>
-            <p style="color: #4b5563;">
-              New domains matching your patterns are available for auction.
-            </p>
-            <ul style="list-style: none; padding: 0; margin: 16px 0; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
-              ${domainList}
-            </ul>
-            ${moreCount > 0 ? `<p style="color: #6b7280; font-style: italic;">...and ${moreCount} more domains</p>` : ""}
-            <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
-              View All Matches
-            </a>
-          </div>
-          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">
-            ExpiredHawk – Domain Monitoring Made Simple<br>
-            <a href="https://expiredhawk.com/settings" style="color: #9ca3af;">Unsubscribe or manage preferences</a>
-          </p>
+      subject = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} matched your patterns – ExpiredHawk`;
+      text = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} matched your patterns\n\n${domainListText}\n${moreCount > 0 ? `\n...and ${moreCount} more\n` : ""}\nView all matches: https://expiredhawk.com/dashboard${FOOTER_TEXT}`;
+      html = wrapHtml(`
+        <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:30px;border-radius:16px 16px 0 0;text-align:center;">
+          <h1 style="color:white;margin:0;font-size:28px;">ExpiredHawk</h1>
+          <p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">Pattern Match Alert</p>
         </div>
-      `;
+        <div style="background:white;padding:32px 30px;border-radius:0 0 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <h2 style="color:#18181b;margin-top:0;">${totalMatches} Domain${totalMatches > 1 ? 's' : ''} Found</h2>
+          <p style="color:#3f3f46;">
+            New domains matching your patterns are available for auction.
+          </p>
+          <ul style="list-style:none;padding:0;margin:16px 0;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+            ${domainList}
+          </ul>
+          ${moreCount > 0 ? `<p style="color:#71717a;font-style:italic;">...and ${moreCount} more domains</p>` : ""}
+          <a href="https://expiredhawk.com/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;margin-top:16px;">
+            View All Matches
+          </a>
+        </div>
+      `);
     }
 
     console.log("Sending email to:", recipientEmail);
@@ -263,7 +281,7 @@ serve(async (req: Request): Promise<Response> => {
       subject,
       html,
       text,
-      headers: EMAIL_HEADERS,
+      headers: makeEmailHeaders(),
     });
 
     if (emailResponse?.error) {
