@@ -8,6 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMAIL_HEADERS = {
+  "List-Unsubscribe": "<https://expiredhawk.com/settings>",
+  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+};
+
 interface WelcomeEmailRequest {
   email: string;
   name?: string;
@@ -29,10 +34,14 @@ serve(async (req: Request): Promise<Response> => {
 
     const firstName = name?.split(' ')[0] || 'there';
 
+    const text = `Welcome to ExpiredHawk, ${firstName}!\n\nYou've just joined the smartest way to discover valuable expired domains before anyone else.\n\nGet Started in 3 Steps:\n1. Create your first search pattern – Keywords, TLDs, or regex\n2. Enable notifications – Email or push alerts\n3. Sit back – We'll alert you when domains match\n\nYour free account includes 5 search patterns. Need more? Upgrade anytime.\n\nGo to Dashboard: https://expiredhawk.com/dashboard\n\nQuestions? Reply to this email or reach out at support@expiredhawk.com\n\nTo manage your email preferences: https://expiredhawk.com/settings`;
+
     const emailResponse: any = await resend.emails.send({
       from: "ExpiredHawk <notifications@expiredhawk.com>",
+      replyTo: "support@expiredhawk.com",
       to: [email],
-      subject: "🦅 Welcome to ExpiredHawk - Let's Find Your Perfect Domain!",
+      subject: "Welcome to ExpiredHawk – Let's Find Your Perfect Domain",
+      text,
       html: `
         <!DOCTYPE html>
         <html>
@@ -42,36 +51,34 @@ serve(async (req: Request): Promise<Response> => {
         </head>
         <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <!-- Header -->
             <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">🦅 ExpiredHawk</h1>
+              <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">ExpiredHawk</h1>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Domain Monitoring Made Simple</p>
             </div>
             
-            <!-- Content -->
             <div style="background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <h2 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">Hey ${firstName}! 👋</h2>
+              <h2 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">Hey ${firstName},</h2>
               
               <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Welcome to ExpiredHawk! You've just joined the smartest way to discover valuable expired domains before anyone else.
+                Welcome to ExpiredHawk. You've just joined the smartest way to discover valuable expired domains before anyone else.
               </p>
               
               <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; border-radius: 8px; margin: 24px 0;">
-                <h3 style="color: #166534; margin: 0 0 12px 0; font-size: 16px;">🚀 Get Started in 3 Steps:</h3>
+                <h3 style="color: #166534; margin: 0 0 12px 0; font-size: 16px;">Get Started in 3 Steps:</h3>
                 <ol style="color: #15803d; margin: 0; padding-left: 20px; line-height: 1.8;">
-                  <li><strong>Create your first search pattern</strong> - Keywords, TLDs, or regex</li>
-                  <li><strong>Enable notifications</strong> - Email or push alerts</li>
-                  <li><strong>Sit back</strong> - We'll alert you when domains match!</li>
+                  <li><strong>Create your first search pattern</strong> – Keywords, TLDs, or regex</li>
+                  <li><strong>Enable notifications</strong> – Email or push alerts</li>
+                  <li><strong>Sit back</strong> – We'll alert you when domains match</li>
                 </ol>
               </div>
               
               <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 20px 0;">
-                Your free account includes <strong>2 search patterns</strong>. Need more? Upgrade anytime to unlock unlimited patterns and premium features.
+                Your free account includes <strong>5 search patterns</strong>. Need more? Upgrade anytime to unlock unlimited patterns and premium features.
               </p>
               
               <div style="text-align: center; margin: 32px 0;">
                 <a href="https://expiredhawk.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                  Go to Dashboard →
+                  Go to Dashboard
                 </a>
               </div>
               
@@ -82,16 +89,17 @@ serve(async (req: Request): Promise<Response> => {
               </p>
             </div>
             
-            <!-- Footer -->
             <div style="text-align: center; padding: 24px;">
               <p style="color: #a1a1aa; font-size: 12px; margin: 0;">
-                © ${new Date().getFullYear()} ExpiredHawk. All rights reserved.
+                ExpiredHawk – Domain Monitoring Made Simple<br>
+                <a href="https://expiredhawk.com/settings" style="color: #a1a1aa;">Manage email preferences</a>
               </p>
             </div>
           </div>
         </body>
         </html>
       `,
+      headers: EMAIL_HEADERS,
     });
 
     if (emailResponse?.error) {
