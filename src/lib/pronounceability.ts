@@ -20,19 +20,74 @@ const GOOD_BIGRAMS = new Set([
 // Difficult consonant clusters
 const BAD_CLUSTERS = /[bcdfghjklmnpqrstvwxz]{4,}|^[bcdfghjklmnpqrstvwxz]{3}|[bcdfghjklmnpqrstvwxz]{3}$/i;
 
+// Common English words used in domain names (for accurate word splitting)
+const COMMON_WORDS = new Set([
+  // 2-letter
+  "go", "my", "up", "do", "no", "so", "we", "be", "me", "he", "it", "in", "on", "at", "to", "or", "an", "by", "if", "of",
+  // 3-letter
+  "the", "and", "for", "get", "buy", "top", "hot", "big", "new", "now", "all", "one", "two", "web", "app", "hub", "pro", "fix", "max", "pay", "bet", "bit", "fit", "hit", "kit", "let", "net", "pet", "set", "yet", "dot", "got", "lot", "not", "pot", "cut", "gut", "hut", "nut", "put", "run", "fun", "sun", "car", "bar", "far", "air", "day", "way", "say", "may", "try", "fly", "sky", "dry", "eye", "use", "see", "old", "own", "out", "off", "job", "box", "dog", "log", "fog", "red", "bed",
+  // 4-letter
+  "deal", "find", "save", "best", "free", "fast", "easy", "home", "shop", "club", "life", "love", "live", "work", "play", "game", "food", "tech", "auto", "book", "cash", "code", "cool", "core", "data", "edge", "fire", "flex", "flow", "gold", "grid", "grow", "hack", "idea", "info", "jump", "king", "labs", "link", "loop", "mind", "mode", "next", "open", "pack", "path", "peak", "plan", "plus", "push", "rank", "real", "ring", "rise", "road", "rock", "rush", "seed", "snap", "solo", "spot", "star", "sure", "swap", "sync", "team", "time", "tool", "true", "turn", "unit", "vast", "view", "volt", "wave", "wise", "word", "wrap", "zero", "zone", "buzz", "chat", "chip", "city", "coin", "copy", "desk", "disk", "dock", "drop", "edit", "farm", "film", "firm", "flag", "fold", "fork", "form", "fuel", "gain", "gate", "gear", "gift", "glow", "grab", "grip", "hash", "hawk", "heat", "help", "high", "hint", "hook", "host", "hunt", "icon", "item", "join", "just", "keen", "keep", "kick", "kind", "land", "last", "lead", "leaf", "lean", "lift", "line", "list", "load", "lock", "long", "loom", "loot", "luck", "made", "mail", "main", "make", "mark", "mart", "mass", "mate", "mega", "mesh", "mile", "mill", "mine", "mint", "miss", "mood", "moon", "more", "move", "much", "muse", "name", "near", "nest", "node", "note", "odds", "orca", "pace", "page", "pair", "palm", "part", "pass", "past", "pick", "pine", "pipe", "play", "plug", "poll", "pool", "port", "post", "pure", "quiz", "race", "raft", "raid", "rail", "rain", "rare", "rate", "reed", "reef", "reel", "rent", "rest", "rich", "ride", "role", "roll", "root", "rope", "rule", "safe", "sage", "sail", "sale", "salt", "sand", "scan", "seal", "seek", "self", "sell", "send", "ship", "show", "side", "sign", "silk", "site", "size", "skip", "slot", "slow", "snow", "soft", "sort", "soul", "spin", "stem", "step", "stop", "suit", "surf", "tail", "take", "talk", "tank", "tape", "task", "tell", "tend", "test", "text", "tide", "tier", "tile", "tiny", "tone", "tops", "tour", "town", "tree", "trim", "trip", "tube", "tune", "type", "used", "vale", "vibe", "vine", "void", "vote", "wage", "wait", "walk", "wall", "want", "ward", "warm", "wash", "weak", "wear", "week", "well", "west", "wide", "wild", "will", "wind", "wine", "wing", "wire", "wish", "wood", "yard",
+  // 5-letter
+  "boost", "brain", "brand", "build", "buyer", "chain", "cheap", "clean", "click", "close", "cloud", "coach", "craft", "cream", "crowd", "cycle", "daily", "delta", "drive", "eagle", "earth", "elite", "email", "entry", "equal", "event", "extra", "field", "first", "flash", "fleet", "float", "focus", "force", "forge", "forum", "found", "fresh", "front", "funds", "giant", "grace", "grade", "grand", "grant", "grape", "graph", "green", "group", "guard", "guide", "happy", "haven", "heart", "house", "human", "hyper", "index", "inner", "input", "intel", "judge", "juice", "laser", "layer", "level", "light", "local", "logic", "maker", "maple", "match", "media", "merge", "micro", "model", "money", "motor", "mount", "music", "noble", "north", "noted", "novel", "ocean", "offer", "order", "outer", "owner", "panel", "parse", "party", "patch", "penny", "phase", "phone", "piece", "pilot", "pixel", "place", "plant", "plaza", "point", "power", "press", "price", "prime", "print", "prize", "proof", "pulse", "punch", "quest", "queue", "quick", "quote", "radar", "radio", "raise", "range", "rapid", "reach", "ready", "realm", "reign", "relay", "renew", "rider", "right", "river", "robin", "royal", "rural", "sauce", "scale", "scene", "scope", "score", "scout", "sense", "serve", "seven", "shape", "share", "shift", "shine", "sight", "sigma", "since", "sixty", "skill", "slate", "sleep", "slide", "small", "smart", "smile", "snack", "solar", "solid", "solve", "south", "space", "spark", "speak", "speed", "spice", "spike", "spine", "split", "stack", "stage", "stake", "stand", "start", "state", "steam", "steel", "steep", "stock", "stone", "store", "storm", "story", "stove", "strap", "strip", "study", "style", "sugar", "super", "surge", "sweet", "swift", "swipe", "table", "taste", "theme", "think", "tiger", "titan", "token", "total", "touch", "tower", "trace", "track", "trade", "trail", "train", "trait", "trend", "trial", "tribe", "trick", "trust", "turbo", "twist", "ultra", "union", "unity", "upper", "urban", "usage", "valid", "value", "vault", "venue", "vigor", "viral", "voice", "watch", "water", "whale", "wheel", "white", "world", "worth", "yield",
+  // 6+ letter
+  "action", "anchor", "beyond", "bridge", "bright", "bundle", "canvas", "center", "choice", "circle", "clinic", "crypto", "custom", "decode", "design", "direct", "domain", "double", "enable", "energy", "engine", "expert", "falcon", "filter", "finder", "flight", "global", "golden", "growth", "health", "impact", "import", "inside", "invest", "launch", "leader", "legend", "market", "master", "matrix", "method", "mobile", "modern", "motion", "native", "nature", "online", "option", "output", "palace", "partner", "pocket", "portal", "profit", "public", "purple", "quest", "ranking", "record", "remote", "report", "result", "rocket", "sample", "search", "secure", "select", "signal", "silver", "simple", "single", "social", "source", "sphere", "sprint", "square", "status", "stream", "street", "string", "strike", "strong", "studio", "summit", "supply", "switch", "system", "target", "thread", "ticket", "timber", "toggle", "travel", "triple", "turret", "unique", "unlock", "update", "venture", "vision", "wonder",
+]);
+
+/**
+ * Estimate word count in a domain name by finding the best split
+ * using a dictionary-backed greedy approach.
+ */
+export function countWords(name: string): number {
+  const lower = name.toLowerCase().replace(/[^a-z]/g, "");
+  if (lower.length <= 2) return 1;
+  
+  // Try greedy longest-match from left to right
+  const words: string[] = [];
+  let i = 0;
+  while (i < lower.length) {
+    let best = 1; // default: single character = part of a word
+    // Try lengths from longest to shortest
+    for (let len = Math.min(lower.length - i, 10); len >= 2; len--) {
+      const candidate = lower.slice(i, i + len);
+      if (COMMON_WORDS.has(candidate)) {
+        best = len;
+        break;
+      }
+    }
+    if (best >= 2) {
+      words.push(lower.slice(i, i + best));
+      i += best;
+    } else {
+      // Accumulate single chars into the previous or next word
+      if (words.length > 0) {
+        words[words.length - 1] += lower[i];
+      } else {
+        words.push(lower[i]);
+      }
+      i++;
+    }
+  }
+  
+  // Merge any single-char fragments
+  return words.filter(w => w.length >= 2).length || 1;
+}
+
 export interface PronounceabilityResult {
   score: number; // 0-100
   grade: "Excellent" | "Good" | "Fair" | "Poor";
+  wordCount: number;
   factors: { label: string; impact: "positive" | "negative" | "neutral"; detail: string }[];
 }
 
 export function scorePronounceability(domain: string): PronounceabilityResult {
   // Strip TLD
   const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
-  if (!name) return { score: 0, grade: "Poor", factors: [{ label: "Empty", impact: "negative", detail: "No valid characters" }] };
+  if (!name) return { score: 0, grade: "Poor", wordCount: 0, factors: [{ label: "Empty", impact: "negative", detail: "No valid characters" }] };
 
   let score = 50; // Start neutral
   const factors: PronounceabilityResult["factors"] = [];
+  const wordCount = countWords(name);
 
   // 1. Length check (ideal 4-8)
   if (name.length <= 8 && name.length >= 4) {
@@ -46,7 +101,22 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Length", impact: "negative", detail: `${name.length} characters — too long to remember easily` });
   }
 
-  // 2. Vowel/consonant ratio
+  // 2. Word count
+  if (wordCount === 1) {
+    score += 5;
+    factors.push({ label: "Word Count", impact: "positive", detail: `Single word — concise and memorable` });
+  } else if (wordCount === 2) {
+    score += 2;
+    factors.push({ label: "Word Count", impact: "neutral", detail: `2 words — easy compound name` });
+  } else if (wordCount === 3) {
+    score -= 5;
+    factors.push({ label: "Word Count", impact: "neutral", detail: `3 words — getting long but workable` });
+  } else {
+    score -= 15;
+    factors.push({ label: "Word Count", impact: "negative", detail: `${wordCount} words — too many words to remember` });
+  }
+
+  // 3. Vowel/consonant ratio
   const vowelCount = [...name].filter(c => VOWELS.has(c)).length;
   const ratio = vowelCount / name.length;
   if (ratio >= 0.3 && ratio <= 0.55) {
@@ -60,7 +130,7 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Vowel Balance", impact: "negative", detail: `${Math.round(ratio * 100)}% vowels — hard to pronounce` });
   }
 
-  // 3. Consonant clusters
+  // 4. Consonant clusters
   if (BAD_CLUSTERS.test(name)) {
     score -= 20;
     factors.push({ label: "Consonant Clusters", impact: "negative", detail: "Contains difficult consonant groups" });
@@ -69,7 +139,7 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Consonant Clusters", impact: "positive", detail: "No difficult consonant clusters" });
   }
 
-  // 4. Bigram analysis
+  // 5. Bigram analysis
   let goodBigrams = 0;
   for (let i = 0; i < name.length - 1; i++) {
     if (GOOD_BIGRAMS.has(name.slice(i, i + 2))) goodBigrams++;
@@ -86,7 +156,7 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Letter Patterns", impact: "negative", detail: "Unusual letter combinations" });
   }
 
-  // 5. Syllable estimate (vowel groups)
+  // 6. Syllable estimate (vowel groups)
   const syllables = name.match(/[aeiouy]+/gi)?.length || 0;
   if (syllables >= 2 && syllables <= 3) {
     score += 10;
@@ -99,7 +169,7 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Syllables", impact: "negative", detail: `~${syllables} syllables — too many` });
   }
 
-  // 6. Repeated characters
+  // 7. Repeated characters
   if (/(.)\1{2,}/i.test(name)) {
     score -= 10;
     factors.push({ label: "Repetition", impact: "negative", detail: "Contains triple+ repeated characters" });
@@ -111,5 +181,5 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
   const grade: PronounceabilityResult["grade"] =
     score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Poor";
 
-  return { score, grade, factors };
+  return { score, grade, wordCount, factors };
 }
