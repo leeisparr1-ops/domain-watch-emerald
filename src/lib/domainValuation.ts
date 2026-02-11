@@ -13,6 +13,9 @@ export const PREMIUM_KEYWORDS = new Set([
   "quantum", "meta", "cyber", "robot", "drone", "space", "block", "chain", "fintech", "saas",
   "defi", "token", "intel", "logic", "matrix", "pixel", "forge", "core", "hub", "lab",
   "stack", "flow", "grid", "sync", "bolt", "shift", "spark", "edge", "apex", "nova",
+  // Afternic top-20 recurring (2025)
+  "group", "solutions", "services", "homes", "global", "company", "business", "pro",
+  "lawyer", "life", "real", "best", "my", "go", "new", "club",
 ]);
 
 export const PENALTY_KEYWORDS = new Set([
@@ -223,32 +226,49 @@ export const DICTIONARY_WORDS = new Set([
   "nest", "hive", "den", "cage", "fort", "base", "camp", "port", "dock", "bay",
 ]);
 
-// GoDaddy's top keyword categories & trending niches
+// GoDaddy/Afternic top keyword categories & trending niches (updated from 2025 aftermarket reports)
 export const TRENDING_KEYWORDS: Record<string, number> = {
+  // AI / Machine Learning (consistently #1 on Afternic charts)
   "ai": 2.5, "gpt": 2.0, "neural": 1.8, "machine": 1.5, "deep": 1.5, "learn": 1.5,
-  "robot": 1.6, "auto": 1.4, "smart": 1.5, "quantum": 2.0, "intel": 1.5,
+  "robot": 1.6, "auto": 1.6, "smart": 1.5, "quantum": 2.0, "intel": 1.5,
+  // Fintech / Crypto / DeFi
   "pay": 1.8, "bank": 1.8, "cash": 1.6, "loan": 1.5, "credit": 1.6, "finance": 1.8,
   "trade": 1.6, "invest": 1.7, "wallet": 1.5, "token": 1.3, "defi": 1.4, "fintech": 1.8,
   "money": 1.7, "fund": 1.6, "wealth": 1.5, "capital": 1.6, "equity": 1.5, "profit": 1.4,
+  // Health & Wellness
   "health": 1.7, "med": 1.5, "fit": 1.4, "care": 1.5, "dental": 1.4, "clinic": 1.4,
   "therapy": 1.3, "mental": 1.3, "wellness": 1.4, "organic": 1.3,
+  // E-commerce
   "shop": 1.6, "store": 1.5, "buy": 1.5, "sell": 1.4, "deal": 1.3, "sale": 1.3,
   "market": 1.5, "retail": 1.4, "commerce": 1.5, "cart": 1.3, "order": 1.3,
+  // SaaS / Cloud / Tech
   "cloud": 1.7, "tech": 1.6, "code": 1.4, "data": 1.6, "app": 1.4, "web": 1.3,
   "server": 1.3, "host": 1.3, "stack": 1.4, "saas": 1.6, "api": 1.5, "dev": 1.3,
   "cyber": 1.5, "digital": 1.4, "platform": 1.4, "software": 1.3, "system": 1.3,
-  "home": 1.6, "house": 1.5, "land": 1.5, "estate": 1.6, "rent": 1.4, "property": 1.5,
-  "build": 1.3, "room": 1.3, "space": 1.4,
+  // Real Estate & Property
+  "home": 1.6, "homes": 1.5, "house": 1.5, "land": 1.5, "estate": 1.6, "rent": 1.4, "property": 1.5,
+  "build": 1.3, "room": 1.3, "space": 1.4, "real": 1.4,
+  // Energy & Sustainability
   "solar": 1.6, "green": 1.4, "energy": 1.5, "power": 1.4, "electric": 1.4, "carbon": 1.3,
   "climate": 1.3, "eco": 1.3,
+  // Travel & Lifestyle
   "travel": 1.5, "hotel": 1.5, "flight": 1.4, "trip": 1.3, "tour": 1.3, "cruise": 1.3,
-  "food": 1.4, "chef": 1.3, "wine": 1.3, "luxury": 1.4,
+  "food": 1.4, "chef": 1.3, "wine": 1.3, "luxury": 1.4, "life": 1.4,
+  // Security
   "secure": 1.5, "guard": 1.3, "shield": 1.3, "vault": 1.4, "safe": 1.3, "protect": 1.3,
   "defense": 1.3, "lock": 1.3,
+  // Gaming & Entertainment
   "game": 1.5, "play": 1.4, "stream": 1.4, "video": 1.3, "music": 1.3, "sport": 1.3,
+  "bet": 1.7, "club": 1.4,
+  // Jobs & Education
   "jobs": 1.5, "hire": 1.4, "work": 1.3, "career": 1.4, "talent": 1.3,
   "school": 1.3, "course": 1.3, "tutor": 1.3, "academy": 1.3,
-  "legal": 1.5, "law": 1.4, "insure": 1.5, "claim": 1.3, "policy": 1.3,
+  // Legal & Insurance
+  "legal": 1.5, "law": 1.5, "lawyer": 1.5, "insure": 1.5, "claim": 1.3, "policy": 1.3,
+  // ─── Afternic top-20 recurring keywords (2025 monthly charts) ───
+  "group": 1.6, "solutions": 1.5, "services": 1.4, "hub": 1.5,
+  "global": 1.4, "company": 1.4, "business": 1.4, "pro": 1.5,
+  "car": 1.4, "my": 1.3, "best": 1.3, "go": 1.3, "new": 1.3,
 };
 
 const COMMON_WORDS = new Set([
