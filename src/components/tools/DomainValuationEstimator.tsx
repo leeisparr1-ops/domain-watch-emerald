@@ -14,7 +14,7 @@ interface ValuationResult {
 }
 
 const PREMIUM_TLDS: Record<string, number> = {
-  com: 30, net: 18, org: 16, io: 20, ai: 22, co: 17, app: 15, dev: 14, me: 12, xyz: 8, info: 7, biz: 6,
+  com: 25, net: 14, org: 13, io: 16, ai: 18, co: 14, app: 12, dev: 11, me: 9, xyz: 5, info: 4, biz: 3,
 };
 
 const PREMIUM_KEYWORDS = new Set([
@@ -23,6 +23,87 @@ const PREMIUM_KEYWORDS = new Set([
   "shop", "store", "deal", "sale", "food", "travel", "hotel", "dating", "jobs", "news", "legal",
 ]);
 
+// Domains containing these words are worth very little (trademark, pharma, adult)
+const PENALTY_KEYWORDS = new Set([
+  "viagra", "cialis", "porn", "sex", "xxx", "casino", "gambling", "weed", "marijuana",
+  "pharma", "drug", "pill", "medication", "prescription", "erectile", "penis", "nude",
+  "naked", "adult", "escort", "bitcoin", "ethereum", "nft", "forex", "mlm", "scam",
+  "hack", "crack", "pirate", "torrent", "replica", "fake", "counterfeit",
+]);
+
+// Common English words for word-boundary detection
+const COMMON_WORDS = new Set([
+  "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one",
+  "our", "out", "day", "get", "has", "him", "his", "how", "its", "may", "new", "now", "old",
+  "see", "way", "who", "did", "got", "let", "say", "she", "too", "use", "big", "top", "best",
+  "go", "no", "my", "up", "do", "so", "we", "if", "me", "on", "in", "it", "to", "be", "as",
+  "at", "by", "or", "an", "of", "is",
+  "air", "app", "art", "bay", "bed", "bit", "box", "bus", "buy", "cab", "cap", "cup", "cut",
+  "dog", "dot", "dry", "eat", "end", "eye", "fan", "far", "fast", "fat", "few", "fin", "fix",
+  "fit", "fly", "fun", "gap", "gas", "gem", "gold", "good", "great", "grow", "gun", "gym",
+  "hat", "help", "hero", "high", "hill", "hit", "hold", "home", "hope", "host", "hot", "hub",
+  "idea", "info", "ink", "inn", "iron", "item", "jack", "jam", "jet", "job", "join", "joy",
+  "jump", "just", "keen", "keep", "key", "kid", "kind", "king", "kit", "know", "lab", "lake",
+  "land", "lane", "last", "late", "lead", "leaf", "lean", "life", "lift", "light", "like",
+  "line", "link", "lion", "list", "live", "lock", "logo", "long", "look", "loop", "love",
+  "luck", "made", "mail", "main", "make", "mall", "map", "mark", "mart", "mate", "meal",
+  "meet", "menu", "mind", "mine", "mint", "miss", "mix", "mode", "moon", "more", "most",
+  "move", "much", "must", "name", "near", "neat", "need", "nest", "next", "nice", "nine",
+  "node", "note", "nova", "null", "only", "open", "over", "own", "pack", "page", "paid",
+  "pair", "palm", "park", "part", "pass", "past", "path", "peak", "pick", "pine", "pink",
+  "pipe", "plan", "play", "plot", "plus", "pod", "pool", "port", "post", "pour", "power",
+  "pre", "pro", "pull", "pump", "pure", "push", "put", "quiz", "race", "rain", "rank",
+  "rapid", "rate", "raw", "ray", "read", "real", "red", "rent", "rest", "rich", "ride",
+  "ring", "rise", "road", "rock", "roll", "roof", "room", "root", "rope", "rose", "rule",
+  "run", "rush", "safe", "sage", "sail", "salt", "same", "sand", "save", "scan", "seed",
+  "seek", "self", "send", "set", "ship", "shop", "show", "shut", "side", "sign", "silk",
+  "site", "size", "skin", "slim", "slot", "slow", "smart", "snap", "snow", "soft", "sole",
+  "some", "song", "soon", "sort", "soul", "spot", "star", "stay", "step", "stop", "such",
+  "suit", "sun", "sure", "surf", "swap", "sync", "tab", "tag", "tail", "take", "talk",
+  "tall", "tank", "tape", "task", "team", "tech", "tell", "term", "test", "text", "that",
+  "them", "then", "they", "thin", "this", "tick", "tide", "tile", "time", "tiny", "tip",
+  "told", "tone", "tool", "tour", "town", "trap", "tree", "trek", "trim", "trip", "true",
+  "tube", "tune", "turn", "twin", "type", "unit", "upon", "used", "user", "vale", "van",
+  "vary", "vast", "very", "view", "vine", "visa", "void", "volt", "vote", "wage", "wait",
+  "wake", "walk", "wall", "want", "warm", "warn", "wash", "wave", "wear", "well", "went",
+  "west", "what", "when", "wide", "wild", "will", "wind", "wine", "wing", "wire", "wise",
+  "wish", "with", "wood", "word", "work", "worm", "wrap", "yard", "year", "yoga", "your",
+  "zero", "zone", "zoom",
+  "cloud", "smart", "green", "blue", "black", "white", "prime", "swift", "bright", "quick",
+  "clean", "clear", "fresh", "global", "local", "super", "ultra", "micro", "macro", "mini",
+  "max", "net", "web", "pay", "trade", "cash", "bank", "loan", "health", "solar", "data",
+  "code", "game", "store", "deal", "sale", "food", "travel", "hotel", "legal",
+  "crypto", "tech", "auto", "car", "fit", "dating", "news",
+]);
+
+/** Try to split a domain name into recognizable words */
+function splitIntoWords(name: string): string[] {
+  // Try greedy longest-match from a dictionary
+  const words: string[] = [];
+  let remaining = name.toLowerCase();
+  let iterations = 0;
+  while (remaining.length > 0 && iterations < 30) {
+    iterations++;
+    let found = false;
+    // Try longest match first (up to 8 chars)
+    for (let len = Math.min(remaining.length, 8); len >= 2; len--) {
+      const candidate = remaining.substring(0, len);
+      if (COMMON_WORDS.has(candidate) || PREMIUM_KEYWORDS.has(candidate)) {
+        words.push(candidate);
+        remaining = remaining.substring(len);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // Take single char as junk
+      words.push(remaining[0]);
+      remaining = remaining.substring(1);
+    }
+  }
+  return words;
+}
+
 function estimateValue(domain: string): ValuationResult {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
@@ -30,55 +111,122 @@ function estimateValue(domain: string): ValuationResult {
   const factors: ValuationResult["factors"] = [];
   let total = 0;
 
-  // 1. Length (max 25)
+  // 1. Length (max 20)
   let lengthScore = 0;
-  if (name.length <= 3) { lengthScore = 25; }
-  else if (name.length <= 5) { lengthScore = 22; }
-  else if (name.length <= 7) { lengthScore = 18; }
-  else if (name.length <= 10) { lengthScore = 12; }
-  else if (name.length <= 15) { lengthScore = 6; }
-  else { lengthScore = 2; }
-  factors.push({ label: "Length", score: lengthScore, maxScore: 25, detail: `${name.length} characters — ${name.length <= 5 ? "premium short domain" : name.length <= 10 ? "moderate length" : "long domain"}` });
+  let lengthDetail = "";
+  if (name.length <= 2) { lengthScore = 20; lengthDetail = "ultra-short premium"; }
+  else if (name.length === 3) { lengthScore = 18; lengthDetail = "3-letter premium"; }
+  else if (name.length === 4) { lengthScore = 15; lengthDetail = "4-letter — strong"; }
+  else if (name.length === 5) { lengthScore = 12; lengthDetail = "5-letter — good"; }
+  else if (name.length <= 7) { lengthScore = 9; lengthDetail = "moderate length"; }
+  else if (name.length <= 10) { lengthScore = 5; lengthDetail = "getting long"; }
+  else if (name.length <= 14) { lengthScore = 2; lengthDetail = "long — harder to sell"; }
+  else { lengthScore = 1; lengthDetail = "very long — low demand"; }
+  factors.push({ label: "Length", score: lengthScore, maxScore: 20, detail: `${name.length} characters — ${lengthDetail}` });
   total += lengthScore;
 
-  // 2. TLD Value (max 30)
-  const tldScore = PREMIUM_TLDS[tld] || 5;
-  factors.push({ label: "TLD Value", score: tldScore, maxScore: 30, detail: `.${tld} — ${tldScore >= 20 ? "high-demand extension" : tldScore >= 12 ? "solid extension" : "lower-demand extension"}` });
+  // 2. TLD Value (max 25)
+  const tldScore = PREMIUM_TLDS[tld] || 3;
+  factors.push({ label: "TLD Value", score: tldScore, maxScore: 25, detail: `.${tld} — ${tldScore >= 16 ? "high-demand extension" : tldScore >= 10 ? "solid extension" : "lower-demand extension"}` });
   total += tldScore;
 
-  // 3. Keyword Strength (max 20)
-  const matchedKeywords = [...PREMIUM_KEYWORDS].filter(kw => name.includes(kw));
-  let kwScore = Math.min(20, matchedKeywords.length * 8);
-  if (matchedKeywords.length === 0) kwScore = 3;
-  factors.push({ label: "Keyword Strength", score: kwScore, maxScore: 20, detail: matchedKeywords.length > 0 ? `Contains: ${matchedKeywords.join(", ")}` : "No high-value keywords detected" });
-  total += kwScore;
+  // 3. Word Quality & Meaning (max 20) — replaces simple keyword matching
+  const wordParts = splitIntoWords(name);
+  const meaningfulWords = wordParts.filter(w => w.length >= 2 && (COMMON_WORDS.has(w) || PREMIUM_KEYWORDS.has(w)));
+  const junkChars = wordParts.filter(w => w.length === 1 && !COMMON_WORDS.has(w)).length;
+  const hasPenaltyWord = [...PENALTY_KEYWORDS].some(kw => name.includes(kw));
+  const premiumMatches = meaningfulWords.filter(w => PREMIUM_KEYWORDS.has(w));
+
+  let wordScore = 0;
+  if (hasPenaltyWord) {
+    wordScore = 1;
+  } else if (meaningfulWords.length >= 2 && junkChars === 0) {
+    // Clean two-word combo like "cloudpay"
+    wordScore = premiumMatches.length >= 1 ? 18 : 14;
+  } else if (meaningfulWords.length === 1 && junkChars === 0 && name.length <= 8) {
+    // Single real word
+    wordScore = premiumMatches.length >= 1 ? 16 : 12;
+  } else if (meaningfulWords.length >= 1) {
+    wordScore = 6 + Math.min(4, premiumMatches.length * 2);
+  } else {
+    wordScore = 2; // no recognizable words
+  }
+
+  let wordDetail = "";
+  if (hasPenaltyWord) {
+    wordDetail = "Contains risky/trademark term — severely limits value";
+  } else if (meaningfulWords.length >= 2 && junkChars === 0) {
+    wordDetail = `Clean compound: "${meaningfulWords.join(" + ")}"`;
+  } else if (meaningfulWords.length >= 1) {
+    wordDetail = `Found: ${meaningfulWords.join(", ")}${junkChars > 0 ? ` (${junkChars} extra chars)` : ""}`;
+  } else {
+    wordDetail = "No recognizable words — harder to brand";
+  }
+  factors.push({ label: "Word Quality", score: wordScore, maxScore: 20, detail: wordDetail });
+  total += wordScore;
 
   // 4. Brandability (max 15)
   const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
   const ratio = vowelCount / name.length;
   const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
-  const brandScore = isPronounceable ? (name.length <= 8 ? 15 : 10) : 4;
-  factors.push({ label: "Brandability", score: brandScore, maxScore: 15, detail: isPronounceable ? "Easy to say and remember" : "Difficult to brand — hard to pronounce" });
+  const hasNaturalFlow = meaningfulWords.length >= 1 && junkChars <= 1;
+  let brandScore = 0;
+  if (hasPenaltyWord) {
+    brandScore = 1;
+  } else if (isPronounceable && hasNaturalFlow && name.length <= 8) {
+    brandScore = 15;
+  } else if (isPronounceable && hasNaturalFlow) {
+    brandScore = 10;
+  } else if (isPronounceable) {
+    brandScore = 7;
+  } else {
+    brandScore = 3;
+  }
+  const brandDetail = hasPenaltyWord ? "Risky content — unbrandable" :
+    (isPronounceable && hasNaturalFlow) ? "Easy to say and remember" :
+    isPronounceable ? "Pronounceable but not a natural brand" :
+    "Difficult to pronounce and brand";
+  factors.push({ label: "Brandability", score: brandScore, maxScore: 15, detail: brandDetail });
   total += brandScore;
 
   // 5. Character Composition (max 10)
   const isAlpha = /^[a-z]+$/.test(name);
   const hasNumbers = /\d/.test(name);
   const isNumeric = /^\d+$/.test(name);
-  let compScore = isAlpha ? 10 : isNumeric && name.length <= 4 ? 8 : hasNumbers ? 4 : 6;
-  const detail = isAlpha ? "Pure letters — most desirable" : isNumeric ? "Numeric domain" : "Mixed characters";
+  const hasDashes = /[-_]/.test(parts[0]);
+  let compScore = isAlpha ? 10 : isNumeric && name.length <= 4 ? 7 : hasDashes ? 2 : hasNumbers ? 4 : 5;
+  const detail = isAlpha ? "Pure letters — most desirable" : isNumeric ? "Numeric domain" : hasDashes ? "Contains hyphens — low demand" : "Mixed characters";
   factors.push({ label: "Character Mix", score: compScore, maxScore: 10, detail });
   total += compScore;
 
-  // Estimated dollar value
-  let valueMin: number, valueMax: number;
-  if (total >= 85) { valueMin = 10000; valueMax = 100000; }
-  else if (total >= 70) { valueMin = 2000; valueMax = 15000; }
-  else if (total >= 55) { valueMin = 500; valueMax = 3000; }
-  else if (total >= 40) { valueMin = 100; valueMax = 800; }
-  else { valueMin = 10; valueMax = 150; }
+  // 6. Penalty factor (max 10 — bonus for clean domains, 0 for risky)
+  let penaltyScore = 10;
+  let penaltyDetail = "No negative signals";
+  if (hasPenaltyWord) {
+    penaltyScore = 0;
+    penaltyDetail = "Trademark/adult/pharma content — major value penalty";
+  } else if (name.length > 15) {
+    penaltyScore = 3;
+    penaltyDetail = "Excessive length reduces marketability";
+  } else if (junkChars > 2) {
+    penaltyScore = 4;
+    penaltyDetail = "Unrecognizable character sequences";
+  }
+  factors.push({ label: "Market Risk", score: penaltyScore, maxScore: 10, detail: penaltyDetail });
+  total += penaltyScore;
 
-  const confidence: ValuationResult["confidence"] = total >= 70 ? "High" : total >= 45 ? "Medium" : "Low";
+  // Estimated dollar value — much tighter, more realistic bands
+  let valueMin: number, valueMax: number;
+  if (hasPenaltyWord) { valueMin = 5; valueMax = 50; }
+  else if (total >= 90) { valueMin = 5000; valueMax = 25000; }
+  else if (total >= 80) { valueMin = 2000; valueMax = 8000; }
+  else if (total >= 70) { valueMin = 500; valueMax = 2500; }
+  else if (total >= 60) { valueMin = 150; valueMax = 800; }
+  else if (total >= 50) { valueMin = 50; valueMax = 300; }
+  else if (total >= 40) { valueMin = 20; valueMax = 100; }
+  else { valueMin = 5; valueMax = 50; }
+
+  const confidence: ValuationResult["confidence"] = total >= 75 ? "High" : total >= 50 ? "Medium" : "Low";
   const estimatedValue = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
 
   return { estimatedValue, confidence, overallScore: total, factors };
