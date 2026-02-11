@@ -33,7 +33,7 @@ export function usePushNotifications() {
 
   const getBrowserSubscription = useCallback(async () => {
     const registration = await navigator.serviceWorker.ready;
-    return registration.pushManager.getSubscription();
+    return (registration as any).pushManager.getSubscription();
   }, []);
 
   const getOrRegisterServiceWorker = useCallback(async (): Promise<ServiceWorkerRegistration> => {
@@ -75,7 +75,7 @@ export function usePushNotifications() {
       const vapidKey = await fetchVapidPublicKey();
       const applicationServerKey = urlBase64ToUint8Array(vapidKey) as unknown as BufferSource;
 
-      return registration.pushManager.subscribe({
+      return (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
       });
@@ -304,7 +304,7 @@ export function usePushNotifications() {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
 
       if (subscription) {
         // Unsubscribe from push manager

@@ -4,21 +4,24 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Sparkles } from "lucide-react";
+import { Mic, Sparkles, DollarSign, List, Globe2 } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
+import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
+import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
+import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 
 const Tools = () => {
   return (
     <>
       <Helmet>
         <title>Domain Tools - ExpiredHawk</title>
-        <meta name="description" content="Free domain tools: pronounceability scorer and AI-powered brandable name generator for domainers." />
+        <meta name="description" content="Free domain tools: pronounceability scorer, AI name generator, domain valuation, bulk checker, and TLD comparison for domainers." />
       </Helmet>
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl md:text-4xl font-bold text-foreground">
                 Domain <span className="gradient-text">Tools</span>
@@ -32,22 +35,48 @@ const Tools = () => {
             </p>
 
             <Tabs defaultValue="pronounceability" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="pronounceability" className="flex items-center gap-2">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6 h-auto">
+                <TabsTrigger value="pronounceability" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Mic className="w-4 h-4" />
-                  Pronounceability Scorer
+                  <span className="hidden sm:inline">Pronounceability</span>
+                  <span className="sm:hidden">Score</span>
                 </TabsTrigger>
-                <TabsTrigger value="generator" className="flex items-center gap-2">
+                <TabsTrigger value="bulk" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <List className="w-4 h-4" />
+                  <span className="hidden sm:inline">Bulk Checker</span>
+                  <span className="sm:hidden">Bulk</span>
+                </TabsTrigger>
+                <TabsTrigger value="generator" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Sparkles className="w-4 h-4" />
-                  Name Generator
+                  <span className="hidden sm:inline">Name Generator</span>
+                  <span className="sm:hidden">Generate</span>
+                </TabsTrigger>
+                <TabsTrigger value="valuation" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Valuation</span>
+                  <span className="sm:hidden">Value</span>
+                </TabsTrigger>
+                <TabsTrigger value="tld" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <Globe2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">TLD Compare</span>
+                  <span className="sm:hidden">TLDs</span>
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="pronounceability">
                 <PronounceabilityScorer />
               </TabsContent>
+              <TabsContent value="bulk">
+                <BulkPronounceabilityChecker />
+              </TabsContent>
               <TabsContent value="generator">
                 <NameGenerator />
+              </TabsContent>
+              <TabsContent value="valuation">
+                <DomainValuationEstimator />
+              </TabsContent>
+              <TabsContent value="tld">
+                <TldComparisonTool />
               </TabsContent>
             </Tabs>
           </div>
