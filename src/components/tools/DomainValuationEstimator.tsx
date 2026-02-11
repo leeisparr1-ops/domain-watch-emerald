@@ -392,15 +392,22 @@ function estimateValue(domain: string): ValuationResult {
   factors.push({ label: "Market Risk", score: penaltyScore, maxScore: 10, detail: penaltyDetail });
   total += penaltyScore;
 
-  // 8. Trademark Risk (max 10)
+  // 8. Trademark Risk (max 10) — softer for multi-word domains
+  const isMultiWord = meaningfulWords.length >= 2;
   let tmScore = 10;
   let tmDetail = "No known trademark conflicts";
-  if (trademark.riskLevel === "high") {
+  if (trademark.riskLevel === "high" && !isMultiWord) {
     tmScore = 0;
     tmDetail = trademark.summary;
-  } else if (trademark.riskLevel === "medium") {
+  } else if (trademark.riskLevel === "high" && isMultiWord) {
+    tmScore = 5;
+    tmDetail = trademark.summary + " (multi-word, reduced risk)";
+  } else if (trademark.riskLevel === "medium" && !isMultiWord) {
     tmScore = 3;
     tmDetail = trademark.summary;
+  } else if (trademark.riskLevel === "medium" && isMultiWord) {
+    tmScore = 7;
+    tmDetail = trademark.summary + " (part of compound word)";
   } else if (trademark.riskLevel === "low") {
     tmScore = 6;
     tmDetail = trademark.summary;
@@ -414,7 +421,7 @@ function estimateValue(domain: string): ValuationResult {
 
   // Base value from score tier
   let valueMin: number, valueMax: number;
-  if (hasPenaltyWord || trademark.riskLevel === "high") {
+  if ((hasPenaltyWord) || (trademark.riskLevel === "high" && !isMultiWord)) {
     valueMin = 5; valueMax = 50;
   } else if (normalizedTotal >= 92) {
     valueMin = 75000; valueMax = 250000;

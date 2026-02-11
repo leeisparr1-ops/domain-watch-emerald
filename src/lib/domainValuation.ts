@@ -280,16 +280,19 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     score += Math.round(pronounceScore * 0.05);
   }
 
-  // TM penalty
-  if (trademark.riskLevel === "high") score = Math.min(score, 15);
-  else if (trademark.riskLevel === "medium") score = Math.round(score * 0.6);
+  // TM penalty — softer for multi-word domains where brand is partial
+  const isMultiWord = meaningfulWords.length >= 2;
+  if (trademark.riskLevel === "high" && !isMultiWord) score = Math.min(score, 15);
+  else if (trademark.riskLevel === "high" && isMultiWord) score = Math.round(score * 0.7);
+  else if (trademark.riskLevel === "medium" && !isMultiWord) score = Math.round(score * 0.6);
+  // medium risk on multi-word → minimal penalty (brand is just a substring of compound)
 
   // Total max ~115, normalize to 100
   const normalizedTotal = Math.min(100, Math.round((score / 115) * 100));
 
   // Value bands (same tiers as full estimator)
   let valueMin: number, valueMax: number;
-  if (hasPenaltyWord || trademark.riskLevel === "high") {
+  if ((hasPenaltyWord) || (trademark.riskLevel === "high" && !isMultiWord)) {
     valueMin = 5; valueMax = 50;
   } else if (normalizedTotal >= 92) {
     valueMin = 75000; valueMax = 250000;
