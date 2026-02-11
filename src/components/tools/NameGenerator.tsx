@@ -115,7 +115,10 @@ export function NameGenerator() {
 
         {suggestions.length > 0 && (
           <div className="space-y-3 animate-fade-in">
-            <h4 className="text-sm font-semibold text-foreground">{suggestions.length} Suggestions</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-foreground">{suggestions.length} Suggestions</h4>
+              <p className="text-xs text-muted-foreground">⚠️ Suggested TLDs are ideas to explore — not live availability checks</p>
+            </div>
             {suggestions.map((s, i) => (
               <div key={i} className="p-4 rounded-lg border border-border bg-card hover:border-primary/30 transition-colors">
                 <div className="flex items-center justify-between mb-2">
@@ -135,7 +138,8 @@ export function NameGenerator() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
-                <div className="flex gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Suggested TLDs:</span>
                   {s.available_tlds.map((tld) => (
                     <Badge key={tld} variant="secondary" className="text-xs">
                       {tld}
