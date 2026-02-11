@@ -20,8 +20,9 @@ export function PronounceabilityScorer() {
 
   const handleScore = () => {
     if (!domain.trim()) return;
-    setResult(scorePronounceability(domain.trim()));
-    setTmResult(checkTrademarkRisk(domain.trim()));
+    const cleaned = domain.trim().replace(/\s+/g, "");
+    setResult(scorePronounceability(cleaned));
+    setTmResult(checkTrademarkRisk(cleaned));
   };
 
   const gradeColor = (grade: string) => {
@@ -80,6 +81,15 @@ export function PronounceabilityScorer() {
                 <Badge variant="outline" className="flex items-center gap-1 text-sm px-3 py-1">
                   <Hash className="w-3 h-3" />
                   {result.wordCount} word{result.wordCount !== 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1 text-sm px-3 py-1">
+                  ~{(() => {
+                    const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+                    return name.match(/[aeiouy]+/gi)?.length || 1;
+                  })()} syllable{(() => {
+                    const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+                    return (name.match(/[aeiouy]+/gi)?.length || 1) !== 1 ? "s" : "";
+                  })()}
                 </Badge>
                 <Badge variant="outline" className={`text-lg px-4 py-1 ${gradeColor(result.grade)}`}>
                   {result.grade}

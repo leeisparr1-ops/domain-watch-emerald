@@ -20,6 +20,7 @@ interface BulkResult {
   trademark: TrademarkResult;
   valuationBand: string;
   valuationScore: number;
+  syllables: number;
 }
 
 export function BulkPronounceabilityChecker() {
@@ -30,8 +31,8 @@ export function BulkPronounceabilityChecker() {
 
   const handleCheck = () => {
     const domains = text
-      .split(/[\n,;\s]+/)
-      .map((d) => d.trim().toLowerCase())
+      .split(/[\n,;]+/)
+      .map((d) => d.trim().replace(/\s+/g, "").toLowerCase())
       .filter((d) => d.length >= 2 && /^[a-z0-9.-]+$/.test(d))
       .slice(0, 50);
 
@@ -41,7 +42,9 @@ export function BulkPronounceabilityChecker() {
       const result = scorePronounceability(domain);
       const trademark = checkTrademarkRisk(domain);
       const val = quickValuation(domain, result.score);
-      return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score };
+      const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+      const syllables = name.match(/[aeiouy]+/gi)?.length || 1;
+      return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score, syllables };
     });
 
     scored.sort((a, b) => b.result.score - a.result.score);
@@ -93,7 +96,7 @@ export function BulkPronounceabilityChecker() {
         />
         <Button onClick={handleCheck} disabled={!text.trim()} className="w-full">
           <List className="w-4 h-4 mr-2" />
-          Analyze All ({Math.min(50, text.split(/[\n,;\s]+/).filter(Boolean).length)} domains)
+          Analyze All ({Math.min(50, text.split(/[\n,;]+/).filter(s => s.trim().replace(/\s+/g, "")).length)} domains)
         </Button>
 
         {results.length > 0 && (
@@ -104,7 +107,7 @@ export function BulkPronounceabilityChecker() {
                   <TableRow>
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>Domain</TableHead>
-                    <TableHead className="text-center">Words</TableHead>
+                    <TableHead className="text-center">Syllables</TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("score")}>
                       <span className="inline-flex items-center gap-1">
                         Score <ArrowUpDown className="w-3 h-3" />
@@ -126,7 +129,7 @@ export function BulkPronounceabilityChecker() {
                       <TableRow key={i}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                         <TableCell className="font-medium text-foreground">{r.domain}</TableCell>
-                        <TableCell className="text-center text-muted-foreground">{r.result.wordCount}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{r.syllables}</TableCell>
                         <TableCell className="text-center font-semibold text-foreground">{r.result.score}</TableCell>
                         <TableCell className="text-center">
                           <Badge className={`text-xs ${gradeColor(r.result.grade)}`}>
