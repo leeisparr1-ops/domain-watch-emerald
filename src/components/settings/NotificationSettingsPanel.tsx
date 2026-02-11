@@ -82,7 +82,7 @@ export function NotificationSettingsPanel() {
         swStatus = reg ? `Active (scope: ${reg.scope})` : 'Not registered';
         
         if (reg && 'pushManager' in reg) {
-          const sub = await reg.pushManager.getSubscription();
+          const sub = await (reg as any).pushManager.getSubscription();
           if (sub) {
             browserSub = 'Active';
             endpoint = sub.endpoint.substring(0, 60) + '...';
