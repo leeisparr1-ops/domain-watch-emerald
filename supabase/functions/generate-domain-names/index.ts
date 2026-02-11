@@ -30,7 +30,7 @@ Rules:
 
     const userPrompt = `Generate 10 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.
 
-Return as JSON array with objects containing: name (full domain with extension), score (1-100 brandability score), reason (one sentence why it works), available_tlds (array of suggested TLDs like .com, .io, .ai).`;
+Return as JSON array with objects containing: name (full domain with extension), score (1-100 brandability score), reason (one sentence why it works), available_tlds (array of TLD extensions worth exploring for this name like .com, .io, .ai - these are suggestions to check, NOT confirmed availability).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
