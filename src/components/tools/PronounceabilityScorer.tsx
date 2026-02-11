@@ -4,16 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, CheckCircle, XCircle, MinusCircle, Hash } from "lucide-react";
+import { Mic, CheckCircle, XCircle, MinusCircle, Hash, ShieldAlert, ShieldCheck } from "lucide-react";
 import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
+import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function PronounceabilityScorer() {
   const [domain, setDomain] = useState("");
   const [result, setResult] = useState<PronounceabilityResult | null>(null);
+  const [tmResult, setTmResult] = useState<TrademarkResult | null>(null);
 
   const handleScore = () => {
     if (!domain.trim()) return;
     setResult(scorePronounceability(domain.trim()));
+    setTmResult(checkTrademarkRisk(domain.trim()));
   };
 
   const gradeColor = (grade: string) => {
@@ -41,7 +49,7 @@ export function PronounceabilityScorer() {
           Pronounceability Scorer
         </CardTitle>
         <CardDescription>
-          Check how easy a domain name is to say, spell, and remember. The "radio test" — can someone hear it and type it correctly?
+          Check how easy a domain name is to say, spell, and remember. Includes trademark risk screening.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -60,7 +68,7 @@ export function PronounceabilityScorer() {
 
         {result && (
           <div className="space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <span className="text-sm text-muted-foreground">Overall Score</span>
                 <div className="flex items-baseline gap-2">
@@ -68,7 +76,7 @@ export function PronounceabilityScorer() {
                   <span className="text-sm text-muted-foreground">/ 100</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="flex items-center gap-1 text-sm px-3 py-1">
                   <Hash className="w-3 h-3" />
                   {result.wordCount} word{result.wordCount !== 1 ? "s" : ""}
@@ -80,6 +88,44 @@ export function PronounceabilityScorer() {
             </div>
 
             <Progress value={result.score} className="h-3" />
+
+            {/* Trademark Risk Section */}
+            {tmResult && (
+              <div className={`p-3 rounded-lg border ${tmResult.riskLevel === "none" ? "border-emerald-500/20 bg-emerald-500/5" : tmResult.riskLevel === "low" ? "border-yellow-500/20 bg-yellow-500/5" : "border-red-500/20 bg-red-500/5"}`}>
+                <div className="flex items-start gap-3">
+                  {tmResult.riskLevel === "none" ? (
+                    <ShieldCheck className="w-5 h-5 text-emerald-500 mt-0.5" />
+                  ) : (
+                    <ShieldAlert className="w-5 h-5 text-red-500 mt-0.5" />
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-foreground">Trademark Check</span>
+                      <Badge variant="outline" className={`text-xs ${getTrademarkRiskDisplay(tmResult.riskLevel).color}`}>
+                        {getTrademarkRiskDisplay(tmResult.riskLevel).label}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{tmResult.summary}</p>
+                    {tmResult.matches.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {tmResult.matches.map((m, i) => (
+                          <Tooltip key={i}>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs cursor-help">
+                                {m.brand} ({m.matchType})
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{m.matchType === "exact" ? "Domain name matches this brand exactly" : m.matchType === "contains" ? "Domain contains this brand name" : "Domain closely resembles this brand"}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Breakdown</h4>
@@ -93,6 +139,10 @@ export function PronounceabilityScorer() {
                 </div>
               ))}
             </div>
+
+            <p className="text-xs text-muted-foreground italic">
+              * Trademark screening checks ~200 major brands. This is not legal advice — always consult a trademark attorney for acquisitions.
+            </p>
           </div>
         )}
       </CardContent>
