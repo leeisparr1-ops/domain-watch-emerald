@@ -22,7 +22,8 @@ import {
   Bookmark,
   Pencil,
   Target,
-  ShieldAlert
+  ShieldAlert,
+  Wrench
 } from "lucide-react";
 
 export default function Help() {
@@ -61,6 +62,11 @@ export default function Help() {
       icon: <ShieldAlert className="w-6 h-6 text-primary" />,
       title: "7. Check Spam Risk",
       description: "Click any domain to view its spam risk level. Domains are checked against SURBL and Spamhaus DBL for blacklist status."
+    },
+    {
+      icon: <Wrench className="w-6 h-6 text-primary" />,
+      title: "8. Explore Domain Tools",
+      description: "Visit the Tools page (Beta) for utilities like Pronounceability Scorer, AI Name Generator, Domain Valuation Estimator, Bulk Checker, and TLD Comparison."
     }
   ];
 
@@ -128,9 +134,20 @@ export default function Help() {
     {
       question: "How is spam risk checked?",
       answer: "Domains are checked against SURBL and Spamhaus DBL via DNS lookups. Results are cached for 7 days to ensure fast loading. Risk checks happen when you view domain details."
+    },
+    {
+      question: "What are the Domain Tools?",
+      answer: "The Tools page (Beta) offers five utilities: Pronounceability Scorer rates how easy a domain is to say, AI Name Generator suggests brandable names, Domain Valuation Estimator scores market value, Bulk Pronounceability Checker ranks up to 50 domains at once, and TLD Comparison shows pricing and trust scores across extensions."
+    },
+    {
+      question: "Do I need an account to use the Tools?",
+      answer: "Yes, all domain tools require you to be signed in. Create a free account to access the Pronounceability Scorer, AI Name Generator, Valuation Estimator, Bulk Checker, and TLD Comparison Tool."
+    },
+    {
+      question: "Why are the Tools marked as Beta?",
+      answer: "The tools are actively being improved based on user feedback. Beta means the features work but may receive updates, new scoring algorithms, or additional capabilities over time."
     }
   ];
-
   return (
     <>
       <Helmet>
@@ -194,7 +211,7 @@ export default function Help() {
               <Smartphone className="w-6 h-6 text-primary" />
               <h2 className="text-2xl font-semibold">Quick Tips</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-2">
@@ -236,6 +253,17 @@ export default function Help() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Choose 2, 4, or 6-hour notification intervals in Settings
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wrench className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Try Domain Tools</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Score pronounceability, generate names, and estimate domain values
                   </p>
                 </CardContent>
               </Card>
