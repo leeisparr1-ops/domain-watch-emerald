@@ -68,6 +68,35 @@ KNOWN_BRANDS.forEach((b) => {
 });
 const UNIQUE_BRANDS = [...new Set(BRAND_WORDS)].sort((a, b) => b.length - a.length);
 
+// Words that naturally contain brand names as substrings — NOT infringement
+const BRAND_IN_WORD: Record<string, string[]> = {
+  "intel": ["intelligence", "intelligent", "intellectual", "intelligently"],
+  "uber": ["tuber", "exuberant", "exuberance"],
+  "chase": ["purchase", "purchased", "purchaser"],
+  "ford": ["afford", "affordable", "oxford", "stanford", "bedford", "comfort"],
+  "visa": ["advise", "advisor", "advisory", "visual", "ivisable", "revision", "television"],
+  "oracle": ["oracle"], // standalone ok, skip
+  "delta": ["delta"], // standalone ok
+  "amazon": ["amazon"], // standalone ok
+  "apple": ["pineapple", "grapple", "dapple"],
+  "bing": ["binding", "climbing", "plumbing"],
+  "amd": ["named", "framed", "gamed"],
+  "kia": ["akia", "nokia"],
+  "lyft": [],
+  "slack": ["slacker"],
+  "puma": [],
+  "nike": [],
+  "mars": ["marshals", "marshal", "nightmare"],
+  "cox": ["coxswain"],
+  "ally": ["rally", "tally", "valley", "literally", "finally", "usually"],
+  "bayer": ["player", "prayer", "layer"],
+  "shell": ["seashell", "nutshell", "eggshell", "bombshell"],
+  "merck": [],
+  "hbo": [],
+  "gap": [],
+  "target": [],
+};
+
 // Common letter substitutions used in typosquatting
 const LEET_MAP: Record<string, string> = {
   "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a",
@@ -96,6 +125,13 @@ export function checkTrademarkRisk(domainInput: string): TrademarkResult {
 
     // Contains match (brand appears as substring)
     if (rawName.includes(brand) || normalizedName.includes(brand)) {
+      // Check if the brand is naturally embedded in a larger legitimate word
+      // e.g., "intel" inside "intelligence" is NOT infringement
+      const allowedWords = BRAND_IN_WORD[brand];
+      if (allowedWords && allowedWords.length > 0) {
+        const isFalsePositive = allowedWords.some(word => rawName.includes(word) || normalizedName.includes(word));
+        if (isFalsePositive) continue; // skip — brand is part of a real word
+      }
       matches.push({ brand, matchType: "contains" });
       continue;
     }
