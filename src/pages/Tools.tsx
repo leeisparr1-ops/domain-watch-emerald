@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Mic, Sparkles } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
@@ -18,11 +19,16 @@ const Tools = () => {
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16">
           <div className="max-w-3xl mx-auto">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2 text-foreground">
-              Domain <span className="gradient-text">Tools</span>
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+                Domain <span className="gradient-text">Tools</span>
+              </h1>
+              <Badge variant="secondary" className="text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
+                Beta
+              </Badge>
+            </div>
             <p className="text-muted-foreground mb-8">
-              Free tools to help you find and evaluate the perfect domain name.
+              Free tools to help you find and evaluate the perfect domain name. We are actively improving these — feedback welcome!
             </p>
 
             <Tabs defaultValue="pronounceability" className="w-full">

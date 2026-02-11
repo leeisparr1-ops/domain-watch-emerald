@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, CheckCircle, XCircle, MinusCircle } from "lucide-react";
+import { Mic, CheckCircle, XCircle, MinusCircle, Hash } from "lucide-react";
 import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
 
 export function PronounceabilityScorer() {
@@ -68,9 +68,15 @@ export function PronounceabilityScorer() {
                   <span className="text-sm text-muted-foreground">/ 100</span>
                 </div>
               </div>
-              <Badge variant="outline" className={`text-lg px-4 py-1 ${gradeColor(result.grade)}`}>
-                {result.grade}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="flex items-center gap-1 text-sm px-3 py-1">
+                  <Hash className="w-3 h-3" />
+                  {result.wordCount} word{result.wordCount !== 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline" className={`text-lg px-4 py-1 ${gradeColor(result.grade)}`}>
+                  {result.grade}
+                </Badge>
+              </div>
             </div>
 
             <Progress value={result.score} className="h-3" />
