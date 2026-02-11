@@ -35,7 +35,7 @@ const TLD_DATA: TldInfo[] = [
   { tld: ".com", popularity: 100, trust: 98, regPrice: "$9–14", renewPrice: "$14–18", bestFor: "Universal — any business", category: "Premium" },
   { tld: ".io", popularity: 60, trust: 75, regPrice: "$30–50", renewPrice: "$40–60", bestFor: "Startups, tech, dev tools", category: "Premium" },
   { tld: ".ai", popularity: 65, trust: 78, regPrice: "$50–90", renewPrice: "$70–100", bestFor: "AI, machine learning brands", category: "Premium" },
-  { tld: ".com.au", popularity: 30, trust: 88, regPrice: "$15–25", renewPrice: "$20–30", bestFor: "Australian businesses", category: "Premium" },
+  { tld: ".com.au", popularity: 30, trust: 88, regPrice: "$15–25", renewPrice: "$20–30", bestFor: "Australian businesses", category: "Country" },
   // Popular
   { tld: ".net", popularity: 55, trust: 80, regPrice: "$10–15", renewPrice: "$14–18", bestFor: "Tech, networks, SaaS", category: "Popular" },
   { tld: ".org", popularity: 45, trust: 85, regPrice: "$10–14", renewPrice: "$14–18", bestFor: "Non-profits, communities", category: "Popular" },
