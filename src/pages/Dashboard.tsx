@@ -417,6 +417,11 @@ export default function Dashboard() {
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
         .gte('end_time', endTimeFilter);
+
+      // Apply server-side search filter
+      if (debouncedSearch) {
+        query = query.ilike('domain_name', `%${debouncedSearch}%`);
+      }
       
       // Only apply price filters if they differ from defaults (reduces query complexity)
       if (filters.minPrice > 0) {
@@ -529,7 +534,7 @@ export default function Dashboard() {
         else setIsFetchingAuctions(false);
       }
     }
-  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage]);
+  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch]);
   
   // triggerSync removed - now using SyncAllDialog component
   
@@ -809,12 +814,13 @@ export default function Dashboard() {
     
     const fetchInitialMatchCount = async () => {
       try {
-        // Simple count without expensive join - just count all pattern_alerts for user
-        // This is fast because it only hits the small pattern_alerts table
+        // Count only active matches (with non-ended auctions) to match what user sees
+        const nowIso = new Date().toISOString();
         const { count, error } = await supabase
           .from('pattern_alerts')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+          .select('id, auctions!inner(end_time)', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('auctions.end_time', nowIso);
         
         if (!error && count !== null) {
           setTotalMatchesCount(count);
@@ -851,7 +857,10 @@ export default function Dashboard() {
   
   // Debounce search input to avoid re-filtering on every keystroke
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 250);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -901,11 +910,8 @@ export default function Dashboard() {
     return pages;
   };
   // Memoize filtered results to avoid recomputation on unrelated state changes
-  const filtered = useMemo(() => {
-    if (!debouncedSearch) return auctions;
-    const lowerSearch = debouncedSearch.toLowerCase();
-    return auctions.filter(d => d.domain.toLowerCase().includes(lowerSearch));
-  }, [auctions, debouncedSearch]);
+  // Search is now server-side, so no client-side filtering needed
+  const filtered = auctions;
 
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;

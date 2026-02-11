@@ -17,19 +17,19 @@ export const PLAN_CONFIG = {
     priceId: "price_1SsTamEaMKJga5fxylFENQ12",
     productId: "prod_Tq9uBfPZRydPoT",
     price: 4.99,
-    maxPatterns: 50,
+    maxPatterns: 60,
   },
   advanced: {
     priceId: "price_1SsTarEaMKJga5fxWBZIRakY",
     productId: "prod_Tq9u0B65mJOkIU",
     price: 9.99,
-    maxPatterns: 125,
+    maxPatterns: 120,
   },
   free: {
     priceId: null,
     productId: null,
     price: 0,
-    maxPatterns: 5,
+    maxPatterns: 30,
   },
 } as const;
 
