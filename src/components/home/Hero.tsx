@@ -14,13 +14,13 @@ export function Hero() {
         <div className="max-w-4xl mx-auto text-center">
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in">
-            Pattern-Based{" "}
-            <span className="gradient-text">Domain Alerts</span>
+            Find Expiring{" "}
+            <span className="gradient-text">Domains Fast</span>
           </h1>
 
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-            Get alerted when expiring domain names matching your criteria become 
-            available at auction or closeout.
+            Set your criteria once. We scan thousands of expiring domains daily
+            and alert you the moment a match appears — by email or push notification.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
