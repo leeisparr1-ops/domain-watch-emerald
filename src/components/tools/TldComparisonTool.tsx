@@ -5,7 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Globe2, Search } from "lucide-react";
+import { Globe2, Loader2, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TldInfo {
   tld: string;
@@ -15,6 +22,12 @@ interface TldInfo {
   renewPrice: string;
   bestFor: string;
   category: "Premium" | "Popular" | "Niche" | "Budget";
+}
+
+interface TldAvailability {
+  domain: string;
+  available: boolean | null;
+  status: "available" | "registered" | "unknown";
 }
 
 const TLD_DATA: TldInfo[] = [
@@ -46,8 +59,49 @@ const categoryColor: Record<string, string> = {
 export function TldComparisonTool() {
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<Map<string, TldAvailability>>(new Map());
+  const [isChecking, setIsChecking] = useState(false);
+  const [tmResult, setTmResult] = useState<ReturnType<typeof checkTrademarkRisk> | null>(null);
 
+  const cleanKeyword = keyword.toLowerCase().replace(/[^a-z0-9]/g, "");
   const displayed = TLD_DATA.filter((t) => !filter || t.category === filter);
+
+  const handleCheckAvailability = async () => {
+    if (!cleanKeyword) return;
+    setIsChecking(true);
+    
+    // Run trademark check
+    setTmResult(checkTrademarkRisk(cleanKeyword + ".com"));
+
+    const domains = TLD_DATA.map((t) => `${cleanKeyword}${t.tld}`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("check-domain-availability", {
+        body: { domains },
+      });
+
+      if (error || !data?.results) {
+        console.error("Availability check failed:", error);
+        setIsChecking(false);
+        return;
+      }
+
+      const newMap = new Map<string, TldAvailability>();
+      (data.results as TldAvailability[]).forEach((r) => newMap.set(r.domain, r));
+      setAvailability(newMap);
+    } catch (e) {
+      console.error("Availability check error:", e);
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const statusIcon = (status: TldAvailability | undefined) => {
+    if (!status) return null;
+    if (status.status === "available") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />;
+    if (status.status === "registered") return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+    return <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
 
   return (
     <Card>
@@ -57,18 +111,50 @@ export function TldComparisonTool() {
           TLD Comparison Tool
         </CardTitle>
         <CardDescription>
-          Compare popularity, trust scores, and pricing across domain extensions to choose the best TLD for your brand.
+          Compare popularity, trust scores, pricing, and live availability across domain extensions. Enter a keyword and check which TLDs are available.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex gap-3">
           <Input
-            placeholder="Enter a keyword to preview (e.g. cloudpay)"
+            placeholder="Enter a keyword (e.g. cloudpay)"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCheckAvailability()}
             className="flex-1"
           />
+          <Button 
+            onClick={handleCheckAvailability} 
+            disabled={!cleanKeyword || isChecking}
+          >
+            {isChecking ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Checking...
+              </>
+            ) : (
+              "Check All"
+            )}
+          </Button>
         </div>
+
+        {/* Trademark alert for the keyword */}
+        {tmResult && tmResult.riskLevel !== "none" && (
+          <div className={`p-3 rounded-lg border ${tmResult.riskLevel === "high" ? "border-red-500/20 bg-red-500/5" : tmResult.riskLevel === "medium" ? "border-orange-500/20 bg-orange-500/5" : "border-yellow-500/20 bg-yellow-500/5"}`}>
+            <div className="flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-500 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">Trademark Warning</span>
+                  <Badge variant="outline" className={`text-xs ${getTrademarkRiskDisplay(tmResult.riskLevel).color}`}>
+                    {getTrademarkRiskDisplay(tmResult.riskLevel).label}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{tmResult.summary}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2 flex-wrap">
           <Button variant={filter === null ? "default" : "outline"} size="sm" onClick={() => setFilter(null)}>All</Button>
@@ -79,11 +165,20 @@ export function TldComparisonTool() {
           ))}
         </div>
 
+        {availability.size > 0 && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Available</span>
+            <span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500" /> Taken</span>
+            <span className="flex items-center gap-1"><HelpCircle className="w-3 h-3 text-muted-foreground" /> Unknown</span>
+          </div>
+        )}
+
         <div className="rounded-lg border border-border overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Domain</TableHead>
+                {availability.size > 0 && <TableHead className="text-center w-20">Status</TableHead>}
                 <TableHead className="text-center">Popularity</TableHead>
                 <TableHead className="text-center">Trust</TableHead>
                 <TableHead>Registration</TableHead>
@@ -93,39 +188,52 @@ export function TldComparisonTool() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayed.map((t) => (
-                <TableRow key={t.tld}>
-                  <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                    {keyword ? `${keyword.toLowerCase().replace(/[^a-z0-9]/g, "")}${t.tld}` : t.tld}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={t.popularity} className="h-2 w-16" />
-                      <span className="text-xs text-muted-foreground w-8">{t.popularity}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={t.trust} className="h-2 w-16" />
-                      <span className="text-xs text-muted-foreground w-8">{t.trust}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{t.regPrice}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{t.renewPrice}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[160px]">{t.bestFor}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`text-xs ${categoryColor[t.category]}`}>
-                      {t.category}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {displayed.map((t) => {
+                const domain = cleanKeyword ? `${cleanKeyword}${t.tld}` : t.tld;
+                const avail = availability.get(domain);
+                return (
+                  <TableRow key={t.tld} className={avail?.status === "available" ? "bg-emerald-500/5" : ""}>
+                    <TableCell className={`font-semibold whitespace-nowrap ${avail?.status === "registered" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      {domain}
+                    </TableCell>
+                    {availability.size > 0 && (
+                      <TableCell className="text-center">
+                        {avail ? (
+                          <div className="flex justify-center">{statusIcon(avail)}</div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={t.popularity} className="h-2 w-16" />
+                        <span className="text-xs text-muted-foreground w-8">{t.popularity}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={t.trust} className="h-2 w-16" />
+                        <span className="text-xs text-muted-foreground w-8">{t.trust}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{t.regPrice}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{t.renewPrice}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[160px]">{t.bestFor}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-xs ${categoryColor[t.category]}`}>
+                        {t.category}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
 
         <p className="text-xs text-muted-foreground italic">
-          * Prices are approximate retail ranges and may vary by registrar. Popularity & trust scores are relative industry benchmarks.
+          * Prices are approximate retail ranges. Availability checked via RDAP — some registries may show "Unknown". Always verify with a registrar before purchasing.
         </p>
       </CardContent>
     </Card>

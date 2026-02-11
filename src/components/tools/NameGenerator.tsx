@@ -4,10 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scorePronounceability } from "@/lib/pronounceability";
+import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TldStatus {
   domain: string;
@@ -23,6 +29,7 @@ interface Suggestion {
   pronounceScore?: number;
   tldStatuses?: TldStatus[];
   checkingTlds?: boolean;
+  trademarkRisk?: ReturnType<typeof checkTrademarkRisk>;
 }
 
 export function NameGenerator() {
@@ -34,13 +41,11 @@ export function NameGenerator() {
   const { toast } = useToast();
 
   const extractNamePart = (fullDomain: string) => {
-    // "purevibe.io" -> "purevibe"
     const dot = fullDomain.lastIndexOf(".");
     return dot > 0 ? fullDomain.substring(0, dot) : fullDomain;
   };
 
   const checkAvailability = async (items: Suggestion[]) => {
-    // Build list of all domains to check
     const allDomains: string[] = [];
     items.forEach((s) => {
       const namePart = extractNamePart(s.name);
@@ -96,13 +101,13 @@ export function NameGenerator() {
       const items: Suggestion[] = (data?.suggestions || []).map((s: any) => ({
         ...s,
         pronounceScore: scorePronounceability(s.name).score,
+        trademarkRisk: checkTrademarkRisk(s.name),
         checkingTlds: true,
       }));
 
       setSuggestions(items);
       setIsLoading(false);
 
-      // Fire availability checks in background
       checkAvailability(items);
     } catch (e: any) {
       console.error(e);
@@ -142,7 +147,7 @@ export function NameGenerator() {
           AI Name Generator
         </CardTitle>
         <CardDescription>
-          Enter keywords or describe your business, and AI will generate brandable domain name ideas with live availability checking via RDAP.
+          Enter keywords or describe your business, and AI will generate brandable domain name ideas with live availability checking and trademark screening.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -195,53 +200,73 @@ export function NameGenerator() {
                 <span className="flex items-center gap-1"><HelpCircle className="w-3 h-3 text-muted-foreground" /> Unknown</span>
               </div>
             </div>
-            {suggestions.map((s, i) => (
-              <div key={i} className="p-4 rounded-lg border border-border bg-card hover:border-primary/30 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-primary" />
-                    <span className="font-semibold text-foreground">{s.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={scoreColor(s.score)}>
-                      Brand: {s.score}
-                    </Badge>
-                    {s.pronounceScore !== undefined && (
-                      <Badge variant="outline" className={scoreColor(s.pronounceScore)}>
-                        Say: {s.pronounceScore}
+            {suggestions.map((s, i) => {
+              const tmDisplay = s.trademarkRisk ? getTrademarkRiskDisplay(s.trademarkRisk.riskLevel) : null;
+              return (
+                <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-foreground">{s.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={scoreColor(s.score)}>
+                        Brand: {s.score}
                       </Badge>
+                      {s.pronounceScore !== undefined && (
+                        <Badge variant="outline" className={scoreColor(s.pronounceScore)}>
+                          Say: {s.pronounceScore}
+                        </Badge>
+                      )}
+                      {tmDisplay && s.trademarkRisk && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className={`text-xs cursor-help ${tmDisplay.color}`}>
+                              {s.trademarkRisk.riskLevel === "none" ? (
+                                <ShieldCheck className="w-3 h-3 mr-0.5" />
+                              ) : (
+                                <ShieldAlert className="w-3 h-3 mr-0.5" />
+                              )}
+                              {tmDisplay.label}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>{s.trademarkRisk.summary}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
+                    {s.checkingTlds ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
+                      </span>
+                    ) : s.tldStatuses ? (
+                      s.tldStatuses.map((ts) => {
+                        const tld = ts.domain.substring(ts.domain.indexOf("."));
+                        return (
+                          <Badge key={ts.domain} variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
+                            {statusIcon(ts)}
+                            {tld}
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      s.available_tlds.map((tld) => (
+                        <Badge key={tld} variant="secondary" className="text-xs">
+                          {tld}
+                        </Badge>
+                      ))
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
-                  {s.checkingTlds ? (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
-                    </span>
-                  ) : s.tldStatuses ? (
-                    s.tldStatuses.map((ts) => {
-                      const tld = ts.domain.substring(ts.domain.indexOf("."));
-                      return (
-                        <Badge key={ts.domain} variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
-                          {statusIcon(ts)}
-                          {tld}
-                        </Badge>
-                      );
-                    })
-                  ) : (
-                    s.available_tlds.map((tld) => (
-                      <Badge key={tld} variant="secondary" className="text-xs">
-                        {tld}
-                      </Badge>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <p className="text-xs text-muted-foreground text-center mt-2">
-              Availability checked via RDAP. Some TLDs may show as "Unknown" if the registry doesn't support RDAP. Always verify with a registrar before purchasing.
+              Availability checked via RDAP. Trademark screening covers ~200 major brands — not legal advice. Always verify with a registrar and trademark attorney.
             </p>
           </div>
         )}

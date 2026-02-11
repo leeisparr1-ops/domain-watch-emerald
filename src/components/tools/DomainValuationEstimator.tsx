@@ -4,13 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck } from "lucide-react";
+import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ValuationResult {
   estimatedValue: string;
   confidence: "High" | "Medium" | "Low";
   overallScore: number;
   factors: { label: string; score: number; maxScore: number; detail: string }[];
+  trademark: TrademarkResult;
 }
 
 const PREMIUM_TLDS: Record<string, number> = {
@@ -78,14 +85,12 @@ const COMMON_WORDS = new Set([
 
 /** Try to split a domain name into recognizable words */
 function splitIntoWords(name: string): string[] {
-  // Try greedy longest-match from a dictionary
   const words: string[] = [];
   let remaining = name.toLowerCase();
   let iterations = 0;
   while (remaining.length > 0 && iterations < 30) {
     iterations++;
     let found = false;
-    // Try longest match first (up to 8 chars)
     for (let len = Math.min(remaining.length, 8); len >= 2; len--) {
       const candidate = remaining.substring(0, len);
       if (COMMON_WORDS.has(candidate) || PREMIUM_KEYWORDS.has(candidate)) {
@@ -96,7 +101,6 @@ function splitIntoWords(name: string): string[] {
       }
     }
     if (!found) {
-      // Take single char as junk
       words.push(remaining[0]);
       remaining = remaining.substring(1);
     }
@@ -110,6 +114,9 @@ function estimateValue(domain: string): ValuationResult {
   const tld = parts[1] || "com";
   const factors: ValuationResult["factors"] = [];
   let total = 0;
+
+  // Run trademark check
+  const trademark = checkTrademarkRisk(domain);
 
   // 1. Length (max 20)
   let lengthScore = 0;
@@ -130,7 +137,7 @@ function estimateValue(domain: string): ValuationResult {
   factors.push({ label: "TLD Value", score: tldScore, maxScore: 25, detail: `.${tld} — ${tldScore >= 16 ? "high-demand extension" : tldScore >= 10 ? "solid extension" : "lower-demand extension"}` });
   total += tldScore;
 
-  // 3. Word Quality & Meaning (max 20) — replaces simple keyword matching
+  // 3. Word Quality & Meaning (max 20)
   const wordParts = splitIntoWords(name);
   const meaningfulWords = wordParts.filter(w => w.length >= 2 && (COMMON_WORDS.has(w) || PREMIUM_KEYWORDS.has(w)));
   const junkChars = wordParts.filter(w => w.length === 1 && !COMMON_WORDS.has(w)).length;
@@ -141,15 +148,13 @@ function estimateValue(domain: string): ValuationResult {
   if (hasPenaltyWord) {
     wordScore = 1;
   } else if (meaningfulWords.length >= 2 && junkChars === 0) {
-    // Clean two-word combo like "cloudpay"
     wordScore = premiumMatches.length >= 1 ? 18 : 14;
   } else if (meaningfulWords.length === 1 && junkChars === 0 && name.length <= 8) {
-    // Single real word
     wordScore = premiumMatches.length >= 1 ? 16 : 12;
   } else if (meaningfulWords.length >= 1) {
     wordScore = 6 + Math.min(4, premiumMatches.length * 2);
   } else {
-    wordScore = 2; // no recognizable words
+    wordScore = 2;
   }
 
   let wordDetail = "";
@@ -195,11 +200,11 @@ function estimateValue(domain: string): ValuationResult {
   const isNumeric = /^\d+$/.test(name);
   const hasDashes = /[-_]/.test(parts[0]);
   let compScore = isAlpha ? 10 : isNumeric && name.length <= 4 ? 7 : hasDashes ? 2 : hasNumbers ? 4 : 5;
-  const detail = isAlpha ? "Pure letters — most desirable" : isNumeric ? "Numeric domain" : hasDashes ? "Contains hyphens — low demand" : "Mixed characters";
-  factors.push({ label: "Character Mix", score: compScore, maxScore: 10, detail });
+  const charDetail = isAlpha ? "Pure letters — most desirable" : isNumeric ? "Numeric domain" : hasDashes ? "Contains hyphens — low demand" : "Mixed characters";
+  factors.push({ label: "Character Mix", score: compScore, maxScore: 10, detail: charDetail });
   total += compScore;
 
-  // 6. Penalty factor (max 10 — bonus for clean domains, 0 for risky)
+  // 6. Market Risk (max 10)
   let penaltyScore = 10;
   let penaltyDetail = "No negative signals";
   if (hasPenaltyWord) {
@@ -215,21 +220,39 @@ function estimateValue(domain: string): ValuationResult {
   factors.push({ label: "Market Risk", score: penaltyScore, maxScore: 10, detail: penaltyDetail });
   total += penaltyScore;
 
-  // Estimated dollar value — much tighter, more realistic bands
+  // 7. Trademark Risk (new factor, max 10)
+  let tmScore = 10;
+  let tmDetail = "No known trademark conflicts";
+  if (trademark.riskLevel === "high") {
+    tmScore = 0;
+    tmDetail = trademark.summary;
+  } else if (trademark.riskLevel === "medium") {
+    tmScore = 3;
+    tmDetail = trademark.summary;
+  } else if (trademark.riskLevel === "low") {
+    tmScore = 6;
+    tmDetail = trademark.summary;
+  }
+  factors.push({ label: "Trademark Risk", score: tmScore, maxScore: 10, detail: tmDetail });
+  total += tmScore;
+
+  // Recalculate value bands (now out of 110 max)
+  const normalizedTotal = Math.round((total / 110) * 100);
+
   let valueMin: number, valueMax: number;
-  if (hasPenaltyWord) { valueMin = 5; valueMax = 50; }
-  else if (total >= 90) { valueMin = 5000; valueMax = 25000; }
-  else if (total >= 80) { valueMin = 2000; valueMax = 8000; }
-  else if (total >= 70) { valueMin = 500; valueMax = 2500; }
-  else if (total >= 60) { valueMin = 150; valueMax = 800; }
-  else if (total >= 50) { valueMin = 50; valueMax = 300; }
-  else if (total >= 40) { valueMin = 20; valueMax = 100; }
+  if (hasPenaltyWord || trademark.riskLevel === "high") { valueMin = 5; valueMax = 50; }
+  else if (normalizedTotal >= 90) { valueMin = 5000; valueMax = 25000; }
+  else if (normalizedTotal >= 80) { valueMin = 2000; valueMax = 8000; }
+  else if (normalizedTotal >= 70) { valueMin = 500; valueMax = 2500; }
+  else if (normalizedTotal >= 60) { valueMin = 150; valueMax = 800; }
+  else if (normalizedTotal >= 50) { valueMin = 50; valueMax = 300; }
+  else if (normalizedTotal >= 40) { valueMin = 20; valueMax = 100; }
   else { valueMin = 5; valueMax = 50; }
 
-  const confidence: ValuationResult["confidence"] = total >= 75 ? "High" : total >= 50 ? "Medium" : "Low";
+  const confidence: ValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
   const estimatedValue = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
 
-  return { estimatedValue, confidence, overallScore: total, factors };
+  return { estimatedValue, confidence, overallScore: normalizedTotal, factors, trademark };
 }
 
 export function DomainValuationEstimator() {
@@ -262,7 +285,7 @@ export function DomainValuationEstimator() {
           Domain Valuation Estimator
         </CardTitle>
         <CardDescription>
-          Get an instant estimated value based on length, TLD, keywords, brandability, and character composition.
+          Get an instant estimated value based on length, TLD, keywords, brandability, character composition, and trademark risk.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -300,6 +323,36 @@ export function DomainValuationEstimator() {
 
             <Progress value={result.overallScore} className="h-3" />
 
+            {/* Trademark Alert */}
+            {result.trademark.riskLevel !== "none" && (
+              <div className={`p-3 rounded-lg border ${result.trademark.riskLevel === "high" ? "border-red-500/20 bg-red-500/5" : result.trademark.riskLevel === "medium" ? "border-orange-500/20 bg-orange-500/5" : "border-yellow-500/20 bg-yellow-500/5"}`}>
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-red-500 mt-0.5" />
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-foreground">Trademark Warning</span>
+                      <Badge variant="outline" className={`text-xs ${getTrademarkRiskDisplay(result.trademark.riskLevel).color}`}>
+                        {getTrademarkRiskDisplay(result.trademark.riskLevel).label}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{result.trademark.summary}</p>
+                    {result.trademark.matches.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {result.trademark.matches.map((m, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {m.brand} ({m.matchType})
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground/70 mt-2">
+                      ⚠️ Domains infringing trademarks risk UDRP disputes and forced transfers. Value capped accordingly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground">Factor Breakdown</h4>
               {result.factors.map((f, i) => (
@@ -318,7 +371,8 @@ export function DomainValuationEstimator() {
             </div>
 
             <p className="text-xs text-muted-foreground italic">
-              * This is an algorithmic estimate for guidance only. Actual market value depends on demand, comparable sales, traffic, and other factors.
+              * Algorithmic estimate for guidance only. Trademark check covers ~200 major brands — not legal advice. 
+              Actual market value depends on demand, comparable sales, traffic, and other factors. Always consult a trademark attorney before major acquisitions.
             </p>
           </div>
         )}
