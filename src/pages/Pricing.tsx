@@ -16,7 +16,7 @@ const plans = [
     period: "forever",
     description: "Get started with basic monitoring",
     features: [
-      "5 monitoring patterns",
+      "30 monitoring patterns",
       "Email & push alerts",
       "Full auction data",
       "Spam risk checking",
@@ -31,7 +31,7 @@ const plans = [
     period: "/month",
     description: "For serious domain hunters",
     features: [
-      "50 monitoring patterns",
+      "60 monitoring patterns",
       "Email & push alerts",
       "Full auction data",
       "Spam risk checking",
@@ -46,7 +46,7 @@ const plans = [
     period: "/month",
     description: "Maximum monitoring power",
     features: [
-      "125 monitoring patterns",
+      "120 monitoring patterns",
       "Email & push alerts",
       "Full auction data",
       "Spam risk checking",
@@ -170,7 +170,7 @@ export default function Pricing() {
     <>
       <Helmet>
         <title>Pricing - ExpiredHawk Domain Monitoring Plans</title>
-        <meta name="description" content="Start free with 5 patterns. Upgrade to Basic ($4.99/mo) or Advanced ($9.99/mo) for more patterns and priority alerts." />
+        <meta name="description" content="Start free with 30 patterns. Upgrade to Basic ($4.99/mo, 60 patterns) or Advanced ($9.99/mo, 120 patterns) for more monitoring power." />
         <link rel="canonical" href="https://expiredhawk.com/pricing" />
       </Helmet>
     <div className="min-h-screen bg-background">
