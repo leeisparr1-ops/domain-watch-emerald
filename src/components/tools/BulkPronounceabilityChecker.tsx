@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { List, ArrowUpDown, ShieldAlert, ShieldCheck } from "lucide-react";
 import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
+import { quickValuation } from "@/lib/domainValuation";
 import {
   Tooltip,
   TooltipContent,
@@ -19,42 +20,6 @@ interface BulkResult {
   trademark: TrademarkResult;
   valuationBand: string;
   valuationScore: number;
-}
-
-// Simplified valuation for bulk view
-function quickValuation(domain: string, pronounceScore: number, tm: TrademarkResult): { band: string; score: number } {
-  const name = domain.split(".")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
-  const tld = domain.split(".")[1] || "com";
-  
-  let score = 0;
-  // Length
-  if (name.length <= 4) score += 25;
-  else if (name.length <= 7) score += 18;
-  else if (name.length <= 10) score += 10;
-  else score += 3;
-  
-  // TLD
-  const tldScores: Record<string, number> = { com: 25, ai: 18, io: 16, net: 14, org: 13, co: 14, app: 12, dev: 11 };
-  score += tldScores[tld] || 5;
-  
-  // Pronounceability factor
-  score += Math.round(pronounceScore * 0.3);
-  
-  // Trademark penalty
-  if (tm.riskLevel === "high") score = Math.min(score, 15);
-  else if (tm.riskLevel === "medium") score = Math.round(score * 0.5);
-  
-  score = Math.min(100, Math.max(0, score));
-  
-  let band: string;
-  if (tm.riskLevel === "high") band = "$5 – $50";
-  else if (score >= 85) band = "$5K – $25K";
-  else if (score >= 70) band = "$1K – $5K";
-  else if (score >= 55) band = "$200 – $1K";
-  else if (score >= 40) band = "$50 – $300";
-  else band = "$10 – $80";
-  
-  return { band, score };
 }
 
 export function BulkPronounceabilityChecker() {
@@ -75,7 +40,7 @@ export function BulkPronounceabilityChecker() {
     const scored = domains.map((domain) => {
       const result = scorePronounceability(domain);
       const trademark = checkTrademarkRisk(domain);
-      const val = quickValuation(domain, result.score, trademark);
+      const val = quickValuation(domain, result.score);
       return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score };
     });
 
