@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, LogIn, User, HelpCircle } from "lucide-react";
+import { Menu, X, LogIn, User, HelpCircle, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +34,9 @@ export function Navbar() {
             </Link>
             <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
               Pricing
+            </Link>
+            <Link to="/tools" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tools
             </Link>
             {user ? (
               <>
@@ -96,6 +99,9 @@ export function Navbar() {
             </Link>
             <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
               Pricing
+            </Link>
+            <Link to="/tools" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
+              Tools
             </Link>
             {user ? (
               <>

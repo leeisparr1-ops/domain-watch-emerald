@@ -1,40 +1,35 @@
-import { Search, Bell, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react";
+import { Search, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react";
 
 const features = [
   {
     icon: Search,
     title: "Smart Pattern Builder",
-    description: "Create patterns with 'Starts with', 'Ends with', 'Contains', or custom regex. Add TLD filters and price limits to match exactly what you want.",
+    description: "Use simple filters like 'starts with', 'ends with', or 'contains'. Add TLD and price limits to match exactly what you want.",
   },
   {
     icon: Smartphone,
     title: "Push Notifications",
-    description: "Get alerts on your phone when matching domains become available—even when your browser is closed.",
+    description: "Get instant alerts on your phone when a matching domain appears — even when your browser is closed.",
   },
   {
     icon: Mail,
-    title: "Email Notifications",
-    description: "Receive email alerts on your schedule—every 2, 4, or 6 hours. Customize notification frequency in Settings.",
-  },
-  {
-    icon: Bell,
-    title: "Flexible Alert Frequency",
-    description: "Choose how often you receive notifications. Set 2, 4, or 6-hour intervals to match your workflow.",
+    title: "Email Alerts",
+    description: "Receive email digests on your schedule — every 2, 4, or 6 hours. Adjust the frequency in Settings.",
   },
   {
     icon: Zap,
     title: "Automatic Matching",
-    description: "Patterns are checked automatically after every sync. New matches appear in your Matches tab with one-click access.",
+    description: "After every data sync, your patterns are re-checked automatically. New matches appear in your dashboard instantly.",
   },
   {
     icon: Shield,
     title: "Secure & Private",
-    description: "Your search patterns and preferences are encrypted and private. Only you can see what you're tracking.",
+    description: "Your patterns and preferences are private. Only you can see what you are tracking.",
   },
   {
     icon: Globe,
-    title: "Live Auction Data",
-    description: "Syncs every 6 hours with auctions, closeouts, and expiring domains.",
+    title: "Fresh Auction Data",
+    description: "Domain listings sync every 6 hours from auctions, closeouts, and expiring inventory sources.",
   },
 ];
 
@@ -44,10 +39,10 @@ export function Features() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Never Miss a <span className="gradient-text">Perfect Domain</span>
+            Everything You Need to <span className="gradient-text">Catch Domains</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Set up your patterns once, then let ExpiredHawk watch for you 24/7 and alert you instantly on your phone.
+            Set your patterns once, then let ExpiredHawk watch around the clock and alert you the moment a match drops.
           </p>
         </div>
 

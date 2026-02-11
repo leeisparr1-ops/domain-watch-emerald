@@ -4,26 +4,26 @@ const steps = [
   {
     icon: Search,
     step: "1",
-    title: "Create Your Patterns",
-    description: "Set up keyword patterns, character counts, or custom regex to match the exact domains you're looking for.",
+    title: "Set Your Criteria",
+    description: "Tell us what you are looking for — keywords, length, TLD, or price range. No regex knowledge required.",
   },
   {
     icon: Bell,
     step: "2",
-    title: "We Monitor 24/7",
-    description: "Our system continuously scans domain auctions and matches new listings against your patterns in real-time.",
+    title: "We Scan Daily",
+    description: "ExpiredHawk checks thousands of expiring domains every few hours and compares them to your patterns.",
   },
   {
     icon: Smartphone,
     step: "3",
-    title: "Get Instant Alerts",
-    description: "Receive push or email notifications the moment a matching domain becomes available.",
+    title: "Get Notified",
+    description: "Receive a push notification or email the moment a matching domain appears.",
   },
   {
     icon: Check,
     step: "4",
-    title: "Grab Your Domain",
-    description: "Click the alert to go directly to the auction page and secure your perfect domain before anyone else.",
+    title: "Grab It",
+    description: "Click the link in your alert to go straight to the auction and secure the domain.",
   },
 ];
 

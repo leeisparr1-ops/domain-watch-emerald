@@ -23,6 +23,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Help = lazy(() => import("./pages/Help"));
+const Tools = lazy(() => import("./pages/Tools"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -58,6 +59,7 @@ const App = () => (
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/help" element={<Help />} />
+                <Route path="/tools" element={<Tools />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="*" element={<NotFound />} />
