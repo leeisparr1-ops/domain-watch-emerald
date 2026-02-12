@@ -26,65 +26,76 @@ interface ComparableSale {
   price: string;
   date: string;
   pattern: string;
+  keywords?: string[]; // words in the domain for matching
 }
 
 // Curated comparable sales database from public aftermarket reports (NameBio, DNJournal, Afternic)
 const COMPARABLE_SALES: ComparableSale[] = [
   // Ultra-short / 2-3 letter
-  { domain: "AI.com", price: "$11,000,000", date: "2023", pattern: "2-letter .com" },
-  { domain: "TX.com", price: "$950,000", date: "2024", pattern: "2-letter .com" },
-  { domain: "MO.com", price: "$460,000", date: "2024", pattern: "2-letter .com" },
-  { domain: "QR.com", price: "$225,000", date: "2024", pattern: "2-letter .com" },
-  { domain: "GPT.ai", price: "$152,000", date: "2024", pattern: "3-letter .ai" },
-  { domain: "VPN.com", price: "$610,000", date: "2023", pattern: "3-letter .com" },
-  // 4-letter .com
-  { domain: "Bets.com", price: "$4,350,000", date: "2024", pattern: "4-letter .com" },
-  { domain: "Fuel.com", price: "$725,000", date: "2024", pattern: "single-word .com" },
-  { domain: "Hype.com", price: "$500,000", date: "2024", pattern: "single-word .com" },
-  { domain: "Odds.com", price: "$440,000", date: "2024", pattern: "single-word .com" },
-  // Single dictionary .com
-  { domain: "Connect.com", price: "$600,000", date: "2024", pattern: "single-word .com" },
-  { domain: "Wallet.com", price: "$350,000", date: "2024", pattern: "single-word .com" },
-  { domain: "Invest.com", price: "$495,000", date: "2023", pattern: "single-word .com" },
-  { domain: "Shield.com", price: "$120,000", date: "2024", pattern: "single-word .com" },
-  { domain: "Launch.com", price: "$175,000", date: "2023", pattern: "single-word .com" },
-  { domain: "Harvest.com", price: "$115,000", date: "2024", pattern: "single-word .com" },
-  // Two-word brandable .com
-  { domain: "CloudBank.com", price: "$62,500", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "PayHub.com", price: "$45,000", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "DataFlow.com", price: "$38,000", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "SmartHome.com", price: "$52,000", date: "2023", pattern: "two-word brandable .com" },
-  { domain: "SolarEdge.com", price: "$28,500", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "HealthHub.com", price: "$33,000", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "GameZone.com", price: "$18,500", date: "2024", pattern: "two-word brandable .com" },
-  { domain: "TechStack.com", price: "$22,000", date: "2024", pattern: "two-word brandable .com" },
+  { domain: "AI.com", price: "$11,000,000", date: "2023", pattern: "2-letter .com", keywords: ["ai"] },
+  { domain: "TX.com", price: "$950,000", date: "2024", pattern: "2-letter .com", keywords: ["tx"] },
+  { domain: "GPT.ai", price: "$152,000", date: "2024", pattern: "3-letter .ai", keywords: ["gpt"] },
+  { domain: "VPN.com", price: "$610,000", date: "2023", pattern: "3-letter .com", keywords: ["vpn"] },
+  // 4-letter / single-word .com
+  { domain: "Bets.com", price: "$4,350,000", date: "2024", pattern: "single-word .com", keywords: ["bet", "bets"] },
+  { domain: "Fuel.com", price: "$725,000", date: "2024", pattern: "single-word .com", keywords: ["fuel"] },
+  { domain: "Hype.com", price: "$500,000", date: "2024", pattern: "single-word .com", keywords: ["hype"] },
+  { domain: "Odds.com", price: "$440,000", date: "2024", pattern: "single-word .com", keywords: ["odds"] },
+  { domain: "Connect.com", price: "$600,000", date: "2024", pattern: "single-word .com", keywords: ["connect"] },
+  { domain: "Wallet.com", price: "$350,000", date: "2024", pattern: "single-word .com", keywords: ["wallet"] },
+  { domain: "Shield.com", price: "$120,000", date: "2024", pattern: "single-word .com", keywords: ["shield"] },
+  { domain: "Launch.com", price: "$175,000", date: "2023", pattern: "single-word .com", keywords: ["launch"] },
+  { domain: "Harvest.com", price: "$115,000", date: "2024", pattern: "single-word .com", keywords: ["harvest"] },
+  // Two-word brandable .com — diverse categories
+  { domain: "CloudBank.com", price: "$62,500", date: "2024", pattern: "two-word brandable .com", keywords: ["cloud", "bank"] },
+  { domain: "PayHub.com", price: "$45,000", date: "2024", pattern: "two-word brandable .com", keywords: ["pay", "hub"] },
+  { domain: "DataFlow.com", price: "$38,000", date: "2024", pattern: "two-word brandable .com", keywords: ["data", "flow"] },
+  { domain: "SmartHome.com", price: "$52,000", date: "2023", pattern: "two-word brandable .com", keywords: ["smart", "home"] },
+  { domain: "SolarEdge.com", price: "$28,500", date: "2024", pattern: "two-word brandable .com", keywords: ["solar", "edge"] },
+  { domain: "HealthHub.com", price: "$33,000", date: "2024", pattern: "two-word brandable .com", keywords: ["health", "hub"] },
+  { domain: "GameZone.com", price: "$18,500", date: "2024", pattern: "two-word brandable .com", keywords: ["game", "zone"] },
+  { domain: "TechStack.com", price: "$22,000", date: "2024", pattern: "two-word brandable .com", keywords: ["tech", "stack"] },
+  { domain: "BrightPath.com", price: "$15,200", date: "2024", pattern: "two-word brandable .com", keywords: ["bright", "path"] },
+  { domain: "SwiftShip.com", price: "$12,800", date: "2023", pattern: "two-word brandable .com", keywords: ["swift", "ship"] },
+  { domain: "GoldCraft.com", price: "$14,500", date: "2024", pattern: "two-word brandable .com", keywords: ["gold", "craft"] },
+  { domain: "IronGate.com", price: "$19,000", date: "2024", pattern: "two-word brandable .com", keywords: ["iron", "gate"] },
+  { domain: "BlueStar.com", price: "$24,000", date: "2023", pattern: "two-word brandable .com", keywords: ["blue", "star"] },
+  { domain: "FireBolt.com", price: "$11,500", date: "2024", pattern: "two-word brandable .com", keywords: ["fire", "bolt"] },
+  { domain: "StormForge.com", price: "$16,000", date: "2024", pattern: "two-word brandable .com", keywords: ["storm", "forge"] },
+  { domain: "NightOwl.com", price: "$9,800", date: "2024", pattern: "two-word brandable .com", keywords: ["night", "owl"] },
+  { domain: "WildHawk.com", price: "$8,500", date: "2024", pattern: "two-word brandable .com", keywords: ["wild", "hawk"] },
+  { domain: "CleanWave.com", price: "$7,200", date: "2024", pattern: "two-word brandable .com", keywords: ["clean", "wave"] },
+  { domain: "FastTrack.com", price: "$35,000", date: "2023", pattern: "two-word brandable .com", keywords: ["fast", "track"] },
+  { domain: "SkyVault.com", price: "$13,500", date: "2024", pattern: "two-word brandable .com", keywords: ["sky", "vault"] },
   // Trending AI/crypto/fintech
-  { domain: "DeepAI.com", price: "$180,000", date: "2024", pattern: "AI keyword .com" },
-  { domain: "TradeBot.com", price: "$42,000", date: "2024", pattern: "fintech keyword .com" },
-  { domain: "CryptoVault.com", price: "$55,000", date: "2023", pattern: "crypto keyword .com" },
+  { domain: "DeepAI.com", price: "$180,000", date: "2024", pattern: "AI keyword .com", keywords: ["deep", "ai"] },
+  { domain: "TradeBot.com", price: "$42,000", date: "2024", pattern: "fintech keyword .com", keywords: ["trade", "bot"] },
+  { domain: "CryptoVault.com", price: "$55,000", date: "2023", pattern: "crypto keyword .com", keywords: ["crypto", "vault"] },
   // .io domains
-  { domain: "Stack.io", price: "$40,000", date: "2024", pattern: "single-word .io" },
-  { domain: "Deploy.io", price: "$18,000", date: "2024", pattern: "single-word .io" },
-  { domain: "Auth.io", price: "$25,000", date: "2024", pattern: "single-word .io" },
+  { domain: "Stack.io", price: "$40,000", date: "2024", pattern: "single-word .io", keywords: ["stack"] },
+  { domain: "Deploy.io", price: "$18,000", date: "2024", pattern: "single-word .io", keywords: ["deploy"] },
+  { domain: "Auth.io", price: "$25,000", date: "2024", pattern: "single-word .io", keywords: ["auth"] },
   // .ai domains
-  { domain: "Trade.ai", price: "$75,000", date: "2024", pattern: "single-word .ai" },
-  { domain: "Health.ai", price: "$55,000", date: "2024", pattern: "single-word .ai" },
-  { domain: "Cloud.ai", price: "$48,000", date: "2024", pattern: "single-word .ai" },
-  // Longer / lower value
-  { domain: "GetMyQuote.com", price: "$8,500", date: "2024", pattern: "three-word .com" },
-  { domain: "BestDeals.com", price: "$12,000", date: "2024", pattern: "two-word generic .com" },
-  { domain: "OnlineCourses.com", price: "$15,000", date: "2023", pattern: "two-word generic .com" },
-  { domain: "FastShipping.com", price: "$7,200", date: "2024", pattern: "two-word generic .com" },
-  // Budget / ccTLD
-  { domain: "Tech.co.uk", price: "$6,500", date: "2024", pattern: "single-word ccTLD" },
-  { domain: "Startup.de", price: "$3,800", date: "2024", pattern: "single-word ccTLD" },
-  { domain: "Jobs.ca", price: "$12,500", date: "2024", pattern: "single-word ccTLD" },
+  { domain: "Trade.ai", price: "$75,000", date: "2024", pattern: "single-word .ai", keywords: ["trade"] },
+  { domain: "Health.ai", price: "$55,000", date: "2024", pattern: "single-word .ai", keywords: ["health"] },
+  { domain: "Cloud.ai", price: "$48,000", date: "2024", pattern: "single-word .ai", keywords: ["cloud"] },
+  // Three-word / generic
+  { domain: "GetMyQuote.com", price: "$8,500", date: "2024", pattern: "three-word .com", keywords: ["get", "my", "quote"] },
+  { domain: "BestDeals.com", price: "$12,000", date: "2024", pattern: "two-word generic .com", keywords: ["best", "deal"] },
+  { domain: "OnlineCourses.com", price: "$15,000", date: "2023", pattern: "two-word generic .com", keywords: ["online", "course"] },
+  { domain: "FastShipping.com", price: "$7,200", date: "2024", pattern: "two-word generic .com", keywords: ["fast", "ship", "shipping"] },
+  // ccTLD
+  { domain: "Tech.co.uk", price: "$6,500", date: "2024", pattern: "single-word ccTLD", keywords: ["tech"] },
+  { domain: "Jobs.ca", price: "$12,500", date: "2024", pattern: "single-word ccTLD", keywords: ["jobs"] },
 ];
 
-function findComparableSales(domain: string, score: number): ComparableSale[] {
+function findComparableSales(domain: string, score: number, domainWords: string[]): ComparableSale[] {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const tld = parts.slice(1).join(".");
+  
+  // Extract meaningful words from the input domain (2+ chars)
+  const inputWords = domainWords.filter(w => w.length >= 2).map(w => w.toLowerCase());
 
   const scored: { sale: ComparableSale; relevance: number }[] = [];
 
@@ -93,26 +104,30 @@ function findComparableSales(domain: string, score: number): ComparableSale[] {
     const saleParts = sale.domain.toLowerCase().split(".");
     const saleName = saleParts[0];
     const saleTld = saleParts.slice(1).join(".");
+    const saleKeywords = sale.keywords || [];
 
-    // Same TLD = strong match
-    if (saleTld === tld) relevance += 3;
-    // Same TLD family (.com vs .com)
-    else if (saleTld.endsWith("com") && tld.endsWith("com")) relevance += 2;
+    // Word overlap — strongest signal (each shared word = +5)
+    let wordMatches = 0;
+    for (const word of inputWords) {
+      if (saleKeywords.includes(word)) {
+        wordMatches++;
+      }
+    }
+    relevance += wordMatches * 5;
+
+    // Same TLD
+    if (saleTld === tld) relevance += 2;
+    else if (saleTld.endsWith("com") && tld.endsWith("com")) relevance += 1;
 
     // Similar length
     const lenDiff = Math.abs(saleName.length - name.length);
-    if (lenDiff === 0) relevance += 3;
-    else if (lenDiff <= 2) relevance += 2;
+    if (lenDiff <= 2) relevance += 2;
     else if (lenDiff <= 4) relevance += 1;
 
-    // Same pattern category
-    if (sale.pattern.includes("single-word") && name.length <= 8) relevance += 1;
-    if (sale.pattern.includes("two-word") && name.length > 8) relevance += 1;
-    if (sale.pattern.includes("AI") && name.includes("ai")) relevance += 2;
-    if (sale.pattern.includes("fintech") && (name.includes("pay") || name.includes("bank") || name.includes("trade"))) relevance += 2;
-    if (sale.pattern.includes("crypto") && (name.includes("crypto") || name.includes("coin"))) relevance += 2;
+    // Same word count pattern
+    if (saleKeywords.length === inputWords.length) relevance += 1;
 
-    if (relevance >= 2) {
+    if (relevance >= 3) {
       scored.push({ sale, relevance });
     }
   }
@@ -317,6 +332,21 @@ const DICTIONARY_WORDS = new Set([
   "underway", "universe", "unlikely", "upcoming", "vacation", "validate",
   "valuable", "variable", "vertical", "vigilant", "volatile", "volcanic",
   "volition", "whatever", "wireless", "workshop", "yourself",
+  // Common adjectives (critical for compound domains like ShinyShip, BrightPath, etc.)
+  "shiny", "bright", "sharp", "clean", "clear", "clever", "cool", "crisp", "cute", "dark",
+  "deep", "easy", "epic", "fair", "fast", "fine", "firm", "flat", "fresh", "good",
+  "great", "happy", "keen", "kind", "lean", "loud", "lucky", "neat", "nice", "open",
+  "plain", "pure", "quick", "quiet", "rare", "rich", "rough", "round", "safe", "sharp",
+  "sleek", "slim", "smooth", "snappy", "solid", "sunny", "sweet", "tall", "thick", "thin",
+  "tight", "tiny", "tough", "true", "vast", "vivid", "warm", "weird", "whole", "wide",
+  "wild", "wise", "young", "agile", "ample", "blank", "bliss", "calm", "cheap", "dense",
+  "eager", "elite", "empty", "equal", "exact", "extra", "fancy", "fierce", "gentle", "glad",
+  "grim", "gross", "harsh", "heavy", "huge", "humble", "ideal", "jolly", "lame", "lazy",
+  "loose", "lush", "major", "merry", "mild", "minor", "moist", "moral", "mute", "nifty",
+  "odd", "pale", "petty", "plump", "polar", "polite", "poor", "proud", "rigid", "ripe",
+  "rosy", "rude", "rusty", "salty", "sane", "scary", "sheer", "silent", "silly", "slick",
+  "sober", "sore", "spare", "stark", "steep", "stern", "stiff", "stoic", "strict", "super",
+  "tame", "tender", "terse", "timid", "toxic", "trim", "ugly", "vague", "wary", "witty",
   // Short powerful words
   "ace", "aim", "all", "arc", "arm", "ask", "axe", "bar", "bay", "bid",
   "bit", "bow", "bud", "bus", "cab", "cam", "cap", "clue", "cog", "cow", "cub", "cubed",
@@ -765,6 +795,15 @@ function estimateValue(domain: string): ValuationResult {
     valueMax = Math.max(valueMax, Math.round(25000 * dictBonus));
   }
 
+  // Two-word brandable .com bonus — clean compound words on .com deserve a floor
+  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const hasPremium = premiumMatches.length >= 1;
+    const twoWordFloorMin = hasPremium ? 3000 : 1500;
+    const twoWordFloorMax = hasPremium ? 10000 : 5000;
+    valueMin = Math.max(valueMin, twoWordFloorMin);
+    valueMax = Math.max(valueMax, twoWordFloorMax);
+  }
+
   // Tighten band: max should be at most 3x min
   if (valueMax > valueMin * 3) {
     valueMax = Math.round(valueMin * 3);
@@ -772,7 +811,7 @@ function estimateValue(domain: string): ValuationResult {
 
   const confidence: ValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
   const estimatedValue = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
-  const comparableSales = findComparableSales(domain, normalizedTotal);
+  const comparableSales = findComparableSales(domain, normalizedTotal, meaningfulWords);
 
   return { estimatedValue, confidence, overallScore: normalizedTotal, factors, trademark, comparableSales };
 }
