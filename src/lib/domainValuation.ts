@@ -193,6 +193,21 @@ export const DICTIONARY_WORDS = new Set([
   "underway", "universe", "unlikely", "upcoming", "vacation", "validate",
   "valuable", "variable", "vertical", "vigilant", "volatile", "volcanic",
   "volition", "whatever", "wireless", "workshop", "yourself",
+  // Common adjectives (critical for compound domains like ShinyShip, BrightPath, etc.)
+  "shiny", "bright", "sharp", "clean", "clear", "clever", "cool", "crisp", "cute", "dark",
+  "deep", "easy", "epic", "fair", "fast", "fine", "firm", "flat", "fresh", "good",
+  "great", "happy", "keen", "kind", "lean", "loud", "lucky", "neat", "nice", "open",
+  "plain", "pure", "quick", "quiet", "rare", "rich", "rough", "round", "safe", "sharp",
+  "sleek", "slim", "smooth", "snappy", "solid", "sunny", "sweet", "tall", "thick", "thin",
+  "tight", "tiny", "tough", "true", "vast", "vivid", "warm", "weird", "whole", "wide",
+  "wild", "wise", "young", "agile", "ample", "blank", "bliss", "calm", "cheap", "dense",
+  "eager", "elite", "empty", "equal", "exact", "extra", "fancy", "fierce", "gentle", "glad",
+  "grim", "gross", "harsh", "heavy", "huge", "humble", "ideal", "jolly", "lame", "lazy",
+  "loose", "lush", "major", "merry", "mild", "minor", "moist", "moral", "mute", "nifty",
+  "odd", "pale", "petty", "plump", "polar", "polite", "poor", "proud", "rigid", "ripe",
+  "rosy", "rude", "rusty", "salty", "sane", "scary", "sheer", "silent", "silly", "slick",
+  "sober", "sore", "spare", "stark", "steep", "stern", "stiff", "stoic", "strict", "super",
+  "tame", "tender", "terse", "timid", "toxic", "trim", "ugly", "vague", "wary", "witty",
   // Short powerful words (1-5 letters)
   "ace", "aim", "all", "arc", "arm", "ask", "axe", "bar", "bay", "bid",
   "bit", "bow", "bud", "bus", "cab", "cam", "cap", "clue", "cog", "cow", "cub", "cubed",
@@ -543,6 +558,15 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     const dictBonus = name.length <= 4 ? 3.0 : name.length <= 6 ? 2.0 : 1.5;
     valueMin = Math.max(valueMin, Math.round(5000 * dictBonus));
     valueMax = Math.max(valueMax, Math.round(25000 * dictBonus));
+  }
+
+  // Two-word brandable .com bonus — clean compound words on .com deserve a floor
+  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const hasPremium = premiumMatches.length >= 1;
+    const twoWordFloorMin = hasPremium ? 3000 : 1500;
+    const twoWordFloorMax = hasPremium ? 10000 : 5000;
+    valueMin = Math.max(valueMin, twoWordFloorMin);
+    valueMax = Math.max(valueMax, twoWordFloorMax);
   }
 
   // Tighten band
