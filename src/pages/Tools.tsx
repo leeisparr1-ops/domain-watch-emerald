@@ -4,12 +4,13 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Sparkles, DollarSign, List, Globe2 } from "lucide-react";
+import { Mic, Sparkles, DollarSign, List, Globe2, Award } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
 import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
+import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
 
 const Tools = () => {
   return (
@@ -34,8 +35,13 @@ const Tools = () => {
               Free tools to help you find and evaluate the perfect domain name. We are actively improving these — feedback welcome!
             </p>
 
-            <Tabs defaultValue="pronounceability" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6 h-auto">
+            <Tabs defaultValue="brandability" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 mb-6 h-auto">
+                <TabsTrigger value="brandability" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <Award className="w-4 h-4" />
+                  <span className="hidden sm:inline">Brandability</span>
+                  <span className="sm:hidden">Brand</span>
+                </TabsTrigger>
                 <TabsTrigger value="pronounceability" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Mic className="w-4 h-4" />
                   <span className="hidden sm:inline">Pronounceability</span>
@@ -63,6 +69,9 @@ const Tools = () => {
                 </TabsTrigger>
               </TabsList>
 
+              <TabsContent value="brandability">
+                <BrandabilityScorer />
+              </TabsContent>
               <TabsContent value="pronounceability">
                 <PronounceabilityScorer />
               </TabsContent>
