@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Globe, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -22,8 +23,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [showResendSection, setShowResendSection] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   const navigate = useNavigate();
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -31,10 +41,26 @@ export default function Login() {
       toast.error("Please enter email and password");
       return;
     }
+    if (!turnstileToken) {
+      toast.error("Please complete the security check");
+      return;
+    }
     
     setLoading(true);
 
     try {
+      // Verify turnstile token server-side
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-turnstile', {
+        body: { token: turnstileToken },
+      });
+
+      if (verifyError || !verifyData?.success) {
+        toast.error("Security verification failed. Please try again.");
+        setTurnstileToken(null);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
@@ -53,7 +79,6 @@ export default function Login() {
         return;
       }
 
-      // Persist preference
       try {
         localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
       } catch {
@@ -104,7 +129,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Lightweight background pattern */}
       <div className="absolute inset-0 pattern-grid opacity-10" />
 
       <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border relative z-10 animate-fade-in">
@@ -174,7 +198,12 @@ export default function Login() {
             </Label>
           </div>
 
-          <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+          <CloudflareTurnstile
+            onVerify={handleTurnstileVerify}
+            onExpire={handleTurnstileExpire}
+          />
+
+          <Button type="submit" variant="hero" className="w-full" disabled={loading || !turnstileToken}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
           </Button>
         </form>
