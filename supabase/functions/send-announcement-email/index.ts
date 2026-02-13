@@ -73,7 +73,7 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      const text = `Thank You for Being an Early User – ExpiredHawk\n\nHi there,\n\nWe wanted to reach out personally to thank you for being one of the first users of ExpiredHawk.\n\nOver the past week, we have been making significant improvements behind the scenes — faster domain syncing, smarter pattern matching, and improved notifications. During this process, you may have experienced some brief disruptions, and we sincerely apologize for any inconvenience.\n\nHere is what has improved:\n- Faster syncs – Domain data now updates more efficiently\n- Better notifications – You will now be alerted as soon as a matching domain is discovered\n- Improved reliability – We have resolved the sync timeout issues\n\nWe are committed to making ExpiredHawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback, email us at support@expiredhawk.com — we read every message.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
+      const text = `New Tools and Updates – ExpiredHawk\n\nHi there,\n\nWe have been busy building new tools to help you find better domains, faster.\n\nHere is what is new:\n\n- Domain Name Generator – Get AI-powered domain name ideas based on keywords, industry, and style preferences\n- Domain Valuation Estimator – Instantly estimate the market value of any domain based on length, TLD, age, and keyword strength\n- Pronounceability Scorer – Check how easy a domain is to say and remember, with detailed phonetic analysis\n- Bulk Pronounceability Checker – Score multiple domains at once and compare them side by side\n- TLD Comparison Tool – Compare pricing, popularity, and use cases across different TLDs\n\nWe have also improved spam risk detection on listed domains so you can avoid problematic picks.\n\nAll tools are free to use — head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
 
       const announcementHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -82,31 +82,38 @@ serve(async (req: Request): Promise<Response> => {
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
   <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
     <h1 style="color:white;margin:0;font-size:32px;">ExpiredHawk</h1>
+    <p style="color:rgba(255,255,255,0.9);margin:8px 0 0 0;font-size:16px;">New Tools Inside</p>
   </div>
   
   <div style="background:white;padding:32px 30px;border-radius:0 0 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-    <h2 style="color:#18181b;margin-top:0;font-size:22px;">Thank You for Being an Early User</h2>
+    <h2 style="color:#18181b;margin-top:0;font-size:22px;">New Tools and Updates</h2>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">Hi there,</p>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We wanted to reach out personally to thank you for being one of the first users of <strong>ExpiredHawk</strong>.
+      We have been busy building new tools to help you find better domains, faster.
     </p>
     
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      Over the past week, we have been making significant improvements behind the scenes — faster domain syncing, smarter pattern matching, and improved notifications. During this process, you may have experienced some brief disruptions, and we sincerely apologize for any inconvenience.
-    </p>
-    
-    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">Here is what has improved:</h3>
+    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">Here is what is new:</h3>
     
     <div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:16px 20px;border-radius:8px;margin:16px 0;">
-      <p style="color:#3f3f46;margin:8px 0;font-size:15px;"><strong>Faster syncs</strong> — Domain data now updates more efficiently</p>
-      <p style="color:#3f3f46;margin:8px 0;font-size:15px;"><strong>Better notifications</strong> — You will now be alerted as soon as a matching domain is discovered</p>
-      <p style="color:#3f3f46;margin:8px 0;font-size:15px;"><strong>Improved reliability</strong> — We have resolved the sync timeout issues</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Domain Name Generator</strong> — AI-powered domain name ideas based on your keywords, industry, and style</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Domain Valuation Estimator</strong> — Instantly estimate market value based on length, TLD, age, and keywords</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Pronounceability Scorer</strong> — Check how easy a domain is to say and remember</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> — Score multiple domains at once and compare side by side</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>TLD Comparison Tool</strong> — Compare pricing, popularity, and use cases across TLDs</p>
     </div>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We are committed to making ExpiredHawk the best tool for finding expired domains, and your early support means the world to us. If you ever have feedback or suggestions, drop us an email at <a href="mailto:support@expiredhawk.com" style="color:#22c55e;font-weight:600;">support@expiredhawk.com</a> — we read every message.
+      We have also improved <strong>spam risk detection</strong> on listed domains so you can avoid problematic picks.
+    </p>
+    
+    <div style="text-align:center;margin:28px 0;">
+      <a href="https://expiredhawk.com/tools" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Try the New Tools</a>
+    </div>
+    
+    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
+      As always, if you have feedback or ideas, reply to this email or reach us at <a href="mailto:support@expiredhawk.com" style="color:#22c55e;font-weight:600;">support@expiredhawk.com</a>.
     </p>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">Happy hunting,</p>
@@ -125,7 +132,7 @@ serve(async (req: Request): Promise<Response> => {
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [user.email],
-          subject: "Thank You for Being an Early ExpiredHawk User",
+          subject: "New Tools to Help You Find Better Domains",
           html: announcementHtml,
           text,
           headers: makeEmailHeaders(),
