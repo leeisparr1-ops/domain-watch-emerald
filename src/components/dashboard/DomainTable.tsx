@@ -189,7 +189,12 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
-              <TableHead className="whitespace-nowrap">Ends</TableHead>
+              <SortableHeader 
+                column="end_time" 
+                label="Ends" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <TableHead>Actions</TableHead>
               <TableHead className="w-8"></TableHead>
             </TableRow>
