@@ -180,6 +180,8 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const syncSecret = Deno.env.get("SYNC_SECRET");
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY") || "";
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 
@@ -193,20 +195,61 @@ serve(async (req) => {
     // Ensure the app server is initialized (and keys are valid)
     await getAppServer(vapidPublicKey, vapidPrivateKey);
 
+    // --- Authentication: require either a valid system secret or a valid user JWT ---
+    const authHeader = req.headers.get("Authorization");
+    const systemSecret = req.headers.get("X-System-Secret");
+    let authenticatedUserId: string | null = null;
+    let isSystemCall = false;
+
+    if (systemSecret && syncSecret && systemSecret === syncSecret) {
+      // Internal system call (from check-all-patterns, check-pattern-alerts, etc.)
+      isSystemCall = true;
+    } else if (authHeader?.startsWith("Bearer ")) {
+      // User JWT – validate it
+      const anonSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await anonSupabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      authenticatedUserId = claimsData.claims.sub as string;
+    } else {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { user_id, payload }: PushRequest = await req.json();
 
-    console.log("Sending push notification for user:", user_id);
+    // If authenticated as a user (not system), they can only send to themselves
+    if (!isSystemCall && authenticatedUserId && user_id && user_id !== authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: cannot send notifications to other users" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // For user calls without explicit user_id, default to the authenticated user
+    const effectiveUserId = user_id || authenticatedUserId;
+
+    console.log("Sending push notification for user:", effectiveUserId);
     console.log("Payload:", JSON.stringify(payload));
 
     // Rate limit: Use user's configured frequency preference for pattern matches
-    if (user_id && payload.tag === "pattern-match") {
+    if (effectiveUserId && payload.tag === "pattern-match") {
       // Get user's notification frequency preference
       const { data: userSettings } = await supabase
         .from("user_settings")
         .select("notification_frequency_hours")
-        .eq("user_id", user_id)
+        .eq("user_id", effectiveUserId)
         .maybeSingle();
       
       const frequencyHours = userSettings?.notification_frequency_hours || 2;
@@ -226,7 +269,7 @@ serve(async (req) => {
         
         // If the most recent alert is older than 1 minute, we already sent a push in this window
         if (lastAlertTime < oneMinuteAgo) {
-          console.log(`Rate limited: User ${user_id} already received push within ${frequencyHours} hours`);
+          console.log(`Rate limited: User ${effectiveUserId} already received push within ${frequencyHours} hours`);
           return new Response(
             JSON.stringify({ success: false, message: `Rate limited - push already sent within ${frequencyHours} hours` }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -238,8 +281,8 @@ serve(async (req) => {
     // Get user's push subscriptions
     let query = supabase.from("push_subscriptions").select("*");
     
-    if (user_id) {
-      query = query.eq("user_id", user_id);
+    if (effectiveUserId) {
+      query = query.eq("user_id", effectiveUserId);
     }
 
     const { data: subscriptions, error } = await query;
