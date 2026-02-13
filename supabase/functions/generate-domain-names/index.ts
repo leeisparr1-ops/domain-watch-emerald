@@ -43,9 +43,10 @@ real-word combos. Think: Spotify, Zillow, Notion, Vercel. These command premium 
       return `KEYWORD-RICH exact-match or partial-match domains with strong SEO and type-in traffic potential. 
 Descriptive names that clearly communicate what the business does. Think: FastDelivery.com, AIFinanceAgent.com, CloudHosting.io`;
     case "expired_pattern":
-      return `domains that match COMMON DROP PATTERNS — the kind that expire daily on GoDaddy/NameJet/DropCatch auctions. 
+      return `domains that match COMMON DROP PATTERNS — the kind that expire daily on major auction platforms. 
 Short dictionary words, two-word .coms, trending keyword combos. Names that a pattern alert like "ai+agent" or "crypto+pay" would catch. 
 Think: CryptoVault.com, AIAgent.io, DataPulse.com`;
+
     default:
       return "a strategic mix of investor flip candidates, premium brandable names, and keyword-rich descriptive domains";
   }
@@ -64,8 +65,8 @@ serve(async (req) => {
     // Build trending context
     const trendingContext = `
 CURRENT MARKET TRENDS (Feb 2026):
-- Hot keywords on Sedo: Casino, Dog, Chat, Deep, Cash, Clean, Code, Beauty, Finance, Fire
-- NameBio trending: AI, Agent, Agentic, Pay, Claw, Neural, Quantum
+- Hot aftermarket keywords: Casino, Dog, Chat, Deep, Cash, Clean, Code, Beauty, Finance, Fire
+- Trending investment keywords: AI, Agent, Agentic, Pay, Claw, Neural, Quantum
 - Recent premium sales: ${RECENT_PREMIUM_SALES.map(s => `${s.name} (${s.price})`).join(", ")}
 - Hot TLDs: .ai (avg aftermarket $45k+), .com (always king), .io (tech standard)
 - Trending niches: ${Object.entries(TRENDING_NICHES).map(([k, v]) => `${k}: ${v.slice(0, 4).join(", ")}`).join(" | ")}

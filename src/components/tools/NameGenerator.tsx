@@ -290,7 +290,7 @@ export function NameGenerator() {
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Trend Score: How aligned with current 2026 market signals (Sedo, NameBio, recent sales)</p>
+                            <p>Trend Score: How aligned with current market signals and recent sales trends</p>
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -353,7 +353,7 @@ export function NameGenerator() {
               );
             })}
             <p className="text-xs text-muted-foreground text-center mt-2">
-              Trend data from public Sedo/NameBio/DNJournal reports. Availability via RDAP. Trademark screening covers ~200 major brands — not legal advice. Always verify independently.
+              Trend data based on publicly available market reports. Availability via RDAP. Trademark screening covers ~200 major brands — not legal advice. Always verify independently.
             </p>
           </div>
         )}
