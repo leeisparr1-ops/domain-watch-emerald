@@ -70,6 +70,7 @@ interface SortOption {
 // Price sorts cause statement timeouts on filtered queries.
 const SORT_OPTIONS: SortOption[] = [
   { value: "end_time_asc", label: "Ending Soon", column: "end_time", ascending: true },
+  { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
   { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
 ];
@@ -1073,9 +1074,6 @@ export default function Dashboard() {
                   <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
                     <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
                     <SelectValue placeholder="Sort by" />
-                    {(isSortPending || isFetchingAuctions) && (
-                      <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
                   </SelectTrigger>
                   <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
                     {SORT_OPTIONS.map(option => (
