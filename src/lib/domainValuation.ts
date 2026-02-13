@@ -1418,13 +1418,51 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     valueMax = Math.max(valueMax, dictFloorMax);
   }
 
-  // Two-word brandable .com bonus — clean compound words on .com deserve a floor
+  // Two-word brandable .com bonus — tiered by word quality
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
-    const twoWordFloorMin = hasPremium ? 3000 : 1500;
-    const twoWordFloorMax = hasPremium ? 10000 : 5000;
+    const hasTrending = trends.length >= 1;
+    const bothShort = meaningfulWords.every(w => w.length <= 6);
+
+    let twoWordFloorMin: number, twoWordFloorMax: number;
+
+    if (bothDictionary && hasPremium && hasTrending) {
+      twoWordFloorMin = 25000; twoWordFloorMax = 100000;
+    } else if (bothDictionary && (hasPremium || hasTrending)) {
+      twoWordFloorMin = 15000; twoWordFloorMax = 75000;
+    } else if (bothDictionary && bothShort) {
+      twoWordFloorMin = 10000; twoWordFloorMax = 50000;
+    } else if (bothDictionary) {
+      twoWordFloorMin = 8000; twoWordFloorMax = 35000;
+    } else if (hasPremium) {
+      twoWordFloorMin = 5000; twoWordFloorMax = 25000;
+    } else {
+      twoWordFloorMin = 2000; twoWordFloorMax = 10000;
+    }
+
     valueMin = Math.max(valueMin, twoWordFloorMin);
     valueMax = Math.max(valueMax, twoWordFloorMax);
+  }
+
+  // Two-word brandable on other premium TLDs
+  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
+    const hasPremium = premiumMatches.length >= 1;
+    const tldFactor = tld === "ai" ? 0.6 : tld === "io" ? 0.4 : 0.3;
+
+    let altFloorMin: number, altFloorMax: number;
+    if (bothDictionary && hasPremium) {
+      altFloorMin = Math.round(10000 * tldFactor); altFloorMax = Math.round(50000 * tldFactor);
+    } else if (bothDictionary) {
+      altFloorMin = Math.round(5000 * tldFactor); altFloorMax = Math.round(25000 * tldFactor);
+    } else if (hasPremium) {
+      altFloorMin = Math.round(3000 * tldFactor); altFloorMax = Math.round(15000 * tldFactor);
+    } else {
+      altFloorMin = Math.round(1000 * tldFactor); altFloorMax = Math.round(5000 * tldFactor);
+    }
+    valueMin = Math.max(valueMin, altFloorMin);
+    valueMax = Math.max(valueMax, altFloorMax);
   }
 
   // Tighten band
