@@ -3,8 +3,42 @@
  * Combines multiple signals into a single 0-100 composite score.
  */
 
-import { scorePronounceability, countWords } from "@/lib/pronounceability";
+import { scorePronounceability, countWords, COMMON_WORDS } from "@/lib/pronounceability";
 import { checkTrademarkRisk, type TrademarkRiskLevel } from "@/lib/trademarkCheck";
+
+/**
+ * Calculate what fraction of the name is covered by recognized dictionary words.
+ * Returns 0-1 where 1 means 100% of chars are part of known words.
+ */
+function dictionaryCoverage(name: string): number {
+  const lower = name.toLowerCase().replace(/[^a-z]/g, "");
+  if (lower.length <= 1) return 0;
+  // Ultra-short names (2-3 chars) — check both COMMON_WORDS and premium keywords
+  if (lower.length <= 3) {
+    if (COMMON_WORDS.has(lower)) return 1.0;
+    // Known premium abbreviations that are real words/acronyms
+    const PREMIUM_SHORT = new Set(["ai", "io", "go", "no", "do", "up", "we", "be", "he", "me", "my", "ok", "ox", "ax"]);
+    return PREMIUM_SHORT.has(lower) ? 1.0 : 0;
+  }
+  let coveredChars = 0;
+  let i = 0;
+  while (i < lower.length) {
+    let best = 0;
+    for (let len = Math.min(lower.length - i, 12); len >= 2; len--) {
+      if (COMMON_WORDS.has(lower.slice(i, i + len))) {
+        best = len;
+        break;
+      }
+    }
+    if (best >= 2) {
+      coveredChars += best;
+      i += best;
+    } else {
+      i++;
+    }
+  }
+  return coveredChars / lower.length;
+}
 
 // ─── TYPES ───
 
@@ -101,8 +135,9 @@ function memorabilityScore(name: string, wordCount: number): number {
 
 export function scoreBrandability(domainInput: string): BrandabilityResult {
   const parts = domainInput.toLowerCase().replace(/^www\./, "").split(".");
-  const name = parts[0].replace(/[-_]/g, "");
-  const cleanName = name.replace(/[^a-z]/gi, "");
+  const rawName = parts[0]; // keep hyphens for visual scoring
+  const cleanName = rawName.replace(/[-_]/g, "").replace(/[^a-z]/gi, "");
+  const coverage = dictionaryCoverage(cleanName);
 
   if (!cleanName) {
     return {
@@ -129,24 +164,31 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   else { lengthScore = 25; lengthDetail = `${cleanName.length} chars — too long for strong brand`; }
 
   // 3. Dictionary/meaningful words (weight: 0.15)
+  // Rewards real words AND pronounceable coined names (like "zapify", "shopify")
   const wordCount = countWords(cleanName);
   let wordScore: number;
   let wordDetail: string;
-  if (wordCount === 1 && cleanName.length <= 8) {
+  const isPronounceable = pronounceScore >= 60;
+  
+  if (coverage >= 0.9 && wordCount <= 2) {
     wordScore = 90;
-    wordDetail = "Single meaningful word — strong brand foundation";
-  } else if (wordCount === 2) {
+    wordDetail = wordCount === 1 ? "Real word — strong brand foundation" : "Real-word compound — clear and descriptive";
+  } else if (coverage >= 0.6) {
     wordScore = 75;
-    wordDetail = "Two-word compound — clear and descriptive";
-  } else if (wordCount === 1) {
-    wordScore = 70;
-    wordDetail = "Single word but lengthy";
-  } else if (wordCount === 3) {
-    wordScore = 40;
-    wordDetail = "Three words — harder to brand";
+    wordDetail = "Mostly recognizable words";
+  } else if (isPronounceable && cleanName.length <= 8) {
+    // Coined but pronounceable (like "zapify", "aeroverge") — still brandable
+    wordScore = 65;
+    wordDetail = "Coined but pronounceable — inventive brand name";
+  } else if (isPronounceable) {
+    wordScore = 50;
+    wordDetail = "Pronounceable coined word, but a bit long";
+  } else if (coverage >= 0.3) {
+    wordScore = 30;
+    wordDetail = `Only ${Math.round(coverage * 100)}% recognizable — mostly random`;
   } else {
-    wordScore = 20;
-    wordDetail = `${wordCount} words — too complex for branding`;
+    wordScore = 10;
+    wordDetail = "Random characters — not a word or brand name";
   }
 
   // 4. Trademark safety (weight: 0.15)
@@ -160,8 +202,10 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
     case "high": tmScore = 5; tmDetail = `Direct trademark conflict — high legal risk`; break;
   }
 
-  // 5. Memorability (weight: 0.15)
-  const memScore = memorabilityScore(cleanName, wordCount);
+  // 5. Memorability (weight: 0.15) — penalize gibberish
+  let memScore = memorabilityScore(cleanName, wordCount);
+  if (coverage < 0.3) memScore = Math.max(0, memScore - 40); // gibberish penalty
+  else if (coverage < 0.6) memScore = Math.max(0, memScore - 15);
   let memDetail: string;
   if (memScore >= 80) memDetail = "Highly memorable — sticks in your head";
   else if (memScore >= 60) memDetail = "Reasonably memorable";
@@ -169,7 +213,7 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   else memDetail = "Hard to remember";
 
   // 6. Visual & rhythm appeal (weight: 0.15)
-  const visualScore = Math.round((visualAppealScore(name) + rhythmScore(cleanName)) / 2);
+  const visualScore = Math.round((visualAppealScore(rawName) + rhythmScore(cleanName)) / 2);
   let visualDetail: string;
   if (visualScore >= 80) visualDetail = "Clean look & natural rhythm";
   else if (visualScore >= 60) visualDetail = "Decent visual balance";
