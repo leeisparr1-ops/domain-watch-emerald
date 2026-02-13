@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Globe, Loader2, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
+import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -15,7 +16,16 @@ export default function Signup() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,40 +33,58 @@ export default function Signup() {
       toast.error("Passwords do not match");
       return;
     }
+    if (!turnstileToken) {
+      toast.error("Please complete the security check");
+      return;
+    }
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        // Route through a dedicated callback handler so email verification works
-        // for both legacy hash links and newer PKCE (?code=...) links.
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      // Send welcome email (fire and forget - don't block signup flow)
-      supabase.functions.invoke('send-welcome-email', {
-        body: { email, name: fullName },
-      }).catch(err => console.error('Welcome email error:', err));
-
-      toast.success("Account created! Please check your email to verify your account before signing in.", {
-        duration: 10000,
+    try {
+      // Verify turnstile token server-side
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-turnstile', {
+        body: { token: turnstileToken },
       });
-      navigate("/login");
+
+      if (verifyError || !verifyData?.success) {
+        toast.error("Security verification failed. Please try again.");
+        setTurnstileToken(null);
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        supabase.functions.invoke('send-welcome-email', {
+          body: { email, name: fullName },
+        }).catch(err => console.error('Welcome email error:', err));
+
+        toast.success("Account created! Please check your email to verify your account before signing in.", {
+          duration: 10000,
+        });
+        navigate("/login");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      toast.error("Unable to create account. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Lightweight background */}
       <div className="absolute inset-0 pattern-grid opacity-10" />
 
       <div className="w-full max-w-md p-8 rounded-2xl bg-card border border-border relative z-10 animate-fade-in">
@@ -145,7 +173,12 @@ export default function Signup() {
             </div>
           </div>
 
-          <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+          <CloudflareTurnstile
+            onVerify={handleTurnstileVerify}
+            onExpire={handleTurnstileExpire}
+          />
+
+          <Button type="submit" variant="hero" className="w-full" disabled={loading || !turnstileToken}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
           </Button>
         </form>
