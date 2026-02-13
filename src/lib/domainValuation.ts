@@ -208,6 +208,61 @@ export const DICTIONARY_WORDS = new Set([
   "rosy", "rude", "rusty", "salty", "sane", "scary", "sheer", "silent", "silly", "slick",
   "sober", "sore", "spare", "stark", "steep", "stern", "stiff", "stoic", "strict", "super",
   "tame", "tender", "terse", "timid", "toxic", "trim", "ugly", "vague", "wary", "witty",
+  // ─── EXPANDED: commonly missed everyday English words ───
+  "stay", "kick", "hope", "maker", "agent", "agents", "stake", "snap", "slot", "spin",
+  "swing", "taste", "voice", "wager", "alert", "allow", "apply", "arise", "avoid",
+  "begin", "blame", "bless", "bloom", "board", "boast", "break", "breed", "bring",
+  "carry", "catch", "cause", "chase", "cheap", "check", "cheer", "chess", "chose",
+  "claim", "class", "climb", "cling", "clock", "close", "coach", "color", "comes",
+  "count", "cover", "craft", "crash", "crawl", "crowd", "crush", "dance", "doing",
+  "doubt", "draft", "drain", "drawn", "dress", "dried", "drink", "drift", "drops",
+  "dying", "eager", "earth", "eight", "elect", "enemy", "enjoy", "enter", "equal",
+  "error", "event", "every", "exact", "exist", "extra", "faith", "false", "fault",
+  "feast", "fence", "fetch", "fewer", "fiber", "field", "fight", "final", "flame",
+  "flesh", "float", "flood", "floor", "fluid", "flyer", "focus", "force", "forge",
+  "forth", "found", "frame", "fresh", "front", "froze", "fruit", "given", "glass",
+  "gleam", "globe", "gloom", "glory", "going", "grain", "grant", "grasp", "grave",
+  "great", "greet", "grief", "grind", "gross", "group", "grown", "guard", "guess",
+  "guide", "happy", "harsh", "haven", "heart", "hence", "honor", "horse", "house",
+  "human", "humor", "hurry", "image", "imply", "inbox", "index", "inner", "input",
+  "issue", "judge", "juice", "knock", "known", "labor", "large", "later", "laugh",
+  "layer", "learn", "least", "leave", "level", "light", "limit", "linen", "lives",
+  "loose", "lover", "lower", "lucky", "lunch", "lyric", "magic", "major", "march",
+  "match", "mayor", "meant", "medal", "media", "mercy", "merge", "metal", "meter",
+  "might", "minor", "mixed", "model", "money", "month", "moral", "motor", "mount",
+  "mouse", "mouth", "music", "naked", "nerve", "never", "night", "noble", "noise",
+  "north", "noted", "novel", "nurse", "ocean", "offer", "often", "olive", "onset",
+  "opens", "opera", "orbit", "order", "other", "ought", "outer", "owned", "owner",
+  "paint", "paper", "party", "pasta", "pause", "peace", "penny", "phase", "phone",
+  "photo", "piano", "piece", "pilot", "pitch", "pixel", "place", "plain", "plane",
+  "plant", "plate", "plaza", "plead", "point", "polar", "pound", "power", "press",
+  "price", "pride", "prime", "print", "prior", "prize", "proof", "proud", "prove",
+  "psalm", "punch", "queen", "quest", "quick", "quiet", "quote", "radar", "radio",
+  "raise", "rally", "range", "rapid", "ratio", "reach", "react", "ready", "realm",
+  "rebel", "reign", "relax", "reply", "rider", "ridge", "rifle", "rigid", "rival",
+  "river", "robin", "rough", "round", "route", "royal", "ruler", "rural", "saint",
+  "sauce", "scale", "scene", "scope", "score", "sense", "serve", "setup", "seven",
+  "shake", "shall", "shame", "shape", "share", "sharp", "sheet", "shelf", "shell",
+  "shift", "shine", "shirt", "shock", "shoot", "shore", "short", "shout", "sight",
+  "since", "sixth", "sixty", "sized", "skill", "sleep", "slice", "slide", "small",
+  "smart", "smell", "smile", "smoke", "solar", "solve", "sorry", "sound", "south",
+  "space", "spare", "spark", "speak", "speed", "spell", "spend", "spike", "split",
+  "spoke", "spoon", "sport", "spray", "squad", "stack", "staff", "stage", "stair",
+  "stake", "stale", "stall", "stamp", "stand", "stark", "start", "state", "steal",
+  "steam", "steel", "steer", "stick", "stock", "stone", "stood", "store", "storm",
+  "story", "stove", "strip", "stuck", "study", "stuff", "style", "sugar", "suite",
+  "super", "surge", "swept", "swift", "swing", "sword", "taste", "teach", "tempo",
+  "thank", "theme", "thick", "thing", "think", "third", "those", "three", "threw",
+  "throw", "thumb", "timer", "title", "token", "touch", "tough", "towel", "tower",
+  "toxic", "trace", "track", "trade", "trail", "train", "trait", "treat", "trend",
+  "trial", "tribe", "trick", "tried", "troop", "truck", "truly", "trump", "trunk",
+  "trust", "truth", "twice", "twist", "uncle", "under", "union", "unite", "unity",
+  "until", "upper", "upset", "urban", "usage", "usual", "utter", "valid", "valve",
+  "value", "verse", "video", "vigor", "vinyl", "virus", "visit", "vital", "vivid",
+  "vocal", "voice", "voter", "wages", "waste", "watch", "water", "weave", "whale",
+  "wheat", "wheel", "where", "which", "while", "white", "whole", "whose", "wider",
+  "woman", "women", "world", "worse", "worst", "worth", "would", "wound", "write",
+  "wrong", "wrote", "yield", "young", "youth",
   // Short powerful words (1-5 letters)
   "ace", "aim", "all", "arc", "arm", "ask", "axe", "bar", "bay", "bid",
   "bit", "bow", "bud", "bus", "cab", "cam", "cap", "clue", "cog", "cow", "cub", "cubed",
@@ -735,11 +790,12 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     valueMax = Math.round(valueMax * trendMult);
   }
 
-  // Dictionary .com bonus
+  // Dictionary .com bonus — single dictionary words on .com are ultra-premium
   if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const dictBonus = name.length <= 4 ? 3.0 : name.length <= 6 ? 2.0 : 1.5;
-    valueMin = Math.max(valueMin, Math.round(5000 * dictBonus));
-    valueMax = Math.max(valueMax, Math.round(25000 * dictBonus));
+    const dictFloorMin = name.length <= 3 ? 200000 : name.length <= 4 ? 100000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 8000;
+    const dictFloorMax = name.length <= 3 ? 500000 : name.length <= 4 ? 400000 : name.length <= 5 ? 250000 : name.length <= 6 ? 150000 : name.length <= 8 ? 50000 : 30000;
+    valueMin = Math.max(valueMin, dictFloorMin);
+    valueMax = Math.max(valueMax, dictFloorMax);
   }
 
   // Two-word brandable .com bonus — clean compound words on .com deserve a floor
