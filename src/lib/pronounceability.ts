@@ -21,7 +21,7 @@ const GOOD_BIGRAMS = new Set([
 const BAD_CLUSTERS = /[bcdfghjklmnpqrstvwxz]{4,}|^[bcdfghjklmnpqrstvwxz]{3}|[bcdfghjklmnpqrstvwxz]{3}$/i;
 
 // Common English words used in domain names (for accurate word splitting)
-const COMMON_WORDS = new Set([
+export const COMMON_WORDS = new Set([
   // 2-letter
   "go", "my", "up", "do", "no", "so", "we", "be", "me", "he", "it", "in", "on", "at", "to", "or", "an", "by", "if", "of",
   // 3-letter
