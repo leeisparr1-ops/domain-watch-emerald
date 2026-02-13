@@ -13,7 +13,7 @@ export const PREMIUM_KEYWORDS = new Set([
   "quantum", "meta", "cyber", "robot", "drone", "space", "block", "chain", "fintech", "saas",
   "defi", "token", "intel", "logic", "matrix", "pixel", "forge", "core", "hub", "lab",
   "stack", "flow", "grid", "sync", "bolt", "shift", "spark", "edge", "apex", "nova",
-  // Afternic top-20 recurring (2025)
+  // Top recurring aftermarket keywords
   "group", "solutions", "services", "homes", "global", "company", "business", "pro",
   "lawyer", "life", "real", "best", "my", "go", "new", "club",
 ]);
@@ -336,11 +336,12 @@ export const DICTIONARY_WORDS = new Set([
   "year", "zone",
 ]);
 
-// GoDaddy/Afternic top keyword categories & trending niches (updated from 2025 aftermarket reports)
+// Trending keywords with heat multipliers (curated from publicly reported aftermarket trends)
 export const TRENDING_KEYWORDS: Record<string, number> = {
-  // AI / Machine Learning (consistently #1 on Afternic charts)
+  // AI / Machine Learning
   "ai": 2.5, "gpt": 2.0, "neural": 1.8, "machine": 1.5, "deep": 1.5, "learn": 1.5,
   "robot": 1.6, "auto": 1.6, "smart": 1.5, "quantum": 2.0, "intel": 1.5,
+  "agent": 2.2, "agentic": 2.0, "synthetic": 1.6, "cognitive": 1.5,
   // Fintech / Crypto / DeFi
   "pay": 1.8, "bank": 1.8, "cash": 1.6, "loan": 1.5, "credit": 1.6, "finance": 1.8,
   "trade": 1.6, "invest": 1.7, "wallet": 1.5, "token": 1.3, "defi": 1.4, "fintech": 1.8,
@@ -375,11 +376,192 @@ export const TRENDING_KEYWORDS: Record<string, number> = {
   "school": 1.3, "course": 1.3, "tutor": 1.3, "academy": 1.3,
   // Legal & Insurance
   "legal": 1.5, "law": 1.5, "lawyer": 1.5, "insure": 1.5, "claim": 1.3, "policy": 1.3,
-  // ─── Afternic top-20 recurring keywords (2025 monthly charts) ───
+  // Top recurring aftermarket keywords
   "group": 1.6, "solutions": 1.5, "services": 1.4, "hub": 1.5,
   "global": 1.4, "company": 1.4, "business": 1.4, "pro": 1.5,
   "car": 1.4, "my": 1.3, "best": 1.3, "go": 1.3, "new": 1.3,
+  // 2026 hot keywords
+  "claw": 1.4, "clean": 1.3, "beauty": 1.4, "fire": 1.3,
 };
+
+// ─── NICHE CATEGORIES with current market multipliers ───
+export interface NicheDetection {
+  niche: string;
+  label: string;
+  multiplier: number;
+  confidence: "High" | "Medium" | "Low";
+  matchedKeywords: string[];
+}
+
+export const NICHE_CATEGORIES: Record<string, { label: string; keywords: string[]; multiplier: number; heat: "hot" | "warm" | "stable" | "cooling" }> = {
+  ai_tech: {
+    label: "AI / Tech",
+    keywords: ["ai", "gpt", "neural", "machine", "deep", "learn", "robot", "auto", "smart", "quantum", "intel", "agent", "agentic", "synthetic", "cognitive", "algorithm", "compute"],
+    multiplier: 1.55,
+    heat: "hot",
+  },
+  fintech: {
+    label: "Finance / Fintech",
+    keywords: ["pay", "bank", "cash", "loan", "credit", "finance", "trade", "invest", "wallet", "fintech", "money", "fund", "wealth", "capital", "equity", "profit", "defi", "token"],
+    multiplier: 1.40,
+    heat: "hot",
+  },
+  health: {
+    label: "Health / Wellness",
+    keywords: ["health", "med", "fit", "care", "dental", "clinic", "therapy", "mental", "wellness", "organic", "nutrition", "vitamin", "supplement", "telehealth"],
+    multiplier: 1.35,
+    heat: "warm",
+  },
+  ecommerce: {
+    label: "E-Commerce",
+    keywords: ["shop", "store", "buy", "sell", "deal", "sale", "market", "retail", "commerce", "cart", "order", "wholesale"],
+    multiplier: 1.30,
+    heat: "warm",
+  },
+  saas: {
+    label: "SaaS / Cloud",
+    keywords: ["cloud", "tech", "code", "data", "app", "web", "server", "host", "stack", "saas", "api", "dev", "cyber", "digital", "platform", "software", "system"],
+    multiplier: 1.35,
+    heat: "warm",
+  },
+  real_estate: {
+    label: "Real Estate",
+    keywords: ["home", "homes", "house", "land", "estate", "rent", "property", "build", "room", "space", "real", "mortgage", "apartment", "condo"],
+    multiplier: 1.30,
+    heat: "stable",
+  },
+  energy: {
+    label: "Energy / Green",
+    keywords: ["solar", "green", "energy", "power", "electric", "carbon", "climate", "eco", "renewable", "hydrogen"],
+    multiplier: 1.25,
+    heat: "warm",
+  },
+  travel: {
+    label: "Travel / Lifestyle",
+    keywords: ["travel", "hotel", "flight", "trip", "tour", "cruise", "food", "chef", "wine", "luxury", "life", "vacation", "resort"],
+    multiplier: 1.20,
+    heat: "stable",
+  },
+  security: {
+    label: "Cybersecurity",
+    keywords: ["secure", "guard", "shield", "vault", "safe", "protect", "defense", "lock", "cyber", "firewall", "encryption"],
+    multiplier: 1.35,
+    heat: "hot",
+  },
+  gaming: {
+    label: "Gaming / Entertainment",
+    keywords: ["game", "play", "stream", "video", "music", "sport", "bet", "club", "esport", "casino"],
+    multiplier: 1.25,
+    heat: "stable",
+  },
+  jobs: {
+    label: "Jobs / HR",
+    keywords: ["jobs", "hire", "work", "career", "talent", "recruit", "staff", "team", "employer"],
+    multiplier: 1.20,
+    heat: "stable",
+  },
+  education: {
+    label: "Education",
+    keywords: ["school", "course", "tutor", "academy", "learn", "study", "university", "teach", "training", "education"],
+    multiplier: 1.15,
+    heat: "cooling",
+  },
+  legal: {
+    label: "Legal / Insurance",
+    keywords: ["legal", "law", "lawyer", "insure", "claim", "policy", "attorney", "court", "litigation"],
+    multiplier: 1.30,
+    heat: "stable",
+  },
+  automotive: {
+    label: "Automotive",
+    keywords: ["car", "auto", "vehicle", "motor", "drive", "electric", "ev", "truck", "dealer"],
+    multiplier: 1.20,
+    heat: "stable",
+  },
+  crypto: {
+    label: "Crypto / Web3",
+    keywords: ["crypto", "blockchain", "token", "defi", "nft", "web3", "dao", "chain", "coin", "mining"],
+    multiplier: 1.15,
+    heat: "cooling",
+  },
+};
+
+export function detectNiche(words: string[], tld: string): NicheDetection {
+  let bestNiche = "";
+  let bestScore = 0;
+  let bestMatches: string[] = [];
+
+  for (const [key, cat] of Object.entries(NICHE_CATEGORIES)) {
+    const matches = words.filter(w => cat.keywords.includes(w));
+    // TLD boost: .ai boosts ai_tech, etc.
+    let score = matches.length;
+    if (tld === "ai" && key === "ai_tech") score += 1.5;
+    if (tld === "io" && (key === "saas" || key === "ai_tech")) score += 0.5;
+    if (tld === "finance" && key === "fintech") score += 1;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestNiche = key;
+      bestMatches = matches;
+    }
+  }
+
+  if (bestScore === 0 || !bestNiche) {
+    return { niche: "general", label: "General / Brandable", multiplier: 1.0, confidence: "Low", matchedKeywords: [] };
+  }
+
+  const cat = NICHE_CATEGORIES[bestNiche];
+  const confidence: NicheDetection["confidence"] = bestScore >= 3 ? "High" : bestScore >= 1.5 ? "Medium" : "Low";
+  return { niche: bestNiche, label: cat.label, multiplier: cat.multiplier, confidence, matchedKeywords: bestMatches };
+}
+
+/** Compute a 0-100 trend score based on keyword heat and niche alignment */
+export function computeTrendScore(words: string[], tld: string, nicheOverride?: string): { score: number; label: string; niche: NicheDetection } {
+  const niche = nicheOverride
+    ? { ...detectNiche(words, tld), niche: nicheOverride, label: NICHE_CATEGORIES[nicheOverride]?.label || "General", multiplier: NICHE_CATEGORIES[nicheOverride]?.multiplier || 1.0 }
+    : detectNiche(words, tld);
+
+  let score = 0;
+
+  // Base: trending keyword heat (0-50)
+  let maxHeat = 0;
+  let trendingCount = 0;
+  for (const word of words) {
+    const m = TRENDING_KEYWORDS[word];
+    if (m && m > 1.0) {
+      maxHeat = Math.max(maxHeat, m);
+      trendingCount++;
+    }
+  }
+  if (maxHeat > 0) {
+    // Scale: 1.3 = ~20, 1.8 = ~35, 2.5 = ~50
+    score += Math.min(50, Math.round((maxHeat - 1.0) * 33));
+  }
+  // Multi-trend combo bonus
+  if (trendingCount >= 2) score += 10;
+
+  // Niche alignment bonus (0-25)
+  if (niche.confidence === "High") score += 25;
+  else if (niche.confidence === "Medium") score += 15;
+  else if (niche.matchedKeywords.length > 0) score += 8;
+
+  // TLD synergy bonus (0-15)
+  if (tld === "ai" && niche.niche === "ai_tech") score += 15;
+  else if (tld === "io" && (niche.niche === "saas" || niche.niche === "ai_tech")) score += 10;
+  else if (tld === "com") score += 8;
+  else if (["co", "app", "dev", "net"].includes(tld)) score += 5;
+
+  score = Math.min(100, Math.max(0, score));
+
+  let label = "";
+  if (score >= 85) label = "🔥 On Fire";
+  else if (score >= 70) label = "📈 Hot";
+  else if (score >= 50) label = "⬆️ Rising";
+  else if (score >= 30) label = "➡️ Stable";
+  else label = "⬇️ Cool";
+
+  return { score, label, niche };
+}
 
 const COMMON_WORDS = new Set([
   ...DICTIONARY_WORDS,
