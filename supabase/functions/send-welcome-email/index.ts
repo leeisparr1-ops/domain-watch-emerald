@@ -39,36 +39,6 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Authenticate: require valid user JWT or system secret
-    const authHeader = req.headers.get("Authorization");
-    const systemSecret = req.headers.get("X-System-Secret");
-    const expectedSecret = Deno.env.get("SYNC_SECRET");
-
-    let authenticated = false;
-
-    if (systemSecret && expectedSecret && systemSecret === expectedSecret) {
-      authenticated = true;
-    } else if (authHeader?.startsWith("Bearer ")) {
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const token = authHeader.replace("Bearer ", "");
-      const { data, error: claimsError } = await supabase.auth.getClaims(token);
-      if (!claimsError && data?.claims?.sub) {
-        authenticated = true;
-      }
-    }
-
-    if (!authenticated) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
     const { email, name }: WelcomeEmailRequest = await req.json();
 
     if (!email) {
