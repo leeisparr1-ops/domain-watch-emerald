@@ -221,7 +221,7 @@ serve(async (req) => {
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-System-Secret": Deno.env.get("SYNC_SECRET") || "" },
             body: JSON.stringify({
               user_id: userId,
               payload: {
