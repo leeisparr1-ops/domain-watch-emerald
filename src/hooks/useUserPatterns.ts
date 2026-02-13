@@ -32,11 +32,11 @@ export interface PatternMatch {
   pattern_description: string;
 }
 
-// Plan limits for pattern counts
+// Plan limits for pattern counts — must match PLAN_CONFIG in useSubscription.ts
 export const PLAN_LIMITS = {
-  free: 5,
-  basic: 50,
-  advanced: 125,
+  free: 30,
+  basic: 60,
+  advanced: 120,
 };
 
 export function useUserPatterns() {
