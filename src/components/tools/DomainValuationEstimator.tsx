@@ -328,11 +328,12 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
     valueMax = Math.round(valueMax * nicheBoost);
   }
 
-  // Dictionary word on .com bonus
+  // Dictionary word on .com bonus — single dictionary words on .com are ultra-premium
   if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const dictBonus = name.length <= 4 ? 3.0 : name.length <= 6 ? 2.0 : 1.5;
-    valueMin = Math.max(valueMin, Math.round(5000 * dictBonus));
-    valueMax = Math.max(valueMax, Math.round(25000 * dictBonus));
+    const dictFloorMin = name.length <= 3 ? 200000 : name.length <= 4 ? 100000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 8000;
+    const dictFloorMax = name.length <= 3 ? 500000 : name.length <= 4 ? 400000 : name.length <= 5 ? 250000 : name.length <= 6 ? 150000 : name.length <= 8 ? 50000 : 30000;
+    valueMin = Math.max(valueMin, dictFloorMin);
+    valueMax = Math.max(valueMax, dictFloorMax);
   }
 
   // Two-word brandable .com bonus
