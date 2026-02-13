@@ -61,7 +61,7 @@ export default function Help() {
     {
       icon: <ShieldAlert className="w-6 h-6 text-primary" />,
       title: "7. Check Spam Risk",
-      description: "Click any domain to view its spam risk level. Domains are checked against SURBL and Spamhaus DBL for blacklist status."
+      description: "Click any domain to view its spam risk level. Domains are checked against industry-standard blacklists for spam and phishing status."
     },
     {
       icon: <Wrench className="w-6 h-6 text-primary" />,
@@ -133,7 +133,7 @@ export default function Help() {
     },
     {
       question: "How is spam risk checked?",
-      answer: "Domains are checked against SURBL and Spamhaus DBL via DNS lookups. Results are cached for 7 days to ensure fast loading. Risk checks happen when you view domain details."
+      answer: "Domains are checked against industry-standard blacklists via DNS lookups. Results are cached for 7 days to ensure fast loading. Risk checks happen when you view domain details."
     },
     {
       question: "What are the Domain Tools?",

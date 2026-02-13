@@ -30,9 +30,8 @@ interface ComparableSale {
 }
 
 // Curated comparable sales from publicly reported aftermarket data.
-// These figures come from voluntarily published sales reports (NameBio yearly reports,
-// DNJournal weekly sales charts) — NO scraping, NO API calls, NO live data fetching.
-// All prices are approximate and publicly available information.
+// All prices are approximate and based on publicly available information.
+// NO scraping, NO API calls, NO live data fetching.
 const COMPARABLE_SALES: ComparableSale[] = [
   // Ultra-short / 2-3 letter
   { domain: "AI.com", price: "$11,000,000", date: "2023", pattern: "2-letter .com", keywords: ["ai"] },
@@ -1018,7 +1017,7 @@ export function DomainValuationEstimator() {
             )}
 
             <p className="text-xs text-muted-foreground italic">
-              * Algorithmic estimate for guidance only. Comparable sales sourced from public aftermarket reports (NameBio, DNJournal). 
+              * Algorithmic estimate for guidance only. Comparable sales sourced from publicly reported aftermarket data. 
               Trademark check covers ~200 major brands — not legal advice. 
               Actual market value depends on demand, comparable sales, traffic, and other factors. Always consult a trademark attorney before major acquisitions.
             </p>
