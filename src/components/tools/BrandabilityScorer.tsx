@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,8 +45,8 @@ function getProgressColor(score: number) {
   return "[&>div]:bg-red-500";
 }
 
-export function BrandabilityScorer() {
-  const [domain, setDomain] = useState("");
+export function BrandabilityScorer({ initialDomain }: { initialDomain?: string } = {}) {
+  const [domain, setDomain] = useState(initialDomain || "");
   const [result, setResult] = useState<BrandabilityResult | null>(null);
 
   const handleScore = () => {
@@ -54,6 +54,14 @@ export function BrandabilityScorer() {
     const cleaned = domain.trim().replace(/\s+/g, "");
     setResult(scoreBrandability(cleaned));
   };
+
+  // Auto-run if initialDomain is provided
+  useEffect(() => {
+    if (initialDomain) {
+      const cleaned = initialDomain.trim().replace(/\s+/g, "");
+      setResult(scoreBrandability(cleaned));
+    }
+  }, [initialDomain]);
 
   return (
     <Card>

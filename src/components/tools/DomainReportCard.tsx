@@ -317,17 +317,17 @@ export function DomainReportCard() {
 
           {/* Deep Dive Links */}
           <div className="flex flex-wrap gap-2">
-            <Link to="/tools/brandability-score">
+            <Link to={`/tools/brandability-score?domain=${encodeURIComponent(report.domain)}`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <Award className="w-3.5 h-3.5" /> Full Brandability Analysis
               </Button>
             </Link>
-            <Link to="/tools/valuation">
+            <Link to={`/tools/valuation?domain=${encodeURIComponent(report.domain)}`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <DollarSign className="w-3.5 h-3.5" /> Get Valuation
               </Button>
             </Link>
-            <Link to="/tools/pronounceability">
+            <Link to={`/tools/pronounceability?domain=${encodeURIComponent(report.domain)}`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <Mic className="w-3.5 h-3.5" /> Pronounceability Details
               </Button>

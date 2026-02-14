@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -428,8 +428,8 @@ function getNicheHeatColor(heat: "hot" | "warm" | "stable" | "cooling"): string 
   }
 }
 
-export function DomainValuationEstimator() {
-  const [domain, setDomain] = useState("");
+export function DomainValuationEstimator({ initialDomain }: { initialDomain?: string } = {}) {
+  const [domain, setDomain] = useState(initialDomain || "");
   const [nicheOverride, setNicheOverride] = useState<string>("");
   const [result, setResult] = useState<ValuationResult | null>(null);
 
@@ -437,6 +437,13 @@ export function DomainValuationEstimator() {
     if (!domain.trim()) return;
     setResult(estimateValue(domain.trim(), nicheOverride || undefined));
   };
+
+  // Auto-run if initialDomain is provided
+  useEffect(() => {
+    if (initialDomain) {
+      setResult(estimateValue(initialDomain.trim()));
+    }
+  }, [initialDomain]);
 
   const confidenceColor = (c: string) => {
     if (c === "High") return "text-emerald-600 dark:text-emerald-400 border-emerald-300";
