@@ -24,32 +24,41 @@ describe("Brandability Score sanity checks", () => {
     }
   });
 
-  it("short premium domains score high", () => {
+  it("ultra-short premium domains score very high (90+)", () => {
     const ai = results.find((r) => r.domain === "ai.com")!;
-    const cube = results.find((r) => r.domain === "cube.com")!;
-    expect(ai.result.overall).toBeGreaterThanOrEqual(60);
-    expect(cube.result.overall).toBeGreaterThanOrEqual(70);
+    expect(ai.result.overall).toBeGreaterThanOrEqual(90);
   });
 
-  it("brandable compound names score well", () => {
+  it("single real-word .coms score high (85+)", () => {
+    const cube = results.find((r) => r.domain === "cube.com")!;
+    const del = results.find((r) => r.domain === "delete.com")!;
+    expect(cube.result.overall).toBeGreaterThanOrEqual(85);
+    expect(del.result.overall).toBeGreaterThanOrEqual(80);
+  });
+
+  it("brandable compound names score well (65+)", () => {
     const spark = results.find((r) => r.domain === "sparkflow.com")!;
     const zap = results.find((r) => r.domain === "zapify.io")!;
-    expect(spark.result.overall).toBeGreaterThanOrEqual(60);
-    expect(zap.result.overall).toBeGreaterThanOrEqual(60);
+    expect(spark.result.overall).toBeGreaterThanOrEqual(65);
+    expect(zap.result.overall).toBeGreaterThanOrEqual(65);
+  });
+
+  it("offensive/inappropriate domains score very low (<30)", () => {
+    const poo = results.find((r) => r.domain === "poostain.com")!;
+    expect(poo.result.overall).toBeLessThan(30);
   });
 
   it("gibberish scores much lower than brandable names", () => {
     const xwq = results.find((r) => r.domain === "xwqbnk.com")!;
     const spark = results.find((r) => r.domain === "sparkflow.com")!;
-    expect(xwq.result.overall).toBeLessThan(55);
+    expect(xwq.result.overall).toBeLessThan(50);
     expect(xwq.result.overall).toBeLessThan(spark.result.overall - 15);
   });
 
-  it("hyphenated domains score lower than clean equivalents", () => {
+  it("hyphenated domains score significantly lower than clean equivalents", () => {
     const hyphen = results.find((r) => r.domain === "my-toyit.com")!;
     const cube = results.find((r) => r.domain === "cube.com")!;
-    // Hyphenated should score lower than a clean premium domain
-    expect(hyphen.result.overall).toBeLessThan(cube.result.overall);
+    expect(hyphen.result.overall).toBeLessThanOrEqual(cube.result.overall - 20);
   });
 
   it("grades are assigned correctly", () => {
