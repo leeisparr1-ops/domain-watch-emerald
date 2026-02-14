@@ -21,6 +21,12 @@ const domains = [
   "poostain.com",
   "my-toyit.com",
   "xwqbnk.com",
+  // Nonsensical word combos (should score low despite dictionary coverage)
+  "techhaveread.com",
+  "techontoast.com",
+  "peasontoast.com",
+  "shesaslag.com",
+  "please60go.com",
 ];
 
 describe("Brandability Score sanity checks", () => {
@@ -87,6 +93,21 @@ describe("Brandability Score sanity checks", () => {
     const cube = results.find((r) => r.domain === "cube.com")!;
     expect(hyphen.result.overall).toBeLessThanOrEqual(cube.result.overall - 20);
   });
+
+  it("nonsensical word combinations score below 55", () => {
+    const nonsense = [
+      "techhaveread.com",
+      "techontoast.com",
+      "peasontoast.com",
+      "shesaslag.com",
+      "please60go.com",
+    ];
+    for (const domain of nonsense) {
+      const r = results.find((x) => x.domain === domain)!;
+      expect(r.result.overall, `${domain} scored ${r.result.overall}, expected < 55`).toBeLessThan(55);
+    }
+  });
+
 
   it("grades are assigned correctly", () => {
     for (const { result } of results) {

@@ -113,6 +113,212 @@ function splitIntoWords(name: string): string[] {
   return words;
 }
 
+// ─── SEMANTIC COHERENCE SYSTEM ───
+
+/**
+ * Filler / function words that don't belong in brandable domain names.
+ * These are grammatical connectors, pronouns, articles, etc. that signal
+ * a phrase rather than a brand compound.
+ */
+const FILLER_WORDS = new Set([
+  // Articles & determiners
+  "a", "an", "the", "this", "that", "these", "those",
+  // Pronouns
+  "i", "me", "my", "we", "our", "you", "your", "he", "she", "her", "his",
+  "they", "them", "their", "it", "its",
+  // Prepositions
+  "on", "in", "at", "to", "for", "of", "by", "with", "from", "up", "off",
+  "out", "into", "over", "under", "about", "between", "through",
+  // Conjunctions
+  "and", "or", "but", "nor", "so", "yet",
+  // Common verbs used as filler
+  "is", "am", "are", "was", "were", "be", "been", "being",
+  "have", "has", "had", "do", "does", "did",
+  "can", "could", "will", "would", "shall", "should", "may", "might",
+  "get", "got", "let", "just", "please",
+  // Other fillers
+  "not", "no", "yes", "very", "too", "also", "really", "here", "there",
+]);
+
+/**
+ * Semantic categories for domain words. Words within the same category
+ * or in complementary categories form coherent brand compounds.
+ */
+const SEMANTIC_CATEGORIES: Record<string, Set<string>> = {
+  tech: new Set(["tech", "data", "code", "byte", "bit", "net", "web", "app", "dev", "hack", "cyber", "cloud", "stack", "pixel", "logic", "algo", "core", "node", "sync", "link", "wire", "grid", "chip", "nano", "meta", "digi", "info", "soft"]),
+  business: new Set(["bank", "pay", "fund", "trade", "market", "sales", "deal", "pro", "corp", "hub", "base", "desk", "work", "office", "lead", "chief", "exec", "boss", "team", "crew", "group"]),
+  creative: new Set(["art", "design", "craft", "studio", "brand", "create", "make", "build", "forge", "form", "shape", "dream", "vision", "spark", "glow", "shine", "bright", "vivid", "bold"]),
+  nature: new Set(["sky", "sun", "moon", "star", "earth", "sea", "wave", "wind", "storm", "rain", "fire", "ice", "snow", "leaf", "tree", "root", "bloom", "spring", "river", "lake", "stone", "rock", "peak", "hill", "mountain", "forest", "ocean", "field"]),
+  motion: new Set(["flow", "rush", "dash", "leap", "fly", "jet", "swift", "flash", "zoom", "ride", "run", "go", "move", "shift", "rise", "lift", "launch", "boost", "surge", "pulse", "drift", "glide", "soar"]),
+  quality: new Set(["prime", "elite", "top", "best", "gold", "silver", "platinum", "royal", "noble", "grand", "ultra", "super", "mega", "apex", "alpha", "omega", "ace", "zen", "pure", "true", "clear", "bright", "fresh", "smart", "wise"]),
+  color: new Set(["red", "blue", "green", "black", "white", "grey", "gray", "orange", "purple", "amber", "coral", "ivory", "crimson", "azure", "jade", "ruby", "emerald", "indigo", "violet", "teal"]),
+  abstract: new Set(["flex", "vibe", "aura", "edge", "zone", "scope", "verse", "scape", "sphere", "orbit", "quest", "path", "way", "trail", "route", "gate", "door", "key", "lock", "bridge", "port", "loop", "arc", "axis"]),
+  food: new Set(["pea", "peas", "toast", "bread", "cake", "pie", "bean", "corn", "rice", "meat", "fish", "egg", "milk", "cream", "sugar", "salt", "spice", "jam", "nut", "fruit", "apple", "berry", "lemon", "lime", "mint", "honey", "coffee", "tea"]),
+  body: new Set(["head", "hand", "eye", "face", "arm", "leg", "foot", "back", "heart", "brain", "bone", "skin", "hair", "lip", "tooth"]),
+};
+
+/**
+ * Category compatibility map: which semantic categories pair well together.
+ * If two words come from incompatible categories, the name is incoherent.
+ */
+const COMPATIBLE_CATEGORIES: Record<string, Set<string>> = {
+  tech: new Set(["tech", "business", "creative", "motion", "quality", "color", "abstract"]),
+  business: new Set(["business", "tech", "quality", "motion", "abstract", "creative"]),
+  creative: new Set(["creative", "tech", "nature", "quality", "color", "abstract", "motion"]),
+  nature: new Set(["nature", "creative", "quality", "color", "motion", "abstract"]),
+  motion: new Set(["motion", "tech", "business", "nature", "quality", "abstract", "creative"]),
+  quality: new Set(["quality", "tech", "business", "creative", "nature", "motion", "color", "abstract"]),
+  color: new Set(["color", "tech", "creative", "nature", "quality", "abstract", "motion"]),
+  abstract: new Set(["abstract", "tech", "business", "creative", "nature", "motion", "quality", "color"]),
+  food: new Set(["food", "quality"]),
+  body: new Set(["body", "quality", "motion"]),
+};
+
+function getWordCategory(word: string): string | null {
+  for (const [cat, words] of Object.entries(SEMANTIC_CATEGORIES)) {
+    if (words.has(word)) return cat;
+  }
+  return null;
+}
+
+/**
+ * Scan raw name for embedded filler/function words that indicate a phrase, not a brand.
+ * This works independently of the greedy splitter to catch cases the splitter misses.
+ */
+function countEmbeddedFillers(cleanName: string): { count: number; found: string[] } {
+  const lower = cleanName.toLowerCase();
+  const found: string[] = [];
+  
+  // Check for filler words embedded in the name
+  const sortedFillers = [...FILLER_WORDS].sort((a, b) => b.length - a.length);
+  
+  for (const filler of sortedFillers) {
+    if (filler.length < 2) continue;
+    const idx = lower.indexOf(filler);
+    if (idx === -1) continue;
+    
+    const before = lower.slice(0, idx);
+    const after = lower.slice(idx + filler.length);
+    
+    // Filler sandwiched between two word-like segments
+    if (before.length >= 2 && after.length >= 2) {
+      const beforeCoverage = dictionaryCoverage(before);
+      const afterCoverage = dictionaryCoverage(after);
+      if (beforeCoverage >= 0.5 && afterCoverage >= 0.5) {
+        found.push(filler);
+      }
+    }
+    // Filler at the start with a word after it
+    else if (before.length === 0 && after.length >= 2 && filler.length >= 3) {
+      const afterCoverage = dictionaryCoverage(after);
+      if (afterCoverage >= 0.5) {
+        found.push(filler);
+      }
+    }
+    // Filler at the end with a word before it
+    else if (after.length === 0 && before.length >= 2 && filler.length >= 3) {
+      const beforeCoverage = dictionaryCoverage(before);
+      if (beforeCoverage >= 0.5) {
+        found.push(filler);
+      }
+    }
+  }
+  
+  return { count: found.length, found };
+}
+
+/**
+ * Evaluate semantic coherence of a multi-word domain name.
+ * Uses both greedy split AND embedded filler scanning.
+ * Returns a multiplier (0.3 - 1.0) where 1.0 = fully coherent, 0.3 = nonsense combination.
+ */
+function semanticCoherence(foundWords: string[], cleanName: string): { multiplier: number; detail: string } {
+  // Check for embedded fillers in the raw name (catches what greedy split misses)
+  const embedded = countEmbeddedFillers(cleanName);
+  
+  if (embedded.count >= 2) {
+    return {
+      multiplier: 0.3,
+      detail: `Reads like a sentence, not a brand — contains "${embedded.found.join('", "')}"`,
+    };
+  }
+  if (embedded.count === 1) {
+    return {
+      multiplier: 0.45,
+      detail: `Contains filler word "${embedded.found[0]}" — reads like a phrase, not a brand`,
+    };
+  }
+
+  if (foundWords.length <= 1) return { multiplier: 1.0, detail: "" };
+
+  // Penalty: filler words from greedy split
+  const fillerCount = foundWords.filter(w => FILLER_WORDS.has(w)).length;
+  const fillerRatio = fillerCount / foundWords.length;
+
+  if (fillerRatio >= 0.5) {
+    return {
+      multiplier: 0.35,
+      detail: "Reads like a phrase, not a brand name — too many filler words",
+    };
+  }
+  if (fillerCount >= 1 && foundWords.length >= 3) {
+    return {
+      multiplier: 0.45,
+      detail: "Contains filler words — phrases don't make strong brands",
+    };
+  }
+  if (fillerCount === 1 && foundWords.length === 2) {
+    return {
+      multiplier: 0.5,
+      detail: "Contains a filler word — weakens brand signal",
+    };
+  }
+
+  // Penalty: 3+ meaningful words = too complex for a brand
+  if (foundWords.length >= 4) {
+    return {
+      multiplier: 0.4,
+      detail: "Too many words — brands should be 1-2 words max",
+    };
+  }
+  if (foundWords.length === 3) {
+    const cats = foundWords.map(getWordCategory).filter(Boolean) as string[];
+    if (cats.length >= 2) {
+      const allCompatible = cats.every((c, i) =>
+        cats.every((other, j) => i === j || COMPATIBLE_CATEGORIES[c]?.has(other))
+      );
+      if (!allCompatible) {
+        return {
+          multiplier: 0.4,
+          detail: "Three unrelated words — not a coherent brand concept",
+        };
+      }
+    }
+    return {
+      multiplier: 0.6,
+      detail: "Three words — a bit complex for a brand name",
+    };
+  }
+
+  // Penalty: For 2-word combos, check semantic compatibility
+  if (foundWords.length === 2) {
+    const cat1 = getWordCategory(foundWords[0]);
+    const cat2 = getWordCategory(foundWords[1]);
+
+    if (cat1 && cat2) {
+      const compatible = COMPATIBLE_CATEGORIES[cat1]?.has(cat2) || COMPATIBLE_CATEGORIES[cat2]?.has(cat1);
+      if (!compatible) {
+        return {
+          multiplier: 0.5,
+          detail: `"${foundWords[0]}" + "${foundWords[1]}" — unrelated concepts don't form a strong brand`,
+        };
+      }
+    }
+  }
+
+  return { multiplier: 1.0, detail: "" };
+}
+
 // ─── TYPES ───
 
 export interface BrandabilityDimension {
@@ -207,6 +413,7 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
 
   // Split into component words for tier analysis
   const foundWords = splitIntoWords(cleanName);
+  const coherence = semanticCoherence(foundWords, cleanName);
   const bothDictionary = foundWords.length === 2 && foundWords.every(w => DICTIONARY_WORDS.has(w) || COMMON_WORDS.has(w));
   const hasPremiumKeyword = foundWords.some(w => PREMIUM_KEYWORDS.has(w));
   const bothShort = foundWords.length === 2 && foundWords.every(w => w.length <= 6);
@@ -286,6 +493,12 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
     wordDetail += " (hyphenated — weaker brand signal)";
   }
 
+  // Semantic coherence penalty for word structure
+  if (coherence.multiplier < 1.0 && !isPremiumShort) {
+    wordScore = Math.round(wordScore * coherence.multiplier);
+    if (coherence.detail) wordDetail = coherence.detail;
+  }
+
   // 4. Trademark safety (weight: 0.15)
   const tmResult = checkTrademarkRisk(domainInput);
   let tmScore: number;
@@ -311,6 +524,12 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   else if (memScore >= 60) memDetail = "Reasonably memorable";
   else if (memScore >= 40) memDetail = "Somewhat forgettable";
   else memDetail = "Hard to remember";
+
+  // Semantic coherence penalty for memorability (nonsense combos are forgettable)
+  if (coherence.multiplier < 1.0 && !isPremiumShort) {
+    memScore = Math.round(memScore * Math.max(coherence.multiplier, 0.5));
+    if (coherence.detail) memDetail = "Incoherent word combination — hard to remember";
+  }
 
   // 6. Visual & rhythm appeal (weight: 0.15)
   let visualScore = Math.round((visualAppealScore(rawName) + rhythmScore(cleanName)) / 2);
@@ -345,7 +564,13 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   }
 
   const rawOverall = dimensions.reduce((sum, d) => sum + d.score * d.weight, 0);
-  const overall = Math.round(rawOverall * offensiveMultiplier);
+  // Apply coherence as overall multiplier (like offensive penalty)
+  let coherenceSummaryNote = "";
+  if (coherence.multiplier < 1.0 && !isPremiumShort) {
+    coherenceSummaryNote = ` ${coherence.detail}.`;
+  }
+  const coherenceOverallMult = isPremiumShort ? 1.0 : coherence.multiplier;
+  const overall = Math.round(rawOverall * offensiveMultiplier * coherenceOverallMult);
 
   const grade: BrandabilityResult["grade"] =
     overall >= 90 ? "A+" :
@@ -360,7 +585,7 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   else if (overall >= 55) summary = "Decent brand potential but has notable weaknesses";
   else if (overall >= 40) summary = "Below average for branding — consider alternatives";
   else summary = "Poor brand potential — significant issues across multiple dimensions";
-  summary += offensiveSummaryNote;
+  summary += offensiveSummaryNote + coherenceSummaryNote;
 
   return { overall, grade, dimensions, trademarkRisk: tmResult.riskLevel, summary, domainName: domainInput };
 }
