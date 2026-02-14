@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Sparkles, DollarSign, List, Globe2, Award } from "lucide-react";
+import { Mic, Sparkles, DollarSign, List, Globe2, Award, ExternalLink } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
@@ -70,21 +71,51 @@ const Tools = () => {
               </TabsList>
 
               <TabsContent value="brandability">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/brandability-score" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <BrandabilityScorer />
               </TabsContent>
               <TabsContent value="pronounceability">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/pronounceability" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <PronounceabilityScorer />
               </TabsContent>
               <TabsContent value="bulk">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/bulk-checker" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <BulkPronounceabilityChecker />
               </TabsContent>
               <TabsContent value="generator">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/domain-generator" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <NameGenerator />
               </TabsContent>
               <TabsContent value="valuation">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/valuation" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <DomainValuationEstimator />
               </TabsContent>
               <TabsContent value="tld">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/tld-compare" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
                 <TldComparisonTool />
               </TabsContent>
             </Tabs>

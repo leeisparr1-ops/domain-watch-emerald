@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BrandabilityRadarChart } from "@/components/tools/BrandabilityRadarChart";
 
 const DIMENSION_ICONS: Record<string, React.ElementType> = {
   mic: Mic,
@@ -93,6 +94,11 @@ export function BrandabilityScorer() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">{result.summary}</p>
+            </div>
+
+            {/* Radar Chart */}
+            <div className="p-4 rounded-xl bg-secondary/30 border">
+              <BrandabilityRadarChart dimensions={result.dimensions} />
             </div>
 
             {/* Dimension Breakdown */}
