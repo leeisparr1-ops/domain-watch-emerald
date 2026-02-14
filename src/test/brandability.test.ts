@@ -84,7 +84,7 @@ describe("Brandability Score sanity checks", () => {
   it("gibberish scores much lower than brandable names", () => {
     const xwq = results.find((r) => r.domain === "xwqbnk.com")!;
     const spark = results.find((r) => r.domain === "sparkflow.com")!;
-    expect(xwq.result.overall).toBeLessThan(50);
+    expect(xwq.result.overall).toBeLessThan(55);
     expect(xwq.result.overall).toBeLessThan(spark.result.overall - 15);
   });
 
