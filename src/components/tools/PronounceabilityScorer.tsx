@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function PronounceabilityScorer() {
-  const [domain, setDomain] = useState("");
+export function PronounceabilityScorer({ initialDomain }: { initialDomain?: string } = {}) {
+  const [domain, setDomain] = useState(initialDomain || "");
   const [result, setResult] = useState<PronounceabilityResult | null>(null);
   const [tmResult, setTmResult] = useState<TrademarkResult | null>(null);
 
@@ -24,6 +24,15 @@ export function PronounceabilityScorer() {
     setResult(scorePronounceability(cleaned));
     setTmResult(checkTrademarkRisk(cleaned));
   };
+
+  // Auto-run if initialDomain is provided
+  useEffect(() => {
+    if (initialDomain) {
+      const cleaned = initialDomain.trim().replace(/\s+/g, "");
+      setResult(scorePronounceability(cleaned));
+      setTmResult(checkTrademarkRisk(cleaned));
+    }
+  }, [initialDomain]);
 
   const gradeColor = (grade: string) => {
     switch (grade) {
