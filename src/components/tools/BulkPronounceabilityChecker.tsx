@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { List, ArrowUpDown, ShieldAlert, ShieldCheck } from "lucide-react";
-import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
+import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
 import {
@@ -42,8 +42,7 @@ export function BulkPronounceabilityChecker() {
       const result = scorePronounceability(domain);
       const trademark = checkTrademarkRisk(domain);
       const val = quickValuation(domain, result.score);
-      const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
-      const syllables = name.match(/[aeiouy]+/gi)?.length || 1;
+      const syllables = countSyllables(domain.split(".")[0]);
       return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score, syllables };
     });
 

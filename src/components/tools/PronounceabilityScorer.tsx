@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Mic, CheckCircle, XCircle, MinusCircle, Hash, ShieldAlert, ShieldCheck } from "lucide-react";
-import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
+import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import {
   Tooltip,
@@ -83,13 +83,7 @@ export function PronounceabilityScorer() {
                   {result.wordCount} word{result.wordCount !== 1 ? "s" : ""}
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1 text-sm px-3 py-1">
-                  ~{(() => {
-                    const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
-                    return name.match(/[aeiouy]+/gi)?.length || 1;
-                  })()} syllable{(() => {
-                    const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
-                    return (name.match(/[aeiouy]+/gi)?.length || 1) !== 1 ? "s" : "";
-                  })()}
+                  ~{countSyllables(domain.split(".")[0])} syllable{countSyllables(domain.split(".")[0]) !== 1 ? "s" : ""}
                 </Badge>
                 <Badge variant="outline" className={`text-lg px-4 py-1 ${gradeColor(result.grade)}`}>
                   {result.grade}

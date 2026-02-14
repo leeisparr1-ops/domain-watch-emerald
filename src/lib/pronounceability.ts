@@ -80,6 +80,113 @@ export interface PronounceabilityResult {
   factors: { label: string; impact: "positive" | "negative" | "neutral"; detail: string }[];
 }
 
+/**
+ * Count syllables for a single word segment, handling common suffixes.
+ */
+function wordSyllables(word: string): number {
+  if (word.length <= 2) return 1;
+
+  let extra = 0;
+  let w = word;
+
+  // Strip common syllable-adding suffixes
+  const suffixes: { suffix: string; syl: number }[] = [
+    { suffix: "tion", syl: 1 },
+    { suffix: "sion", syl: 1 },
+    { suffix: "ious", syl: 2 },
+    { suffix: "eous", syl: 2 },
+    { suffix: "able", syl: 2 },
+    { suffix: "ible", syl: 2 },
+    { suffix: "ness", syl: 1 },
+    { suffix: "ment", syl: 1 },
+    { suffix: "ing", syl: 1 },
+    { suffix: "ful", syl: 1 },
+    { suffix: "less", syl: 1 },
+    { suffix: "ize", syl: 1 },
+    { suffix: "ise", syl: 1 },
+    { suffix: "ous", syl: 1 },
+    { suffix: "ive", syl: 1 },
+    { suffix: "ly", syl: 1 },
+    { suffix: "er", syl: 1 },
+    { suffix: "est", syl: 1 },
+  ];
+
+  for (const { suffix, syl } of suffixes) {
+    if (w.endsWith(suffix) && w.length > suffix.length + 1) {
+      extra += syl;
+      w = w.slice(0, -suffix.length);
+      break;
+    }
+  }
+
+  // Handle "-ed": only adds a syllable after t/d
+  if (!extra && w.endsWith("ed") && w.length > 3) {
+    const beforeEd = w[w.length - 3];
+    if (beforeEd === "t" || beforeEd === "d") {
+      extra += 1;
+    }
+    w = w.slice(0, -2);
+  }
+
+  // Count vowel groups in remaining stem
+  let count = 0;
+  let prevVowel = false;
+  for (const ch of w) {
+    const isV = "aeiouy".includes(ch);
+    if (isV && !prevVowel) count++;
+    prevVowel = isV;
+  }
+
+  // Silent-e at end of stem
+  if (w.length > 2 && w.endsWith("e") && !"aeiouy".includes(w[w.length - 2]) && count > 1) {
+    count--;
+  }
+
+  return Math.max(1, count + extra);
+}
+
+/**
+ * Count syllables in a domain name by first splitting into known words,
+ * then counting syllables per word segment. This correctly handles
+ * compound domains like "goodgoing" (3 syllables, not 2).
+ */
+export function countSyllables(name: string): number {
+  const lower = name.toLowerCase().replace(/[^a-z]/g, "");
+  if (!lower) return 0;
+
+  // Split into known words using greedy match
+  const segments: string[] = [];
+  let i = 0;
+  while (i < lower.length) {
+    let best = 0;
+    for (let len = Math.min(lower.length - i, 15); len >= 2; len--) {
+      const slice = lower.slice(i, i + len);
+      if (COMMON_WORDS.has(slice)) {
+        best = len;
+        break;
+      }
+    }
+    if (best >= 2) {
+      segments.push(lower.slice(i, i + best));
+      i += best;
+    } else {
+      // Append leftover char to previous segment or start new one
+      if (segments.length > 0) {
+        segments[segments.length - 1] += lower[i];
+      } else {
+        segments.push(lower[i]);
+      }
+      i++;
+    }
+  }
+
+  let total = 0;
+  for (const seg of segments) {
+    total += wordSyllables(seg);
+  }
+  return Math.max(1, total);
+}
+
 export function scorePronounceability(domain: string): PronounceabilityResult {
   // Strip TLD
   const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
@@ -156,8 +263,8 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
     factors.push({ label: "Letter Patterns", impact: "negative", detail: "Unusual letter combinations" });
   }
 
-  // 6. Syllable estimate (vowel groups)
-  const syllables = name.match(/[aeiouy]+/gi)?.length || 0;
+  // 6. Syllable estimate (word-aware)
+  const syllables = countSyllables(name);
   if (syllables >= 2 && syllables <= 3) {
     score += 10;
     factors.push({ label: "Syllables", impact: "positive", detail: `~${syllables} syllables — easy to say` });
