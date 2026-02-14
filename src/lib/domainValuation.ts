@@ -1251,26 +1251,77 @@ const COMMON_WORDS = new Set([
 // ─── UTILITY FUNCTIONS ───
 
 export function splitIntoWords(name: string): string[] {
-  const words: string[] = [];
-  let remaining = name.toLowerCase();
-  let iterations = 0;
-  while (remaining.length > 0 && iterations < 30) {
-    iterations++;
-    let found = false;
-    for (let len = Math.min(remaining.length, 15); len >= 2; len--) {
-      const candidate = remaining.substring(0, len);
-      if (COMMON_WORDS.has(candidate) || DICTIONARY_WORDS.has(candidate) || PREMIUM_KEYWORDS.has(candidate)) {
-        words.push(candidate);
-        remaining = remaining.substring(len);
-        found = true;
-        break;
+  const s = name.toLowerCase();
+  const n = s.length;
+  if (n === 0) return [];
+
+  const isWord = (w: string) => COMMON_WORDS.has(w) || DICTIONARY_WORDS.has(w) || PREMIUM_KEYWORDS.has(w);
+
+  // DP: dp[i] = max number of characters covered by dictionary words in s[0..i-1]
+  const dp = new Array(n + 1).fill(0);
+  const parent: (null | { start: number; wordLen: number })[] = new Array(n + 1).fill(null);
+
+  for (let i = 1; i <= n; i++) {
+    dp[i] = dp[i - 1];
+    parent[i] = null;
+
+    for (let len = 2; len <= Math.min(i, 15); len++) {
+      const start = i - len;
+      const candidate = s.substring(start, i);
+      if (isWord(candidate)) {
+        const coverage = dp[start] + len;
+        if (coverage > dp[i]) {
+          dp[i] = coverage;
+          parent[i] = { start, wordLen: len };
+        }
       }
     }
-    if (!found) {
-      words.push(remaining[0]);
-      remaining = remaining.substring(1);
+  }
+
+  // Backtrack to find the words
+  const words: string[] = [];
+  let pos = n;
+  while (pos > 0) {
+    const p = parent[pos];
+    if (p) {
+      words.push(s.substring(p.start, p.start + p.wordLen));
+      pos = p.start;
+    } else {
+      words.push(s[pos - 1]);
+      pos--;
     }
   }
+  words.reverse();
+
+  // Portmanteau detection: if coverage is incomplete, try overlapping splits
+  // e.g. "chainalysis" → "chain" + "analysis" (overlap at "an")
+  const coveredByWords = words.filter(w => w.length >= 2 && isWord(w));
+  const totalCoveredChars = coveredByWords.reduce((sum, w) => sum + w.length, 0);
+  if (totalCoveredChars < n) {
+    // Try all split points: check if s[0..i+k] and s[i..n] are both words (with overlap k)
+    let bestOverlapWords: string[] | null = null;
+    let bestOverlapCoverage = totalCoveredChars;
+
+    for (let i = 2; i < n - 1; i++) {
+      // Try overlaps from 0 to 4 characters
+      for (let overlap = 0; overlap <= Math.min(4, i, n - i); overlap++) {
+        const left = s.substring(0, i + overlap);
+        const right = s.substring(i);
+        if (isWord(left) && isWord(right)) {
+          const coverage = left.length + right.length;
+          if (coverage > bestOverlapCoverage) {
+            bestOverlapCoverage = coverage;
+            bestOverlapWords = [left, right];
+          }
+        }
+      }
+    }
+
+    if (bestOverlapWords) {
+      return bestOverlapWords;
+    }
+  }
+
   return words;
 }
 

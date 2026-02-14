@@ -86,30 +86,74 @@ function dictionaryCoverage(name: string): number {
 }
 
 /**
- * Greedy word split using all dictionaries. Returns array of found words.
+ * DP-based word split that maximizes dictionary coverage.
+ * Handles portmanteau/overlapping words (e.g. "chainalysis" → ["chain", "analysis"]).
  */
 function splitIntoWords(name: string): string[] {
-  const lower = name.toLowerCase().replace(/[^a-z]/g, "");
-  const words: string[] = [];
-  let i = 0;
-  while (i < lower.length) {
-    let best = 0;
-    let bestWord = "";
-    for (let len = Math.min(lower.length - i, 15); len >= 2; len--) {
-      const slice = lower.slice(i, i + len);
-      if (isKnownWord(slice)) {
-        best = len;
-        bestWord = slice;
-        break;
+  const s = name.toLowerCase().replace(/[^a-z]/g, "");
+  const n = s.length;
+  if (n === 0) return [];
+
+  // dp[i] = max chars covered by dictionary words in s[0..i-1]
+  const dp = new Array(n + 1).fill(0);
+  const parent: (null | { start: number; wordLen: number })[] = new Array(n + 1).fill(null);
+
+  for (let i = 1; i <= n; i++) {
+    dp[i] = dp[i - 1]; // skip char
+    parent[i] = null;
+
+    for (let len = 2; len <= Math.min(i, 15); len++) {
+      const start = i - len;
+      const candidate = s.substring(start, i);
+      if (isKnownWord(candidate)) {
+        const coverage = dp[start] + len;
+        if (coverage > dp[i]) {
+          dp[i] = coverage;
+          parent[i] = { start, wordLen: len };
+        }
       }
     }
-    if (best >= 2) {
-      words.push(bestWord);
-      i += best;
+  }
+
+  const words: string[] = [];
+  let pos = n;
+  while (pos > 0) {
+    const p = parent[pos];
+    if (p) {
+      words.push(s.substring(p.start, p.start + p.wordLen));
+      pos = p.start;
     } else {
-      i++;
+      pos--;
     }
   }
+  words.reverse();
+
+  // Portmanteau detection: if coverage is incomplete, try overlapping splits
+  const coveredByWords = words.filter(w => w.length >= 2 && isKnownWord(w));
+  const totalCoveredChars = coveredByWords.reduce((sum, w) => sum + w.length, 0);
+  if (totalCoveredChars < n) {
+    let bestOverlapWords: string[] | null = null;
+    let bestOverlapCoverage = totalCoveredChars;
+
+    for (let i = 2; i < n - 1; i++) {
+      for (let overlap = 0; overlap <= Math.min(4, i, n - i); overlap++) {
+        const left = s.substring(0, i + overlap);
+        const right = s.substring(i);
+        if (isKnownWord(left) && isKnownWord(right)) {
+          const coverage = left.length + right.length;
+          if (coverage > bestOverlapCoverage) {
+            bestOverlapCoverage = coverage;
+            bestOverlapWords = [left, right];
+          }
+        }
+      }
+    }
+
+    if (bestOverlapWords) {
+      return bestOverlapWords;
+    }
+  }
+
   return words;
 }
 
