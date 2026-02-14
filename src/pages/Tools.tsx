@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
@@ -12,6 +11,7 @@ import { DomainValuationEstimator } from "@/components/tools/DomainValuationEsti
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
 import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
+import { DomainReportCard } from "@/components/tools/DomainReportCard";
 
 const Tools = () => {
   return (
@@ -32,9 +32,24 @@ const Tools = () => {
                 Beta
               </Badge>
             </div>
-            <p className="text-muted-foreground mb-8">
-              Free tools to help you find and evaluate the perfect domain name. We are actively improving these — feedback welcome!
+            <p className="text-muted-foreground mb-4">
+              Analyze any domain instantly, or dive deep with individual tools below.
             </p>
+
+            {/* Unified Domain Report Card */}
+            <div className="mb-10">
+              <DomainReportCard />
+            </div>
+
+            {/* Divider */}
+            <div className="relative mb-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-3 text-muted-foreground font-medium tracking-wider">Deep Dive Tools</span>
+              </div>
+            </div>
 
             <Tabs defaultValue="brandability" className="w-full">
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 mb-6 h-auto">
