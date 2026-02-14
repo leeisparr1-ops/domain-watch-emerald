@@ -446,6 +446,7 @@ export type Database = {
       }
       release_sync_lock: { Args: { lock_holder: string }; Returns: boolean }
       trigger_auction_sync: { Args: never; Returns: undefined }
+      trigger_pattern_check: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
