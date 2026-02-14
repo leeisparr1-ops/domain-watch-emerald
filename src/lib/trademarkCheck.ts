@@ -11,60 +11,141 @@ export interface TrademarkResult {
   summary: string;
 }
 
-// ~200 well-known brands/trademarks that domainers should avoid
+// ~500+ well-known brands/trademarks that domainers should avoid
+// Includes global, US, UK, EU, Asian mega-brands
 const KNOWN_BRANDS = new Set([
-  // Tech giants
+  // ─── Tech giants ───
   "google", "apple", "microsoft", "amazon", "facebook", "meta", "netflix", "spotify",
   "tesla", "nvidia", "intel", "amd", "samsung", "sony", "tiktok", "snapchat",
   "twitter", "instagram", "whatsapp", "linkedin", "pinterest", "reddit", "discord",
   "uber", "lyft", "airbnb", "stripe", "paypal", "venmo", "shopify", "squarespace",
   "wordpress", "salesforce", "oracle", "cisco", "adobe", "autodesk", "dropbox",
   "slack", "zoom", "twitch", "youtube", "github", "gitlab", "docker", "kubernetes",
-  "openai", "anthropic", "midjourney", "chatgpt", "copilot",
-  // Consumer brands
-  "nike", "adidas", "puma", "reebok", "gucci", "prada", "chanel", "louis vuitton",
-  "hermes", "burberry", "versace", "armani", "balenciaga", "supreme", "rolex",
-  "cartier", "tiffany", "pandora",
-  // Auto
+  "openai", "anthropic", "midjourney", "chatgpt", "copilot", "alibaba", "tencent",
+  "baidu", "huawei", "xiaomi", "oppo", "vivo", "oneplus", "lenovo", "asus",
+  "dell", "hewlett packard", "ibm", "qualcomm", "broadcom", "vmware", "palantir",
+  "snowflake", "datadog", "cloudflare", "netlify", "vercel", "supabase", "firebase",
+  "heroku", "twilio", "sendgrid", "mailchimp", "hubspot", "zendesk", "atlassian",
+  "jira", "confluence", "trello", "asana", "notion", "figma", "canva", "sketch",
+  "wix", "godaddy", "namecheap", "cloudfront", "akamai",
+
+  // ─── UK Retail & Supermarkets ───
+  "tesco", "sainsburys", "sainsbury", "asda", "morrisons", "waitrose", "aldi", "lidl",
+  "marks and spencer", "marksandspencer", "primark", "john lewis", "johnlewis",
+  "argos", "currys", "boots", "superdrug", "wilko", "poundland", "greggs",
+  "iceland", "ocado", "deliveroo", "justeat", "asos", "boohoo", "missguided",
+  "topshop", "next", "debenhams", "selfridges", "harrods", "fortnum", "liberty",
+
+  // ─── UK Telecom & Media ───
+  "vodafone", "three", "ee", "bt", "virgin media", "virginmedia", "sky", "talktalk",
+  "plusnet", "giffgaff", "bbc", "itv", "channel4",
+
+  // ─── UK Finance ───
+  "barclays", "lloyds", "hsbc", "natwest", "halifax", "santander", "nationwide",
+  "monzo", "revolut", "starling", "wise", "transferwise",
+
+  // ─── UK Brands ───
+  "dyson", "rolls royce", "rollsroyce", "jaguar", "land rover", "landrover",
+  "mclaren", "aston martin", "astonmartin", "bentley", "burberry", "barbour",
+  "ted baker", "tedbaker", "joules", "superdry", "lush", "the body shop",
+
+  // ─── Consumer brands (Fashion/Luxury) ───
+  "nike", "adidas", "puma", "reebok", "gucci", "prada", "chanel", "louisvuitton",
+  "hermes", "versace", "armani", "balenciaga", "supreme", "rolex",
+  "cartier", "tiffany", "pandora", "dior", "fendi", "valentino", "givenchy",
+  "yves saint laurent", "bottega veneta", "bottegaveneta", "moncler", "ralph lauren",
+  "ralphlauren", "tommy hilfiger", "tommyhilfiger", "calvin klein", "calvinklein",
+  "hugo boss", "hugoboss", "zara", "hm", "uniqlo", "lululemon", "patagonia",
+  "north face", "northface", "columbia", "timberland", "converse", "vans",
+  "new balance", "newbalance", "under armour", "underarmour", "skechers",
+  "ray ban", "rayban", "oakley", "swarovski",
+
+  // ─── Auto ───
   "toyota", "honda", "ford", "bmw", "mercedes", "audi", "porsche", "ferrari",
-  "lamborghini", "maserati", "bentley", "lexus", "volvo", "hyundai", "subaru",
+  "lamborghini", "maserati", "lexus", "volvo", "hyundai", "subaru",
   "chevrolet", "jeep", "dodge", "chrysler", "cadillac", "buick", "mazda", "nissan",
-  "mitsubishi", "kia", "rivian", "lucid",
-  // Food & beverage
-  "cocacola", "pepsi", "starbucks", "mcdonalds", "burgerking", "wendys", "subway",
-  "dominos", "pizzahut", "chipotle", "dunkin", "redbull", "monster", "gatorade",
-  "nestle", "kraft", "heinz", "kellogg", "oreo", "doritos", "lays",
-  // Finance
-  "visa", "mastercard", "amex", "chase", "citibank", "barclays", "hsbc",
+  "mitsubishi", "kia", "rivian", "lucid", "polestar", "genesis", "infiniti",
+  "fiat", "alfa romeo", "alfaromeo", "citroen", "peugeot", "renault", "skoda",
+  "seat", "vauxhall", "suzuki", "isuzu", "dacia",
+
+  // ─── Food & beverage ───
+  "cocacola", "coca cola", "pepsi", "pepsico", "starbucks", "mcdonalds",
+  "burgerking", "wendys", "subway", "dominos", "pizzahut", "chipotle", "dunkin",
+  "redbull", "monster", "gatorade", "nestle", "kraft", "heinz", "kellogg",
+  "oreo", "doritos", "lays", "pringles", "cadbury", "lindt", "ferrero",
+  "nutella", "toblerone", "haribo", "walkers", "guinness", "heineken",
+  "budweiser", "carlsberg", "stella artois", "johnnie walker", "jack daniels",
+  "absolut", "smirnoff", "bacardi", "nandos", "kfc", "popeyes", "chick fil a",
+  "chickfila", "tacobell", "papajohns", "fiveguys", "shakeshack",
+  "krispy kreme", "krispykreme", "costa", "tim hortons", "panera",
+
+  // ─── Finance ───
+  "visa", "mastercard", "amex", "american express", "chase", "citibank",
   "goldman", "jpmorgan", "morgan stanley", "schwab", "fidelity", "vanguard",
-  "robinhood", "coinbase", "binance", "kraken",
-  // Retail
+  "robinhood", "coinbase", "binance", "kraken", "blackrock", "state street",
+  "capital one", "capitalone", "wells fargo", "wellsfargo", "bank of america",
+  "bankofamerica", "deutsche bank", "ubs", "credit suisse", "bnp paribas",
+  "societe generale", "ing", "rabobank", "klarna", "affirm", "sofi", "chime",
+  "plaid", "square", "block",
+
+  // ─── Retail ───
   "walmart", "target", "costco", "ikea", "homedepot", "lowes", "macys",
   "nordstrom", "sephora", "ulta", "bestbuy", "gamestop", "ebay", "etsy",
-  "wayfair", "chewy", "instacart", "doordash", "grubhub",
-  // Media & entertainment
+  "wayfair", "chewy", "instacart", "doordash", "grubhub", "ubereats",
+  "wish", "shein", "temu", "aliexpress",
+
+  // ─── Media & entertainment ───
   "disney", "pixar", "marvel", "warner", "hbo", "paramount", "universal",
   "lionsgate", "dreamworks", "nintendo", "playstation", "xbox", "roblox",
-  "fortnite", "minecraft", "pokemon", "starwars",
-  // Pharma & health
+  "fortnite", "minecraft", "pokemon", "starwars", "hulu", "peacock",
+  "crunchyroll", "funimation", "paramount plus", "discovery", "espn",
+  "bbc", "cnn", "fox", "nbc", "cbs", "abc", "reuters", "bloomberg",
+  "new york times", "washington post", "guardian", "telegraph", "financial times",
+
+  // ─── Pharma & health ───
   "pfizer", "moderna", "johnson", "bayer", "merck", "novartis", "roche",
-  "abbvie", "amgen", "gilead",
-  // Airlines & travel
+  "abbvie", "amgen", "gilead", "astrazeneca", "glaxosmithkline", "gsk",
+  "sanofi", "eli lilly", "bristol myers", "regeneron", "biogen",
+
+  // ─── Airlines & travel ───
   "delta", "united", "southwest", "jetblue", "emirates", "qatar", "lufthansa",
-  "british airways", "ryanair", "booking", "expedia", "tripadvisor", "marriott",
-  "hilton", "hyatt", "sheraton",
-  // Other
-  "coca cola", "tik tok", "you tube",
+  "british airways", "ryanair", "easyjet", "wizz air", "wizzair",
+  "booking", "expedia", "tripadvisor", "marriott",
+  "hilton", "hyatt", "sheraton", "radisson", "wyndham", "accor", "ihg",
+  "airfrance", "klm", "singapore airlines", "cathay pacific", "qantas",
+  "virgin atlantic", "norwegian", "turkish airlines",
+
+  // ─── Telecom (global) ───
+  "att", "verizon", "tmobile", "sprint", "comcast", "xfinity",
+  "orange", "telefonica", "movistar", "dtag", "telekom", "swisscom",
+  "singtel", "ntt", "softbank", "jio", "airtel",
+
+  // ─── Sports ───
+  "nfl", "nba", "mlb", "nhl", "fifa", "uefa", "premier league", "premierleague",
+  "formula one", "f1", "olympics", "espn",
+
+  // ─── Software & SaaS ───
+  "sap", "workday", "servicenow", "okta", "crowdstrike", "palo alto",
+  "splunk", "elastic", "mongodb", "redis", "postgres", "mysql",
+  "tableau", "power bi", "looker", "dbt",
+
+  // ─── Misc globally famous ───
+  "lego", "mattel", "hasbro", "bandai", "fisher price", "hot wheels",
+  "barbie", "transformers",
+  "fedex", "ups", "dhl", "royal mail", "hermes parcel", "evri",
+  "xerox", "canon", "nikon", "gopro", "bose", "sonos", "jbl", "beats",
+  "philips", "siemens", "bosch", "whirlpool", "electrolux", "lg", "panasonic",
+  "sharp", "toshiba", "hitachi", "mitsubishi electric",
+  "3m", "caterpillar", "deere", "honeywell", "ge", "general electric",
+  "shell", "bp", "exxonmobil", "chevron", "total", "petrochina", "aramco",
+  "spacex", "virgin galactic",
 ]);
 
 // Flatten multi-word brands for matching
 const BRAND_WORDS: string[] = [];
 KNOWN_BRANDS.forEach((b) => {
-  BRAND_WORDS.push(b.replace(/\s+/g, ""));
-  // Also store without spaces for substring matching
-  if (b.includes(" ")) {
-    BRAND_WORDS.push(b.replace(/\s+/g, ""));
-  }
+  const collapsed = b.replace(/\s+/g, "");
+  BRAND_WORDS.push(collapsed);
 });
 const UNIQUE_BRANDS = [...new Set(BRAND_WORDS)].sort((a, b) => b.length - a.length);
 
@@ -74,27 +155,39 @@ const BRAND_IN_WORD: Record<string, string[]> = {
   "uber": ["tuber", "exuberant", "exuberance"],
   "chase": ["purchase", "purchased", "purchaser"],
   "ford": ["afford", "affordable", "oxford", "stanford", "bedford", "comfort"],
-  "visa": ["advise", "advisor", "advisory", "visual", "ivisable", "revision", "television"],
-  "oracle": ["oracle"], // standalone ok, skip
-  "delta": ["delta"], // standalone ok
-  "amazon": ["amazon"], // standalone ok
+  "visa": ["advise", "advisor", "advisory", "visual", "revision", "television"],
   "apple": ["pineapple", "grapple", "dapple"],
   "bing": ["binding", "climbing", "plumbing"],
   "amd": ["named", "framed", "gamed"],
   "kia": ["akia", "nokia"],
-  "lyft": [],
   "slack": ["slacker"],
-  "puma": [],
-  "nike": [],
-  "mars": ["marshals", "marshal", "nightmare"],
-  "cox": ["coxswain"],
-  "ally": ["rally", "tally", "valley", "literally", "finally", "usually"],
   "bayer": ["player", "prayer", "layer"],
   "shell": ["seashell", "nutshell", "eggshell", "bombshell"],
-  "merck": [],
-  "hbo": [],
-  "gap": [],
-  "target": [],
+  "ally": ["rally", "tally", "valley", "literally", "finally", "usually"],
+  "mars": ["marshals", "marshal", "nightmare"],
+  "cox": ["coxswain"],
+  "next": ["nextgen", "nextlevel"], // "next" the brand is common, but "nextgen" is generic
+  "sky": ["skyline", "skydive", "skyscraper"],
+  "boots": ["bootstrap", "bootstrapping"],
+  "costa": ["coastal"],
+  "ee": [], // too short, handled by length check
+  "bp": [], // too short
+  "lg": [], // too short
+  "ge": [], // too short
+  "bt": [], // too short
+  "ing": ["amazing", "running", "coming", "going", "being", "doing", "making", "taking",
+          "looking", "finding", "working", "living", "giving", "telling", "calling",
+          "moving", "playing", "trying", "building", "setting", "trading", "hosting",
+          "coding", "mining", "dining", "fishing", "banking", "booking", "cooking",
+          "parking", "shopping", "spring", "string", "thing", "king", "ring", "sing",
+          "bring", "swing", "fling", "cling", "sting", "wring"],
+  "three": [],
+  "block": ["blockchain", "blocker", "blocking"],
+  "square": ["squared"],
+  "target": ["targeted", "targeting"],
+  "canon": ["canonical"],
+  "sharp": ["sharpen", "sharpened"],
+  "total": ["totally"],
 };
 
 // Common letter substitutions used in typosquatting
@@ -126,11 +219,10 @@ export function checkTrademarkRisk(domainInput: string): TrademarkResult {
     // Contains match (brand appears as substring)
     if (rawName.includes(brand) || normalizedName.includes(brand)) {
       // Check if the brand is naturally embedded in a larger legitimate word
-      // e.g., "intel" inside "intelligence" is NOT infringement
       const allowedWords = BRAND_IN_WORD[brand];
       if (allowedWords && allowedWords.length > 0) {
         const isFalsePositive = allowedWords.some(word => rawName.includes(word) || normalizedName.includes(word));
-        if (isFalsePositive) continue; // skip — brand is part of a real word
+        if (isFalsePositive) continue;
       }
       matches.push({ brand, matchType: "contains" });
       continue;
