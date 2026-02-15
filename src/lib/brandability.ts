@@ -229,6 +229,25 @@ const COMPATIBLE_CATEGORIES: Record<string, Set<string>> = {
   body: new Set(["body", "quality", "motion"]),
 };
 
+/**
+ * Words with negative, weak, or undesirable brand connotations.
+ * These reduce brandability scores even when they're valid dictionary words.
+ */
+const NEGATIVE_BRAND_WORDS = new Set([
+  "lost", "lose", "dead", "death", "die", "dying", "kill", "grave", "tomb",
+  "ghost", "doom", "curse", "decay", "rot", "ruin", "fail", "broke", "broken",
+  "crash", "error", "bug", "fault", "flaw", "void", "null", "empty", "blank",
+  "pain", "hurt", "sick", "ill", "disease", "toxic", "poison", "burn", "bleed",
+  "wound", "scar", "cry", "tear", "grief", "sad", "misery", "agony",
+  "cheap", "poor", "weak", "slow", "dull", "dark", "grim", "bleak", "cold",
+  "harsh", "bitter", "sour", "stale", "flat", "limp", "lazy", "boring",
+  "bland", "plain", "basic", "generic", "average", "mediocre",
+  "fear", "scare", "dread", "panic", "risk", "threat", "danger", "hazard",
+  "trap", "cage", "bind", "stuck",
+  "war", "fight", "clash", "conflict", "enemy", "rival", "battle",
+  "struggle", "chaos", "mess", "wreck",
+]);
+
 function getWordCategory(word: string): string | null {
   for (const [cat, words] of Object.entries(SEMANTIC_CATEGORIES)) {
     if (words.has(word)) return cat;
@@ -369,6 +388,40 @@ function semanticCoherence(foundWords: string[], cleanName: string): { multiplie
         };
       }
     }
+
+    // Penalty: Negative or weak connotation words harm brand appeal (check before uncategorized)
+    const negativeCount = foundWords.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
+    if (negativeCount >= 2) {
+      return {
+        multiplier: 0.4,
+        detail: `Both words have negative connotations — poor brand appeal`,
+      };
+    }
+    if (negativeCount === 1) {
+      const negWord = foundWords.find(w => NEGATIVE_BRAND_WORDS.has(w))!;
+      // Combine with uncategorized penalty if applicable
+      const baseMult = (!cat1 && !cat2) ? 0.55 : 0.65;
+      return {
+        multiplier: baseMult,
+        detail: `"${negWord}" has negative connotations — weakens brand appeal`,
+      };
+    }
+
+    // Penalty: Neither word has a semantic category — random dictionary word pairing
+    if (!cat1 && !cat2) {
+      return {
+        multiplier: 0.75,
+        detail: `"${foundWords[0]}" + "${foundWords[1]}" — doesn't form a natural brand compound`,
+      };
+    }
+  }
+
+  // Single word negative check
+  if (foundWords.length === 1 && NEGATIVE_BRAND_WORDS.has(foundWords[0])) {
+    return {
+      multiplier: 0.7,
+      detail: `"${foundWords[0]}" has negative connotations — limits brand appeal`,
+    };
   }
 
   return { multiplier: 1.0, detail: "" };
