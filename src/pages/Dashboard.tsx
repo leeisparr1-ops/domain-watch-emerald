@@ -49,6 +49,9 @@ interface AuctionDomain {
   tld: string;
   valuation?: number;
   inventorySource?: string;
+  brandabilityScore?: number | null;
+  pronounceabilityScore?: number | null;
+  trademarkRisk?: string | null;
 }
 
 interface Filters {
@@ -319,7 +322,7 @@ export default function Dashboard() {
       // Now fetch paginated auctions for those domains - optimized query
       let query = supabase
         .from('auctions')
-        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk')
         .in('domain_name', favDomains)
         .gte('end_time', endTimeFilter);
       
@@ -368,6 +371,9 @@ export default function Dashboard() {
           tld: a.tld || '',
           valuation: a.valuation || undefined,
           inventorySource: a.inventory_source || undefined,
+          brandabilityScore: (a as any).brandability_score ?? null,
+          pronounceabilityScore: (a as any).pronounceability_score ?? null,
+          trademarkRisk: (a as any).trademark_risk ?? null,
         }));
         if (seq === activeFetchSeqRef.current) {
           setAuctions(mapped);
@@ -416,7 +422,7 @@ export default function Dashboard() {
       // Optimized for 750k+ rows - minimal filters to maximize index usage
       let query = supabase
         .from('auctions')
-        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source')
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk')
         .gte('end_time', endTimeFilter);
 
       // Apply server-side search filter
@@ -485,6 +491,9 @@ export default function Dashboard() {
           tld: a.tld || '',
           valuation: a.valuation || undefined,
           inventorySource: a.inventory_source || undefined,
+          brandabilityScore: (a as any).brandability_score ?? null,
+          pronounceabilityScore: (a as any).pronounceability_score ?? null,
+          trademarkRisk: (a as any).trademark_risk ?? null,
         }));
         if (seq !== activeFetchSeqRef.current) return;
         setAuctions(mapped);

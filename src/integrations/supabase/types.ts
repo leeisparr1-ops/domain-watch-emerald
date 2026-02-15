@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           auction_type: string | null
           bid_count: number
+          brandability_score: number | null
           created_at: string
           domain_age: number | null
           domain_name: string
@@ -26,7 +27,10 @@ export type Database = {
           id: string
           inventory_source: string | null
           price: number
+          pronounceability_score: number | null
+          scores_computed_at: string | null
           tld: string | null
+          trademark_risk: string | null
           traffic_count: number
           updated_at: string
           valuation: number | null
@@ -34,6 +38,7 @@ export type Database = {
         Insert: {
           auction_type?: string | null
           bid_count?: number
+          brandability_score?: number | null
           created_at?: string
           domain_age?: number | null
           domain_name: string
@@ -42,7 +47,10 @@ export type Database = {
           id?: string
           inventory_source?: string | null
           price?: number
+          pronounceability_score?: number | null
+          scores_computed_at?: string | null
           tld?: string | null
+          trademark_risk?: string | null
           traffic_count?: number
           updated_at?: string
           valuation?: number | null
@@ -50,6 +58,7 @@ export type Database = {
         Update: {
           auction_type?: string | null
           bid_count?: number
+          brandability_score?: number | null
           created_at?: string
           domain_age?: number | null
           domain_name?: string
@@ -58,7 +67,10 @@ export type Database = {
           id?: string
           inventory_source?: string | null
           price?: number
+          pronounceability_score?: number | null
+          scores_computed_at?: string | null
           tld?: string | null
+          trademark_risk?: string | null
           traffic_count?: number
           updated_at?: string
           valuation?: number | null
