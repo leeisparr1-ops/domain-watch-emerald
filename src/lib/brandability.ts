@@ -200,33 +200,50 @@ const FILLER_WORDS = new Set([
  * or in complementary categories form coherent brand compounds.
  */
 const SEMANTIC_CATEGORIES: Record<string, Set<string>> = {
-  tech: new Set(["tech", "data", "code", "byte", "bit", "net", "web", "app", "dev", "hack", "cyber", "cloud", "stack", "pixel", "logic", "algo", "core", "node", "sync", "link", "wire", "grid", "chip", "nano", "meta", "digi", "info", "soft"]),
-  business: new Set(["bank", "pay", "fund", "trade", "market", "sales", "deal", "pro", "corp", "hub", "base", "desk", "work", "office", "lead", "chief", "exec", "boss", "team", "crew", "group"]),
-  creative: new Set(["art", "design", "craft", "studio", "brand", "create", "make", "build", "forge", "form", "shape", "dream", "vision", "spark", "glow", "shine", "bright", "vivid", "bold"]),
-  nature: new Set(["sky", "sun", "moon", "star", "earth", "sea", "wave", "wind", "storm", "rain", "fire", "ice", "snow", "leaf", "tree", "root", "bloom", "spring", "river", "lake", "stone", "rock", "peak", "hill", "mountain", "forest", "ocean", "field"]),
-  motion: new Set(["flow", "rush", "dash", "leap", "fly", "jet", "swift", "flash", "zoom", "ride", "run", "go", "move", "shift", "rise", "lift", "launch", "boost", "surge", "pulse", "drift", "glide", "soar"]),
-  quality: new Set(["prime", "elite", "top", "best", "gold", "silver", "platinum", "royal", "noble", "grand", "ultra", "super", "mega", "apex", "alpha", "omega", "ace", "zen", "pure", "true", "clear", "bright", "fresh", "smart", "wise"]),
+  tech: new Set(["tech", "data", "code", "byte", "bit", "net", "web", "app", "dev", "hack", "cyber", "cloud", "stack", "pixel", "logic", "algo", "core", "node", "sync", "link", "wire", "grid", "chip", "nano", "meta", "digi", "info", "soft", "compute", "server", "host", "bot", "api", "script", "crypt", "block", "chain", "token", "hash"]),
+  business: new Set(["bank", "pay", "fund", "trade", "market", "sales", "deal", "pro", "corp", "hub", "base", "desk", "work", "office", "lead", "chief", "exec", "boss", "team", "crew", "group", "shop", "store", "buy", "sell", "price", "cost", "value", "stock", "invest", "capital", "profit", "revenue", "growth", "startup"]),
+  finance: new Set(["mortgage", "loan", "credit", "debit", "insurance", "insure", "policy", "claim", "rate", "interest", "savings", "account", "budget", "tax", "wealth", "asset", "equity", "bond", "dividend", "retire", "pension", "finance", "financial", "money", "cash", "wallet", "payment"]),
+  creative: new Set(["art", "design", "craft", "studio", "brand", "create", "make", "build", "forge", "form", "shape", "dream", "vision", "spark", "glow", "shine", "bright", "vivid", "bold", "draw", "paint", "sketch", "photo", "video", "film", "music", "sound", "story", "write", "blog", "content", "media"]),
+  nature: new Set(["sky", "sun", "moon", "star", "earth", "sea", "wave", "wind", "storm", "rain", "fire", "ice", "snow", "leaf", "tree", "root", "bloom", "spring", "river", "lake", "stone", "rock", "peak", "hill", "mountain", "forest", "ocean", "field", "garden", "green", "wild", "animal", "pet", "paw"]),
+  motion: new Set(["flow", "rush", "dash", "leap", "fly", "jet", "swift", "flash", "zoom", "ride", "run", "go", "move", "shift", "rise", "lift", "launch", "boost", "surge", "pulse", "drift", "glide", "soar", "speed", "fast", "quick", "rapid"]),
+  quality: new Set(["prime", "elite", "top", "best", "gold", "silver", "platinum", "royal", "noble", "grand", "ultra", "super", "mega", "apex", "alpha", "omega", "ace", "zen", "pure", "true", "clear", "bright", "fresh", "smart", "wise", "premium", "select", "choice", "fine", "great", "perfect", "ideal", "master"]),
   color: new Set(["red", "blue", "green", "black", "white", "grey", "gray", "orange", "purple", "amber", "coral", "ivory", "crimson", "azure", "jade", "ruby", "emerald", "indigo", "violet", "teal"]),
-  abstract: new Set(["flex", "vibe", "aura", "edge", "zone", "scope", "verse", "scape", "sphere", "orbit", "quest", "path", "way", "trail", "route", "gate", "door", "key", "lock", "bridge", "port", "loop", "arc", "axis"]),
-  food: new Set(["pea", "peas", "toast", "bread", "cake", "pie", "bean", "corn", "rice", "meat", "fish", "egg", "milk", "cream", "sugar", "salt", "spice", "jam", "nut", "fruit", "apple", "berry", "lemon", "lime", "mint", "honey", "coffee", "tea"]),
+  abstract: new Set(["flex", "vibe", "aura", "edge", "zone", "scope", "verse", "scape", "sphere", "orbit", "quest", "path", "way", "trail", "route", "gate", "door", "key", "lock", "bridge", "port", "loop", "arc", "axis", "point", "spot", "place", "space", "center", "central", "open", "free", "next", "new"]),
+  social: new Set(["love", "friend", "social", "chat", "meet", "date", "match", "connect", "share", "like", "follow", "join", "club", "community", "family", "people", "member", "circle", "tribe", "crowd"]),
+  entertainment: new Set(["game", "play", "fun", "toy", "arcade", "sport", "bet", "win", "score", "level", "quest", "puzzle", "quiz", "trivia", "movie", "show", "watch", "stream", "live", "event", "ticket", "party"]),
+  education: new Set(["learn", "teach", "study", "school", "class", "course", "lesson", "tutor", "mentor", "academy", "college", "exam", "test", "grade", "skill", "train", "guide", "book", "read", "quote", "quotes", "word", "text", "library", "wiki", "calculator", "calc", "math", "science"]),
+  health: new Set(["health", "fit", "gym", "diet", "care", "cure", "heal", "medical", "doctor", "nurse", "therapy", "wellness", "vita", "life", "body", "mind", "yoga", "sleep", "rest", "calm"]),
+  home: new Set(["home", "house", "room", "kitchen", "bath", "bed", "living", "decor", "interior", "garden", "yard", "roof", "floor", "wall", "door", "window", "furniture", "clean", "comfort"]),
+  food: new Set(["pea", "peas", "toast", "bread", "cake", "pie", "bean", "corn", "rice", "meat", "fish", "egg", "milk", "cream", "sugar", "salt", "spice", "jam", "nut", "fruit", "apple", "berry", "lemon", "lime", "mint", "honey", "coffee", "tea", "cook", "chef", "recipe", "meal", "food", "eat", "drink", "bar", "grill", "bistro"]),
+  travel: new Set(["travel", "trip", "tour", "fly", "flight", "hotel", "stay", "visit", "explore", "adventure", "cruise", "resort", "beach", "island", "city", "map", "guide", "passport", "destination", "nomad"]),
   body: new Set(["head", "hand", "eye", "face", "arm", "leg", "foot", "back", "heart", "brain", "bone", "skin", "hair", "lip", "tooth"]),
 };
 
 /**
  * Category compatibility map: which semantic categories pair well together.
  * If two words come from incompatible categories, the name is incoherent.
+ * Most categories are broadly compatible — only truly incoherent combos are restricted.
  */
+const BROADLY_COMPATIBLE = new Set(["tech", "business", "finance", "creative", "motion", "quality", "abstract", "social", "entertainment", "education", "health", "home", "travel"]);
+
 const COMPATIBLE_CATEGORIES: Record<string, Set<string>> = {
-  tech: new Set(["tech", "business", "creative", "motion", "quality", "color", "abstract"]),
-  business: new Set(["business", "tech", "quality", "motion", "abstract", "creative"]),
-  creative: new Set(["creative", "tech", "nature", "quality", "color", "abstract", "motion"]),
-  nature: new Set(["nature", "creative", "quality", "color", "motion", "abstract"]),
-  motion: new Set(["motion", "tech", "business", "nature", "quality", "abstract", "creative"]),
-  quality: new Set(["quality", "tech", "business", "creative", "nature", "motion", "color", "abstract"]),
-  color: new Set(["color", "tech", "creative", "nature", "quality", "abstract", "motion"]),
-  abstract: new Set(["abstract", "tech", "business", "creative", "nature", "motion", "quality", "color"]),
-  food: new Set(["food", "quality"]),
-  body: new Set(["body", "quality", "motion"]),
+  tech: new Set([...BROADLY_COMPATIBLE, "nature", "color"]),
+  business: new Set([...BROADLY_COMPATIBLE, "color"]),
+  finance: new Set([...BROADLY_COMPATIBLE]),
+  creative: new Set([...BROADLY_COMPATIBLE, "nature", "color"]),
+  nature: new Set(["nature", "creative", "quality", "color", "motion", "abstract", "health", "travel", "home"]),
+  motion: new Set([...BROADLY_COMPATIBLE, "nature", "color"]),
+  quality: new Set([...BROADLY_COMPATIBLE, "nature", "color", "food"]),
+  color: new Set(["color", "tech", "creative", "nature", "quality", "abstract", "motion", "home", "entertainment"]),
+  abstract: new Set([...BROADLY_COMPATIBLE, "nature", "color"]),
+  social: new Set([...BROADLY_COMPATIBLE, "nature"]),
+  entertainment: new Set([...BROADLY_COMPATIBLE, "nature", "color"]),
+  education: new Set([...BROADLY_COMPATIBLE]),
+  health: new Set([...BROADLY_COMPATIBLE, "nature", "food"]),
+  home: new Set(["home", "quality", "nature", "creative", "abstract", "color"]),
+  food: new Set(["food", "quality", "health", "home", "nature"]),
+  travel: new Set([...BROADLY_COMPATIBLE, "nature"]),
+  body: new Set(["body", "quality", "motion", "health"]),
 };
 
 /**
@@ -267,7 +284,7 @@ function countEmbeddedFillers(cleanName: string): { count: number; found: string
   const sortedFillers = [...FILLER_WORDS].sort((a, b) => b.length - a.length);
   
   for (const filler of sortedFillers) {
-    if (filler.length < 2) continue;
+    if (filler.length < 3) continue; // Skip very short fillers (at, or, in, etc.) — too many false positives in compound words
     const idx = lower.indexOf(filler);
     if (idx === -1) continue;
     
@@ -407,8 +424,17 @@ function semanticCoherence(foundWords: string[], cleanName: string): { multiplie
       };
     }
 
-    // Penalty: Neither word has a semantic category — random dictionary word pairing
+    // Penalty: Neither word has a semantic category
+    // But if BOTH are real dictionary words, they likely form a natural compound — softer penalty
     if (!cat1 && !cat2) {
+      const bothRealWords = foundWords.every(w => DICTIONARY_WORDS.has(w) || COMMON_WORDS.has(w));
+      if (bothRealWords) {
+        // Both are real words but uncategorized — likely a valid niche compound we don't cover yet
+        return {
+          multiplier: 0.92,
+          detail: `"${foundWords[0]}" + "${foundWords[1]}" — recognized words, niche compound`,
+        };
+      }
       return {
         multiplier: 0.75,
         detail: `"${foundWords[0]}" + "${foundWords[1]}" — doesn't form a natural brand compound`,
@@ -539,7 +565,14 @@ export function scoreBrandability(domainInput: string): BrandabilityResult {
   else if (cleanName.length <= 5) { lengthScore = 90; lengthDetail = `${cleanName.length} chars — short & punchy`; }
   else if (cleanName.length <= 8) { lengthScore = 75; lengthDetail = `${cleanName.length} chars — ideal brandable length`; }
   else if (cleanName.length <= 12) { lengthScore = 50; lengthDetail = `${cleanName.length} chars — workable but long`; }
+  else if (cleanName.length <= 16) { lengthScore = 35; lengthDetail = `${cleanName.length} chars — long but may work for keyword domains`; }
   else { lengthScore = 25; lengthDetail = `${cleanName.length} chars — too long for strong brand`; }
+
+  // Boost length score for long domains with high dictionary coverage (keyword domains)
+  if (cleanName.length > 12 && coverage >= 0.9 && bothDictionary) {
+    lengthScore = Math.max(lengthScore, 40);
+    lengthDetail = `${cleanName.length} chars — long but strong keyword compound`;
+  }
 
   // 3. Word Structure — 6-tier system aligned with Valuation Estimator
   const wordCount = countWords(cleanName);

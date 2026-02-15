@@ -126,7 +126,7 @@ export const DICTIONARY_WORDS = new Set([
   "analyst", "animation", "anniversary", "announcement", "apartment", "application",
   "appointment", "architect", "architecture", "atmosphere", "authority", "automobile",
   "background", "beautiful", "beginning", "benchmark", "biography", "blueprint",
-  "brilliant", "broadcast", "butterfly", "calculate", "calendar", "candidate",
+  "brilliant", "broadcast", "butterfly", "calculate", "calculator", "calendar", "candidate",
   "capability", "catalogue", "cathedral", "celebrity", "character", "chocolate",
   "chronicle", "circumstance", "classroom", "clearance", "collection", "commentary",
   "commission", "commitment", "committee", "community", "companion", "comparison",
