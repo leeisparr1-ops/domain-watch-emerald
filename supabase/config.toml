@@ -49,4 +49,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-domain-advisor]
-verify_jwt = true
+verify_jwt = false
