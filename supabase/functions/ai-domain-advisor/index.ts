@@ -31,24 +31,46 @@ serve(async (req) => {
       });
     }
 
-    const { domain } = await req.json();
+    const { domain, scores } = await req.json();
     if (!domain || typeof domain !== "string")
       throw new Error("Missing domain parameter");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Build enriched context from pre-computed scores
+    let scoresContext = "";
+    if (scores) {
+      const parts: string[] = [];
+      if (scores.brandability !== undefined) parts.push(`Brandability Score: ${scores.brandability}/100`);
+      if (scores.pronounceability !== undefined) parts.push(`Pronounceability Score: ${scores.pronounceability}/100`);
+      if (scores.keywordDemand !== undefined) parts.push(`Keyword Demand Score: ${scores.keywordDemand}/100 (${scores.keywordDemandLabel || ""})`);
+      if (scores.valuationRange) parts.push(`Algorithmic Valuation: ${scores.valuationRange}`);
+      if (scores.trendScore !== undefined) parts.push(`Trend Score: ${scores.trendScore}/100 (${scores.trendLabel || ""})`);
+      if (scores.niche) parts.push(`Detected Niche: ${scores.niche}`);
+      if (scores.trademarkRisk) parts.push(`Trademark Risk: ${scores.trademarkRisk}`);
+      if (scores.comparableSales?.length > 0) {
+        parts.push("Comparable Recent Sales:");
+        for (const sale of scores.comparableSales.slice(0, 4)) {
+          parts.push(`  - ${sale.domain}: ${sale.price} (${sale.date}, ${sale.pattern})`);
+        }
+      }
+      scoresContext = `\n\nPRE-COMPUTED ANALYSIS DATA:\n${parts.join("\n")}`;
+    }
+
     const systemPrompt = `You are a senior domain name investment analyst with 15 years of experience in the domain aftermarket. You provide concise, data-driven analysis.
 
 CURRENT MARKET CONTEXT (Feb 2026):
-- Hot niches: AI/Agents, Fintech, Biotech, Clean Energy, Pet Tech, Cannabis
+- Hot niches: AI/Agents, Fintech, Biotech, Clean Energy, Cybersecurity, Pet Tech
 - Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard)
 - Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty
 
-Analyze the given domain and provide actionable investment advice. Be honest — if a domain is weak, say so.`;
+IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.`;
 
-    const userPrompt = `Analyze the domain "${domain}" for investment potential. Provide:
+    const userPrompt = `Analyze the domain "${domain}" for investment potential.${scoresContext}
+
+Provide:
 1. Overall investment verdict (Strong Buy / Buy / Hold / Avoid)
-2. Estimated aftermarket value range
+2. Estimated aftermarket value range (use comparable sales as anchors if available)
 3. Best buyer persona (who would buy this?)
 4. Top 3 strengths
 5. Top 3 weaknesses or risks

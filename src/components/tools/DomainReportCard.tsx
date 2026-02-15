@@ -6,12 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   Search, Award, Mic, DollarSign, Shield, Globe2, Loader2,
-  Clock, X, Share2, Copy, Check, ExternalLink,
+  Clock, X, Share2, Copy, Check, ExternalLink, Flame,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { scoreBrandability, type BrandabilityResult } from "@/lib/brandability";
 import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
+import { scoreKeywordDemand, type KeywordDemandResult } from "@/lib/keywordDemand";
+import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
 import { supabase } from "@/integrations/supabase/client";
 import { useDomainHistory, type DomainHistoryItem } from "@/hooks/useDomainHistory";
 import { toast } from "sonner";
@@ -27,6 +29,8 @@ interface ReportData {
   pronounceability: PronounceabilityResult;
   trademark: TrademarkResult;
   availability: AvailabilityResult;
+  keywordDemand: KeywordDemandResult;
+  valuation: QuickValuationResult;
 }
 
 function getScoreColor(score: number) {
@@ -79,12 +83,16 @@ export function DomainReportCard() {
     const brandability = scoreBrandability(domainWithTld);
     const pronounceability = scorePronounceability(domainWithTld);
     const trademark = checkTrademarkRisk(domainWithTld);
+    const keywordDemand = scoreKeywordDemand(domainWithTld);
+    const valuation = quickValuation(domainWithTld, pronounceability.score);
 
     const reportData: ReportData = {
       domain: domainWithTld,
       brandability,
       pronounceability,
       trademark,
+      keywordDemand,
+      valuation,
       availability: { status: "unknown", loading: true },
     };
     setReport(reportData);
@@ -123,6 +131,8 @@ export function DomainReportCard() {
     const text = `🦅 ${report.domain} — Domain Report Card\n\n` +
       `📊 Brandability: ${report.brandability.overall}/100 (${report.brandability.grade})\n` +
       `🗣 Pronounceability: ${report.pronounceability.score}/100 (${report.pronounceability.grade})\n` +
+      `🔥 Keyword Demand: ${report.keywordDemand.score}/100 (${report.keywordDemand.label})\n` +
+      `💰 Est. Value: ${report.valuation.band}\n` +
       `🛡 Trademark: ${getTrademarkRiskDisplay(report.trademark.riskLevel).label}\n` +
       `🌐 Availability: ${report.availability.status}\n\n` +
       `Analyzed with ExpiredHawk`;
@@ -210,7 +220,7 @@ export function DomainReportCard() {
           </div>
 
           {/* Score Cards Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {/* Brandability */}
             <Card className={`border ${getScoreBg(report.brandability.overall)}`}>
               <CardContent className="p-4 text-center space-y-1">
@@ -222,7 +232,7 @@ export function DomainReportCard() {
                 <Badge variant="outline" className={`text-xs ${getScoreColor(report.brandability.overall)}`}>
                   {report.brandability.grade}
                 </Badge>
-                <Link to="/tools/brandability-score" className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
+                <Link to={`/tools/brandability-score?domain=${encodeURIComponent(report.domain)}`} className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
                   Details <ExternalLink className="w-2.5 h-2.5" />
                 </Link>
               </CardContent>
@@ -239,8 +249,34 @@ export function DomainReportCard() {
                 <Badge variant="outline" className={`text-xs ${getScoreColor(report.pronounceability.score)}`}>
                   {report.pronounceability.grade}
                 </Badge>
-                <Link to="/tools/pronounceability" className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
+                <Link to={`/tools/pronounceability?domain=${encodeURIComponent(report.domain)}`} className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
                   Details <ExternalLink className="w-2.5 h-2.5" />
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Keyword Demand */}
+            <Card className={`border ${getScoreBg(report.keywordDemand.score)}`}>
+              <CardContent className="p-4 text-center space-y-1">
+                <Flame className="w-5 h-5 mx-auto text-muted-foreground" />
+                <div className={`text-3xl font-bold ${getScoreColor(report.keywordDemand.score)}`}>
+                  {report.keywordDemand.score}
+                </div>
+                <div className="text-xs text-muted-foreground">Keyword Demand</div>
+                <Badge variant="outline" className={`text-xs ${getScoreColor(report.keywordDemand.score)}`}>
+                  {report.keywordDemand.grade}
+                </Badge>
+              </CardContent>
+            </Card>
+
+            {/* Valuation */}
+            <Card className={`border ${getScoreBg(report.valuation.score)}`}>
+              <CardContent className="p-4 text-center space-y-1">
+                <DollarSign className="w-5 h-5 mx-auto text-muted-foreground" />
+                <div className="text-lg font-bold text-foreground">{report.valuation.band}</div>
+                <div className="text-xs text-muted-foreground">Est. Value</div>
+                <Link to={`/tools/valuation?domain=${encodeURIComponent(report.domain)}`} className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
+                  Full Analysis <ExternalLink className="w-2.5 h-2.5" />
                 </Link>
               </CardContent>
             </Card>

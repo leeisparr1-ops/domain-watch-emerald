@@ -3,9 +3,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock, Users, ThumbsUp, ThumbsDown } from "lucide-react";
+import { BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock, Users, ThumbsUp, ThumbsDown, BarChart3, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { scoreBrandability } from "@/lib/brandability";
+import { scorePronounceability } from "@/lib/pronounceability";
+import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+import { scoreKeywordDemand } from "@/lib/keywordDemand";
+import { quickValuation } from "@/lib/domainValuation";
 
 interface Analysis {
   verdict: string;
@@ -20,9 +25,23 @@ interface Analysis {
   summary: string;
 }
 
+interface PreScores {
+  brandability: number;
+  pronounceability: number;
+  keywordDemand: number;
+  keywordDemandLabel: string;
+  valuationRange: string;
+  trendScore: number | undefined;
+  trendLabel: string | undefined;
+  niche: string;
+  trademarkRisk: string;
+  comparableSales: { domain: string; price: string; date: string; pattern: string }[];
+}
+
 export function AIDomainAdvisor() {
   const [domain, setDomain] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [preScores, setPreScores] = useState<PreScores | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -31,6 +50,7 @@ export function AIDomainAdvisor() {
     if (!input) return;
     setIsLoading(true);
     setAnalysis(null);
+    setPreScores(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -44,8 +64,30 @@ export function AIDomainAdvisor() {
         return;
       }
 
+      // Pre-compute all scores client-side to send to AI
+      const domainWithTld = input.includes(".") ? input : `${input}.com`;
+      const brand = scoreBrandability(domainWithTld);
+      const pronounce = scorePronounceability(domainWithTld);
+      const trademark = checkTrademarkRisk(domainWithTld);
+      const demand = scoreKeywordDemand(domainWithTld);
+      const val = quickValuation(domainWithTld, pronounce.score);
+
+      const scores: PreScores = {
+        brandability: brand.overall,
+        pronounceability: pronounce.score,
+        keywordDemand: demand.score,
+        keywordDemandLabel: demand.label,
+        valuationRange: val.band,
+        trendScore: undefined,
+        trendLabel: undefined,
+        niche: demand.niche.label,
+        trademarkRisk: getTrademarkRiskDisplay(trademark.riskLevel).label,
+        comparableSales: [],
+      };
+      setPreScores(scores);
+
       const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
-        body: { domain: input },
+        body: { domain: domainWithTld, scores },
       });
 
       if (error) {
@@ -96,12 +138,9 @@ export function AIDomainAdvisor() {
         <CardTitle className="flex items-center gap-2">
           <BrainCircuit className="w-5 h-5 text-primary" />
           AI Domain Advisor
-          <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
-            New
-          </Badge>
         </CardTitle>
         <CardDescription>
-          Get AI-powered investment analysis on any domain — verdict, valuation range, flip potential, buyer persona, and actionable advice.
+          Get AI-powered investment analysis enriched with brandability, keyword demand, valuation, and comparable sales data for smarter verdicts.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -119,6 +158,38 @@ export function AIDomainAdvisor() {
           </Button>
         </div>
 
+        {/* Pre-computed scores shown while AI is loading */}
+        {preScores && !analysis && isLoading && (
+          <div className="space-y-3 animate-fade-in">
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              AI is analyzing — here are your pre-computed scores:
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
+                <BarChart3 className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Brand</p>
+                <p className="text-sm font-semibold text-foreground">{preScores.brandability}/100</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
+                <Flame className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Demand</p>
+                <p className="text-sm font-semibold text-foreground">{preScores.keywordDemand}/100</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
+                <DollarSign className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Valuation</p>
+                <p className="text-xs font-semibold text-foreground">{preScores.valuationRange}</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
+                <Target className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Niche</p>
+                <p className="text-xs font-semibold text-foreground">{preScores.niche}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {analysis && (
           <div className="space-y-5 animate-fade-in">
             {/* Verdict + Summary */}
@@ -128,6 +199,28 @@ export function AIDomainAdvisor() {
               </Badge>
               <p className="text-sm text-foreground leading-relaxed">{analysis.summary}</p>
             </div>
+
+            {/* Pre-computed scores strip */}
+            {preScores && (
+              <div className="grid grid-cols-4 gap-2">
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Brand</p>
+                  <p className={`text-sm font-bold ${preScores.brandability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.brandability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.brandability}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Pronounce</p>
+                  <p className={`text-sm font-bold ${preScores.pronounceability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.pronounceability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.pronounceability}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Demand</p>
+                  <p className={`text-sm font-bold ${preScores.keywordDemand >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.keywordDemand >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.keywordDemand}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">TM Risk</p>
+                  <p className="text-sm font-bold text-foreground">{preScores.trademarkRisk}</p>
+                </div>
+              </div>
+            )}
 
             {/* Key Metrics Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -196,7 +289,7 @@ export function AIDomainAdvisor() {
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              AI analysis based on market trends and public aftermarket data. Not financial advice — always do your own due diligence.
+              AI analysis enriched with brandability ({preScores?.brandability}), demand ({preScores?.keywordDemand}), and valuation scores. Not financial advice.
             </p>
           </div>
         )}
