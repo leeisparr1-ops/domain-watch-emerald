@@ -33,10 +33,36 @@ export function AIDomainAdvisor() {
     setAnalysis(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Sign in required",
+          description: "Please log in to use the AI Domain Advisor.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
         body: { domain: input },
       });
-      if (error) throw error;
+
+      if (error) {
+        const msg = error.message || "";
+        if (msg.includes("429") || msg.includes("Rate limit")) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (msg.includes("402") || msg.includes("credits")) {
+          throw new Error("AI credits exhausted. Please try again later.");
+        }
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       setAnalysis(data);
     } catch (e: any) {
       console.error(e);
