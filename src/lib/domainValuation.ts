@@ -1820,6 +1820,14 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     }
   }
 
+  // Niche multiplier (match full estimator logic)
+  const { niche } = computeTrendScore(meaningfulWords, tld);
+  if (niche.multiplier > 1.0 && niche.confidence !== "Low" && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const nicheBoost = 1 + (niche.multiplier - 1) * 0.5;
+    valueMin = Math.round(valueMin * nicheBoost);
+    valueMax = Math.round(valueMax * nicheBoost);
+  }
+
   // Dictionary .com bonus — single dictionary words on .com are ultra-premium
   if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
     const dictFloorMin = name.length <= 3 ? 200000 : name.length <= 4 ? 100000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 8000;
