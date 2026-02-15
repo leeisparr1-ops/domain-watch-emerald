@@ -4,11 +4,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame } from "lucide-react";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
 import { scoreBrandability } from "@/lib/brandability";
+import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import {
   Tooltip,
   TooltipContent,
@@ -21,14 +22,20 @@ interface BulkResult {
   trademark: TrademarkResult;
   valuationBand: string;
   valuationScore: number;
+  valuationMin: number;
+  valuationMax: number;
   syllables: number;
   brandabilityScore: number;
+  demandScore: number;
+  demandLabel: string;
 }
+
+type SortField = "score" | "valuation" | "brand" | "demand";
 
 export function BulkPronounceabilityChecker() {
   const [text, setText] = useState("");
   const [results, setResults] = useState<BulkResult[]>([]);
-  const [sortField, setSortField] = useState<"score" | "valuation" | "brand">("score");
+  const [sortField, setSortField] = useState<SortField>("score");
   const [sortAsc, setSortAsc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +53,20 @@ export function BulkPronounceabilityChecker() {
       const val = quickValuation(domain, result.score);
       const syllables = countSyllables(domain.split(".")[0]);
       const brandabilityScore = scoreBrandability(domain).overall;
-      return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score, syllables, brandabilityScore };
+      const demand = scoreKeywordDemand(domain);
+      return {
+        domain,
+        result,
+        trademark,
+        valuationBand: val.band,
+        valuationScore: val.score,
+        valuationMin: val.valueMin,
+        valuationMax: val.valueMax,
+        syllables,
+        brandabilityScore,
+        demandScore: demand.score,
+        demandLabel: demand.label,
+      };
     });
     scored.sort((a, b) => b.result.score - a.result.score);
     setResults(scored);
@@ -76,19 +96,62 @@ export function BulkPronounceabilityChecker() {
     e.target.value = "";
   };
 
-  const toggleSort = (field: "score" | "valuation" | "brand") => {
+  const sortFn = (field: SortField) => (a: BulkResult, b: BulkResult) => {
+    switch (field) {
+      case "score": return b.result.score - a.result.score;
+      case "brand": return b.brandabilityScore - a.brandabilityScore;
+      case "valuation": return b.valuationScore - a.valuationScore;
+      case "demand": return b.demandScore - a.demandScore;
+    }
+  };
+
+  const toggleSort = (field: SortField) => {
     if (sortField === field) {
       setResults((prev) => [...prev].reverse());
       setSortAsc(!sortAsc);
     } else {
       setSortField(field);
-      const sorted = [...results].sort((a, b) => 
-        field === "score" ? b.result.score - a.result.score : field === "brand" ? b.brandabilityScore - a.brandabilityScore : b.valuationScore - a.valuationScore
-      );
+      const sorted = [...results].sort(sortFn(field));
       setResults(sorted);
       setSortAsc(false);
     }
   };
+
+  const handleExportCSV = () => {
+    if (!results.length) return;
+    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const rows = results.map(r => [
+      r.domain,
+      r.result.score,
+      r.result.grade,
+      r.brandabilityScore,
+      r.demandScore,
+      r.demandLabel.replace(/[🔥📈⬆️➡️↘️⬇️⛔]/g, "").trim(),
+      r.valuationBand,
+      r.valuationScore,
+      r.syllables,
+      getTrademarkRiskDisplay(r.trademark.riskLevel).label,
+      `"${r.trademark.summary.replace(/"/g, '""')}"`,
+    ]);
+    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `domain-analysis-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Portfolio stats
+  const portfolioStats = results.length > 0 ? {
+    avgBrand: Math.round(results.reduce((s, r) => s + r.brandabilityScore, 0) / results.length),
+    avgPronounce: Math.round(results.reduce((s, r) => s + r.result.score, 0) / results.length),
+    avgDemand: Math.round(results.reduce((s, r) => s + r.demandScore, 0) / results.length),
+    totalValueMin: results.reduce((s, r) => s + r.valuationMin, 0),
+    totalValueMax: results.reduce((s, r) => s + r.valuationMax, 0),
+    topDomain: results.reduce((best, r) => r.valuationScore > best.valuationScore ? r : best, results[0]),
+  } : null;
 
   const gradeColor = (grade: string) => {
     switch (grade) {
@@ -99,6 +162,13 @@ export function BulkPronounceabilityChecker() {
     }
   };
 
+  const demandColor = (score: number) => {
+    if (score >= 70) return "text-emerald-600 dark:text-emerald-400";
+    if (score >= 40) return "text-blue-600 dark:text-blue-400";
+    if (score >= 25) return "text-amber-600 dark:text-amber-400";
+    return "text-red-600 dark:text-red-400";
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -107,7 +177,7 @@ export function BulkPronounceabilityChecker() {
           Bulk Domain Analyzer
         </CardTitle>
         <CardDescription>
-          Paste up to 50 domains or upload a CSV/TXT file. Get pronounceability, brandability, estimated value, and trademark risk for each — perfect for portfolio analysis.
+          Paste up to 50 domains or upload a CSV/TXT file. Get pronounceability, brandability, keyword demand, estimated value, and trademark risk — with portfolio stats and CSV export.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -135,6 +205,52 @@ export function BulkPronounceabilityChecker() {
           </Button>
         </div>
 
+        {/* Portfolio Summary Stats */}
+        {portfolioStats && (
+          <div className="animate-fade-in space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Portfolio Summary ({results.length} domains)
+              </h3>
+              <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+                <Download className="w-3.5 h-3.5" />
+                Export CSV
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Total Est. Value</p>
+                <p className="text-sm font-bold text-foreground">
+                  ${portfolioStats.totalValueMin.toLocaleString()} – ${portfolioStats.totalValueMax.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Avg Brandability</p>
+                <p className={`text-lg font-bold ${portfolioStats.avgBrand >= 70 ? "text-emerald-600 dark:text-emerald-400" : portfolioStats.avgBrand >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>
+                  {portfolioStats.avgBrand}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Avg Pronounce</p>
+                <p className={`text-lg font-bold ${portfolioStats.avgPronounce >= 70 ? "text-emerald-600 dark:text-emerald-400" : portfolioStats.avgPronounce >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>
+                  {portfolioStats.avgPronounce}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Avg Demand</p>
+                <p className={`text-lg font-bold ${demandColor(portfolioStats.avgDemand)}`}>
+                  {portfolioStats.avgDemand}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Top Domain</p>
+                <p className="text-sm font-bold text-primary truncate">{portfolioStats.topDomain.domain}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {results.length > 0 && (
           <div className="animate-fade-in">
             <div className="rounded-lg border border-border overflow-auto">
@@ -143,7 +259,7 @@ export function BulkPronounceabilityChecker() {
                   <TableRow>
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>Domain</TableHead>
-                    <TableHead className="text-center">Syllables</TableHead>
+                    <TableHead className="text-center">Syl</TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("score")}>
                       <span className="inline-flex items-center gap-1">
                         Score <ArrowUpDown className="w-3 h-3" />
@@ -155,12 +271,17 @@ export function BulkPronounceabilityChecker() {
                         Brand <ArrowUpDown className="w-3 h-3" />
                       </span>
                     </TableHead>
-                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
+                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("demand")}>
                       <span className="inline-flex items-center gap-1">
-                        Est. Value <ArrowUpDown className="w-3 h-3" />
+                        <Flame className="w-3 h-3" /> Demand <ArrowUpDown className="w-3 h-3" />
                       </span>
                     </TableHead>
-                    <TableHead className="text-center">TM Risk</TableHead>
+                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
+                      <span className="inline-flex items-center gap-1">
+                        Value <ArrowUpDown className="w-3 h-3" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-center">TM</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -181,6 +302,18 @@ export function BulkPronounceabilityChecker() {
                           <span className={`text-sm font-semibold ${r.brandabilityScore >= 70 ? "text-emerald-600 dark:text-emerald-400" : r.brandabilityScore >= 50 ? "text-blue-600 dark:text-blue-400" : r.brandabilityScore >= 30 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                             {r.brandabilityScore}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className={`text-sm font-semibold cursor-help ${demandColor(r.demandScore)}`}>
+                                {r.demandScore}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">{r.demandLabel}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}
@@ -209,8 +342,7 @@ export function BulkPronounceabilityChecker() {
               </Table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Sorted by {sortField === "score" ? "pronounceability" : "estimated value"} ({sortAsc ? "ascending" : "descending"}). Click headers to sort.
-              Trademark check covers ~200 major brands — not legal advice.
+              Sorted by {sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
             </p>
           </div>
         )}
