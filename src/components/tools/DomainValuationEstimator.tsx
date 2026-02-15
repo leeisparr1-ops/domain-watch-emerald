@@ -27,6 +27,8 @@ import {
   NICHE_CATEGORIES,
   splitIntoWords,
   isSingleDictionaryWord,
+  isFullyCoveredByWords,
+  getSemanticSynergyBonus,
   getTrendingMultiplier,
   detectNiche,
   computeTrendScore,
@@ -195,7 +197,7 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
   const hasPenaltyWord = [...PENALTY_KEYWORDS].some(kw => name.includes(kw));
   const premiumMatches = meaningfulWords.filter(w => PREMIUM_KEYWORDS.has(w));
   const isDictWord = isSingleDictionaryWord(name);
-  const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && meaningfulWords.join("").length === name.length;
+  const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && isFullyCoveredByWords(name, meaningfulWords);
 
   let wordScore = 0;
   if (hasPenaltyWord) wordScore = 1;
@@ -319,6 +321,15 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
   if (trendMult > 1.0 && !hasPenaltyWord && trademark.riskLevel !== "high") {
     valueMin = Math.round(valueMin * trendMult);
     valueMax = Math.round(valueMax * trendMult);
+  }
+
+  // Semantic synergy bonus for related compound words
+  if (meaningfulWords.length === 2 && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
+    if (synergyBonus > 1.0) {
+      valueMin = Math.round(valueMin * synergyBonus);
+      valueMax = Math.round(valueMax * synergyBonus);
+    }
   }
 
   // Apply niche multiplier on top (if niche detected with reasonable confidence)

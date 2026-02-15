@@ -686,7 +686,11 @@ export const DICTIONARY_WORDS = new Set([
   "usage", "usual", "utter", "valid", "valor", "value", "valve", "vapor",
   "vault", "vegan", "venue", "verge", "verse", "vigor", "villa", "vinyl",
   "viola", "viral", "virus", "visit", "vista", "vital", "vivid", "vocal",
-  "vodka", "vogue", "voice", "voter", "vowel", "wages", "wagon", "waste",
+   "vodka", "vogue", "voice", "voter", "vowel", "wages", "wagon", "waste",
+   // Latin-origin & brandable words commonly used in domain compounds
+   "opus", "apex", "nexus", "axis", "crux", "flux", "lux", "pax", "rex", "vox",
+   "praxis", "thesis", "genesis", "aura", "circa", "coda", "ethos", "modus",
+   "aegis", "atlas", "helix", "onyx", "zenith", "cipher", "sigil",
   "watch", "water", "weary", "weave", "wedge", "whale", "wheat", "wheel",
   "where", "which", "while", "whirl", "white", "whole", "whose", "wider",
   "widow", "woman", "women", "world", "worse", "worst", "worth", "would",
@@ -1412,13 +1416,26 @@ export function splitIntoWords(name: string): string[] {
     for (let i = 2; i < n - 1; i++) {
       // Try overlaps from 0 to 4 characters
       for (let overlap = 0; overlap <= Math.min(4, i, n - i); overlap++) {
-        const left = s.substring(0, i + overlap);
-        const right = s.substring(i);
-        if (isWord(left) && isWord(right)) {
-          const coverage = left.length + right.length;
+        // Method 1: left extends past split, right starts at split
+        const left1 = s.substring(0, i + overlap);
+        const right1 = s.substring(i);
+        if (isWord(left1) && isWord(right1)) {
+          const coverage = left1.length + right1.length;
           if (coverage > bestOverlapCoverage) {
             bestOverlapCoverage = coverage;
-            bestOverlapWords = [left, right];
+            bestOverlapWords = [left1, right1];
+          }
+        }
+        // Method 2: left ends at split, right starts before split (overlap backwards)
+        if (overlap > 0) {
+          const left2 = s.substring(0, i);
+          const right2 = s.substring(i - overlap);
+          if (isWord(left2) && isWord(right2)) {
+            const coverage = left2.length + right2.length;
+            if (coverage > bestOverlapCoverage) {
+              bestOverlapCoverage = coverage;
+              bestOverlapWords = [left2, right2];
+            }
           }
         }
       }
@@ -1427,6 +1444,31 @@ export function splitIntoWords(name: string): string[] {
     if (bestOverlapWords) {
       return bestOverlapWords;
     }
+
+    // Truncation detection: if DP found a strong prefix word, check if the remaining
+    // suffix is a recognizable truncation of a dictionary word (≥5 chars, matches end of a known word).
+    // e.g. "chainalysis" → "chain" + "alysis" where "alysis" is end of "analysis"
+    const dpWords = words.filter(w => w.length >= 3 && isWord(w));
+    if (dpWords.length >= 1) {
+      const firstWord = dpWords[0];
+      const firstWordEnd = s.indexOf(firstWord) + firstWord.length;
+      const remainder = s.substring(firstWordEnd);
+      if (remainder.length >= 4) {
+        // Check if remainder matches the end of any dictionary word
+        const COMMON_WORDS_ARRAY = [...COMMON_WORDS, ...DICTIONARY_WORDS, ...PREMIUM_KEYWORDS];
+        let bestParentWord: string | null = null;
+        let bestParentLen = 0;
+        for (const dictWord of COMMON_WORDS_ARRAY) {
+          if (dictWord.length >= remainder.length + 1 && dictWord.endsWith(remainder) && dictWord.length > bestParentLen) {
+            bestParentWord = dictWord;
+            bestParentLen = dictWord.length;
+          }
+        }
+        if (bestParentWord) {
+          return [firstWord, bestParentWord];
+        }
+      }
+    }
   }
 
   return words;
@@ -1434,6 +1476,76 @@ export function splitIntoWords(name: string): string[] {
 
 export function isSingleDictionaryWord(name: string): boolean {
   return DICTIONARY_WORDS.has(name.toLowerCase());
+}
+
+/**
+ * Check if all characters in a domain name are covered by meaningful words,
+ * accounting for portmanteaus (overlapping words like "chainalysis" = "chain" + "analysis").
+ */
+export function isFullyCoveredByWords(name: string, meaningfulWords: string[]): boolean {
+  if (meaningfulWords.length === 0) return false;
+  const totalMeaningfulChars = meaningfulWords.join("").length;
+  // Exact match: words perfectly tile the name
+  if (totalMeaningfulChars === name.length) return true;
+  // Portmanteau: words overlap by a few chars (e.g. "chain"+"analysis" = 13 chars for 11-char name)
+  // Allow overlap up to 4 chars per word boundary
+  const maxOverlap = (meaningfulWords.length - 1) * 4;
+  if (totalMeaningfulChars > name.length && totalMeaningfulChars <= name.length + maxOverlap) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Semantic synergy detection for two-word compounds.
+ * Returns a multiplier bonus when both words are semantically related
+ * (e.g. "chain" + "analysis" in crypto/data, "opus" + "growth" in business).
+ */
+const SEMANTIC_SYNERGY_PAIRS: Record<string, string[]> = {
+  // Data/analytics combos
+  "analysis": ["chain", "data", "deep", "risk", "market", "trend", "price", "trade", "stock", "fund", "credit", "web", "code", "cloud", "smart", "cyber", "bio", "gene", "health", "med", "legal", "cost", "sales", "growth", "profit", "revenue"],
+  "analytics": ["chain", "data", "deep", "risk", "market", "trend", "web", "cloud", "cyber", "bio", "health", "sales", "growth"],
+  // Growth/scale combos
+  "growth": ["opus", "work", "trade", "health", "wealth", "capital", "revenue", "profit", "sales", "fund", "pay", "data", "cloud", "tech", "green", "solar", "energy", "bio", "market", "brand", "talent", "career", "home", "stock", "fast", "smart", "rapid", "true", "real"],
+  // Business/work combos  
+  "opus": ["growth", "trade", "work", "capital", "fund", "tech", "digital", "global", "ventures", "solutions", "group", "labs", "forge", "hub"],
+  // Chain/crypto combos
+  "chain": ["analysis", "analytics", "link", "trade", "fund", "pay", "lock", "guard", "vault", "forge", "block", "data", "flow", "smart", "secure", "safe"],
+  // Tech combos
+  "code": ["forge", "flow", "craft", "shift", "spark", "stack", "hub", "lab", "base"],
+  "cloud": ["forge", "shift", "stack", "gate", "path", "guard", "vault", "sync", "flow", "bridge"],
+  "data": ["flow", "forge", "vault", "bridge", "mesh", "sync", "stack", "pulse", "core", "hub", "lab", "lens", "wave"],
+  // Finance combos
+  "pay": ["wall", "gate", "flow", "stack", "hub", "shift", "forge", "guard", "smart", "bolt"],
+  "trade": ["flow", "craft", "forge", "shift", "wind", "mark", "hub", "gate", "vault", "guard"],
+  "fund": ["flow", "forge", "gate", "rise", "stack", "vault", "shift"],
+  // Brand/business authority combos
+  "smart": ["home", "pay", "trade", "flow", "grid", "lock", "guard", "hire", "path"],
+  "deep": ["flow", "mind", "code", "sync", "forge", "learn", "vision", "trade", "link"],
+};
+
+export function getSemanticSynergyBonus(words: string[]): { bonus: number; reason: string } {
+  if (words.length !== 2) return { bonus: 1.0, reason: "" };
+  const [a, b] = words.map(w => w.toLowerCase());
+  
+  // Check both directions
+  const aRelated = SEMANTIC_SYNERGY_PAIRS[a];
+  const bRelated = SEMANTIC_SYNERGY_PAIRS[b];
+  
+  if (aRelated?.includes(b) || bRelated?.includes(a)) {
+    return { bonus: 1.4, reason: `"${a}" + "${b}" form a semantically coherent brand compound` };
+  }
+  
+  // Check if both words belong to the same niche category (weaker synergy)
+  for (const [, cat] of Object.entries(NICHE_CATEGORIES)) {
+    const aInNiche = cat.keywords.includes(a);
+    const bInNiche = cat.keywords.includes(b);
+    if (aInNiche && bInNiche) {
+      return { bonus: 1.25, reason: `Both "${a}" and "${b}" are ${cat.label} keywords — strong niche alignment` };
+    }
+  }
+  
+  return { bonus: 1.0, reason: "" };
 }
 
 export function getTrendingMultiplier(words: string[]): { multiplier: number; trends: string[] } {
@@ -1473,7 +1585,7 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
   const hasPenaltyWord = [...PENALTY_KEYWORDS].some(kw => name.includes(kw));
   const premiumMatches = meaningfulWords.filter(w => PREMIUM_KEYWORDS.has(w));
   const isDictWord = isSingleDictionaryWord(name);
-  const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && meaningfulWords.join("").length === name.length;
+  const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && isFullyCoveredByWords(name, meaningfulWords);
 
   let score = 0;
 
@@ -1566,6 +1678,15 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
   if (trendMult > 1.0 && !hasPenaltyWord && trademark.riskLevel !== "high") {
     valueMin = Math.round(valueMin * trendMult);
     valueMax = Math.round(valueMax * trendMult);
+  }
+
+  // Semantic synergy bonus for related compound words
+  if (meaningfulWords.length === 2 && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
+    if (synergyBonus > 1.0) {
+      valueMin = Math.round(valueMin * synergyBonus);
+      valueMax = Math.round(valueMax * synergyBonus);
+    }
   }
 
   // Dictionary .com bonus — single dictionary words on .com are ultra-premium
