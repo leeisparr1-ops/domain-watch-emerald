@@ -47,6 +47,7 @@ export function AIDomainAdvisor() {
   const [domain, setDomain] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [preScores, setPreScores] = useState<PreScores | null>(null);
+  const [algorithmicValuation, setAlgorithmicValuation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -76,6 +77,8 @@ export function AIDomainAdvisor() {
       const trademark = checkTrademarkRisk(domainWithTld);
       const demand = scoreKeywordDemand(domainWithTld);
       const val = quickValuation(domainWithTld, pronounce.score);
+      // Store algorithmic valuation for consistent display across tools
+      setAlgorithmicValuation(`$${val.valueMin.toLocaleString()} - $${val.valueMax.toLocaleString()}`);
       const seo = estimateSEOVolume(domainWithTld);
       const age = scoreDomainAge(null);
 
@@ -237,7 +240,7 @@ export function AIDomainAdvisor() {
               <div className="p-3 rounded-lg border border-border bg-card text-center">
                 <DollarSign className="w-4 h-4 mx-auto mb-1 text-primary" />
                 <p className="text-xs text-muted-foreground">Est. Value</p>
-                <p className="text-sm font-semibold text-foreground">{analysis.value_range}</p>
+                <p className="text-sm font-semibold text-foreground">{algorithmicValuation || analysis.value_range}</p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-card text-center">
                 <TrendingUp className={`w-4 h-4 mx-auto mb-1 ${flipScoreColor(analysis.flip_score)}`} />
