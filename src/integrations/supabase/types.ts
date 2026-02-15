@@ -316,6 +316,36 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_market_data: {
+        Row: {
+          generated_at: string
+          hot_niches: Json
+          id: string
+          market_signals: Json
+          model_used: string | null
+          trending_keywords: Json
+          updated_at: string
+        }
+        Insert: {
+          generated_at?: string
+          hot_niches?: Json
+          id?: string
+          market_signals?: Json
+          model_used?: string | null
+          trending_keywords?: Json
+          updated_at?: string
+        }
+        Update: {
+          generated_at?: string
+          hot_niches?: Json
+          id?: string
+          market_signals?: Json
+          model_used?: string | null
+          trending_keywords?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_patterns: {
         Row: {
           created_at: string

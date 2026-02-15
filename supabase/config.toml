@@ -50,3 +50,9 @@ verify_jwt = false
 
 [functions.ai-domain-advisor]
 verify_jwt = false
+
+[functions.refresh-trends]
+verify_jwt = false
+
+[functions.check-social-handles]
+verify_jwt = false

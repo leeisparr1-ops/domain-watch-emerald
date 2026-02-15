@@ -10,6 +10,7 @@ import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } fro
 import { quickValuation } from "@/lib/domainValuation";
 import { scoreBrandability } from "@/lib/brandability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
+import { estimateSEOVolume } from "@/lib/seoVolume";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +29,8 @@ interface BulkResult {
   brandabilityScore: number;
   demandScore: number;
   demandLabel: string;
+  seoVolume: number;
+  seoVolumeLabel: string;
 }
 
 type SortField = "score" | "valuation" | "brand" | "demand";
@@ -54,6 +57,7 @@ export function BulkPronounceabilityChecker() {
       const syllables = countSyllables(domain.split(".")[0]);
       const brandabilityScore = scoreBrandability(domain).overall;
       const demand = scoreKeywordDemand(domain);
+      const seo = estimateSEOVolume(domain);
       return {
         domain,
         result,
@@ -66,6 +70,8 @@ export function BulkPronounceabilityChecker() {
         brandabilityScore,
         demandScore: demand.score,
         demandLabel: demand.label,
+        seoVolume: seo.estimatedMonthlySearches,
+        seoVolumeLabel: seo.volumeLabel,
       };
     });
     scored.sort((a, b) => b.result.score - a.result.score);
@@ -119,7 +125,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "SEO Volume", "SEO Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => [
       r.domain,
       r.result.score,
@@ -127,6 +133,8 @@ export function BulkPronounceabilityChecker() {
       r.brandabilityScore,
       r.demandScore,
       r.demandLabel.replace(/[🔥📈⬆️➡️↘️⬇️⛔]/g, "").trim(),
+      r.seoVolume,
+      r.seoVolumeLabel,
       r.valuationBand,
       r.valuationScore,
       r.syllables,

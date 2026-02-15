@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Search, Award, Mic, DollarSign, Shield, Globe2, Loader2,
   Clock, X, Share2, Copy, Check, ExternalLink, Flame,
+  BarChart3, Users, CalendarDays,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { scoreBrandability, type BrandabilityResult } from "@/lib/brandability";
@@ -14,12 +15,23 @@ import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronou
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { scoreKeywordDemand, type KeywordDemandResult } from "@/lib/keywordDemand";
 import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
+import { estimateSEOVolume, type SEOVolumeResult } from "@/lib/seoVolume";
+import { scoreDomainAge, type DomainAgeResult } from "@/lib/domainAge";
 import { supabase } from "@/integrations/supabase/client";
 import { useDomainHistory, type DomainHistoryItem } from "@/hooks/useDomainHistory";
 import { toast } from "sonner";
 
 interface AvailabilityResult {
   status: "available" | "registered" | "unknown";
+  loading: boolean;
+}
+
+interface SocialHandleResult {
+  handle: string;
+  results: { platform: string; handle: string; status: "taken" | "available" | "unknown" }[];
+  summary: string;
+  availableCount: number;
+  takenCount: number;
   loading: boolean;
 }
 
@@ -31,6 +43,9 @@ interface ReportData {
   availability: AvailabilityResult;
   keywordDemand: KeywordDemandResult;
   valuation: QuickValuationResult;
+  seoVolume: SEOVolumeResult;
+  domainAge: DomainAgeResult;
+  socialHandles: SocialHandleResult;
 }
 
 function getScoreColor(score: number) {
@@ -85,6 +100,8 @@ export function DomainReportCard() {
     const trademark = checkTrademarkRisk(domainWithTld);
     const keywordDemand = scoreKeywordDemand(domainWithTld);
     const valuation = quickValuation(domainWithTld, pronounceability.score);
+    const seoVolume = estimateSEOVolume(domainWithTld);
+    const domainAge = scoreDomainAge(null); // Will be enriched if data available
 
     const reportData: ReportData = {
       domain: domainWithTld,
@@ -93,27 +110,45 @@ export function DomainReportCard() {
       trademark,
       keywordDemand,
       valuation,
+      seoVolume,
+      domainAge,
       availability: { status: "unknown", loading: true },
+      socialHandles: { handle: domainWithTld.split(".")[0], results: [], summary: "Checking...", availableCount: 0, takenCount: 0, loading: true },
     };
     setReport(reportData);
     setLoading(false);
     addDomain(domainWithTld);
 
-    // Check RDAP availability async
-    try {
-      const { data, error } = await supabase.functions.invoke("check-domain-availability", {
-        body: { domains: [domainWithTld] },
-      });
+    // Check RDAP availability + social handles in parallel
+    const availabilityPromise = supabase.functions.invoke("check-domain-availability", {
+      body: { domains: [domainWithTld] },
+    }).then(({ data, error }) => {
       if (!error && data?.results?.[0]) {
-        setReport((prev) =>
-          prev ? { ...prev, availability: { status: data.results[0].status, loading: false } } : prev
-        );
+        setReport((prev) => prev ? { ...prev, availability: { status: data.results[0].status, loading: false } } : prev);
+        // If RDAP returns domain age, enrich the age score
+        if (data.results[0].domainAge !== undefined) {
+          setReport((prev) => prev ? { ...prev, domainAge: scoreDomainAge(data.results[0].domainAge) } : prev);
+        }
       } else {
         setReport((prev) => prev ? { ...prev, availability: { status: "unknown", loading: false } } : prev);
       }
-    } catch {
+    }).catch(() => {
       setReport((prev) => prev ? { ...prev, availability: { status: "unknown", loading: false } } : prev);
-    }
+    });
+
+    const socialPromise = supabase.functions.invoke("check-social-handles", {
+      body: { domain: domainWithTld },
+    }).then(({ data, error }) => {
+      if (!error && data) {
+        setReport((prev) => prev ? { ...prev, socialHandles: { ...data, loading: false } } : prev);
+      } else {
+        setReport((prev) => prev ? { ...prev, socialHandles: { ...prev.socialHandles, loading: false, summary: "Could not check handles" } } : prev);
+      }
+    }).catch(() => {
+      setReport((prev) => prev ? { ...prev, socialHandles: { ...prev.socialHandles, loading: false, summary: "Could not check handles" } } : prev);
+    });
+
+    await Promise.allSettled([availabilityPromise, socialPromise]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -132,9 +167,12 @@ export function DomainReportCard() {
       `📊 Brandability: ${report.brandability.overall}/100 (${report.brandability.grade})\n` +
       `🗣 Pronounceability: ${report.pronounceability.score}/100 (${report.pronounceability.grade})\n` +
       `🔥 Keyword Demand: ${report.keywordDemand.score}/100 (${report.keywordDemand.label})\n` +
+      `🔍 SEO Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo)\n` +
       `💰 Est. Value: ${report.valuation.band}\n` +
       `🛡 Trademark: ${getTrademarkRiskDisplay(report.trademark.riskLevel).label}\n` +
-      `🌐 Availability: ${report.availability.status}\n\n` +
+      `🌐 Availability: ${report.availability.status}\n` +
+      `📱 Social Handles: ${report.socialHandles.availableCount} available\n` +
+      `📅 Age: ${report.domainAge.ageLabel}\n\n` +
       `Analyzed with ExpiredHawk`;
 
     if (navigator.share) {
@@ -220,7 +258,7 @@ export function DomainReportCard() {
           </div>
 
           {/* Score Cards Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {/* Brandability */}
             <Card className={`border ${getScoreBg(report.brandability.overall)}`}>
               <CardContent className="p-4 text-center space-y-1">
@@ -269,6 +307,22 @@ export function DomainReportCard() {
               </CardContent>
             </Card>
 
+            {/* SEO Volume — NEW */}
+            <Card className={`border ${getScoreBg(report.seoVolume.volumeScore)}`}>
+              <CardContent className="p-4 text-center space-y-1">
+                <BarChart3 className="w-5 h-5 mx-auto text-muted-foreground" />
+                <div className={`text-lg font-bold ${getScoreColor(report.seoVolume.volumeScore)}`}>
+                  {report.seoVolume.estimatedMonthlySearches >= 1000
+                    ? `${(report.seoVolume.estimatedMonthlySearches / 1000).toFixed(0)}K`
+                    : report.seoVolume.estimatedMonthlySearches}
+                </div>
+                <div className="text-xs text-muted-foreground">Est. Searches/mo</div>
+                <Badge variant="outline" className={`text-xs ${getScoreColor(report.seoVolume.volumeScore)}`}>
+                  {report.seoVolume.volumeLabel}
+                </Badge>
+              </CardContent>
+            </Card>
+
             {/* Valuation */}
             <Card className={`border ${getScoreBg(report.valuation.score)}`}>
               <CardContent className="p-4 text-center space-y-1">
@@ -298,6 +352,45 @@ export function DomainReportCard() {
               </CardContent>
             </Card>
 
+            {/* Domain Age — NEW */}
+            <Card className={`border ${getScoreBg(report.domainAge.ageScore)}`}>
+              <CardContent className="p-4 text-center space-y-1">
+                <CalendarDays className="w-5 h-5 mx-auto text-muted-foreground" />
+                <div className={`text-lg font-bold ${getScoreColor(report.domainAge.ageScore)}`}>
+                  {report.domainAge.ageLabel}
+                </div>
+                <div className="text-xs text-muted-foreground">Domain Age</div>
+                <Badge variant="outline" className={`text-xs ${getScoreColor(report.domainAge.ageScore)}`}>
+                  {report.domainAge.historySignal}
+                </Badge>
+              </CardContent>
+            </Card>
+
+            {/* Social Handles — NEW */}
+            <Card className={`border ${
+              report.socialHandles.loading ? "bg-muted border-border" :
+              report.socialHandles.availableCount >= 3 ? "bg-emerald-500/10 border-emerald-500/20" :
+              report.socialHandles.availableCount >= 1 ? "bg-amber-500/10 border-amber-500/20" :
+              "bg-red-500/10 border-red-500/20"
+            }`}>
+              <CardContent className="p-4 text-center space-y-1">
+                <Users className="w-5 h-5 mx-auto text-muted-foreground" />
+                {report.socialHandles.loading ? (
+                  <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="text-lg font-bold text-foreground">
+                    {report.socialHandles.availableCount}/{report.socialHandles.results.length}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">Social Handles</div>
+                {!report.socialHandles.loading && (
+                  <Badge variant="outline" className="text-xs">
+                    {report.socialHandles.availableCount >= 3 ? "Strong" : report.socialHandles.availableCount >= 1 ? "Partial" : "Taken"}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Availability */}
             <Card className={`border ${
               report.availability.status === "available" ? "bg-emerald-500/10 border-emerald-500/20" :
@@ -321,6 +414,30 @@ export function DomainReportCard() {
             </Card>
           </div>
 
+          {/* Social Handle Detail Strip */}
+          {!report.socialHandles.loading && report.socialHandles.results.length > 0 && (
+            <Card className="border">
+              <CardContent className="p-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-muted-foreground font-medium">@{report.socialHandles.handle}:</span>
+                  {report.socialHandles.results.map((r) => (
+                    <Badge
+                      key={r.platform}
+                      variant="outline"
+                      className={`text-xs capitalize ${
+                        r.status === "available" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" :
+                        r.status === "taken" ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30" :
+                        "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {r.platform}: {r.status === "available" ? "✓" : r.status === "taken" ? "✗" : "?"}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Quick Summary Bar */}
           <Card className="border">
             <CardContent className="p-4 space-y-3">
@@ -335,6 +452,12 @@ export function DomainReportCard() {
                   ⚠️ {report.trademark.summary}
                 </div>
               )}
+
+              {/* SEO & Age Insights */}
+              <div className="text-xs p-2 rounded-md border border-border bg-secondary/30 text-muted-foreground space-y-1">
+                <p>🔍 <span className="font-medium text-foreground">SEO:</span> {report.seoVolume.organicPotential}</p>
+                <p>📅 <span className="font-medium text-foreground">Age:</span> {report.domainAge.valueImpact}</p>
+              </div>
 
               {/* Score breakdown bars */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
