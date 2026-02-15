@@ -1520,8 +1520,52 @@ const SEMANTIC_SYNERGY_PAIRS: Record<string, string[]> = {
   "trade": ["flow", "craft", "forge", "shift", "wind", "mark", "hub", "gate", "vault", "guard"],
   "fund": ["flow", "forge", "gate", "rise", "stack", "vault", "shift"],
   // Brand/business authority combos
-  "smart": ["home", "pay", "trade", "flow", "grid", "lock", "guard", "hire", "path"],
-  "deep": ["flow", "mind", "code", "sync", "forge", "learn", "vision", "trade", "link"],
+  "smart": ["home", "pay", "trade", "flow", "grid", "lock", "guard", "hire", "path", "care", "health", "med", "learn"],
+  "deep": ["flow", "mind", "code", "sync", "forge", "learn", "vision", "trade", "link", "care", "health"],
+  // Healthcare combos
+  "health": ["care", "hub", "flow", "sync", "path", "link", "guard", "pulse", "track", "tech", "wise", "bridge", "gate", "stack", "med", "net", "zone", "point", "force", "shift"],
+  "med": ["tech", "flow", "sync", "hub", "link", "gate", "point", "pulse", "vault", "guard", "forge", "stack", "bridge", "care", "track", "wise", "zone", "shift", "spark"],
+  "care": ["flow", "hub", "path", "point", "sync", "link", "pulse", "bridge", "tech", "forge", "stack", "shift", "guard", "zone", "wise", "track", "gate", "net"],
+  "clinic": ["flow", "hub", "sync", "path", "gate", "forge", "stack", "wise", "guard", "pulse"],
+  "pharma": ["flow", "hub", "sync", "gate", "forge", "stack", "pulse", "link", "bridge", "track"],
+  "bio": ["tech", "forge", "sync", "hub", "link", "flow", "pulse", "code", "gen", "labs", "spark", "stack"],
+  "gene": ["flow", "forge", "sync", "hub", "link", "code", "spark", "labs", "stack", "pulse", "track"],
+  "wellness": ["hub", "flow", "path", "sync", "gate", "forge", "track", "pulse", "point"],
+  // Real estate combos
+  "home": ["find", "flow", "hub", "path", "base", "nest", "stack", "gate", "guard", "wise", "link", "point", "sync", "forge", "shift", "scout", "match", "snap", "zone"],
+  "house": ["find", "flow", "hub", "path", "stack", "gate", "wise", "link", "point", "scout", "match", "snap"],
+  "property": ["flow", "hub", "gate", "guard", "stack", "link", "wise", "pulse", "forge", "scout", "sync"],
+  "estate": ["flow", "hub", "gate", "forge", "link", "wise", "stack", "pulse", "scout", "sync"],
+  "realty": ["flow", "hub", "gate", "forge", "link", "wise", "stack", "pulse", "scout", "sync"],
+  "rent": ["flow", "hub", "path", "gate", "wise", "link", "scout", "match", "sync", "forge", "snap"],
+  "land": ["flow", "hub", "gate", "forge", "link", "wise", "stack", "scout", "mark", "bridge", "sync"],
+  "nest": ["flow", "hub", "path", "find", "gate", "wise", "link", "scout", "match", "sync"],
+  // Education combos
+  "learn": ["path", "flow", "hub", "sync", "forge", "stack", "gate", "spark", "pulse", "link", "bridge", "wise", "shift", "craft", "lab", "zone", "quest", "track"],
+  "teach": ["flow", "hub", "sync", "path", "forge", "stack", "spark", "link", "wise", "craft", "lab", "pulse"],
+  "study": ["flow", "hub", "sync", "path", "forge", "stack", "spark", "link", "wise", "pulse", "zone", "gate"],
+  "course": ["flow", "hub", "sync", "path", "forge", "stack", "spark", "craft", "gate", "wise"],
+  "tutor": ["flow", "hub", "sync", "path", "forge", "link", "spark", "match", "wise", "gate"],
+  "skill": ["flow", "hub", "sync", "path", "forge", "stack", "spark", "shift", "craft", "pulse", "link", "bridge"],
+  "brain": ["flow", "forge", "sync", "hub", "spark", "pulse", "stack", "link", "wave", "storm", "shift"],
+  "mentor": ["flow", "hub", "sync", "path", "forge", "link", "spark", "match", "wise", "shift"],
+  "academy": ["flow", "hub", "sync", "forge", "stack", "spark", "gate", "pulse", "link"],
+  // Green/energy combos
+  "green": ["flow", "hub", "forge", "shift", "pulse", "stack", "path", "gate", "link", "sync", "spark"],
+  "solar": ["flow", "hub", "forge", "shift", "pulse", "stack", "path", "gate", "link", "sync", "spark", "grid"],
+  "energy": ["flow", "hub", "forge", "shift", "pulse", "stack", "path", "gate", "link", "sync", "spark", "grid"],
+  // Travel/hospitality combos
+  "travel": ["flow", "hub", "gate", "path", "forge", "link", "wise", "sync", "scout", "snap", "pulse"],
+  "trip": ["flow", "hub", "gate", "path", "forge", "wise", "sync", "scout", "snap", "match"],
+  "stay": ["flow", "hub", "gate", "path", "forge", "wise", "sync", "scout", "match", "nest"],
+  "book": ["flow", "hub", "gate", "path", "forge", "wise", "sync", "stack", "snap", "match"],
+  // Food/wellness combos
+  "food": ["flow", "hub", "forge", "path", "link", "sync", "pulse", "stack", "wise", "snap"],
+  "meal": ["flow", "hub", "forge", "path", "sync", "prep", "stack", "wise", "match", "snap"],
+  "fit": ["flow", "hub", "forge", "path", "pulse", "sync", "stack", "track", "zone", "spark"],
+  // Legal combos
+  "legal": ["flow", "hub", "forge", "gate", "stack", "link", "wise", "guard", "sync", "path", "vault", "shield"],
+  "law": ["flow", "hub", "forge", "gate", "stack", "link", "wise", "guard", "sync", "path"],
 };
 
 export function getSemanticSynergyBonus(words: string[]): { bonus: number; reason: string } {
