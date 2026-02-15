@@ -1566,6 +1566,74 @@ const SEMANTIC_SYNERGY_PAIRS: Record<string, string[]> = {
   // Legal combos
   "legal": ["flow", "hub", "forge", "gate", "stack", "link", "wise", "guard", "sync", "path", "vault", "shield"],
   "law": ["flow", "hub", "forge", "gate", "stack", "link", "wise", "guard", "sync", "path"],
+  // Security/Cyber combos
+  "cyber": ["flow", "hub", "forge", "gate", "stack", "link", "guard", "sync", "shield", "vault", "lock", "pulse", "watch", "wall"],
+  "secure": ["flow", "hub", "forge", "gate", "stack", "link", "guard", "sync", "vault", "lock", "path", "zone", "shift"],
+  "guard": ["flow", "hub", "forge", "gate", "stack", "link", "vault", "sync", "shield", "lock", "watch", "wall", "zone"],
+  "shield": ["flow", "hub", "forge", "gate", "stack", "link", "guard", "sync", "vault", "lock", "cyber", "wall"],
+  "vault": ["flow", "hub", "forge", "gate", "stack", "link", "guard", "sync", "lock", "safe", "key", "core"],
+  // AI/ML combos
+  "neural": ["flow", "hub", "forge", "link", "sync", "pulse", "stack", "spark", "shift", "path", "labs", "code"],
+  "vector": ["flow", "hub", "forge", "sync", "shift", "stack", "pulse", "labs", "code", "spark"],
+  "logic": ["flow", "hub", "forge", "gate", "sync", "stack", "spark", "shift", "path", "core"],
+  "pixel": ["flow", "hub", "forge", "sync", "shift", "stack", "spark", "craft", "labs", "pulse"],
+  "quantum": ["flow", "hub", "forge", "sync", "shift", "stack", "spark", "labs", "leap", "pulse", "core"],
+  "vision": ["flow", "hub", "forge", "sync", "shift", "stack", "spark", "labs", "pulse", "craft", "ai"],
+  // SaaS/Startup combos
+  "launch": ["flow", "hub", "pad", "forge", "stack", "path", "gate", "shift", "spark", "sync"],
+  "scale": ["flow", "hub", "forge", "stack", "shift", "path", "gate", "sync", "spark", "grid"],
+  "venture": ["flow", "hub", "forge", "stack", "shift", "path", "gate", "sync", "spark", "labs"],
+  "pivot": ["flow", "hub", "forge", "stack", "shift", "path", "sync", "spark"],
+  "sprint": ["flow", "hub", "forge", "stack", "shift", "path", "sync", "spark"],
+  "agile": ["flow", "hub", "forge", "stack", "shift", "path", "sync", "spark"],
+  // Logistics/Supply chain combos
+  "ship": ["flow", "hub", "forge", "gate", "stack", "sync", "track", "pulse", "link", "fast", "wise", "guard"],
+  "cargo": ["flow", "hub", "forge", "gate", "stack", "sync", "track", "pulse", "link", "shift"],
+  "freight": ["flow", "hub", "forge", "gate", "stack", "sync", "track", "pulse", "link", "shift"],
+  "fleet": ["flow", "hub", "forge", "gate", "stack", "sync", "track", "pulse", "guard", "wise"],
+  "route": ["flow", "hub", "forge", "gate", "sync", "track", "pulse", "link", "wise", "shift", "match"],
+  "supply": ["flow", "hub", "forge", "gate", "stack", "sync", "chain", "link", "track", "pulse", "shift"],
+  // Marketing/Sales combos
+  "brand": ["flow", "hub", "forge", "gate", "stack", "sync", "spark", "pulse", "shift", "craft", "wise", "boost"],
+  "lead": ["flow", "hub", "forge", "gate", "stack", "sync", "spark", "pulse", "shift", "gen", "match"],
+  "sales": ["flow", "hub", "forge", "gate", "stack", "sync", "spark", "pulse", "shift", "boost", "track"],
+  "market": ["flow", "hub", "forge", "gate", "stack", "sync", "spark", "pulse", "shift", "wise", "scout"],
+  "advert": ["flow", "hub", "forge", "sync", "spark", "pulse", "shift", "boost", "stack"],
+  "promo": ["flow", "hub", "forge", "sync", "spark", "pulse", "shift", "boost", "stack"],
+  // HR/Talent combos
+  "hire": ["flow", "hub", "forge", "gate", "sync", "spark", "match", "pulse", "shift", "wise", "scout", "path"],
+  "talent": ["flow", "hub", "forge", "gate", "sync", "spark", "match", "pulse", "shift", "scout", "path", "stack"],
+  "recruit": ["flow", "hub", "forge", "gate", "sync", "match", "pulse", "shift", "wise", "scout"],
+  "career": ["flow", "hub", "forge", "gate", "sync", "spark", "path", "pulse", "shift", "wise", "scout", "match"],
+  "staff": ["flow", "hub", "forge", "gate", "sync", "match", "pulse", "shift", "wise", "stack"],
+  // Insurance combos
+  "insure": ["flow", "hub", "forge", "gate", "sync", "guard", "pulse", "shift", "wise", "shield", "path", "stack"],
+  "risk": ["flow", "hub", "forge", "gate", "sync", "guard", "pulse", "shift", "wise", "shield", "stack", "watch"],
+  "cover": ["flow", "hub", "forge", "gate", "sync", "guard", "pulse", "shift", "wise", "shield", "stack"],
+  "claim": ["flow", "hub", "forge", "gate", "sync", "guard", "pulse", "shift", "wise", "stack", "track"],
+  // Auto/EV combos
+  "auto": ["flow", "hub", "forge", "gate", "sync", "pulse", "shift", "stack", "track", "wise", "guard", "spark"],
+  "drive": ["flow", "hub", "forge", "gate", "sync", "pulse", "shift", "stack", "wise", "spark", "path"],
+  "motor": ["flow", "hub", "forge", "gate", "sync", "pulse", "shift", "stack", "wise", "spark"],
+  "charge": ["flow", "hub", "forge", "gate", "sync", "pulse", "shift", "stack", "point", "grid", "bolt"],
+  "volt": ["flow", "hub", "forge", "gate", "sync", "pulse", "shift", "stack", "spark", "grid"],
+  // Gaming/Entertainment combos
+  "game": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "craft", "zone", "quest"],
+  "play": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "craft", "zone"],
+  "quest": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "path", "craft"],
+  "arena": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift"],
+  "stream": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "cast", "wave"],
+  // Social/Community combos
+  "social": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "link", "mesh", "hive"],
+  "connect": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "link", "mesh"],
+  "tribe": ["flow", "hub", "forge", "sync", "pulse", "spark", "shift", "link", "hive"],
+  "crowd": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "fund", "source"],
+  "chat": ["flow", "hub", "forge", "gate", "sync", "pulse", "stack", "spark", "shift", "bolt"],
+  "hive": ["flow", "hub", "forge", "sync", "pulse", "stack", "spark", "shift", "mind", "link"],
+  // Pet/Vet combos
+  "pet": ["flow", "hub", "forge", "sync", "pulse", "path", "care", "wise", "match", "guard", "nest"],
+  "vet": ["flow", "hub", "forge", "sync", "pulse", "path", "care", "wise", "guard", "stack"],
+  "paw": ["flow", "hub", "forge", "sync", "pulse", "path", "scout", "match", "wise"],
 };
 
 export function getSemanticSynergyBonus(words: string[]): { bonus: number; reason: string } {
