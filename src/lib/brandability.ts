@@ -64,25 +64,36 @@ function dictionaryCoverage(name: string): number {
     const PREMIUM_SHORT_SET = new Set(["ai", "io", "go", "no", "do", "up", "we", "be", "he", "me", "my", "ok", "ox", "ax"]);
     return PREMIUM_SHORT_SET.has(lower) ? 1.0 : 0;
   }
-  let coveredChars = 0;
-  let i = 0;
-  while (i < lower.length) {
-    let best = 0;
-    for (let len = Math.min(lower.length - i, 15); len >= 2; len--) {
-      const slice = lower.slice(i, i + len);
-      if (isKnownWord(slice)) {
-        best = len;
-        break;
+
+  // DP-based coverage (non-overlapping)
+  const n = lower.length;
+  const dp = new Array(n + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    dp[i] = dp[i - 1];
+    for (let len = 2; len <= Math.min(i, 15); len++) {
+      const start = i - len;
+      const candidate = lower.substring(start, i);
+      if (isKnownWord(candidate)) {
+        dp[i] = Math.max(dp[i], dp[start] + len);
       }
     }
-    if (best >= 2) {
-      coveredChars += best;
-      i += best;
-    } else {
-      i++;
+  }
+  let coveredChars = dp[n];
+
+  // Portmanteau boost: check overlapping splits for better coverage
+  if (coveredChars < n) {
+    for (let i = 2; i < n - 1; i++) {
+      for (let overlap = 1; overlap <= Math.min(4, i, n - i); overlap++) {
+        const left = lower.substring(0, i + overlap);
+        const right = lower.substring(i);
+        if (isKnownWord(left) && isKnownWord(right)) {
+          coveredChars = Math.max(coveredChars, n); // full coverage via portmanteau
+        }
+      }
     }
   }
-  return coveredChars / lower.length;
+
+  return coveredChars / n;
 }
 
 /**
