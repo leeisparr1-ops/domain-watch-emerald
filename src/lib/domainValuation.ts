@@ -16,6 +16,16 @@ export const PREMIUM_KEYWORDS = new Set([
   // Top recurring aftermarket keywords
   "group", "solutions", "services", "homes", "global", "company", "business", "pro",
   "lawyer", "life", "real", "best", "my", "go", "new", "club",
+  // Expanded premium keywords for broader niche coverage
+  "bio", "gene", "med", "care", "clinic", "skin", "beauty", "pet", "vet", "insure",
+  "insurance", "iot", "sensor", "vr", "ar", "virtual", "metaverse", "rocket", "launch",
+  "cannabis", "cbd", "hemp", "glow", "fashion", "style", "wear", "recipe", "chef",
+  "coach", "mentor", "tutor", "course", "academy", "learn", "talent", "hire", "recruit",
+  "secure", "guard", "shield", "vault", "protect", "defense", "threat", "breach",
+  "ev", "fleet", "charge", "battery", "power", "energy", "clean", "sustain",
+  "fund", "wealth", "capital", "equity", "invest", "profit", "revenue",
+  "platform", "api", "deploy", "pipeline", "infra", "dev", "ops",
+  "stream", "content", "media", "podcast", "creator", "influencer",
 ]);
 
 export const PENALTY_KEYWORDS = new Set([
@@ -1057,6 +1067,30 @@ export const TRENDING_KEYWORDS: Record<string, number> = {
   "car": 1.4, "my": 1.3, "best": 1.3, "go": 1.3, "new": 1.3,
   // 2026 hot keywords
   "claw": 1.4, "clean": 1.3, "beauty": 1.4, "fire": 1.3,
+  // Biotech & life science
+  "bio": 1.7, "gene": 1.6, "genome": 1.5, "dna": 1.5, "protein": 1.4, "vaccine": 1.4,
+  "stem": 1.3, "therapeutic": 1.4, "clinical": 1.3, "antibody": 1.4,
+  // Beauty & fashion
+  "skin": 1.4, "glow": 1.4, "lash": 1.3, "serum": 1.3, "cosmetic": 1.3,
+  "fashion": 1.4, "style": 1.3, "wear": 1.3, "boutique": 1.3,
+  // Pet industry
+  "pet": 1.5, "dog": 1.4, "cat": 1.3, "vet": 1.4, "paw": 1.3, "puppy": 1.3,
+  // Insurance
+  "insurance": 1.5, "coverage": 1.3, "premium": 1.3,
+  // IoT / Smart home
+  "iot": 1.5, "sensor": 1.4, "wearable": 1.4,
+  // Space & aerospace
+  "rocket": 1.5, "satellite": 1.4, "lunar": 1.3, "mars": 1.4, "aerospace": 1.3,
+  // VR/AR/Metaverse
+  "vr": 1.4, "ar": 1.3, "metaverse": 1.3, "virtual": 1.3, "immersive": 1.3, "spatial": 1.4,
+  // Cannabis/CBD
+  "cbd": 1.3, "cannabis": 1.3, "hemp": 1.3,
+  // Content & creator economy
+  "creator": 1.5, "influencer": 1.4, "podcast": 1.4, "content": 1.3, "newsletter": 1.3,
+  // Additional trending compound terms
+  "copilot": 1.6, "chatbot": 1.5, "genai": 1.6, "llm": 1.5,
+  "ev": 1.5, "charging": 1.4, "fleet": 1.3,
+  "remote": 1.3, "freelance": 1.3, "gig": 1.3,
 };
 
 // ─── NICHE CATEGORIES with current market multipliers ───
@@ -1071,91 +1105,145 @@ export interface NicheDetection {
 export const NICHE_CATEGORIES: Record<string, { label: string; keywords: string[]; multiplier: number; heat: "hot" | "warm" | "stable" | "cooling" }> = {
   ai_tech: {
     label: "AI / Tech",
-    keywords: ["ai", "gpt", "neural", "machine", "deep", "learn", "robot", "auto", "smart", "quantum", "intel", "agent", "agentic", "synthetic", "cognitive", "algorithm", "compute"],
+    keywords: ["ai", "gpt", "neural", "machine", "deep", "learn", "robot", "auto", "smart", "quantum", "intel", "agent", "agentic", "synthetic", "cognitive", "algorithm", "compute", "llm", "model", "vision", "prompt", "copilot", "chatbot", "genai"],
     multiplier: 1.55,
     heat: "hot",
   },
   fintech: {
     label: "Finance / Fintech",
-    keywords: ["pay", "bank", "cash", "loan", "credit", "finance", "trade", "invest", "wallet", "fintech", "money", "fund", "wealth", "capital", "equity", "profit", "defi", "token"],
+    keywords: ["pay", "bank", "cash", "loan", "credit", "finance", "trade", "invest", "wallet", "fintech", "money", "fund", "wealth", "capital", "equity", "profit", "defi", "token", "ledger", "audit", "fiscal", "revenue", "treasury", "dividend", "stock", "bond", "forex", "payment", "banking", "lending"],
     multiplier: 1.40,
     heat: "hot",
   },
   health: {
     label: "Health / Wellness",
-    keywords: ["health", "med", "fit", "care", "dental", "clinic", "therapy", "mental", "wellness", "organic", "nutrition", "vitamin", "supplement", "telehealth"],
+    keywords: ["health", "med", "fit", "care", "dental", "clinic", "therapy", "mental", "wellness", "organic", "nutrition", "vitamin", "supplement", "telehealth", "pharma", "patient", "doctor", "nurse", "hospital", "diagnosis", "symptom", "treatment", "recovery", "rehab", "mindful", "yoga", "meditate"],
     multiplier: 1.35,
     heat: "warm",
   },
+  biotech: {
+    label: "Biotech / Life Science",
+    keywords: ["bio", "biotech", "gene", "genome", "dna", "rna", "protein", "cell", "stem", "enzyme", "peptide", "antibody", "vaccine", "clinical", "trial", "molecular", "pathology", "oncology", "neuro", "immuno", "therapeutic", "diagnostic", "lab", "research", "science", "specimen"],
+    multiplier: 1.45,
+    heat: "hot",
+  },
   ecommerce: {
     label: "E-Commerce",
-    keywords: ["shop", "store", "buy", "sell", "deal", "sale", "market", "retail", "commerce", "cart", "order", "wholesale"],
+    keywords: ["shop", "store", "buy", "sell", "deal", "sale", "market", "retail", "commerce", "cart", "order", "wholesale", "merchant", "checkout", "fulfillment", "inventory", "dropship", "marketplace", "vendor", "product", "catalog"],
     multiplier: 1.30,
     heat: "warm",
   },
   saas: {
     label: "SaaS / Cloud",
-    keywords: ["cloud", "tech", "code", "data", "app", "web", "server", "host", "stack", "saas", "api", "dev", "cyber", "digital", "platform", "software", "system"],
+    keywords: ["cloud", "tech", "code", "data", "app", "web", "server", "host", "stack", "saas", "api", "dev", "cyber", "digital", "platform", "software", "system", "deploy", "devops", "infra", "pipeline", "microservice", "container", "kubernetes", "terraform", "backend", "frontend", "fullstack"],
     multiplier: 1.35,
     heat: "warm",
   },
   real_estate: {
     label: "Real Estate",
-    keywords: ["home", "homes", "house", "land", "estate", "rent", "property", "build", "room", "space", "real", "mortgage", "apartment", "condo"],
+    keywords: ["home", "homes", "house", "land", "estate", "rent", "property", "build", "room", "space", "real", "mortgage", "apartment", "condo", "lease", "tenant", "landlord", "realty", "housing", "dwelling", "townhouse", "penthouse", "listing", "broker", "appraisal"],
     multiplier: 1.30,
     heat: "stable",
   },
   energy: {
     label: "Energy / Green",
-    keywords: ["solar", "green", "energy", "power", "electric", "carbon", "climate", "eco", "renewable", "hydrogen"],
+    keywords: ["solar", "green", "energy", "power", "electric", "carbon", "climate", "eco", "renewable", "hydrogen", "wind", "battery", "grid", "volt", "watt", "charge", "clean", "sustain", "emission", "thermal", "biofuel", "geothermal"],
     multiplier: 1.25,
     heat: "warm",
   },
   travel: {
     label: "Travel / Lifestyle",
-    keywords: ["travel", "hotel", "flight", "trip", "tour", "cruise", "food", "chef", "wine", "luxury", "life", "vacation", "resort"],
+    keywords: ["travel", "hotel", "flight", "trip", "tour", "cruise", "food", "chef", "wine", "luxury", "life", "vacation", "resort", "booking", "passport", "destination", "adventure", "hostel", "airline", "itinerary", "getaway", "explorer"],
     multiplier: 1.20,
     heat: "stable",
   },
   security: {
     label: "Cybersecurity",
-    keywords: ["secure", "guard", "shield", "vault", "safe", "protect", "defense", "lock", "cyber", "firewall", "encryption"],
+    keywords: ["secure", "guard", "shield", "vault", "safe", "protect", "defense", "lock", "cyber", "firewall", "encryption", "threat", "breach", "phishing", "malware", "antivirus", "sentinel", "compliance", "identity", "access", "zero", "trust", "siem", "pentest"],
     multiplier: 1.35,
     heat: "hot",
   },
   gaming: {
     label: "Gaming / Entertainment",
-    keywords: ["game", "play", "stream", "video", "music", "sport", "bet", "club", "esport", "casino"],
+    keywords: ["game", "play", "stream", "video", "music", "sport", "bet", "club", "esport", "casino", "arcade", "quest", "level", "guild", "arena", "twitch", "gamer", "console", "pixel", "loot", "pvp", "mmo", "rpg"],
     multiplier: 1.25,
     heat: "stable",
   },
   jobs: {
     label: "Jobs / HR",
-    keywords: ["jobs", "hire", "work", "career", "talent", "recruit", "staff", "team", "employer"],
+    keywords: ["jobs", "hire", "work", "career", "talent", "recruit", "staff", "team", "employer", "resume", "payroll", "workforce", "remote", "freelance", "gig", "interview", "onboard", "applicant", "headhunt"],
     multiplier: 1.20,
     heat: "stable",
   },
   education: {
     label: "Education",
-    keywords: ["school", "course", "tutor", "academy", "learn", "study", "university", "teach", "training", "education"],
+    keywords: ["school", "course", "tutor", "academy", "learn", "study", "university", "teach", "training", "education", "campus", "student", "degree", "diploma", "lecture", "syllabus", "homework", "exam", "scholarship", "mentor", "bootcamp", "mooc"],
     multiplier: 1.15,
     heat: "cooling",
   },
   legal: {
-    label: "Legal / Insurance",
-    keywords: ["legal", "law", "lawyer", "insure", "claim", "policy", "attorney", "court", "litigation"],
+    label: "Legal",
+    keywords: ["legal", "law", "lawyer", "claim", "attorney", "court", "litigation", "contract", "counsel", "judge", "verdict", "arbitration", "compliance", "statute", "patent", "trademark", "copyright", "paralegal", "deposition", "lawsuit"],
     multiplier: 1.30,
     heat: "stable",
   },
+  insurance: {
+    label: "Insurance",
+    keywords: ["insure", "insurance", "policy", "premium", "coverage", "underwrite", "actuary", "claim", "annuity", "liability", "indemnity", "broker", "reinsure", "deductible", "beneficiary", "casualty", "risk"],
+    multiplier: 1.35,
+    heat: "warm",
+  },
   automotive: {
     label: "Automotive",
-    keywords: ["car", "auto", "vehicle", "motor", "drive", "electric", "ev", "truck", "dealer"],
+    keywords: ["car", "auto", "vehicle", "motor", "drive", "electric", "ev", "truck", "dealer", "fleet", "hybrid", "sedan", "suv", "garage", "mechanic", "tire", "engine", "fuel", "racing", "tesla", "charging"],
     multiplier: 1.20,
     heat: "stable",
   },
   crypto: {
     label: "Crypto / Web3",
-    keywords: ["crypto", "blockchain", "token", "defi", "nft", "web3", "dao", "chain", "coin", "mining"],
+    keywords: ["crypto", "blockchain", "token", "defi", "nft", "web3", "dao", "chain", "coin", "mining", "staking", "swap", "dex", "ledger", "hash", "node", "validator", "wallet", "satoshi", "ethereum", "solana", "layer"],
+    multiplier: 1.15,
+    heat: "cooling",
+  },
+  beauty: {
+    label: "Beauty / Fashion",
+    keywords: ["beauty", "skin", "hair", "makeup", "cosmetic", "glow", "lash", "nail", "serum", "cream", "fashion", "style", "wear", "cloth", "apparel", "boutique", "designer", "couture", "trend", "glamour", "skincare", "haircare"],
+    multiplier: 1.25,
+    heat: "warm",
+  },
+  food: {
+    label: "Food / Restaurant",
+    keywords: ["food", "eat", "meal", "recipe", "cook", "chef", "kitchen", "restaurant", "cafe", "bistro", "bakery", "grill", "pizza", "sushi", "burger", "vegan", "organic", "snack", "catering", "delivery", "dine", "menu", "brunch"],
+    multiplier: 1.20,
+    heat: "stable",
+  },
+  pet: {
+    label: "Pet / Animal",
+    keywords: ["pet", "dog", "cat", "puppy", "kitten", "vet", "paw", "bark", "fur", "breed", "groom", "kennel", "animal", "shelter", "rescue", "leash", "treat", "collar", "fetch", "aquarium", "bird", "horse"],
+    multiplier: 1.20,
+    heat: "warm",
+  },
+  iot: {
+    label: "IoT / Smart Home",
+    keywords: ["iot", "sensor", "device", "connect", "smart", "home", "mesh", "beacon", "wearable", "embedded", "gateway", "monitor", "automate", "thermostat", "remote", "wireless", "bluetooth", "zigbee"],
+    multiplier: 1.25,
+    heat: "warm",
+  },
+  space: {
+    label: "Space / Aerospace",
+    keywords: ["space", "rocket", "orbit", "satellite", "lunar", "mars", "astro", "cosmos", "launch", "payload", "mission", "galaxy", "star", "nova", "aerospace", "propulsion", "drone", "altitude"],
+    multiplier: 1.30,
+    heat: "warm",
+  },
+  vr_ar: {
+    label: "VR / AR / Metaverse",
+    keywords: ["vr", "ar", "virtual", "augmented", "reality", "metaverse", "immersive", "hologram", "avatar", "3d", "render", "simulation", "headset", "spatial", "mixed", "xr", "haptic", "portal"],
+    multiplier: 1.25,
+    heat: "warm",
+  },
+  cannabis: {
+    label: "Cannabis / CBD",
+    keywords: ["cannabis", "cbd", "hemp", "thc", "weed", "dispensary", "edible", "tincture", "extract", "indica", "sativa", "gummy", "vape", "420", "marijuana", "grower", "cultivate"],
     multiplier: 1.15,
     heat: "cooling",
   },
@@ -1170,9 +1258,22 @@ export function detectNiche(words: string[], tld: string): NicheDetection {
     const matches = words.filter(w => cat.keywords.includes(w));
     // TLD boost: .ai boosts ai_tech, etc.
     let score = matches.length;
+    // TLD synergy boosts
     if (tld === "ai" && key === "ai_tech") score += 1.5;
     if (tld === "io" && (key === "saas" || key === "ai_tech")) score += 0.5;
     if (tld === "finance" && key === "fintech") score += 1;
+    if (tld === "bio" && key === "biotech") score += 1.5;
+    if (tld === "health" && key === "health") score += 1;
+    if (tld === "law" && key === "legal") score += 1;
+    if (tld === "insurance" && key === "insurance") score += 1;
+    if (tld === "auto" && key === "automotive") score += 1;
+    if (tld === "pet" && key === "pet") score += 1;
+    if (tld === "beauty" && key === "beauty") score += 1;
+    if (tld === "food" && key === "food") score += 1;
+    if (tld === "space" && key === "space") score += 1;
+    if (tld === "game" && key === "gaming") score += 1;
+    if (tld === "dev" && (key === "saas" || key === "ai_tech")) score += 0.5;
+    if (tld === "app" && (key === "saas" || key === "ecommerce")) score += 0.5;
 
     if (score > bestScore) {
       bestScore = score;
@@ -1221,10 +1322,16 @@ export function computeTrendScore(words: string[], tld: string, nicheOverride?: 
   else if (niche.matchedKeywords.length > 0) score += 8;
 
   // TLD synergy bonus (0-15)
-  if (tld === "ai" && niche.niche === "ai_tech") score += 15;
-  else if (tld === "io" && (niche.niche === "saas" || niche.niche === "ai_tech")) score += 10;
+  const tldNicheMap: Record<string, string[]> = {
+    ai: ["ai_tech"], io: ["saas", "ai_tech"], bio: ["biotech"], health: ["health"],
+    law: ["legal"], auto: ["automotive"], pet: ["pet"], beauty: ["beauty"],
+    food: ["food"], space: ["space"], game: ["gaming"], dev: ["saas", "ai_tech"],
+    app: ["saas", "ecommerce"], finance: ["fintech"],
+  };
+  const synergies = tldNicheMap[tld];
+  if (synergies && synergies.includes(niche.niche)) score += 15;
   else if (tld === "com") score += 8;
-  else if (["co", "app", "dev", "net"].includes(tld)) score += 5;
+  else if (["co", "app", "dev", "net", "io"].includes(tld)) score += 5;
 
   score = Math.min(100, Math.max(0, score));
 
