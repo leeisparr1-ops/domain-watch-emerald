@@ -50,6 +50,9 @@ interface DomainData {
   tld: string;
   valuation?: number;
   inventorySource?: string;
+  brandabilityScore?: number | null;
+  pronounceabilityScore?: number | null;
+  trademarkRisk?: string | null;
 }
 
 interface DomainTableProps {
@@ -111,39 +114,46 @@ function getQuickScoreColor(score: number) {
   return "text-red-600 dark:text-red-400";
 }
 
-function MiniQuickStats({ domain }: { domain: string }) {
+function MiniQuickStats({ domain, precomputed }: { 
+  domain: string; 
+  precomputed?: { brandability?: number | null; pronounceability?: number | null; trademark?: string | null };
+}) {
   const stats = useMemo(() => {
-    const brand = scoreBrandability(domain);
-    const pronounce = scorePronounceability(domain);
-    const tm = checkTrademarkRisk(domain);
-    const tmDisplay = getTrademarkRiskDisplay(tm.riskLevel);
-    return { brand, pronounce, tm, tmDisplay };
-  }, [domain]);
+    // Use pre-computed scores from DB if available, otherwise fall back to client-side
+    const hasPrecomputed = precomputed?.brandability != null;
+    
+    const brandScore = hasPrecomputed ? precomputed.brandability! : scoreBrandability(domain).overall;
+    const pronounceScore = precomputed?.pronounceability != null ? precomputed.pronounceability : scorePronounceability(domain).score;
+    const tmRisk = (precomputed?.trademark || checkTrademarkRisk(domain).riskLevel) as "none" | "low" | "medium" | "high";
+    const tmDisplay = getTrademarkRiskDisplay(tmRisk);
+    
+    return { brandScore, pronounceScore, tmRisk, tmDisplay };
+  }, [domain, precomputed?.brandability, precomputed?.pronounceability, precomputed?.trademark]);
 
   return (
     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.brand.overall))}>
-            <Award className="w-2.5 h-2.5" />{stats.brand.overall}
+          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.brandScore))}>
+            <Award className="w-2.5 h-2.5" />{stats.brandScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Brandability: {stats.brand.overall}/100 ({stats.brand.grade})</p></TooltipContent>
+        <TooltipContent side="bottom"><p>Brandability: {stats.brandScore}/100</p></TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.pronounce.score))}>
-            <Mic className="w-2.5 h-2.5" />{stats.pronounce.score}
+          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.pronounceScore))}>
+            <Mic className="w-2.5 h-2.5" />{stats.pronounceScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Pronounceability: {stats.pronounce.score}/100 ({stats.pronounce.grade})</p></TooltipContent>
+        <TooltipContent side="bottom"><p>Pronounceability: {stats.pronounceScore}/100</p></TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
           <span className={cn(
             "text-[10px] font-medium flex items-center gap-0.5",
-            stats.tm.riskLevel === "none" ? "text-emerald-600 dark:text-emerald-400" :
-            stats.tm.riskLevel === "low" ? "text-amber-600 dark:text-amber-400" :
+            stats.tmRisk === "none" ? "text-emerald-600 dark:text-emerald-400" :
+            stats.tmRisk === "low" ? "text-amber-600 dark:text-amber-400" :
             "text-red-600 dark:text-red-400"
           )}>
             <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
@@ -291,7 +301,14 @@ export function DomainTable({
                               {d.auctionType || 'Bid'}
                             </span>
                           </div>
-                          <MiniQuickStats domain={d.domain} />
+                          <MiniQuickStats 
+                            domain={d.domain} 
+                            precomputed={{
+                              brandability: d.brandabilityScore,
+                              pronounceability: d.pronounceabilityScore,
+                              trademark: d.trademarkRisk,
+                            }}
+                          />
                         </div>
                       </div>
                     </TableCell>

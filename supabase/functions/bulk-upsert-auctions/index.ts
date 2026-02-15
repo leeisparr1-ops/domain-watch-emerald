@@ -119,6 +119,22 @@ Deno.serve(async (req) => {
 
     console.log(`Upserted ${inserted} auctions, ${errors} batch errors`);
 
+    // Fire-and-forget: trigger score computation for newly upserted domains
+    try {
+      const domainNames = auctions.map(a => a.domain_name);
+      const scoreUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/compute-domain-scores`;
+      fetch(scoreUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-sync-secret": expectedSecret,
+        },
+        body: JSON.stringify({ mode: "batch", domain_names: domainNames }),
+      }).catch(e => console.error("Score trigger failed:", e));
+    } catch (e) {
+      console.error("Score trigger error:", e);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
