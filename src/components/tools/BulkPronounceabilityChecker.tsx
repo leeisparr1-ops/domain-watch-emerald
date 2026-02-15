@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award } from "lucide-react";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
+import { scoreBrandability } from "@/lib/brandability";
 import {
   Tooltip,
   TooltipContent,
@@ -21,45 +22,68 @@ interface BulkResult {
   valuationBand: string;
   valuationScore: number;
   syllables: number;
+  brandabilityScore: number;
 }
 
 export function BulkPronounceabilityChecker() {
   const [text, setText] = useState("");
   const [results, setResults] = useState<BulkResult[]>([]);
-  const [sortField, setSortField] = useState<"score" | "valuation">("score");
+  const [sortField, setSortField] = useState<"score" | "valuation" | "brand">("score");
   const [sortAsc, setSortAsc] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCheck = () => {
-    const domains = text
+  const parseDomains = (raw: string) =>
+    raw
       .split(/[\n,;]+/)
       .map((d) => d.trim().replace(/\s+/g, "").toLowerCase())
       .filter((d) => d.length >= 2 && /^[a-z0-9.-]+$/.test(d))
       .slice(0, 50);
 
-    if (!domains.length) return;
-
+  const scoreDomains = (domains: string[]) => {
     const scored = domains.map((domain) => {
       const result = scorePronounceability(domain);
       const trademark = checkTrademarkRisk(domain);
       const val = quickValuation(domain, result.score);
       const syllables = countSyllables(domain.split(".")[0]);
-      return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score, syllables };
+      const brandabilityScore = scoreBrandability(domain).overall;
+      return { domain, result, trademark, valuationBand: val.band, valuationScore: val.score, syllables, brandabilityScore };
     });
-
     scored.sort((a, b) => b.result.score - a.result.score);
     setResults(scored);
     setSortAsc(false);
     setSortField("score");
   };
 
-  const toggleSort = (field: "score" | "valuation") => {
+  const handleCheck = () => {
+    const domains = parseDomains(text);
+    if (!domains.length) return;
+    scoreDomains(domains);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      const domains = parseDomains(content);
+      if (domains.length) {
+        setText(domains.join("\n"));
+        scoreDomains(domains);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const toggleSort = (field: "score" | "valuation" | "brand") => {
     if (sortField === field) {
       setResults((prev) => [...prev].reverse());
       setSortAsc(!sortAsc);
     } else {
       setSortField(field);
       const sorted = [...results].sort((a, b) => 
-        field === "score" ? b.result.score - a.result.score : b.valuationScore - a.valuationScore
+        field === "score" ? b.result.score - a.result.score : field === "brand" ? b.brandabilityScore - a.brandabilityScore : b.valuationScore - a.valuationScore
       );
       setResults(sorted);
       setSortAsc(false);
@@ -83,7 +107,7 @@ export function BulkPronounceabilityChecker() {
           Bulk Domain Analyzer
         </CardTitle>
         <CardDescription>
-          Paste up to 50 domain names and get pronounceability, estimated value, and trademark risk for each — perfect for portfolio analysis.
+          Paste up to 50 domains or upload a CSV/TXT file. Get pronounceability, brandability, estimated value, and trademark risk for each — perfect for portfolio analysis.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -93,10 +117,23 @@ export function BulkPronounceabilityChecker() {
           onChange={(e) => setText(e.target.value)}
           rows={5}
         />
-        <Button onClick={handleCheck} disabled={!text.trim()} className="w-full">
-          <List className="w-4 h-4 mr-2" />
-          Analyze All ({Math.min(50, text.split(/[\n,;]+/).filter(s => s.trim().replace(/\s+/g, "")).length)} domains)
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handleCheck} disabled={!text.trim()} className="flex-1">
+            <List className="w-4 h-4 mr-2" />
+            Analyze All ({Math.min(50, text.split(/[\n,;]+/).filter(s => s.trim().replace(/\s+/g, "")).length)} domains)
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt,.text"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Upload</span>
+          </Button>
+        </div>
 
         {results.length > 0 && (
           <div className="animate-fade-in">
@@ -113,6 +150,11 @@ export function BulkPronounceabilityChecker() {
                       </span>
                     </TableHead>
                     <TableHead className="text-center">Grade</TableHead>
+                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("brand")}>
+                      <span className="inline-flex items-center gap-1">
+                        Brand <ArrowUpDown className="w-3 h-3" />
+                      </span>
+                    </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
                       <span className="inline-flex items-center gap-1">
                         Est. Value <ArrowUpDown className="w-3 h-3" />
@@ -134,6 +176,11 @@ export function BulkPronounceabilityChecker() {
                           <Badge className={`text-xs ${gradeColor(r.result.grade)}`}>
                             {r.result.grade}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`text-sm font-semibold ${r.brandabilityScore >= 70 ? "text-emerald-600 dark:text-emerald-400" : r.brandabilityScore >= 50 ? "text-blue-600 dark:text-blue-400" : r.brandabilityScore >= 30 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                            {r.brandabilityScore}
+                          </span>
                         </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}

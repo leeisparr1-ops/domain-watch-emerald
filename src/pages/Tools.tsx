@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Sparkles, DollarSign, List, Globe2, Award, ExternalLink } from "lucide-react";
+import { Mic, Sparkles, DollarSign, List, Globe2, Award, ExternalLink, BrainCircuit } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
@@ -12,6 +12,7 @@ import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabi
 import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
 import { DomainReportCard } from "@/components/tools/DomainReportCard";
+import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
 
 const Tools = () => {
   return (
@@ -51,8 +52,13 @@ const Tools = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="brandability" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 mb-6 h-auto">
+            <Tabs defaultValue="advisor" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 mb-6 h-auto">
+                <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <BrainCircuit className="w-4 h-4" />
+                  <span className="hidden sm:inline">AI Advisor</span>
+                  <span className="sm:hidden">Advisor</span>
+                </TabsTrigger>
                 <TabsTrigger value="brandability" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Award className="w-4 h-4" />
                   <span className="hidden sm:inline">Brandability</span>
@@ -85,6 +91,9 @@ const Tools = () => {
                 </TabsTrigger>
               </TabsList>
 
+              <TabsContent value="advisor">
+                <AIDomainAdvisor />
+              </TabsContent>
               <TabsContent value="brandability">
                 <div className="flex justify-end mb-2">
                   <Link to="/tools/brandability-score" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">

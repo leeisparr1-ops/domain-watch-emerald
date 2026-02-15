@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.compute-domain-scores]
 verify_jwt = false
+
+[functions.ai-domain-advisor]
+verify_jwt = true
