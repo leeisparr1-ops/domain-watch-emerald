@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Search, Smartphone, Shield, Globe, Zap, Mail } from "lucide-react";
 
 const features = [
@@ -33,9 +34,9 @@ const features = [
   },
 ];
 
-export function Features() {
+export const Features = forwardRef<HTMLElement>(function Features(_, ref) {
   return (
-    <section className="py-20">
+    <section ref={ref} className="py-20">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -70,4 +71,4 @@ export function Features() {
       </div>
     </section>
   );
-}
+});
