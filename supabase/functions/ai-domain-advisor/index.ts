@@ -48,6 +48,8 @@ serve(async (req) => {
       if (scores.trendScore !== undefined) parts.push(`Trend Score: ${scores.trendScore}/100 (${scores.trendLabel || ""})`);
       if (scores.niche) parts.push(`Detected Niche: ${scores.niche}`);
       if (scores.trademarkRisk) parts.push(`Trademark Risk: ${scores.trademarkRisk}`);
+      if (scores.seoVolume !== undefined) parts.push(`Est. Monthly Search Volume: ~${scores.seoVolume.toLocaleString()} (${scores.seoVolumeLabel || ""})`);
+      if (scores.domainAgeLabel) parts.push(`Domain Age: ${scores.domainAgeLabel}`);
       if (scores.comparableSales?.length > 0) {
         parts.push("Comparable Recent Sales:");
         for (const sale of scores.comparableSales.slice(0, 4)) {

@@ -11,6 +11,8 @@ import { scorePronounceability } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { quickValuation } from "@/lib/domainValuation";
+import { estimateSEOVolume } from "@/lib/seoVolume";
+import { scoreDomainAge } from "@/lib/domainAge";
 
 interface Analysis {
   verdict: string;
@@ -35,6 +37,9 @@ interface PreScores {
   trendLabel: string | undefined;
   niche: string;
   trademarkRisk: string;
+  seoVolume: number;
+  seoVolumeLabel: string;
+  domainAgeLabel: string;
   comparableSales: { domain: string; price: string; date: string; pattern: string }[];
 }
 
@@ -71,6 +76,8 @@ export function AIDomainAdvisor() {
       const trademark = checkTrademarkRisk(domainWithTld);
       const demand = scoreKeywordDemand(domainWithTld);
       const val = quickValuation(domainWithTld, pronounce.score);
+      const seo = estimateSEOVolume(domainWithTld);
+      const age = scoreDomainAge(null);
 
       const scores: PreScores = {
         brandability: brand.overall,
@@ -82,6 +89,9 @@ export function AIDomainAdvisor() {
         trendLabel: undefined,
         niche: demand.niche.label,
         trademarkRisk: getTrademarkRiskDisplay(trademark.riskLevel).label,
+        seoVolume: seo.estimatedMonthlySearches,
+        seoVolumeLabel: seo.volumeLabel,
+        domainAgeLabel: age.ageLabel,
         comparableSales: [],
       };
       setPreScores(scores);
