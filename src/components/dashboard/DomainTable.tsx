@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useMemo } from "react";
 import { 
   ExternalLink, 
   Clock, 
@@ -9,7 +10,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ChevronRight
+  ChevronRight,
+  Award,
+  Mic,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +34,9 @@ import {
 import { useFavorites } from "@/hooks/useFavorites";
 import { SpamRiskBadge } from "./SpamRiskBadge";
 import { cn } from "@/lib/utils";
+import { scoreBrandability } from "@/lib/brandability";
+import { scorePronounceability } from "@/lib/pronounceability";
+import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
 
 interface DomainData {
   id: string;
@@ -96,6 +103,57 @@ function getValueIndicator(price: number, valuation?: number) {
 }
 
 type SortableColumn = "domain_name" | "price" | "end_time" | "bid_count" | "domain_age" | "valuation";
+
+function getQuickScoreColor(score: number) {
+  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (score >= 60) return "text-blue-600 dark:text-blue-400";
+  if (score >= 40) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function MiniQuickStats({ domain }: { domain: string }) {
+  const stats = useMemo(() => {
+    const brand = scoreBrandability(domain);
+    const pronounce = scorePronounceability(domain);
+    const tm = checkTrademarkRisk(domain);
+    const tmDisplay = getTrademarkRiskDisplay(tm.riskLevel);
+    return { brand, pronounce, tm, tmDisplay };
+  }, [domain]);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.brand.overall))}>
+            <Award className="w-2.5 h-2.5" />{stats.brand.overall}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom"><p>Brandability: {stats.brand.overall}/100 ({stats.brand.grade})</p></TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.pronounce.score))}>
+            <Mic className="w-2.5 h-2.5" />{stats.pronounce.score}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom"><p>Pronounceability: {stats.pronounce.score}/100 ({stats.pronounce.grade})</p></TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className={cn(
+            "text-[10px] font-medium flex items-center gap-0.5",
+            stats.tm.riskLevel === "none" ? "text-emerald-600 dark:text-emerald-400" :
+            stats.tm.riskLevel === "low" ? "text-amber-600 dark:text-amber-400" :
+            "text-red-600 dark:text-red-400"
+          )}>
+            <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom"><p>Trademark: {stats.tmDisplay.label}</p></TooltipContent>
+      </Tooltip>
+    </div>
+  );
+}
 
 const COLUMN_SORT_MAP: Record<SortableColumn, { asc: string; desc: string }> = {
   domain_name: { asc: "domain_name_asc", desc: "domain_name_desc" },
@@ -233,6 +291,7 @@ export function DomainTable({
                               {d.auctionType || 'Bid'}
                             </span>
                           </div>
+                          <MiniQuickStats domain={d.domain} />
                         </div>
                       </div>
                     </TableCell>
