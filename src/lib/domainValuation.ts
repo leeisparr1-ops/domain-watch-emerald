@@ -1634,6 +1634,25 @@ const SEMANTIC_SYNERGY_PAIRS: Record<string, string[]> = {
   "pet": ["flow", "hub", "forge", "sync", "pulse", "path", "care", "wise", "match", "guard", "nest"],
   "vet": ["flow", "hub", "forge", "sync", "pulse", "path", "care", "wise", "guard", "stack"],
   "paw": ["flow", "hub", "forge", "sync", "pulse", "path", "scout", "match", "wise"],
+  // Crypto/DeFi combos
+  "token": ["flow", "hub", "forge", "gate", "sync", "swap", "vault", "stack", "mint", "chain", "lock", "guard", "shift", "pulse", "launch"],
+  "swap": ["flow", "hub", "forge", "gate", "sync", "stack", "chain", "pulse", "shift", "vault", "lock", "bolt", "link"],
+  "yield": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "farm", "pulse", "shift", "boost", "guard"],
+  "stake": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "pool", "pulse", "shift", "guard", "lock"],
+  "mint": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "pulse", "shift", "spark", "labs", "craft"],
+  "defi": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "pulse", "shift", "guard", "labs", "chain"],
+  "coin": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "pulse", "shift", "swap", "base", "track"],
+  "crypto": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "pulse", "shift", "guard", "labs", "swap"],
+  "wallet": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "guard", "lock", "shift", "link"],
+  "ledger": ["flow", "hub", "forge", "gate", "sync", "stack", "vault", "guard", "lock", "link"],
+  // Web3/Metaverse combos
+  "meta": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "verse", "labs", "link", "spark", "craft"],
+  "dao": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "labs", "link", "fund", "vote"],
+  "nft": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "labs", "mint", "vault", "drop"],
+  "dapp": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "labs", "link", "craft"],
+  "web3": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "labs", "link", "spark"],
+  "block": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "chain", "mint", "craft", "labs"],
+  "hash": ["flow", "hub", "forge", "gate", "sync", "stack", "pulse", "shift", "labs", "link", "guard"],
 };
 
 export function getSemanticSynergyBonus(words: string[]): { bonus: number; reason: string } {
