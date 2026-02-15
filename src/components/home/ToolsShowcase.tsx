@@ -59,9 +59,13 @@ export function ToolsShowcase() {
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Powerful <span className="gradient-text">Domain Tools</span>
+            <span className="ml-3 inline-block align-middle text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">Beta</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Go beyond alerts. Analyze, generate, and value domains with tools built specifically for investors and flippers.
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-2">
+            🚧 All tools are currently in beta — features and results may change as we improve.
           </p>
         </div>
 

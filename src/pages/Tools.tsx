@@ -33,8 +33,11 @@ const Tools = () => {
                 Beta
               </Badge>
             </div>
-            <p className="text-muted-foreground mb-4">
+             <p className="text-muted-foreground mb-1">
               Analyze any domain instantly, or dive deep with individual tools below.
+            </p>
+            <p className="text-xs text-muted-foreground/70 mb-4">
+              🚧 All tools are in beta — results are estimates and may change as we improve.
             </p>
 
             {/* Unified Domain Report Card */}
