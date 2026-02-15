@@ -125,7 +125,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "SEO Volume", "SEO Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => [
       r.domain,
       r.result.score,

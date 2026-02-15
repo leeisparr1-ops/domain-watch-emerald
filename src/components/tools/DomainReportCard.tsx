@@ -167,7 +167,7 @@ export function DomainReportCard() {
       `📊 Brandability: ${report.brandability.overall}/100 (${report.brandability.grade})\n` +
       `🗣 Pronounceability: ${report.pronounceability.score}/100 (${report.pronounceability.grade})\n` +
       `🔥 Keyword Demand: ${report.keywordDemand.score}/100 (${report.keywordDemand.label})\n` +
-      `🔍 SEO Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo)\n` +
+      `🔍 Keyword Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo)\n` +
       `💰 Est. Value: ${report.valuation.band}\n` +
       `🛡 Trademark: ${getTrademarkRiskDisplay(report.trademark.riskLevel).label}\n` +
       `🌐 Availability: ${report.availability.status}\n` +
@@ -307,21 +307,6 @@ export function DomainReportCard() {
               </CardContent>
             </Card>
 
-            {/* SEO Volume — NEW */}
-            <Card className={`border ${getScoreBg(report.seoVolume.volumeScore)}`}>
-              <CardContent className="p-4 text-center space-y-1">
-                <BarChart3 className="w-5 h-5 mx-auto text-muted-foreground" />
-                <div className={`text-lg font-bold ${getScoreColor(report.seoVolume.volumeScore)}`}>
-                  {report.seoVolume.estimatedMonthlySearches >= 1000
-                    ? `${(report.seoVolume.estimatedMonthlySearches / 1000).toFixed(0)}K`
-                    : report.seoVolume.estimatedMonthlySearches}
-                </div>
-                <div className="text-xs text-muted-foreground">Est. Searches/mo</div>
-                <Badge variant="outline" className={`text-xs ${getScoreColor(report.seoVolume.volumeScore)}`}>
-                  {report.seoVolume.volumeLabel}
-                </Badge>
-              </CardContent>
-            </Card>
 
             {/* Valuation */}
             <Card className={`border ${getScoreBg(report.valuation.score)}`}>
