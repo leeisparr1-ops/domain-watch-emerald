@@ -57,6 +57,21 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+/** Strip markdown formatting so chat replies read as clean plain text. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/g, "")          // ### headings
+    .replace(/\*\*(.+?)\*\*/g, "$1")     // **bold**
+    .replace(/\*(.+?)\*/g, "$1")         // *italic*
+    .replace(/__(.+?)__/g, "$1")         // __bold__
+    .replace(/_(.+?)_/g, "$1")           // _italic_
+    .replace(/~~(.+?)~~/g, "$1")         // ~~strike~~
+    .replace(/`(.+?)`/g, "$1")           // `code`
+    .replace(/^\s*[-*+]\s+/gm, "• ")     // list bullets → •
+    .replace(/^\s*\d+\.\s+/gm, (m) => m) // keep numbered lists
+    .trim();
+}
+
 export function AIDomainAdvisor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -82,9 +97,14 @@ export function AIDomainAdvisor() {
     }
   }, [searchParams]);
 
-  // Auto-scroll chat
+  // Auto-scroll chat only when user sends a message (not on AI response)
+  const lastScrollTrigger = useRef<"user" | "assistant" | null>(null);
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatMessages.length === 0) return;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    if (lastMsg.role === "user") {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [chatMessages]);
 
   const handleAnalyze = async (overrideDomain?: string) => {
@@ -448,7 +468,7 @@ export function AIDomainAdvisor() {
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
                         }`}>
-                          {msg.content}
+                          {msg.role === "assistant" ? stripMarkdown(msg.content) : msg.content}
                         </div>
                       </div>
                     ))}

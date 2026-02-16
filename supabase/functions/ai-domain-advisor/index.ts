@@ -93,7 +93,7 @@ CRITICAL PRICING RULES:
 - Weaknesses: ${previousAnalysis.weaknesses?.join(", ")}`;
 
       const messages: { role: string; content: string }[] = [
-        { role: "system", content: systemPrompt + `\n\n${previousContext}${scoresContext}\n\nYou are now in a follow-up conversation about "${domain}". Answer the user's questions with specific, actionable advice. Be concise but thorough. Reference the analysis data when relevant.` },
+        { role: "system", content: systemPrompt + `\n\n${previousContext}${scoresContext}\n\nYou are now in a follow-up conversation about "${domain}". Answer the user's questions with specific, actionable advice. Be concise but thorough. Reference the analysis data when relevant.\n\nIMPORTANT FORMATTING RULE: Do NOT use any markdown formatting in your responses. No hashtags (###), no asterisks for bold (**text**), no underscores. Write in plain, clean text only. Use numbered lists (1. 2. 3.) when needed but never markdown syntax.` },
       ];
 
       // Add conversation history
