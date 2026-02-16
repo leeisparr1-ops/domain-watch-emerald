@@ -439,11 +439,11 @@ export function AIDomainAdvisor() {
 
               {/* Chat Messages */}
               {chatMessages.length > 0 && (
-                <ScrollArea className="max-h-64 p-4">
+                <div className="h-72 overflow-y-auto p-4 overscroll-contain touch-pan-y">
                   <div className="space-y-3">
                     {chatMessages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
+                        <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
                           msg.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
@@ -461,7 +461,7 @@ export function AIDomainAdvisor() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
-                </ScrollArea>
+                </div>
               )}
 
               {/* Suggested Questions */}
