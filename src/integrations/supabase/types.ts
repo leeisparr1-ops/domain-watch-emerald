@@ -220,6 +220,69 @@ export type Database = {
           },
         ]
       }
+      portfolio_domains: {
+        Row: {
+          auto_valuation: number | null
+          created_at: string
+          domain_name: string
+          id: string
+          next_renewal_date: string | null
+          notes: string | null
+          purchase_date: string | null
+          purchase_price: number
+          purchase_source: string | null
+          renewal_cost_yearly: number | null
+          sale_date: string | null
+          sale_price: number | null
+          status: string
+          tags: string[] | null
+          tld: string | null
+          updated_at: string
+          user_id: string
+          valuation_updated_at: string | null
+        }
+        Insert: {
+          auto_valuation?: number | null
+          created_at?: string
+          domain_name: string
+          id?: string
+          next_renewal_date?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number
+          purchase_source?: string | null
+          renewal_cost_yearly?: number | null
+          sale_date?: string | null
+          sale_price?: number | null
+          status?: string
+          tags?: string[] | null
+          tld?: string | null
+          updated_at?: string
+          user_id: string
+          valuation_updated_at?: string | null
+        }
+        Update: {
+          auto_valuation?: number | null
+          created_at?: string
+          domain_name?: string
+          id?: string
+          next_renewal_date?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number
+          purchase_source?: string | null
+          renewal_cost_yearly?: number | null
+          sale_date?: string | null
+          sale_price?: number | null
+          status?: string
+          tags?: string[] | null
+          tld?: string | null
+          updated_at?: string
+          user_id?: string
+          valuation_updated_at?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
