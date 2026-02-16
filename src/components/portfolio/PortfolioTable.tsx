@@ -1,11 +1,22 @@
 import { useState } from "react";
-import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PortfolioDomain } from "@/hooks/usePortfolio";
+import { differenceInDays, parseISO } from "date-fns";
+
+function renewalWarning(d: PortfolioDomain) {
+  if (!d.next_renewal_date || d.status === "sold") return null;
+  const days = differenceInDays(parseISO(d.next_renewal_date), new Date());
+  if (days < 0) return { level: "expired" as const, days, label: `Expired ${Math.abs(days)}d ago` };
+  if (days <= 7) return { level: "critical" as const, days, label: `Expires in ${days}d` };
+  if (days <= 30) return { level: "warning" as const, days, label: `Expires in ${days}d` };
+  return null;
+}
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   holding: { label: "Holding", variant: "secondary" },
@@ -155,7 +166,31 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                   )}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                  {fmt(Number(d.renewal_cost_yearly))}
+                  <div className="flex items-center justify-end gap-1.5">
+                    {fmt(Number(d.renewal_cost_yearly))}
+                    {(() => {
+                      const warn = renewalWarning(d);
+                      if (!warn) return null;
+                      const colors = {
+                        expired: "text-destructive",
+                        critical: "text-destructive",
+                        warning: "text-yellow-500",
+                      };
+                      const Icon = warn.level === "expired" ? AlertTriangle : Clock;
+                      return (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Icon className={`w-3.5 h-3.5 ${colors[warn.level]} ${warn.level === "critical" ? "animate-pulse" : ""}`} />
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              <p className="text-xs font-medium">{warn.label}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
