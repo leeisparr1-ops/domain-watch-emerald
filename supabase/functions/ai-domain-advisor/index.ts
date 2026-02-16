@@ -68,17 +68,21 @@ CURRENT MARKET CONTEXT (Feb 2026):
 
 IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.
 
-CRITICAL PRICING RULE: The "suggested_buy_price" is the MAX an investor should PAY to acquire the domain. It must ALWAYS be significantly LOWER than "value_range" (the estimated end-user resale value). Typical buy price is 10-40% of end-user value. For example if value_range is "$5,000 - $15,000", suggested_buy_price might be "$1,000 - $4,000". The buy price should NEVER equal or exceed the resale value — investors need profit margin.`;
+CRITICAL PRICING RULES:
+- "end_user_value" is the estimated price an END USER (startup, brand, company) would pay to buy this domain for their business. This is the retail/resale value.
+- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than end_user_value (typically 10-40% of end-user value). For example if end_user_value is "$500,000 - $1,500,000", suggested_buy_price might be "$50,000 - $200,000".
+- The buy price should NEVER equal or exceed the end-user value — investors need profit margin.
+- For premium category-killer domains (like Delete.co selling for $400k+), end-user values can be six or seven figures.`;
 
     const userPrompt = `Analyze the domain "${domain}" for investment potential.${scoresContext}
 
 Provide:
 1. Overall investment verdict (Strong Buy / Buy / Hold / Avoid)
-2. Estimated aftermarket value range (use comparable sales as anchors if available)
+2. Estimated end-user value range (what a startup/brand/company would pay to own this domain)
 3. Best buyer persona (who would buy this?)
 4. Top 3 strengths
 5. Top 3 weaknesses or risks
-6. Suggested buy price (the MAX an investor should pay — must be well below the value range to ensure profit margin, typically 10-40% of end-user value)
+6. Max acquisition price (the MAX an investor should pay at auction — must be well below the end-user value, typically 10-40%)
 7. Flip potential (1-10 score) and estimated timeline
 8. Niche classification
 9. One-sentence summary`;
@@ -111,9 +115,9 @@ Provide:
                       type: "string",
                       enum: ["Strong Buy", "Buy", "Hold", "Avoid"],
                     },
-                    value_range: {
+                    end_user_value: {
                       type: "string",
-                      description: "e.g. $500 - $2,000",
+                      description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000",
                     },
                     buyer_persona: { type: "string" },
                     strengths: {
@@ -124,7 +128,7 @@ Provide:
                       type: "array",
                       items: { type: "string" },
                     },
-                    suggested_buy_price: { type: "string", description: "Max investor acquisition price — must be well below value_range (typically 10-40% of end-user value)" },
+                    suggested_buy_price: { type: "string", description: "Max investor acquisition price — must be well below end_user_value (typically 10-40% of end-user value)" },
                     flip_score: {
                       type: "number",
                       description: "1-10 flip potential",
@@ -138,7 +142,7 @@ Provide:
                   },
                   required: [
                     "verdict",
-                    "value_range",
+                    "end_user_value",
                     "buyer_persona",
                     "strengths",
                     "weaknesses",
