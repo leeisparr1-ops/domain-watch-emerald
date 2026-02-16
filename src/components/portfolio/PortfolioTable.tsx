@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PortfolioDomain } from "@/hooks/usePortfolio";
 import { differenceInDays, parseISO } from "date-fns";
+import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
 
 function renewalWarning(d: PortfolioDomain) {
   if (!d.next_renewal_date || d.status === "sold") return null;
@@ -61,6 +62,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
       sale_price: d.sale_price,
       sale_date: d.sale_date,
       purchase_price: d.purchase_price,
+      renewal_cost_yearly: d.renewal_cost_yearly,
     });
   };
 
@@ -166,31 +168,62 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                   )}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {fmt(Number(d.renewal_cost_yearly))}
-                    {(() => {
-                      const warn = renewalWarning(d);
-                      if (!warn) return null;
-                      const colors = {
-                        expired: "text-destructive",
-                        critical: "text-destructive",
-                        warning: "text-yellow-500",
-                      };
-                      const Icon = warn.level === "expired" ? AlertTriangle : Clock;
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Icon className={`w-3.5 h-3.5 ${colors[warn.level]} ${warn.level === "critical" ? "animate-pulse" : ""}`} />
-                            </TooltipTrigger>
-                            <TooltipContent side="left">
-                              <p className="text-xs font-medium">{warn.label}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    })()}
-                  </div>
+                  {isEditing ? (
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        className="h-8 w-24 text-right ml-auto"
+                        value={editForm.renewal_cost_yearly ?? d.renewal_cost_yearly ?? 0}
+                        onChange={(e) => setEditForm({ ...editForm, renewal_cost_yearly: parseFloat(e.target.value) || 0 })}
+                      />
+                      {(() => {
+                        const range = getTldRenewalRange(d.domain_name);
+                        if (!range) return null;
+                        return (
+                          <p className="text-[10px] text-muted-foreground/70 text-right">
+                            Typical: ${range.min}–${range.max}/yr
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-end gap-1.5">
+                      <div className="text-right">
+                        <span>{fmt(Number(d.renewal_cost_yearly))}</span>
+                        {Number(d.renewal_cost_yearly) === 0 && (() => {
+                          const range = getTldRenewalRange(d.domain_name);
+                          if (!range) return null;
+                          return (
+                            <p className="text-[10px] text-muted-foreground/60">
+                              ~${range.typical}/yr
+                            </p>
+                          );
+                        })()}
+                      </div>
+                      {(() => {
+                        const warn = renewalWarning(d);
+                        if (!warn) return null;
+                        const colors = {
+                          expired: "text-destructive",
+                          critical: "text-destructive",
+                          warning: "text-yellow-500",
+                        };
+                        const Icon = warn.level === "expired" ? AlertTriangle : Clock;
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Icon className={`w-3.5 h-3.5 ${colors[warn.level]} ${warn.level === "critical" ? "animate-pulse" : ""}`} />
+                              </TooltipTrigger>
+                              <TooltipContent side="left">
+                                <p className="text-xs font-medium">{warn.label}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
