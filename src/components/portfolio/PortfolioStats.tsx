@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, RefreshCw, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { PortfolioStats as Stats } from "@/hooks/usePortfolio";
 
@@ -7,6 +7,7 @@ function fmt(n: number) {
 }
 
 export function PortfolioStats({ stats }: { stats: Stats }) {
+  const expiringSoonColor = stats.expiringSoon > 0 ? "text-yellow-500" : "text-muted-foreground";
   const cards = [
     { label: "Total Invested", value: fmt(stats.totalInvested), icon: DollarSign },
     { label: "Current Value", value: fmt(stats.totalCurrentValue), icon: Package },
@@ -24,6 +25,12 @@ export function PortfolioStats({ stats }: { stats: Stats }) {
     },
     { label: "Yearly Renewals", value: fmt(stats.totalRenewalCosts), icon: RefreshCw },
     {
+      label: "Expiring ≤30d",
+      value: String(stats.expiringSoon),
+      icon: AlertTriangle,
+      color: expiringSoonColor,
+    },
+    {
       label: "Overall ROI",
       value: (stats.overallROI >= 0 ? "+" : "") + stats.overallROI.toFixed(1) + "%",
       icon: TrendingUp,
@@ -32,7 +39,7 @@ export function PortfolioStats({ stats }: { stats: Stats }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       {cards.map((c) => (
         <Card key={c.label} className="border-border/50">
           <CardContent className="p-4 text-center space-y-1">

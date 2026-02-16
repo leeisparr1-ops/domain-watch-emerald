@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { quickValuation } from "@/lib/domainValuation";
+import { differenceInDays, parseISO } from "date-fns";
 
 export interface PortfolioDomain {
   id: string;
@@ -37,6 +38,7 @@ export interface PortfolioStats {
   realizedPnL: number;
   unrealizedPnL: number;
   overallROI: number;
+  expiringSoon: number;
 }
 
 export function usePortfolio() {
@@ -207,6 +209,11 @@ export function usePortfolio() {
     const realizedPnL = totalSaleRevenue - soldCostBasis;
     const holdingCostBasis = holding.reduce((s, d) => s + Number(d.purchase_price), 0);
     const unrealizedPnL = totalCurrentValue - holdingCostBasis;
+    const expiringSoon = holding.filter((d) => {
+      if (!d.next_renewal_date) return false;
+      const days = differenceInDays(parseISO(d.next_renewal_date), new Date());
+      return days <= 30;
+    }).length;
     const overallROI = totalInvested > 0 ? ((realizedPnL + unrealizedPnL) / totalInvested) * 100 : 0;
 
     return {
@@ -218,6 +225,7 @@ export function usePortfolio() {
       totalSaleRevenue,
       realizedPnL,
       unrealizedPnL,
+      expiringSoon,
       overallROI,
     };
   })();
