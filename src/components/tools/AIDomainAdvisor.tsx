@@ -16,7 +16,8 @@ import { scoreDomainAge } from "@/lib/domainAge";
 
 interface Analysis {
   verdict: string;
-  value_range: string;
+  end_user_value: string;
+  value_range?: string; // backwards compat
   buyer_persona: string;
   strengths: string[];
   weaknesses: string[];
@@ -236,12 +237,23 @@ export function AIDomainAdvisor() {
             )}
 
             {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg border border-border bg-card text-center">
+                <Users className="w-4 h-4 mx-auto mb-1 text-primary" />
+                <p className="text-xs text-muted-foreground">End-User Value</p>
+                <p className="text-sm font-semibold text-foreground">{analysis.end_user_value || analysis.value_range}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">What a brand/startup would pay</p>
+              </div>
               <div className="p-3 rounded-lg border border-border bg-card text-center">
                 <DollarSign className="w-4 h-4 mx-auto mb-1 text-primary" />
-                <p className="text-xs text-muted-foreground">Est. Value</p>
-                <p className="text-sm font-semibold text-foreground">{algorithmicValuation || analysis.value_range}</p>
+                <p className="text-xs text-muted-foreground">Max Acquisition Price</p>
+                <p className="text-sm font-semibold text-foreground">{analysis.suggested_buy_price}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Max an investor should pay</p>
               </div>
+            </div>
+
+            {/* Secondary Metrics */}
+            <div className="grid grid-cols-3 gap-3">
               <div className="p-3 rounded-lg border border-border bg-card text-center">
                 <TrendingUp className={`w-4 h-4 mx-auto mb-1 ${flipScoreColor(analysis.flip_score)}`} />
                 <p className="text-xs text-muted-foreground">Flip Score</p>
@@ -253,9 +265,9 @@ export function AIDomainAdvisor() {
                 <p className="text-sm font-semibold text-foreground">{analysis.flip_timeline}</p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <Target className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Max Buy Price</p>
-                <p className="text-sm font-semibold text-foreground">{analysis.suggested_buy_price}</p>
+                <BarChart3 className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Algo. Valuation</p>
+                <p className="text-xs font-semibold text-foreground">{algorithmicValuation || "N/A"}</p>
               </div>
             </div>
 
