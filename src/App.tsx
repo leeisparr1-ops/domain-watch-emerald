@@ -10,6 +10,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { GlobalAlerts } from "@/components/GlobalAlerts";
+import { CookieConsent } from "@/components/CookieConsent";
 
 // Eagerly load Index (critical path)
 import Index from "./pages/Index";
@@ -82,6 +83,7 @@ const App = () => (
               </Routes>
             </Suspense>
           </BrowserRouter>
+          <CookieConsent />
           </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>
