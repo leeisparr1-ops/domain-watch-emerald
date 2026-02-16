@@ -146,6 +146,55 @@ export function usePortfolio() {
     }
   };
 
+  const bulkAddDomains = async (
+    rows: Array<{ domain_name: string; purchase_price?: number; purchase_date?: string; purchase_source?: string; status?: string; renewal_cost_yearly?: number; tags?: string[] }>
+  ) => {
+    if (!user || rows.length === 0) return { added: 0, errors: 0 };
+
+    const records = rows.map((r) => {
+      const domainName = r.domain_name.trim().toLowerCase();
+      const tld = domainName.includes(".") ? domainName.split(".").pop() ?? null : null;
+      let autoVal: number | null = null;
+      try {
+        const result = quickValuation(domainName);
+        autoVal = Math.round((result.valueMin + result.valueMax) / 2);
+      } catch { /* ignore */ }
+
+      return {
+        user_id: user.id,
+        domain_name: domainName,
+        tld,
+        purchase_price: r.purchase_price ?? 0,
+        purchase_date: r.purchase_date || null,
+        purchase_source: r.purchase_source || null,
+        status: r.status || "holding",
+        tags: r.tags ?? [],
+        renewal_cost_yearly: r.renewal_cost_yearly ?? 0,
+        auto_valuation: autoVal,
+        valuation_updated_at: autoVal ? new Date().toISOString() : null,
+      };
+    });
+
+    // Insert in batches of 50
+    let added = 0;
+    let errors = 0;
+    for (let i = 0; i < records.length; i += 50) {
+      const batch = records.slice(i, i + 50);
+      const { error } = await (supabase as any).from("portfolio_domains").insert(batch);
+      if (error) {
+        console.error("Bulk insert error:", error);
+        errors += batch.length;
+      } else {
+        added += batch.length;
+      }
+    }
+
+    if (added > 0) toast.success(`${added} domain${added !== 1 ? "s" : ""} imported`);
+    if (errors > 0) toast.error(`${errors} domain${errors !== 1 ? "s" : ""} failed to import`);
+    await fetchDomains();
+    return { added, errors };
+  };
+
   const stats: PortfolioStats = (() => {
     const holding = domains.filter((d) => d.status !== "sold");
     const sold = domains.filter((d) => d.status === "sold");
@@ -173,5 +222,5 @@ export function usePortfolio() {
     };
   })();
 
-  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, refetch: fetchDomains };
+  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains, refetch: fetchDomains };
 }

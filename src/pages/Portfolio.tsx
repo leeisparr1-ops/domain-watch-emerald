@@ -9,9 +9,10 @@ import { usePortfolio } from "@/hooks/usePortfolio";
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioTable } from "@/components/portfolio/PortfolioTable";
 import { AddDomainDialog } from "@/components/portfolio/AddDomainDialog";
+import { BulkImportDialog } from "@/components/portfolio/BulkImportDialog";
 
 export default function Portfolio() {
-  const { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation } = usePortfolio();
+  const { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains } = usePortfolio();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -43,7 +44,10 @@ export default function Portfolio() {
                 </p>
               </div>
             </div>
-            <AddDomainDialog onAdd={addDomain} />
+            <div className="flex items-center gap-2">
+              <BulkImportDialog onBulkAdd={bulkAddDomains} />
+              <AddDomainDialog onAdd={addDomain} />
+            </div>
           </div>
 
           {/* Stats */}
