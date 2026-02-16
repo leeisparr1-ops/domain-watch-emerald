@@ -58,8 +58,8 @@ export function usePatternAlerts(deps: PatternAlertsDeps) {
       toast.success(`🎯 ${message}`, {
         duration: 10000,
         action: {
-          label: "View",
-          onClick: () => window.location.href = "/dashboard",
+          label: "Analyze",
+          onClick: () => window.location.href = `/tools?tab=advisor&domain=${encodeURIComponent(match.domain_name)}`,
         },
       });
     }

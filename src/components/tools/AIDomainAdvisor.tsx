@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock, Users, ThumbsUp, ThumbsDown, BarChart3, Flame } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock,
+  Users, ThumbsUp, ThumbsDown, BarChart3, Flame, Send, MessageSquare,
+  Award, Mic, Sparkles, Globe2, ArrowRight,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scoreBrandability } from "@/lib/brandability";
@@ -13,11 +19,12 @@ import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { quickValuation } from "@/lib/domainValuation";
 import { estimateSEOVolume } from "@/lib/seoVolume";
 import { scoreDomainAge } from "@/lib/domainAge";
+import { FlipScoreGauge } from "./FlipScoreGauge";
 
 interface Analysis {
   verdict: string;
   end_user_value: string;
-  value_range?: string; // backwards compat
+  value_range?: string;
   buyer_persona: string;
   strengths: string[];
   weaknesses: string[];
@@ -44,20 +51,50 @@ interface PreScores {
   comparableSales: { domain: string; price: string; date: string; pattern: string }[];
 }
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
 export function AIDomainAdvisor() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [domain, setDomain] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [preScores, setPreScores] = useState<PreScores | null>(null);
   const [algorithmicValuation, setAlgorithmicValuation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [followUpInput, setFollowUpInput] = useState("");
+  const [isFollowUpLoading, setIsFollowUpLoading] = useState(false);
+  const [analyzedDomain, setAnalyzedDomain] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const handleAnalyze = async () => {
-    const input = domain.trim().toLowerCase();
+  // Auto-analyze from URL params (one-click from alerts)
+  useEffect(() => {
+    const domainParam = searchParams.get("domain");
+    if (domainParam && !analyzedDomain) {
+      setDomain(domainParam);
+      // Small delay to allow component to mount
+      setTimeout(() => handleAnalyze(domainParam), 100);
+    }
+  }, [searchParams]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  const handleAnalyze = async (overrideDomain?: string) => {
+    const input = (overrideDomain || domain).trim().toLowerCase();
     if (!input) return;
     setIsLoading(true);
     setAnalysis(null);
     setPreScores(null);
+    setChatMessages([]);
+    setAnalyzedDomain(input);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -71,14 +108,12 @@ export function AIDomainAdvisor() {
         return;
       }
 
-      // Pre-compute all scores client-side to send to AI
       const domainWithTld = input.includes(".") ? input : `${input}.com`;
       const brand = scoreBrandability(domainWithTld);
       const pronounce = scorePronounceability(domainWithTld);
       const trademark = checkTrademarkRisk(domainWithTld);
       const demand = scoreKeywordDemand(domainWithTld);
       const val = quickValuation(domainWithTld, pronounce.score);
-      // Store algorithmic valuation for consistent display across tools
       setAlgorithmicValuation(`$${val.valueMin.toLocaleString()} - $${val.valueMax.toLocaleString()}`);
       const seo = estimateSEOVolume(domainWithTld);
       const age = scoreDomainAge(null);
@@ -115,20 +150,69 @@ export function AIDomainAdvisor() {
         throw error;
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
+      if (data?.error) throw new Error(data.error);
       setAnalysis(data);
     } catch (e: any) {
       console.error(e);
-      toast({
-        title: "Analysis failed",
-        description: e.message || "Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Analysis failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFollowUp = async () => {
+    const question = followUpInput.trim();
+    if (!question || !analyzedDomain || !analysis) return;
+
+    const userMsg: ChatMessage = { role: "user", content: question, timestamp: new Date() };
+    setChatMessages(prev => [...prev, userMsg]);
+    setFollowUpInput("");
+    setIsFollowUpLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Sign in required", description: "Please log in.", variant: "destructive" });
+        setIsFollowUpLoading(false);
+        return;
+      }
+
+      // Build conversation context
+      const conversationHistory = chatMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
+        body: {
+          domain: analyzedDomain,
+          scores: preScores,
+          followUp: true,
+          question,
+          previousAnalysis: analysis,
+          conversationHistory,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const assistantMsg: ChatMessage = {
+        role: "assistant",
+        content: data.answer || data.summary || "I couldn't generate a response.",
+        timestamp: new Date(),
+      };
+      setChatMessages(prev => [...prev, assistantMsg]);
+    } catch (e: any) {
+      console.error(e);
+      const errorMsg: ChatMessage = {
+        role: "assistant",
+        content: "Sorry, I couldn't process that. Please try again.",
+        timestamp: new Date(),
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsFollowUpLoading(false);
     }
   };
 
@@ -139,12 +223,12 @@ export function AIDomainAdvisor() {
     return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-500/30";
   };
 
-  const flipScoreColor = (s: number) => {
-    if (s >= 8) return "text-emerald-600 dark:text-emerald-400";
-    if (s >= 5) return "text-blue-600 dark:text-blue-400";
-    if (s >= 3) return "text-amber-600 dark:text-amber-400";
-    return "text-red-600 dark:text-red-400";
-  };
+  const suggestedFollowUps = analyzedDomain ? [
+    `What's the flip ROI for ${analyzedDomain} in e-commerce?`,
+    `Compare ${analyzedDomain} to similar .com domains`,
+    `Who would be the ideal buyer for ${analyzedDomain}?`,
+    `What content strategy would maximize this domain's value?`,
+  ] : [];
 
   return (
     <Card>
@@ -154,7 +238,7 @@ export function AIDomainAdvisor() {
           AI Domain Advisor
         </CardTitle>
         <CardDescription>
-          Get AI-powered investment analysis enriched with brandability, keyword demand, valuation, and comparable sales data for smarter verdicts.
+          Get AI-powered investment analysis with follow-up questions. Ask anything about the domain after analysis.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -166,7 +250,7 @@ export function AIDomainAdvisor() {
             onKeyDown={(e) => e.key === "Enter" && !isLoading && handleAnalyze()}
             className="flex-1"
           />
-          <Button onClick={handleAnalyze} disabled={!domain.trim() || isLoading}>
+          <Button onClick={() => handleAnalyze()} disabled={!domain.trim() || isLoading}>
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
             <span className="ml-2 hidden sm:inline">Analyze</span>
           </Button>
@@ -214,6 +298,35 @@ export function AIDomainAdvisor() {
               <p className="text-sm text-foreground leading-relaxed">{analysis.summary}</p>
             </div>
 
+            {/* Flip Score Gauge + Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Flip Score Gauge */}
+              <div className="flex flex-col items-center p-4 rounded-lg border border-border bg-card">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Flip Potential</p>
+                <FlipScoreGauge score={analysis.flip_score} size={140} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  <Clock className="w-3 h-3 inline mr-1" />
+                  {analysis.flip_timeline}
+                </p>
+              </div>
+
+              {/* End-User Value */}
+              <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
+                <Users className="w-5 h-5 mx-auto mb-2 text-primary" />
+                <p className="text-xs text-muted-foreground">End-User Value</p>
+                <p className="text-lg font-bold text-foreground mt-1">{analysis.end_user_value || analysis.value_range}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
+              </div>
+
+              {/* Max Acquisition Price */}
+              <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
+                <DollarSign className="w-5 h-5 mx-auto mb-2 text-primary" />
+                <p className="text-xs text-muted-foreground">Max Acquisition Price</p>
+                <p className="text-lg font-bold text-foreground mt-1">{analysis.suggested_buy_price}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+              </div>
+            </div>
+
             {/* Pre-computed scores strip */}
             {preScores && (
               <div className="grid grid-cols-4 gap-2">
@@ -230,46 +343,11 @@ export function AIDomainAdvisor() {
                   <p className={`text-sm font-bold ${preScores.keywordDemand >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.keywordDemand >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.keywordDemand}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">TM Risk</p>
-                  <p className="text-sm font-bold text-foreground">{preScores.trademarkRisk}</p>
+                  <p className="text-[10px] text-muted-foreground">Algo. Value</p>
+                  <p className="text-xs font-bold text-foreground">{algorithmicValuation || "N/A"}</p>
                 </div>
               </div>
             )}
-
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <Users className="w-4 h-4 mx-auto mb-1 text-primary" />
-                <p className="text-xs text-muted-foreground">End-User Value</p>
-                <p className="text-sm font-semibold text-foreground">{analysis.end_user_value || analysis.value_range}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">What a brand/startup would pay</p>
-              </div>
-              <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <DollarSign className="w-4 h-4 mx-auto mb-1 text-primary" />
-                <p className="text-xs text-muted-foreground">Max Acquisition Price</p>
-                <p className="text-sm font-semibold text-foreground">{analysis.suggested_buy_price}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Max an investor should pay</p>
-              </div>
-            </div>
-
-            {/* Secondary Metrics */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <TrendingUp className={`w-4 h-4 mx-auto mb-1 ${flipScoreColor(analysis.flip_score)}`} />
-                <p className="text-xs text-muted-foreground">Flip Score</p>
-                <p className={`text-sm font-semibold ${flipScoreColor(analysis.flip_score)}`}>{analysis.flip_score}/10</p>
-              </div>
-              <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <Clock className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Flip Timeline</p>
-                <p className="text-sm font-semibold text-foreground">{analysis.flip_timeline}</p>
-              </div>
-              <div className="p-3 rounded-lg border border-border bg-card text-center">
-                <BarChart3 className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Algo. Valuation</p>
-                <p className="text-xs font-semibold text-foreground">{algorithmicValuation || "N/A"}</p>
-              </div>
-            </div>
 
             {/* Buyer + Niche */}
             <div className="flex flex-wrap gap-3">
@@ -310,6 +388,110 @@ export function AIDomainAdvisor() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            </div>
+
+            {/* Tool Chaining Actions */}
+            <div className="p-4 rounded-lg border border-border bg-secondary/30 space-y-3">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-primary" /> Next Steps
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/tools/brandability-score?domain=${encodeURIComponent(analyzedDomain || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <Award className="w-3.5 h-3.5" /> Score Brandability
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+                <Link to={`/tools/valuation?domain=${encodeURIComponent(analyzedDomain || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <DollarSign className="w-3.5 h-3.5" /> Deep Valuation
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+                <Link to={`/tools/pronounceability?domain=${encodeURIComponent(analyzedDomain || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <Mic className="w-3.5 h-3.5" /> Pronounceability
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+                <Link to={`/tools/domain-generator?seed=${encodeURIComponent(analyzedDomain?.split(".")[0] || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <Sparkles className="w-3.5 h-3.5" /> Generate Variants
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+                <Link to={`/tools/tld-compare?domain=${encodeURIComponent(analyzedDomain?.split(".")[0] || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <Globe2 className="w-3.5 h-3.5" /> Compare TLDs
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Conversational Chat */}
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Ask Follow-Up Questions</span>
+              </div>
+
+              {/* Chat Messages */}
+              {chatMessages.length > 0 && (
+                <ScrollArea className="max-h-64 p-4">
+                  <div className="space-y-3">
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {isFollowUpLoading && (
+                      <div className="flex justify-start">
+                        <div className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Thinking...
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                </ScrollArea>
+              )}
+
+              {/* Suggested Questions */}
+              {chatMessages.length === 0 && (
+                <div className="p-3 flex flex-wrap gap-2">
+                  {suggestedFollowUps.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setFollowUpInput(q); }}
+                      className="text-xs px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50 transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="flex gap-2 p-3 border-t border-border">
+                <Input
+                  placeholder={`Ask about ${analyzedDomain || "this domain"}...`}
+                  value={followUpInput}
+                  onChange={(e) => setFollowUpInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !isFollowUpLoading && handleFollowUp()}
+                  className="flex-1"
+                  disabled={isFollowUpLoading}
+                />
+                <Button size="sm" onClick={handleFollowUp} disabled={!followUpInput.trim() || isFollowUpLoading}>
+                  {isFollowUpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
               </div>
             </div>
 

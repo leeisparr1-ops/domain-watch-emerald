@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,8 @@ import { DomainReportCard } from "@/components/tools/DomainReportCard";
 import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
 
 const Tools = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "advisor";
   return (
     <>
       <Helmet>
@@ -55,7 +57,7 @@ const Tools = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="advisor" className="w-full">
+            <Tabs defaultValue={defaultTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 mb-6 h-auto">
                 <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <BrainCircuit className="w-4 h-4" />

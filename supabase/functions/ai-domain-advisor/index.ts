@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -31,9 +32,12 @@ serve(async (req) => {
       });
     }
 
-    const { domain, scores } = await req.json();
+    const body = await req.json();
+    const { domain, scores, followUp, question, previousAnalysis, conversationHistory } = body;
+
     if (!domain || typeof domain !== "string")
       throw new Error("Missing domain parameter");
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -74,6 +78,71 @@ CRITICAL PRICING RULES:
 - The buy price should NEVER equal or exceed the end-user value — investors need profit margin.
 - For premium category-killer domains (like Delete.co selling for $400k+), end-user values can be six or seven figures.`;
 
+    // Handle follow-up questions
+    if (followUp && question && previousAnalysis) {
+      const previousContext = `Previous analysis for "${domain}":
+- Verdict: ${previousAnalysis.verdict}
+- End-User Value: ${previousAnalysis.end_user_value}
+- Max Acquisition Price: ${previousAnalysis.suggested_buy_price}
+- Flip Score: ${previousAnalysis.flip_score}/10
+- Flip Timeline: ${previousAnalysis.flip_timeline}
+- Buyer Persona: ${previousAnalysis.buyer_persona}
+- Niche: ${previousAnalysis.niche}
+- Summary: ${previousAnalysis.summary}
+- Strengths: ${previousAnalysis.strengths?.join(", ")}
+- Weaknesses: ${previousAnalysis.weaknesses?.join(", ")}`;
+
+      const messages: { role: string; content: string }[] = [
+        { role: "system", content: systemPrompt + `\n\n${previousContext}${scoresContext}\n\nYou are now in a follow-up conversation about "${domain}". Answer the user's questions with specific, actionable advice. Be concise but thorough. Reference the analysis data when relevant.` },
+      ];
+
+      // Add conversation history
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        for (const msg of conversationHistory.slice(-10)) {
+          messages.push({ role: msg.role, content: msg.content });
+        }
+      }
+
+      messages.push({ role: "user", content: question });
+
+      const response = await fetch(
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const t = await response.text();
+        console.error("AI gateway error:", response.status, t);
+        throw new Error("AI gateway error");
+      }
+
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content || "I couldn't generate a response.";
+
+      return new Response(JSON.stringify({ answer }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Initial analysis
     const userPrompt = `Analyze the domain "${domain}" for investment potential.${scoresContext}
 
 Provide:
@@ -106,77 +175,40 @@ Provide:
               type: "function",
               function: {
                 name: "return_domain_analysis",
-                description:
-                  "Return structured domain investment analysis",
+                description: "Return structured domain investment analysis",
                 parameters: {
                   type: "object",
                   properties: {
-                    verdict: {
-                      type: "string",
-                      enum: ["Strong Buy", "Buy", "Hold", "Avoid"],
-                    },
-                    end_user_value: {
-                      type: "string",
-                      description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000",
-                    },
+                    verdict: { type: "string", enum: ["Strong Buy", "Buy", "Hold", "Avoid"] },
+                    end_user_value: { type: "string", description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000" },
                     buyer_persona: { type: "string" },
-                    strengths: {
-                      type: "array",
-                      items: { type: "string" },
-                    },
-                    weaknesses: {
-                      type: "array",
-                      items: { type: "string" },
-                    },
+                    strengths: { type: "array", items: { type: "string" } },
+                    weaknesses: { type: "array", items: { type: "string" } },
                     suggested_buy_price: { type: "string", description: "Max investor acquisition price — must be well below end_user_value (typically 10-40% of end-user value)" },
-                    flip_score: {
-                      type: "number",
-                      description: "1-10 flip potential",
-                    },
-                    flip_timeline: {
-                      type: "string",
-                      description: "e.g. 3-6 months",
-                    },
+                    flip_score: { type: "number", description: "1-10 flip potential" },
+                    flip_timeline: { type: "string", description: "e.g. 3-6 months" },
                     niche: { type: "string" },
                     summary: { type: "string" },
                   },
-                  required: [
-                    "verdict",
-                    "end_user_value",
-                    "buyer_persona",
-                    "strengths",
-                    "weaknesses",
-                    "suggested_buy_price",
-                    "flip_score",
-                    "flip_timeline",
-                    "niche",
-                    "summary",
-                  ],
+                  required: ["verdict", "end_user_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "summary"],
                   additionalProperties: false,
                 },
               },
             },
           ],
-          tool_choice: {
-            type: "function",
-            function: { name: "return_domain_analysis" },
-          },
+          tool_choice: { type: "function", function: { name: "return_domain_analysis" } },
         }),
       }
     );
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please try again later." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
