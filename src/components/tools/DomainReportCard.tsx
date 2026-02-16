@@ -168,7 +168,7 @@ export function DomainReportCard() {
       `🗣 Pronounceability: ${report.pronounceability.score}/100 (${report.pronounceability.grade})\n` +
       `🔥 Keyword Demand: ${report.keywordDemand.score}/100 (${report.keywordDemand.label})\n` +
       `🔍 Keyword Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo)\n` +
-      `💰 Est. Value: ${report.valuation.band}\n` +
+      `💰 End-User Value: ${report.valuation.band}\n` +
       `🛡 Trademark: ${getTrademarkRiskDisplay(report.trademark.riskLevel).label}\n` +
       `🌐 Availability: ${report.availability.status}\n` +
       `📱 Social Handles: ${report.socialHandles.availableCount} available\n` +
@@ -308,12 +308,13 @@ export function DomainReportCard() {
             </Card>
 
 
-            {/* Valuation */}
+            {/* End-User Value */}
             <Card className={`border ${getScoreBg(report.valuation.score)}`}>
               <CardContent className="p-4 text-center space-y-1">
                 <DollarSign className="w-5 h-5 mx-auto text-muted-foreground" />
                 <div className="text-lg font-bold text-foreground">{report.valuation.band}</div>
-                <div className="text-xs text-muted-foreground">Est. Value</div>
+                <div className="text-xs text-muted-foreground">End-User Value</div>
+                <p className="text-[9px] text-muted-foreground">What a brand would pay</p>
                 <Link to={`/tools/valuation?domain=${encodeURIComponent(report.domain)}`} className="text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-0.5 mt-1">
                   Full Analysis <ExternalLink className="w-2.5 h-2.5" />
                 </Link>
@@ -468,7 +469,7 @@ export function DomainReportCard() {
             </Link>
             <Link to={`/tools/valuation?domain=${encodeURIComponent(report.domain)}`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                <DollarSign className="w-3.5 h-3.5" /> Get Valuation
+                <DollarSign className="w-3.5 h-3.5" /> Full Valuation & Pricing
               </Button>
             </Link>
             <Link to={`/tools/pronounceability?domain=${encodeURIComponent(report.domain)}`}>
