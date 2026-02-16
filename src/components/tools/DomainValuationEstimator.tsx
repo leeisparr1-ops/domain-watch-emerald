@@ -518,14 +518,30 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
         {result && (
           <div className="space-y-5 animate-fade-in">
             {/* ─── Top-line: Value + Score + Trend Score ─── */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Estimated Value */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* End-User Value */}
               <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
-                <span className="text-xs text-muted-foreground block mb-1">Estimated Value</span>
+                <span className="text-xs text-muted-foreground block mb-1">End-User Value</span>
                 <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
                 <Badge variant="outline" className={`text-xs mt-2 ${confidenceColor(result.confidence)}`}>
                   {result.confidence} Confidence
                 </Badge>
+              </div>
+
+              {/* Max Acquisition Price */}
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                <span className="text-xs text-muted-foreground block mb-1">Max Acquisition Price</span>
+                {(() => {
+                  const parts = result.estimatedValue.match(/[\d,]+/g);
+                  if (parts && parts.length >= 2) {
+                    const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
+                    const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
+                    return <p className="text-2xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
+                  }
+                  return <p className="text-2xl font-bold text-foreground">N/A</p>;
+                })()}
+                <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
               </div>
 
               {/* Overall Score */}
@@ -538,7 +554,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 <Progress value={result.overallScore} className="h-2 mt-2" />
               </div>
 
-              {/* Trend Score — NEW */}
+              {/* Trend Score */}
               <div className={`p-4 rounded-xl border ${getTrendScoreBg(result.trendScore)}`}>
                 <span className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">
                   <Flame className="w-3.5 h-3.5" />
