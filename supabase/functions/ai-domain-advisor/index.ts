@@ -66,7 +66,9 @@ CURRENT MARKET CONTEXT (Feb 2026):
 - Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard)
 - Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty
 
-IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.`;
+IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.
+
+CRITICAL PRICING RULE: The "suggested_buy_price" is the MAX an investor should PAY to acquire the domain. It must ALWAYS be significantly LOWER than "value_range" (the estimated end-user resale value). Typical buy price is 10-40% of end-user value. For example if value_range is "$5,000 - $15,000", suggested_buy_price might be "$1,000 - $4,000". The buy price should NEVER equal or exceed the resale value — investors need profit margin.`;
 
     const userPrompt = `Analyze the domain "${domain}" for investment potential.${scoresContext}
 
@@ -76,7 +78,7 @@ Provide:
 3. Best buyer persona (who would buy this?)
 4. Top 3 strengths
 5. Top 3 weaknesses or risks
-6. Suggested buy price (what's the maximum you'd pay?)
+6. Suggested buy price (the MAX an investor should pay — must be well below the value range to ensure profit margin, typically 10-40% of end-user value)
 7. Flip potential (1-10 score) and estimated timeline
 8. Niche classification
 9. One-sentence summary`;
@@ -122,7 +124,7 @@ Provide:
                       type: "array",
                       items: { type: "string" },
                     },
-                    suggested_buy_price: { type: "string" },
+                    suggested_buy_price: { type: "string", description: "Max investor acquisition price — must be well below value_range (typically 10-40% of end-user value)" },
                     flip_score: {
                       type: "number",
                       description: "1-10 flip potential",
