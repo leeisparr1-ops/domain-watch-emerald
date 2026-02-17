@@ -4,7 +4,6 @@ import {
   Award,
   Mic,
   Sparkles,
-  DollarSign,
   Globe2,
   List,
   BrainCircuit,
@@ -31,12 +30,6 @@ const tools = [
     title: "Brandability Scorer",
     description:
       "Score any domain 0–100 across six dimensions: pronounceability, memorability, length, and more.",
-  },
-  {
-    icon: DollarSign,
-    title: "Valuation Estimator",
-    description:
-      "Instant aftermarket value estimates powered by niche detection, word quality, and TLD demand signals.",
   },
   {
     icon: List,
