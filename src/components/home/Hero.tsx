@@ -19,7 +19,7 @@ export function Hero() {
           </h1>
 
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-            Set your criteria once. We scan thousands of expiring domains daily
+            Set your criteria once. We scan millions of expiring domains daily
             and alert you the moment a match appears — by email or push notification.
           </p>
 
