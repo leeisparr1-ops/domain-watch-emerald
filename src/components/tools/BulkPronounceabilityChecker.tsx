@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search } from "lucide-react";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
@@ -33,7 +33,7 @@ interface BulkResult {
   seoVolumeLabel: string;
 }
 
-type SortField = "score" | "valuation" | "brand" | "demand";
+type SortField = "score" | "valuation" | "brand" | "demand" | "seo";
 
 export function BulkPronounceabilityChecker() {
   const [text, setText] = useState("");
@@ -108,6 +108,7 @@ export function BulkPronounceabilityChecker() {
       case "brand": return b.brandabilityScore - a.brandabilityScore;
       case "valuation": return b.valuationScore - a.valuationScore;
       case "demand": return b.demandScore - a.demandScore;
+      case "seo": return b.seoVolume - a.seoVolume;
     }
   };
 
@@ -284,6 +285,11 @@ export function BulkPronounceabilityChecker() {
                         <Flame className="w-3 h-3" /> Demand <ArrowUpDown className="w-3 h-3" />
                       </span>
                     </TableHead>
+                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("seo")}>
+                      <span className="inline-flex items-center gap-1">
+                        <Search className="w-3 h-3" /> SEO Vol <ArrowUpDown className="w-3 h-3" />
+                      </span>
+                    </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
                       <span className="inline-flex items-center gap-1">
                         Value <ArrowUpDown className="w-3 h-3" />
@@ -323,6 +329,18 @@ export function BulkPronounceabilityChecker() {
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className={`text-xs font-medium cursor-help ${r.seoVolume >= 10000 ? "text-emerald-600 dark:text-emerald-400" : r.seoVolume >= 1000 ? "text-blue-600 dark:text-blue-400" : r.seoVolume >= 100 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                                {r.seoVolumeLabel}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">~{r.seoVolume.toLocaleString()} est. monthly searches</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}
                         </TableCell>
@@ -350,7 +368,7 @@ export function BulkPronounceabilityChecker() {
               </Table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Sorted by {sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
+              Sorted by {sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : sortField === "seo" ? "SEO volume" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
             </p>
           </div>
         )}
