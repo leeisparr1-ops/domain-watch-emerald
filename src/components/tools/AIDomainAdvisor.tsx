@@ -33,6 +33,10 @@ interface Analysis {
   flip_timeline: string;
   niche: string;
   summary: string;
+  market_positioning?: string;
+  development_potential?: string;
+  seo_angle?: string;
+  risk_detail?: string;
 }
 
 interface PreScores {
@@ -78,7 +82,7 @@ export function AIDomainAdvisor() {
   const [domain, setDomain] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [preScores, setPreScores] = useState<PreScores | null>(null);
-  const [algorithmicValuation, setAlgorithmicValuation] = useState<string | null>(null);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [followUpInput, setFollowUpInput] = useState("");
@@ -134,7 +138,7 @@ export function AIDomainAdvisor() {
       const trademark = checkTrademarkRisk(domainWithTld);
       const demand = scoreKeywordDemand(domainWithTld);
       const val = quickValuation(domainWithTld, pronounce.score);
-      setAlgorithmicValuation(`$${val.valueMin.toLocaleString()} - $${val.valueMax.toLocaleString()}`);
+      
       const seo = estimateSEOVolume(domainWithTld);
       const age = scoreDomainAge(null);
 
@@ -363,8 +367,8 @@ export function AIDomainAdvisor() {
                   <p className={`text-sm font-bold ${preScores.keywordDemand >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.keywordDemand >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.keywordDemand}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Algo. Value</p>
-                  <p className="text-xs font-bold text-foreground">{algorithmicValuation || "N/A"}</p>
+                  <p className="text-[10px] text-muted-foreground">Trademark</p>
+                  <p className={`text-sm font-bold ${preScores.trademarkRisk === "None" ? "text-emerald-600 dark:text-emerald-400" : preScores.trademarkRisk === "Low" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{preScores.trademarkRisk}</p>
                 </div>
               </div>
             )}
@@ -411,7 +415,49 @@ export function AIDomainAdvisor() {
               </div>
             </div>
 
-            {/* Tool Chaining Actions */}
+            {/* Deep Dive Insights */}
+            {(analysis.market_positioning || analysis.development_potential || analysis.seo_angle || analysis.risk_detail) && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-primary" /> Deep Dive Insights
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {analysis.market_positioning && (
+                    <div className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-primary" /> Market Positioning
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{analysis.market_positioning}</p>
+                    </div>
+                  )}
+                  {analysis.development_potential && (
+                    <div className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" /> Development Potential
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{analysis.development_potential}</p>
+                    </div>
+                  )}
+                  {analysis.seo_angle && (
+                    <div className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Globe2 className="w-3.5 h-3.5 text-primary" /> SEO & Marketing
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{analysis.seo_angle}</p>
+                    </div>
+                  )}
+                  {analysis.risk_detail && (
+                    <div className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <ShieldAlert className="w-3.5 h-3.5 text-primary" /> Risk Assessment
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{analysis.risk_detail}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="p-4 rounded-lg border border-border bg-secondary/30 space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-primary" /> Next Steps
@@ -420,12 +466,6 @@ export function AIDomainAdvisor() {
                 <Link to={`/tools/brandability-score?domain=${encodeURIComponent(analyzedDomain || "")}`}>
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                     <Award className="w-3.5 h-3.5" /> Score Brandability
-                    <ArrowRight className="w-3 h-3" />
-                  </Button>
-                </Link>
-                <Link to={`/tools/valuation?domain=${encodeURIComponent(analyzedDomain || "")}`}>
-                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                    <DollarSign className="w-3.5 h-3.5" /> Deep Valuation
                     <ArrowRight className="w-3 h-3" />
                   </Button>
                 </Link>

@@ -99,12 +99,8 @@ export default function Help() {
       answer: "The AI Domain Advisor analyzes any domain and provides investment-grade insights: buy/sell verdict, flip score (0–10 gauge), end-user value vs. max acquisition price, buyer persona, strengths, risks, and niche analysis. You can ask follow-up questions in a conversational chat."
     },
     {
-      question: "What is the Domain Report Card?",
-      answer: "The Domain Report Card consolidates 9 key metrics into one view: Brandability, End-User Value, Pronounceability, Trademark Risk, Market Demand, Availability (RDAP), Keyword Volume, Domain Age, and Social Handles."
-    },
-    {
       question: "How does tool chaining work?",
-      answer: "After an AI analysis, use the 'Next Steps' buttons to pass the domain to other tools — Score Brandability, Deep Valuation, Pronounceability, Generate Variants, or Compare TLDs. The domain is automatically pre-filled."
+      answer: "After an AI analysis, use the 'Next Steps' buttons to pass the domain to other tools — Score Brandability, Pronounceability, Generate Variants, or Compare TLDs. The domain is automatically pre-filled."
     },
     {
       question: "What is the Portfolio Tracker?",
