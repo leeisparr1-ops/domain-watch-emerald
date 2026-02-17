@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -428,11 +428,24 @@ export function NameGenerator() {
                       ) : s.tldStatuses ? (
                         s.tldStatuses.map((ts) => {
                           const tld = ts.domain.substring(ts.domain.indexOf("."));
+                          const registerUrl = `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}`;
                           return (
-                            <Badge key={ts.domain} variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
-                              {statusIcon(ts)}
-                              {tld}
-                            </Badge>
+                            <span key={ts.domain} className="inline-flex items-center gap-0.5">
+                              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
+                                {statusIcon(ts)}
+                                {tld}
+                              </Badge>
+                              {ts.status === "available" && (
+                                <a
+                                  href={registerUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-1"
+                                >
+                                  Register <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </span>
                           );
                         })
                       ) : (
