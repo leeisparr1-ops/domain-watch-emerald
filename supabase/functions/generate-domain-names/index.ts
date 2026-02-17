@@ -85,14 +85,14 @@ Rules:
 - Names should be short (ideally under 12 characters for the name part)
 - Easy to spell and type
 - No hyphens or numbers
-- Consider .com, .io, .co, .ai, .net extensions (bias toward .ai and .com for flip value)
+- For each name, suggest 8-10 TLD extensions that would work well (include .com, .io, .co, .ai, .net, .app, .dev, .xyz, .gg, .so, .tech, .health, .finance — pick the most relevant ones)
 - Include a brief reason why each name works for investors
 - Rate each name's TREND alignment (0-100) based on current 2026 market signals above
 - Consider aftermarket resale potential, not just brandability`;
 
     const userPrompt = `Generate 10 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
 
-Return suggestions with: name (full domain with extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), available_tlds (array of TLD extensions worth exploring).`;
+Return suggestions with: name (full domain with extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), available_tlds (array of 8-10 TLD extensions worth exploring, e.g. [".com", ".ai", ".io", ".app", ".dev", ".co", ".xyz", ".tech"]).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

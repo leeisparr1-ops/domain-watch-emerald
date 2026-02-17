@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, DollarSign, TrendingUp, Lightbulb } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
-import { quickValuation } from "@/lib/domainValuation";
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +29,6 @@ interface Suggestion {
   reason: string;
   available_tlds: string[];
   pronounceScore?: number;
-  estimatedValue?: string;
   tldStatuses?: TldStatus[];
   checkingTlds?: boolean;
   trademarkRisk?: ReturnType<typeof checkTrademarkRisk>;
@@ -116,12 +114,10 @@ export function NameGenerator() {
 
       const items: Suggestion[] = (data?.suggestions || []).map((s: any) => {
         const pScore = scorePronounceability(s.name).score;
-        const val = quickValuation(s.name, pScore);
         return {
           ...s,
           trend_score: s.trend_score ?? 0,
           pronounceScore: pScore,
-          estimatedValue: val.band,
           trademarkRisk: checkTrademarkRisk(s.name),
           checkingTlds: true,
         };
@@ -297,12 +293,6 @@ export function NameGenerator() {
                       {s.pronounceScore !== undefined && (
                         <Badge variant="outline" className={scoreColor(s.pronounceScore)}>
                           Say: {s.pronounceScore}
-                        </Badge>
-                      )}
-                      {s.estimatedValue && (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          <DollarSign className="w-3 h-3 mr-0.5" />
-                          {s.estimatedValue}
                         </Badge>
                       )}
                       {tmDisplay && s.trademarkRisk && (
