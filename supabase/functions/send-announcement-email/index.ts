@@ -78,44 +78,45 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      const text = `New Tools and Updates – ExpiredHawk\n\nHi there,\n\nWe have been busy building new tools to help you find better domains, faster.\n\nHere is what is new:\n\n- Domain Name Generator – Get AI-powered domain name ideas based on keywords, industry, and style preferences\n- Domain Valuation Estimator – Instantly estimate the market value of any domain based on length, TLD, age, and keyword strength\n- Pronounceability Scorer – Check how easy a domain is to say and remember, with detailed phonetic analysis\n- Bulk Pronounceability Checker – Score multiple domains at once and compare them side by side\n- TLD Comparison Tool – Compare pricing, popularity, and use cases across different TLDs\n\nWe have also improved spam risk detection on listed domains so you can avoid problematic picks.\n\nAll tools are free to use — head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
+      const text = `ExpiredHawk Update — AI Domain Advisor & More\n\nHi there,\n\nWe've been working hard on some big upgrades, and here's what's new:\n\nAI Domain Advisor (Our Biggest Update)\nOur new flagship tool gives you deep-dive analysis on any domain — Market Positioning, SEO & Marketing potential, Risk Assessment, and a Flip Score so you can instantly gauge investment potential. It even has a chat interface so you can ask follow-up questions about any domain.\n\nOther Tool Improvements\n- Name Generator — Now links directly to GoDaddy so you can register available domains in one click\n- Brandability Scorer — Radar chart visualization showing exactly where a domain excels\n- Bulk Pronounceability Checker — Score and compare multiple domains side by side\n\nNotifications — Work in Progress\nWe're still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.\n\nAll tools are free to use — head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
 
       const announcementHtml = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="x-apple-disable-message-reformatting"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
-${preheaderHtml("New domain tools available — AI Name Generator, Valuation Estimator, and more.")}
+${preheaderHtml("Your new AI-powered co-pilot for domain analysis is here.")}
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
   <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
     <h1 style="color:white;margin:0;font-size:32px;">ExpiredHawk</h1>
-    <p style="color:rgba(255,255,255,0.9);margin:8px 0 0 0;font-size:16px;">New Tools Inside</p>
+    <p style="color:rgba(255,255,255,0.9);margin:8px 0 0 0;font-size:16px;">AI Domain Advisor & More</p>
   </div>
   
   <div style="background:white;padding:32px 30px;border-radius:0 0 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-    <h2 style="color:#18181b;margin-top:0;font-size:22px;">New Tools and Updates</h2>
-    
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">Hi there,</p>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We have been busy building new tools to help you find better domains, faster.
+      We've been working hard on some big upgrades, and here's what's new:
     </p>
     
-    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">Here is what is new:</h3>
+    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#129302; AI Domain Advisor (Our Biggest Update)</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
+      Our new flagship tool gives you deep-dive analysis on any domain — Market Positioning, SEO & Marketing potential, Risk Assessment, and a <strong>Flip Score</strong> so you can instantly gauge investment potential. It even has a <strong>chat interface</strong> so you can ask follow-up questions about any domain.
+    </p>
     
+    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#128295; Other Tool Improvements</h3>
     <div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:16px 20px;border-radius:8px;margin:16px 0;">
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Domain Name Generator</strong> — AI-powered domain name ideas based on your keywords, industry, and style</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Domain Valuation Estimator</strong> — Instantly estimate market value based on length, TLD, age, and keywords</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Pronounceability Scorer</strong> — Check how easy a domain is to say and remember</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> — Score multiple domains at once and compare side by side</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>TLD Comparison Tool</strong> — Compare pricing, popularity, and use cases across TLDs</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Name Generator</strong> — Now links directly to GoDaddy so you can register available domains in one click</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Brandability Scorer</strong> — Radar chart visualization showing exactly where a domain excels</p>
+      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> — Score and compare multiple domains side by side</p>
     </div>
     
+    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#128276; Notifications — Work in Progress</h3>
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We have also improved <strong>spam risk detection</strong> on listed domains so you can avoid problematic picks.
+      We're still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.
     </p>
     
     <div style="text-align:center;margin:28px 0;">
-      <a href="https://expiredhawk.com/tools" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Try the New Tools</a>
+      <a href="https://expiredhawk.com/tools" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Try the AI Domain Advisor</a>
     </div>
     
     <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
@@ -138,7 +139,7 @@ ${preheaderHtml("New domain tools available — AI Name Generator, Valuation Est
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [user.email],
-          subject: "New Tools to Help You Find Better Domains",
+          subject: "ExpiredHawk Update — AI Domain Advisor & More",
           html: announcementHtml,
           text,
           headers: makeEmailHeaders(),
