@@ -46,7 +46,7 @@ serve(async (req) => {
     }
 
     // Limit to 20 checks per request to avoid abuse
-    const toCheck = domains.slice(0, 20);
+    const toCheck = domains.slice(0, 100);
 
     // Check all in parallel
     const results = await Promise.all(toCheck.map(checkRDAP));

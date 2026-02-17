@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scorePronounceability } from "@/lib/pronounceability";
@@ -44,6 +46,7 @@ export function NameGenerator() {
   const [style, setStyle] = useState("mixed");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const { toast } = useToast();
 
   const extractNamePart = (fullDomain: string) => {
@@ -254,99 +257,142 @@ export function NameGenerator() {
           </Button>
         </div>
 
-        {suggestions.length > 0 && (
-          <div className="space-y-3 animate-fade-in">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h4 className="text-sm font-semibold text-foreground">{suggestions.length} Suggestions</h4>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Available</span>
-                <span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500" /> Taken</span>
-                <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-blue-500" /> Trend</span>
-              </div>
-            </div>
-            {suggestions.map((s, i) => {
-              const tmDisplay = s.trademarkRisk ? getTrademarkRiskDisplay(s.trademarkRisk.riskLevel) : null;
-              return (
-                <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
-                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-primary" />
-                      <span className="font-semibold text-foreground">{s.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="outline" className={scoreColor(s.score)}>
-                        Brand: {s.score}
-                      </Badge>
-                      {s.trend_score !== undefined && s.trend_score > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className={`cursor-help ${trendColor(s.trend_score)}`}>
-                              <TrendingUp className="w-3 h-3 mr-0.5" />
-                              {s.trend_score}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Trend Score: How aligned with current market signals and recent sales trends</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {s.pronounceScore !== undefined && (
-                        <Badge variant="outline" className={scoreColor(s.pronounceScore)}>
-                          Say: {s.pronounceScore}
-                        </Badge>
-                      )}
-                      {tmDisplay && s.trademarkRisk && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className={`text-xs cursor-help ${tmDisplay.color}`}>
-                              {s.trademarkRisk.riskLevel === "none" ? (
-                                <ShieldCheck className="w-3 h-3 mr-0.5" />
-                              ) : (
-                                <ShieldAlert className="w-3 h-3 mr-0.5" />
-                              )}
-                              {tmDisplay.label}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>{s.trademarkRisk.summary}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
+        {suggestions.length > 0 && (() => {
+          // Filter suggestions: only show TLDs that are available, and hide names with 0 available TLDs
+          const filtered = showOnlyAvailable
+            ? suggestions
+                .map((s) => {
+                  if (!s.tldStatuses) return s; // still checking
+                  const availableTlds = s.tldStatuses.filter((ts) => ts.status === "available");
+                  if (availableTlds.length === 0) return null;
+                  return { ...s, tldStatuses: availableTlds };
+                })
+                .filter(Boolean) as Suggestion[]
+            : suggestions;
+
+          const stillChecking = suggestions.some((s) => s.checkingTlds);
+          const totalAvailable = suggestions.filter(
+            (s) => s.tldStatuses && s.tldStatuses.some((ts) => ts.status === "available")
+          ).length;
+
+          return (
+            <div className="space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h4 className="text-sm font-semibold text-foreground">
+                  {showOnlyAvailable && !stillChecking
+                    ? `${filtered.length} Available Names`
+                    : `${suggestions.length} Suggestions`}
+                </h4>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="available-only"
+                      checked={showOnlyAvailable}
+                      onCheckedChange={setShowOnlyAvailable}
+                    />
+                    <Label htmlFor="available-only" className="text-xs text-muted-foreground cursor-pointer">
+                      Available only
+                    </Label>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
-                    {s.checkingTlds ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
-                      </span>
-                    ) : s.tldStatuses ? (
-                      s.tldStatuses.map((ts) => {
-                        const tld = ts.domain.substring(ts.domain.indexOf("."));
-                        return (
-                          <Badge key={ts.domain} variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
-                            {statusIcon(ts)}
-                            {tld}
-                          </Badge>
-                        );
-                      })
-                    ) : (
-                      s.available_tlds.map((tld) => (
-                        <Badge key={tld} variant="secondary" className="text-xs">
-                          {tld}
-                        </Badge>
-                      ))
-                    )}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Available</span>
+                    <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-blue-500" /> Trend</span>
                   </div>
                 </div>
-              );
-            })}
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Trend data based on publicly available market reports. Availability via RDAP. Trademark screening covers ~200 major brands — not legal advice. Always verify independently.
-            </p>
-          </div>
-        )}
+              </div>
+
+              {!stillChecking && showOnlyAvailable && filtered.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No names with available TLDs found.</p>
+                  <p className="text-xs mt-1">Try turning off the "Available only" filter, or generate new names.</p>
+                </div>
+              )}
+
+              {filtered.map((s, i) => {
+                const tmDisplay = s.trademarkRisk ? getTrademarkRiskDisplay(s.trademarkRisk.riskLevel) : null;
+                return (
+                  <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-foreground">{s.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="outline" className={scoreColor(s.score)}>
+                          Brand: {s.score}
+                        </Badge>
+                        {s.trend_score !== undefined && s.trend_score > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className={`cursor-help ${trendColor(s.trend_score)}`}>
+                                <TrendingUp className="w-3 h-3 mr-0.5" />
+                                {s.trend_score}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Trend Score: How aligned with current market signals and recent sales trends</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {s.pronounceScore !== undefined && (
+                          <Badge variant="outline" className={scoreColor(s.pronounceScore)}>
+                            Say: {s.pronounceScore}
+                          </Badge>
+                        )}
+                        {tmDisplay && s.trademarkRisk && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className={`text-xs cursor-help ${tmDisplay.color}`}>
+                                {s.trademarkRisk.riskLevel === "none" ? (
+                                  <ShieldCheck className="w-3 h-3 mr-0.5" />
+                                ) : (
+                                  <ShieldAlert className="w-3 h-3 mr-0.5" />
+                                )}
+                                {tmDisplay.label}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>{s.trademarkRisk.summary}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
+                      {s.checkingTlds ? (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
+                        </span>
+                      ) : s.tldStatuses ? (
+                        s.tldStatuses.map((ts) => {
+                          const tld = ts.domain.substring(ts.domain.indexOf("."));
+                          return (
+                            <Badge key={ts.domain} variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
+                              {statusIcon(ts)}
+                              {tld}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        s.available_tlds.map((tld) => (
+                          <Badge key={tld} variant="secondary" className="text-xs">
+                            {tld}
+                          </Badge>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Availability via RDAP — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
+              </p>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
