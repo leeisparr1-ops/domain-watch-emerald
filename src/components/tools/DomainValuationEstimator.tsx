@@ -4,7 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { scoreBrandability } from "@/lib/brandability";
+import { scorePronounceability } from "@/lib/pronounceability";
+import { scoreKeywordDemand } from "@/lib/keywordDemand";
+import { quickValuation } from "@/lib/domainValuation";
+import { estimateSEOVolume } from "@/lib/seoVolume";
+import { scoreDomainAge } from "@/lib/domainAge";
+import { getTrademarkRiskDisplay as getTmDisplay } from "@/lib/trademarkCheck";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import {
   Tooltip,
@@ -446,16 +454,70 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [domain, setDomain] = useState(initialDomain || "");
   const [nicheOverride, setNicheOverride] = useState<string>("");
   const [result, setResult] = useState<ValuationResult | null>(null);
+  const [aiEndUserValue, setAiEndUserValue] = useState<string | null>(null);
+  const [aiAcquisitionPrice, setAiAcquisitionPrice] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const fetchAiPricing = async (domainWithTld: string) => {
+    setAiLoading(true);
+    setAiEndUserValue(null);
+    setAiAcquisitionPrice(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setAiLoading(false); return; }
+
+      const brand = scoreBrandability(domainWithTld);
+      const pronounce = scorePronounceability(domainWithTld);
+      const trademark = checkTrademarkRisk(domainWithTld);
+      const demand = scoreKeywordDemand(domainWithTld);
+      const val = quickValuation(domainWithTld, pronounce.score);
+      const seo = estimateSEOVolume(domainWithTld);
+      const age = scoreDomainAge(null);
+
+      const scores = {
+        brandability: brand.overall,
+        pronounceability: pronounce.score,
+        keywordDemand: demand.score,
+        keywordDemandLabel: demand.label,
+        valuationRange: val.band,
+        niche: demand.niche.label,
+        trademarkRisk: getTmDisplay(trademark.riskLevel).label,
+        seoVolume: seo.estimatedMonthlySearches,
+        seoVolumeLabel: seo.volumeLabel,
+        domainAgeLabel: age.ageLabel,
+        comparableSales: [],
+      };
+
+      const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
+        body: { domain: domainWithTld, scores },
+      });
+
+      if (!error && data && !data.error) {
+        setAiEndUserValue(data.end_user_value || data.value_range || null);
+        setAiAcquisitionPrice(data.suggested_buy_price || null);
+      }
+    } catch (e) {
+      console.error("AI pricing fetch failed:", e);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleEstimate = () => {
     if (!domain.trim()) return;
-    setResult(estimateValue(domain.trim(), nicheOverride || undefined));
+    const input = domain.trim().toLowerCase();
+    const domainWithTld = input.includes(".") ? input : `${input}.com`;
+    setResult(estimateValue(domainWithTld, nicheOverride || undefined));
+    fetchAiPricing(domainWithTld);
   };
 
   // Auto-run if initialDomain is provided
   useEffect(() => {
     if (initialDomain) {
-      setResult(estimateValue(initialDomain.trim()));
+      const input = initialDomain.trim().toLowerCase();
+      const domainWithTld = input.includes(".") ? input : `${input}.com`;
+      setResult(estimateValue(domainWithTld));
+      fetchAiPricing(domainWithTld);
     }
   }, [initialDomain]);
 
@@ -525,26 +587,60 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
               {/* End-User Value */}
               <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
                 <span className="text-xs text-muted-foreground block mb-1">End-User Value</span>
-                <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
-                <Badge variant="outline" className={`text-xs mt-2 ${confidenceColor(result.confidence)}`}>
-                  {result.confidence} Confidence
-                </Badge>
+                {aiLoading ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">AI analyzing...</span>
+                  </div>
+                ) : aiEndUserValue ? (
+                  <>
+                    <p className="text-2xl font-bold text-foreground">{aiEndUserValue}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
+                    <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
+                      <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
+                    <Badge variant="outline" className={`text-xs mt-2 ${confidenceColor(result.confidence)}`}>
+                      {result.confidence} Confidence
+                    </Badge>
+                  </>
+                )}
               </div>
 
               {/* Max Acquisition Price */}
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                 <span className="text-xs text-muted-foreground block mb-1">Max Acquisition Price</span>
-                {(() => {
-                  const parts = result.estimatedValue.match(/[\d,]+/g);
-                  if (parts && parts.length >= 2) {
-                    const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
-                    const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
-                    return <p className="text-2xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
-                  }
-                  return <p className="text-2xl font-bold text-foreground">N/A</p>;
-                })()}
-                <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+                {aiLoading ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">AI analyzing...</span>
+                  </div>
+                ) : aiAcquisitionPrice ? (
+                  <>
+                    <p className="text-2xl font-bold text-foreground">{aiAcquisitionPrice}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+                    <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
+                      <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    {(() => {
+                      const parts = result.estimatedValue.match(/[\d,]+/g);
+                      if (parts && parts.length >= 2) {
+                        const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
+                        const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
+                        return <p className="text-2xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
+                      }
+                      return <p className="text-2xl font-bold text-foreground">N/A</p>;
+                    })()}
+                    <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+                  </>
+                )}
               </div>
 
               {/* Overall Score */}
@@ -699,7 +795,8 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
             )}
 
             <p className="text-xs text-muted-foreground italic">
-              * Algorithmic estimate for guidance only. Comparable sales sourced from publicly reported aftermarket data.
+              * {aiEndUserValue ? "AI-powered valuation from our Domain Advisor. " : "Algorithmic estimate for guidance only. "}
+              Comparable sales sourced from publicly reported aftermarket data.
               Trademark check covers ~200 major brands — not legal advice.
               Actual market value depends on demand, comparable sales, traffic, and other factors. Always consult a trademark attorney before major acquisitions.
             </p>
