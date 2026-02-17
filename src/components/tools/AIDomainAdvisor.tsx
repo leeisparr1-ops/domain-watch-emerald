@@ -41,8 +41,6 @@ interface PreScores {
   keywordDemand: number;
   keywordDemandLabel: string;
   valuationRange: string;
-  valuationMin: number;
-  valuationMax: number;
   trendScore: number | undefined;
   trendLabel: string | undefined;
   niche: string;
@@ -146,8 +144,6 @@ export function AIDomainAdvisor() {
         keywordDemand: demand.score,
         keywordDemandLabel: demand.label,
         valuationRange: val.band,
-        valuationMin: val.valueMin,
-        valuationMax: val.valueMax,
         trendScore: undefined,
         trendLabel: undefined,
         niche: demand.niche.label,

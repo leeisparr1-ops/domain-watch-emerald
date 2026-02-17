@@ -48,10 +48,7 @@ serve(async (req) => {
       if (scores.brandability !== undefined) parts.push(`Brandability Score: ${scores.brandability}/100`);
       if (scores.pronounceability !== undefined) parts.push(`Pronounceability Score: ${scores.pronounceability}/100`);
       if (scores.keywordDemand !== undefined) parts.push(`Keyword Demand Score: ${scores.keywordDemand}/100 (${scores.keywordDemandLabel || ""})`);
-      if (scores.valuationRange) parts.push(`Algorithmic Valuation (End-User Value): ${scores.valuationRange}`);
-      if (scores.valuationMin !== undefined && scores.valuationMax !== undefined) {
-        parts.push(`Algorithmic Value Range: $${Number(scores.valuationMin).toLocaleString()} - $${Number(scores.valuationMax).toLocaleString()}`);
-      }
+      if (scores.valuationRange) parts.push(`Algorithmic Valuation: ${scores.valuationRange}`);
       if (scores.trendScore !== undefined) parts.push(`Trend Score: ${scores.trendScore}/100 (${scores.trendLabel || ""})`);
       if (scores.niche) parts.push(`Detected Niche: ${scores.niche}`);
       if (scores.trademarkRisk) parts.push(`Trademark Risk: ${scores.trademarkRisk}`);
@@ -73,13 +70,13 @@ CURRENT MARKET CONTEXT (Feb 2026):
 - Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard)
 - Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty
 
-CRITICAL VALUATION CONSISTENCY RULE:
-You are given pre-computed scores from our algorithmic analysis engine, including an "Algorithmic Valuation (End-User Value)" range and exact min/max numbers. Your "end_user_value" response MUST be consistent with and anchored to these algorithmic values. You may adjust slightly (up to 20-30% in either direction) based on qualitative factors the algorithm cannot capture (brand feel, cultural relevance, industry timing), but you must NEVER produce valuations that are wildly different (e.g. 10x higher or lower) from the algorithmic range. If you believe the algorithmic value is significantly wrong, still stay within 2x of it and explain your reasoning.
+IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.
 
 CRITICAL PRICING RULES:
-- "end_user_value" is the estimated price an END USER (startup, brand, company) would pay to buy this domain for their business. This is the retail/resale value. It MUST be anchored to the Algorithmic Valuation range provided.
-- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than end_user_value (typically 10-40% of end-user value).
-- The buy price should NEVER equal or exceed the end-user value — investors need profit margin.`;
+- "end_user_value" is the estimated price an END USER (startup, brand, company) would pay to buy this domain for their business. This is the retail/resale value.
+- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than end_user_value (typically 10-40% of end-user value). For example if end_user_value is "$500,000 - $1,500,000", suggested_buy_price might be "$50,000 - $200,000".
+- The buy price should NEVER equal or exceed the end-user value — investors need profit margin.
+- For premium category-killer domains (like Delete.co selling for $400k+), end-user values can be six or seven figures.`;
 
     // Handle follow-up questions
     if (followUp && question && previousAnalysis) {
