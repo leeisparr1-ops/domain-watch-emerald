@@ -145,16 +145,20 @@ CRITICAL PRICING RULES:
     // Initial analysis
     const userPrompt = `Analyze the domain "${domain}" for investment potential.${scoresContext}
 
-Provide:
+Provide a COMPREHENSIVE investment analysis covering:
 1. Overall investment verdict (Strong Buy / Buy / Hold / Avoid)
 2. Estimated end-user value range (what a startup/brand/company would pay to own this domain)
-3. Best buyer persona (who would buy this?)
-4. Top 3 strengths
-5. Top 3 weaknesses or risks
+3. Best buyer persona (who would buy this?) — be specific (e.g. "Series A fintech startup", "Fortune 500 rebrand")
+4. Top 3-5 strengths
+5. Top 3-5 weaknesses or risks
 6. Max acquisition price (the MAX an investor should pay at auction — must be well below the end-user value, typically 10-40%)
 7. Flip potential (1-10 score) and estimated timeline
 8. Niche classification
-9. One-sentence summary`;
+9. Market positioning analysis — how does this domain compare to category leaders? What recent comparable sales inform the valuation?
+10. Development potential — what kind of business/product could be built on this domain to maximize value?
+11. SEO & marketing angle — natural search advantages, brandable campaign potential, social media handle availability considerations
+12. Risk assessment — trademark concerns, cultural/linguistic issues, TLD perception, renewal cost considerations
+13. One-paragraph executive summary suitable for an investment memo`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -181,16 +185,20 @@ Provide:
                   properties: {
                     verdict: { type: "string", enum: ["Strong Buy", "Buy", "Hold", "Avoid"] },
                     end_user_value: { type: "string", description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000" },
-                    buyer_persona: { type: "string" },
-                    strengths: { type: "array", items: { type: "string" } },
-                    weaknesses: { type: "array", items: { type: "string" } },
+                    buyer_persona: { type: "string", description: "Specific buyer type, e.g. 'Series A fintech startup looking for a premium brand'" },
+                    strengths: { type: "array", items: { type: "string" }, description: "3-5 key strengths" },
+                    weaknesses: { type: "array", items: { type: "string" }, description: "3-5 risks or weaknesses" },
                     suggested_buy_price: { type: "string", description: "Max investor acquisition price — must be well below end_user_value (typically 10-40% of end-user value)" },
                     flip_score: { type: "number", description: "1-10 flip potential" },
                     flip_timeline: { type: "string", description: "e.g. 3-6 months" },
                     niche: { type: "string" },
-                    summary: { type: "string" },
+                    market_positioning: { type: "string", description: "How this domain compares to category leaders and comparable sales that inform the valuation" },
+                    development_potential: { type: "string", description: "What business/product could be built on this domain to maximize value" },
+                    seo_angle: { type: "string", description: "Natural search advantages, brandable campaign potential" },
+                    risk_detail: { type: "string", description: "Detailed risk assessment: trademark, cultural, TLD perception, renewal costs" },
+                    summary: { type: "string", description: "Executive summary suitable for an investment memo (2-3 sentences)" },
                   },
-                  required: ["verdict", "end_user_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "summary"],
+                  required: ["verdict", "end_user_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "market_positioning", "development_potential", "seo_angle", "risk_detail", "summary"],
                   additionalProperties: false,
                 },
               },

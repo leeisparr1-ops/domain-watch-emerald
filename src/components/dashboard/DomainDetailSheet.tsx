@@ -114,11 +114,6 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
       highlight: true,
     },
     {
-      label: "Valuation",
-      value: domain.valuation ? `$${domain.valuation.toLocaleString()}` : "-",
-      icon: TrendingUp,
-    },
-    {
       label: "Bids",
       value: domain.numberOfBids.toString(),
       icon: Users,
@@ -210,25 +205,6 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
                 {domain.numberOfBids} bid{domain.numberOfBids !== 1 ? "s" : ""}
               </div>
             </div>
-            {domain.valuation && domain.valuation > 0 && (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
-                <div className="text-sm text-muted-foreground mb-1">Est. Value</div>
-                <div className="text-2xl font-bold text-foreground">
-                  ${domain.valuation.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {domain.valuation > domain.price ? (
-                    <span className="text-green-500">
-                      {Math.round(((domain.valuation - domain.price) / domain.valuation) * 100)}% below value
-                    </span>
-                  ) : (
-                    <span className="text-orange-500">
-                      {Math.round(((domain.price - domain.valuation) / domain.valuation) * 100)}% above value
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

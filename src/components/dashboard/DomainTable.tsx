@@ -253,7 +253,7 @@ export function DomainTable({
                 onSort={onSortChange}
               />
               <TableHead className="whitespace-nowrap">Bids</TableHead>
-              <TableHead className="whitespace-nowrap">Val.</TableHead>
+              
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
@@ -331,18 +331,6 @@ export function DomainTable({
                         <span className="font-semibold text-sm">
                           ${d.price.toLocaleString()}
                         </span>
-                        {valueIndicator && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex">
-                                <valueIndicator.icon className={cn("w-3 h-3", valueIndicator.color)} />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{valueIndicator.label} valuation</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
                       </div>
                     </TableCell>
 
@@ -351,16 +339,6 @@ export function DomainTable({
                       {d.numberOfBids}
                     </TableCell>
 
-                    {/* Valuation */}
-                    <TableCell className="py-2 text-sm">
-                      {d.valuation && d.valuation > 0 ? (
-                        <span className="text-muted-foreground">
-                          ${d.valuation.toLocaleString()}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50">-</span>
-                      )}
-                    </TableCell>
 
                     {/* Age */}
                     <TableCell className="py-2 text-sm">
