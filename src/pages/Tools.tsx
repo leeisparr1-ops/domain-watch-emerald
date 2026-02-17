@@ -4,14 +4,12 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Sparkles, DollarSign, List, Globe2, Award, ExternalLink, BrainCircuit } from "lucide-react";
+import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
-import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
 import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
-import { DomainReportCard } from "@/components/tools/DomainReportCard";
 import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
 
 const Tools = () => {
@@ -36,29 +34,14 @@ const Tools = () => {
               </Badge>
             </div>
              <p className="text-muted-foreground mb-1">
-              Analyze any domain instantly, or dive deep with individual tools below.
+              Get AI-powered domain analysis, or dive deep with individual tools below.
             </p>
-            <p className="text-xs text-muted-foreground/70 mb-4">
+            <p className="text-xs text-muted-foreground/70 mb-6">
               🚧 All tools are in beta — results are estimates and may change as we improve.
             </p>
 
-            {/* Unified Domain Report Card */}
-            <div className="mb-10">
-              <DomainReportCard />
-            </div>
-
-            {/* Divider */}
-            <div className="relative mb-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-3 text-muted-foreground font-medium tracking-wider">Deep Dive Tools</span>
-              </div>
-            </div>
-
             <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 mb-6 h-auto">
+              <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 mb-6 h-auto">
                 <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <BrainCircuit className="w-4 h-4" />
                   <span className="hidden sm:inline">AI Advisor</span>
@@ -83,11 +66,6 @@ const Tools = () => {
                   <Sparkles className="w-4 h-4" />
                   <span className="hidden sm:inline">Name Generator</span>
                   <span className="sm:hidden">Generate</span>
-                </TabsTrigger>
-                <TabsTrigger value="valuation" className="flex items-center gap-1.5 text-xs md:text-sm">
-                  <DollarSign className="w-4 h-4" />
-                  <span className="hidden sm:inline">Valuation</span>
-                  <span className="sm:hidden">Value</span>
                 </TabsTrigger>
                 <TabsTrigger value="tld" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Globe2 className="w-4 h-4" />
@@ -130,14 +108,6 @@ const Tools = () => {
                   </Link>
                 </div>
                 <NameGenerator />
-              </TabsContent>
-              <TabsContent value="valuation">
-                <div className="flex justify-end mb-2">
-                  <Link to="/tools/valuation" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
-                    Open full page <ExternalLink className="w-3 h-3" />
-                  </Link>
-                </div>
-                <DomainValuationEstimator />
               </TabsContent>
               <TabsContent value="tld">
                 <div className="flex justify-end mb-2">

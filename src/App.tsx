@@ -28,7 +28,7 @@ const Help = lazy(() => import("./pages/Help"));
 const Tools = lazy(() => import("./pages/Tools"));
 const BrandabilityScorePage = lazy(() => import("./pages/tools/BrandabilityScorePage"));
 const DomainGeneratorPage = lazy(() => import("./pages/tools/DomainGeneratorPage"));
-const ValuationPage = lazy(() => import("./pages/tools/ValuationPage"));
+
 const PronounceabilityPage = lazy(() => import("./pages/tools/PronounceabilityPage"));
 const BulkCheckerPage = lazy(() => import("./pages/tools/BulkCheckerPage"));
 const TldComparePage = lazy(() => import("./pages/tools/TldComparePage"));
@@ -73,7 +73,7 @@ const App = () => (
                 <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
                 <Route path="/tools/brandability-score" element={<ProtectedRoute><BrandabilityScorePage /></ProtectedRoute>} />
                 <Route path="/tools/domain-generator" element={<ProtectedRoute><DomainGeneratorPage /></ProtectedRoute>} />
-                <Route path="/tools/valuation" element={<ProtectedRoute><ValuationPage /></ProtectedRoute>} />
+                
                 <Route path="/tools/pronounceability" element={<ProtectedRoute><PronounceabilityPage /></ProtectedRoute>} />
                 <Route path="/tools/bulk-checker" element={<ProtectedRoute><BulkCheckerPage /></ProtectedRoute>} />
                 <Route path="/tools/tld-compare" element={<ProtectedRoute><TldComparePage /></ProtectedRoute>} />
