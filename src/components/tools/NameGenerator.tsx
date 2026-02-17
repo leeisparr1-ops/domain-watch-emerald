@@ -375,7 +375,7 @@ export function NameGenerator() {
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <Globe className="w-4 h-4 text-primary" />
-                        <span className="font-semibold text-foreground">{s.name}</span>
+                        <span className="font-semibold text-foreground">{extractNamePart(s.name)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="outline" className={scoreColor(s.score)}>
