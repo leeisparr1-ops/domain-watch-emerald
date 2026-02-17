@@ -27,7 +27,12 @@ function makeEmailHeaders(): Record<string, string> {
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     "X-Entity-Ref-ID": crypto.randomUUID(),
     "Precedence": "bulk",
+    "Feedback-ID": "announcement:expiredhawk",
   };
+}
+
+function preheaderHtml(text: string): string {
+  return `<div style="display:none;font-size:1px;color:#f4f4f5;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${text}${"&nbsp;&zwnj;".repeat(30)}</div>`;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -76,9 +81,10 @@ serve(async (req: Request): Promise<Response> => {
       const text = `New Tools and Updates – ExpiredHawk\n\nHi there,\n\nWe have been busy building new tools to help you find better domains, faster.\n\nHere is what is new:\n\n- Domain Name Generator – Get AI-powered domain name ideas based on keywords, industry, and style preferences\n- Domain Valuation Estimator – Instantly estimate the market value of any domain based on length, TLD, age, and keyword strength\n- Pronounceability Scorer – Check how easy a domain is to say and remember, with detailed phonetic analysis\n- Bulk Pronounceability Checker – Score multiple domains at once and compare them side by side\n- TLD Comparison Tool – Compare pricing, popularity, and use cases across different TLDs\n\nWe have also improved spam risk detection on listed domains so you can avoid problematic picks.\n\nAll tools are free to use — head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
 
       const announcementHtml = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="x-apple-disable-message-reformatting"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
+${preheaderHtml("New domain tools available — AI Name Generator, Valuation Estimator, and more.")}
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
   <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
     <h1 style="color:white;margin:0;font-size:32px;">ExpiredHawk</h1>
