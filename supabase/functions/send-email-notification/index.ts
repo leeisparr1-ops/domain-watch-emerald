@@ -23,19 +23,25 @@ const FOOTER_HTML = `
 
 const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
 
-function makeEmailHeaders(): Record<string, string> {
+function makeEmailHeaders(category: string): Record<string, string> {
   return {
     "List-Unsubscribe": "<https://expiredhawk.com/settings>",
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     "X-Entity-Ref-ID": crypto.randomUUID(),
+    "Feedback-ID": `${category}:expiredhawk`,
   };
 }
 
-function wrapHtml(bodyContent: string): string {
+function preheaderHtml(text: string): string {
+  return `<div style="display:none;font-size:1px;color:#f4f4f5;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${text}${"&nbsp;&zwnj;".repeat(30)}</div>`;
+}
+
+function wrapHtml(bodyContent: string, preheader?: string): string {
   return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="x-apple-disable-message-reformatting"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
+${preheader ? preheaderHtml(preheader) : ""}
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
 ${bodyContent}
 ${FOOTER_HTML}
@@ -188,7 +194,7 @@ serve(async (req: Request): Promise<Response> => {
             You can manage your notification preferences in your <a href="https://expiredhawk.com/settings" style="color:#22c55e;">account settings</a>.
           </p>
         </div>
-      `);
+      `, "Your email notifications are working correctly.");
     } else if (payload.type === "pattern_match") {
       let matches = payload.data?.matches || [];
 
@@ -249,8 +255,9 @@ serve(async (req: Request): Promise<Response> => {
         pattern_id: m.pattern_id,
       }));
 
-      subject = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} matched your patterns – ExpiredHawk`;
+      subject = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} matched your patterns`;
       text = `${totalMatches} domain${totalMatches > 1 ? 's' : ''} matched your patterns\n\n${domainListText}\n${moreCount > 0 ? `\n...and ${moreCount} more\n` : ""}\nView all matches: https://expiredhawk.com/dashboard${FOOTER_TEXT}`;
+      const preheaderText = matches.slice(0, 3).map(m => m.domain).join(", ");
       html = wrapHtml(`
         <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:30px;border-radius:16px 16px 0 0;text-align:center;">
           <h1 style="color:white;margin:0;font-size:28px;">ExpiredHawk</h1>
@@ -269,11 +276,12 @@ serve(async (req: Request): Promise<Response> => {
             View All Matches
           </a>
         </div>
-      `);
+      `, preheaderText);
     }
 
     console.log("Sending email to:", recipientEmail);
 
+    const category = payload.type === "test" ? "test" : "pattern_match";
     const emailResponse: any = await resend.emails.send({
       from: "ExpiredHawk <notifications@expiredhawk.com>",
       replyTo: "support@expiredhawk.com",
@@ -281,7 +289,7 @@ serve(async (req: Request): Promise<Response> => {
       subject,
       html,
       text,
-      headers: makeEmailHeaders(),
+      headers: makeEmailHeaders(category),
     });
 
     if (emailResponse?.error) {
