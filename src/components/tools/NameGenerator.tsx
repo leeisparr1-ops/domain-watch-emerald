@@ -46,8 +46,17 @@ export function NameGenerator() {
   const [style, setStyle] = useState("mixed");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const { toast } = useToast();
+
+  const loadingSteps = [
+    { label: "Analyzing market trends & keywords...", icon: "📊" },
+    { label: "Generating investor-grade names with AI...", icon: "🤖" },
+    { label: "Screening for trademark conflicts...", icon: "🛡️" },
+    { label: "Checking domain availability via RDAP...", icon: "🌐" },
+    { label: "Filtering & ranking results...", icon: "⚡" },
+  ];
 
   const extractNamePart = (fullDomain: string) => {
     const dot = fullDomain.lastIndexOf(".");
@@ -99,6 +108,7 @@ export function NameGenerator() {
     const input = inputMode === "inspired" ? inspiredBy.trim() : keywords.trim();
     if (!input) return;
     setIsLoading(true);
+    setLoadingStep(0);
     setSuggestions([]);
 
     try {
@@ -111,10 +121,18 @@ export function NameGenerator() {
         body.inspired_by = input;
       }
 
+      // Step 1: Analyzing trends
+      setLoadingStep(0);
+      await new Promise((r) => setTimeout(r, 600));
+
+      // Step 2: Generating names
+      setLoadingStep(1);
       const { data, error } = await supabase.functions.invoke("generate-domain-names", { body });
 
       if (error) throw error;
 
+      // Step 3: Trademark screening
+      setLoadingStep(2);
       const items: Suggestion[] = (data?.suggestions || []).map((s: any) => {
         const pScore = scorePronounceability(s.name).score;
         return {
@@ -126,9 +144,27 @@ export function NameGenerator() {
         };
       });
 
+      if (items.length === 0) {
+        toast({
+          title: "No names generated",
+          description: "Try different keywords or a broader industry.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       setSuggestions(items);
+
+      // Step 4: Checking availability
+      setLoadingStep(3);
+      await checkAvailability(items);
+
+      // Step 5: Filtering
+      setLoadingStep(4);
+      await new Promise((r) => setTimeout(r, 400));
+
       setIsLoading(false);
-      checkAvailability(items);
     } catch (e: any) {
       console.error(e);
       toast({
@@ -246,7 +282,7 @@ export function NameGenerator() {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating with 2026 trends...
+                {loadingSteps[loadingStep]?.label || "Processing..."}
               </>
             ) : (
               <>
@@ -256,6 +292,29 @@ export function NameGenerator() {
             )}
           </Button>
         </div>
+
+        {/* Multi-step loading indicator */}
+        {isLoading && (
+          <div className="space-y-3 p-4 rounded-lg border border-primary/20 bg-primary/5 animate-fade-in">
+            <p className="text-sm font-medium text-foreground">Deep analysis in progress...</p>
+            <div className="space-y-2">
+              {loadingSteps.map((step, i) => (
+                <div key={i} className={`flex items-center gap-2 text-xs transition-opacity duration-300 ${i <= loadingStep ? "opacity-100" : "opacity-30"}`}>
+                  {i < loadingStep ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  ) : i === loadingStep ? (
+                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin flex-shrink-0" />
+                  ) : (
+                    <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+                  )}
+                  <span className={i <= loadingStep ? "text-foreground" : "text-muted-foreground"}>
+                    {step.icon} {step.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {suggestions.length > 0 && (() => {
           // Filter suggestions: only show TLDs that are available, and hide names with 0 available TLDs
