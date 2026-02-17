@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.check-social-handles]
 verify_jwt = false
+
+[functions.backfill-pattern-matches]
+verify_jwt = false

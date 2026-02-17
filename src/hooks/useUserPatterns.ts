@@ -4,6 +4,35 @@ import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { validateRegexSafety } from "@/lib/regexSecurity";
 
+// Fire-and-forget backfill scan for a single pattern against the full DB
+async function triggerBackfill(patternId: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/backfill-pattern-matches`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ pattern_id: patternId }),
+      }
+    );
+
+    if (resp.ok) {
+      const result = await resp.json();
+      if (result.matchesFound > 0) {
+        toast.success(`Backfill found ${result.matchesFound} existing matches for your pattern!`);
+      }
+    }
+  } catch (err) {
+    console.error("Backfill trigger failed:", err);
+  }
+}
+
 export interface UserPattern {
   id: string;
   user_id: string;
@@ -151,7 +180,9 @@ export function useUserPatterns() {
       if (error) throw error;
 
       setPatterns(prev => [data as UserPattern, ...prev]);
-      toast.success("Pattern saved! You'll be notified when matching domains appear.");
+      toast.success("Pattern saved! Scanning existing inventory...");
+      // Backfill: scan full DB for this new pattern
+      triggerBackfill(data.id);
       return data;
     } catch (error) {
       console.error("Error adding pattern:", error);
@@ -272,7 +303,8 @@ export function useUserPatterns() {
       ));
       
       if (filterFieldsChanged) {
-        toast.success("Pattern updated - matches will refresh on next sync");
+        toast.success("Pattern updated — rescanning inventory...");
+        triggerBackfill(id);
       } else {
         toast.success("Pattern updated");
       }
