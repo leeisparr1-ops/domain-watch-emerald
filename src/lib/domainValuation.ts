@@ -1785,24 +1785,26 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
   let valueMin: number, valueMax: number;
   if ((hasPenaltyWord) || (trademark.riskLevel === "high" && !isMultiWord)) {
     valueMin = 5; valueMax = 50;
+  } else if (normalizedTotal >= 97) {
+    valueMin = 500000; valueMax = 2000000;
   } else if (normalizedTotal >= 92) {
-    valueMin = 75000; valueMax = 250000;
+    valueMin = 200000; valueMax = 750000;
   } else if (normalizedTotal >= 85) {
-    valueMin = 25000; valueMax = 100000;
+    valueMin = 75000; valueMax = 250000;
   } else if (normalizedTotal >= 78) {
-    valueMin = 8000; valueMax = 35000;
+    valueMin = 25000; valueMax = 100000;
   } else if (normalizedTotal >= 70) {
-    valueMin = 2500; valueMax = 12000;
+    valueMin = 8000; valueMax = 35000;
   } else if (normalizedTotal >= 62) {
-    valueMin = 800; valueMax = 4000;
+    valueMin = 2500; valueMax = 12000;
   } else if (normalizedTotal >= 55) {
-    valueMin = 200; valueMax = 1200;
+    valueMin = 800; valueMax = 4000;
   } else if (normalizedTotal >= 45) {
-    valueMin = 50; valueMax = 400;
+    valueMin = 200; valueMax = 1200;
   } else if (normalizedTotal >= 35) {
-    valueMin = 15; valueMax = 100;
+    valueMin = 50; valueMax = 400;
   } else {
-    valueMin = 5; valueMax = 50;
+    valueMin = 5; valueMax = 100;
   }
 
   // Trending multiplier
@@ -1830,8 +1832,8 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
 
   // Dictionary .com bonus — single dictionary words on .com are ultra-premium
   if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const dictFloorMin = name.length <= 3 ? 200000 : name.length <= 4 ? 100000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 8000;
-    const dictFloorMax = name.length <= 3 ? 500000 : name.length <= 4 ? 400000 : name.length <= 5 ? 250000 : name.length <= 6 ? 150000 : name.length <= 8 ? 50000 : 30000;
+    const dictFloorMin = name.length <= 3 ? 2000000 : name.length <= 4 ? 500000 : name.length <= 5 ? 200000 : name.length <= 6 ? 100000 : name.length <= 8 ? 50000 : 25000;
+    const dictFloorMax = name.length <= 3 ? 10000000 : name.length <= 4 ? 2500000 : name.length <= 5 ? 1000000 : name.length <= 6 ? 500000 : name.length <= 8 ? 250000 : 100000;
     valueMin = Math.max(valueMin, dictFloorMin);
     valueMax = Math.max(valueMax, dictFloorMax);
   }
@@ -1883,9 +1885,10 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     valueMax = Math.max(valueMax, altFloorMax);
   }
 
-  // Tighten band
-  if (valueMax > valueMin * 3) {
-    valueMax = Math.round(valueMin * 3);
+  // Tighten band (allow wider spread for premium domains)
+  const maxSpread = valueMin >= 100000 ? 5 : 3;
+  if (valueMax > valueMin * maxSpread) {
+    valueMax = Math.round(valueMin * maxSpread);
   }
 
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
