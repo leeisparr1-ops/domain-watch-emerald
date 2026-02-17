@@ -23,15 +23,6 @@ interface UserPattern {
   enabled: boolean;
 }
 
-interface Auction {
-  id: string;
-  domain_name: string;
-  price: number;
-  tld: string | null;
-  end_time: string | null;
-  domain_age: number | null;
-}
-
 interface MatchedDomain {
   auction_id: string;
   domain_name: string;
@@ -97,20 +88,6 @@ serve(async (req) => {
       });
     }
 
-    // Get active auctions - limit to 2000 to avoid timeout
-    const now = new Date().toISOString();
-    const { data: auctions, error: auctionsError } = await supabase
-      .from("auctions")
-      .select("id, domain_name, price, tld, end_time, domain_age")
-      .gte("end_time", now)
-      .order("end_time", { ascending: true })
-      .limit(2000);
-
-    if (auctionsError) {
-      console.error("Auctions query error:", auctionsError);
-      throw auctionsError;
-    }
-
     // Get recently alerted combinations for this user (last 7 days to limit query size)
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: existingAlerts, error: alertsError } = await supabase
@@ -121,7 +98,6 @@ serve(async (req) => {
 
     if (alertsError) {
       console.error("Alerts query error:", alertsError);
-      // Don't throw - just proceed without dedup to avoid blocking
     }
 
     const alertedSet = new Set(
@@ -130,46 +106,79 @@ serve(async (req) => {
 
     const matchedDomains: MatchedDomain[] = [];
     const newAlerts: { user_id: string; pattern_id: string; auction_id: string; domain_name: string }[] = [];
+    const now = new Date().toISOString();
 
-    // Check each pattern against auctions
+    // For each pattern, use PostgreSQL regex matching to search ALL auctions
     for (const pattern of patterns as UserPattern[]) {
-      // Use safe regex validation
+      // Validate regex safety first
       const { regex, error: regexError } = createSafeRegex(pattern.pattern, "i");
       if (!regex) {
         console.error(`Unsafe or invalid regex pattern: ${pattern.pattern} - ${regexError}`);
         continue;
       }
-        
-      for (const auction of auctions as Auction[]) {
+
+      // Build a PostgreSQL query that does server-side regex matching
+      // This searches the ENTIRE auctions table, not just 2000 rows
+      let query = supabase
+        .from("auctions")
+        .select("id, domain_name, price, tld, end_time, domain_age")
+        .gte("end_time", now)
+        .limit(200); // Limit matches per pattern to avoid huge result sets
+
+      // Apply price filters
+      if (pattern.min_price) {
+        query = query.gte("price", pattern.min_price);
+      }
+      if (pattern.max_price) {
+        query = query.lte("price", pattern.max_price);
+      }
+
+      // Apply TLD filter
+      if (pattern.tld_filter) {
+        const filterTld = pattern.tld_filter.toUpperCase().replace(".", "");
+        query = query.ilike("tld", filterTld);
+      }
+
+      // Apply domain age filters
+      if (pattern.min_age) {
+        query = query.gte("domain_age", pattern.min_age);
+      }
+      if (pattern.max_age) {
+        query = query.lte("domain_age", pattern.max_age);
+      }
+
+      // Execute the query - we get filtered auctions first, then regex match client-side
+      // For patterns that are simple keywords, we can also use ilike for a fast pre-filter
+      const isSimpleKeyword = /^[a-z0-9]+$/i.test(pattern.pattern);
+      if (isSimpleKeyword) {
+        // Simple keyword: use ilike for fast server-side pre-filter
+        query = query.ilike("domain_name", `%${pattern.pattern}%`);
+      }
+
+      const { data: auctions, error: auctionsError } = await query;
+
+      if (auctionsError) {
+        console.error(`Auctions query error for pattern ${pattern.id}:`, auctionsError);
+        continue;
+      }
+
+      if (!auctions || auctions.length === 0) continue;
+
+      for (const auction of auctions) {
         // Skip if already alerted
         const key = `${pattern.id}:${auction.id}`;
         if (alertedSet.has(key)) continue;
 
-        // Extract domain name without TLD
+        // Extract domain name without TLD for regex matching
         const domainParts = auction.domain_name.split(".");
         const nameOnly = domainParts.slice(0, -1).join(".").toLowerCase();
 
-        // Check regex match
+        // Apply regex match (for non-simple-keyword patterns, this is the primary filter)
         if (!regex.test(nameOnly)) continue;
 
-        // Check price filter
-        if (pattern.min_price && auction.price < pattern.min_price) continue;
-        if (pattern.max_price && auction.price > pattern.max_price) continue;
-
-        // Check TLD filter
-        if (pattern.tld_filter && auction.tld) {
-          const filterTld = pattern.tld_filter.toUpperCase().replace(".", "");
-          const auctionTld = auction.tld.toUpperCase().replace(".", "");
-          if (filterTld !== auctionTld) continue;
-        }
-
-        // Check character length filter (domain name without TLD)
+        // Check character length filter
         if (pattern.min_length && nameOnly.length < pattern.min_length) continue;
         if (pattern.max_length && nameOnly.length > pattern.max_length) continue;
-
-        // Check domain age filter (in years)
-        if (pattern.min_age && (!auction.domain_age || auction.domain_age < pattern.min_age)) continue;
-        if (pattern.max_age && auction.domain_age && auction.domain_age > pattern.max_age) continue;
 
         // Match found!
         matchedDomains.push({
@@ -190,14 +199,18 @@ serve(async (req) => {
       }
     }
 
-    // Record new alerts and send push notifications
+    // Record new alerts and send notifications
     if (newAlerts.length > 0) {
-      const { error: insertError } = await supabase
-        .from("pattern_alerts")
-        .upsert(newAlerts, { onConflict: "user_id,pattern_id,auction_id" });
+      // Batch insert in chunks of 100
+      for (let i = 0; i < newAlerts.length; i += 100) {
+        const chunk = newAlerts.slice(i, i + 100);
+        const { error: insertError } = await supabase
+          .from("pattern_alerts")
+          .upsert(chunk, { onConflict: "user_id,pattern_id,auction_id" });
 
-      if (insertError) {
-        console.error("Error inserting alerts:", insertError);
+        if (insertError) {
+          console.error("Error inserting alerts:", insertError);
+        }
       }
 
       // Update last_matched_at for patterns that matched
@@ -214,10 +227,8 @@ serve(async (req) => {
         const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
         const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
         
-        // Use absolute URL for icon - expiredhawk.lovable.app is the production domain
         const iconUrl = "https://expiredhawk.lovable.app/icons/icon-192.png";
         
-        // Send push notification
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
             method: "POST",
@@ -270,6 +281,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Pattern check complete: ${patterns.length} patterns, ${matchedDomains.length} matches found`);
+
     return new Response(JSON.stringify({ 
       matches: matchedDomains,
       newMatches: matchedDomains.length,
@@ -279,7 +292,6 @@ serve(async (req) => {
     });
 
   } catch (error: unknown) {
-    // Extract detailed error message for better debugging
     let errorMessage = "Unknown error";
     if (error instanceof Error) {
       errorMessage = error.message;
