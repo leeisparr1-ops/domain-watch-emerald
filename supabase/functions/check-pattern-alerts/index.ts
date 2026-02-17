@@ -97,19 +97,42 @@ serve(async (req) => {
       });
     }
 
-    // Get active auctions - limit to 2000 to avoid timeout
-    const now = new Date().toISOString();
-    const { data: auctions, error: auctionsError } = await supabase
-      .from("auctions")
-      .select("id, domain_name, price, tld, end_time, domain_age")
-      .gte("end_time", now)
-      .order("end_time", { ascending: true })
-      .limit(2000);
+    // Get recently synced auctions (last 25h) — matches check-all-patterns logic.
+    // Using updated_at instead of end_time ensures we catch Namecheap Buy Now
+    // domains (null end_time) and all inventory sources.
+    const recentCutoff = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    
+    const allAuctions: Auction[] = [];
+    const batchSize = 1000;
+    const maxBatches = 20;
+    
+    for (let batch = 0; batch < maxBatches; batch++) {
+      const { data: auctionBatch, error: auctionsError } = await supabase
+        .from("auctions")
+        .select("id, domain_name, price, tld, end_time, domain_age")
+        .gte("updated_at", recentCutoff)
+        .order("updated_at", { ascending: false })
+        .range(batch * batchSize, (batch + 1) * batchSize - 1);
 
-    if (auctionsError) {
-      console.error("Auctions query error:", auctionsError);
-      throw auctionsError;
+      if (auctionsError) {
+        console.error(`Batch ${batch} error:`, auctionsError);
+        break;
+      }
+
+      if (!auctionBatch || auctionBatch.length === 0) break;
+      allAuctions.push(...(auctionBatch as Auction[]));
+      if (auctionBatch.length < batchSize) break;
     }
+
+    const auctions = allAuctions;
+    
+    if (auctions.length === 0) {
+      return new Response(JSON.stringify({ matches: [], newMatches: 0, message: "No recent auctions" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Checking ${patterns.length} patterns against ${auctions.length} recent auctions`);
 
     // Get recently alerted combinations for this user (last 7 days to limit query size)
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
