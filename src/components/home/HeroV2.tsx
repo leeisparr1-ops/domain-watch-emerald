@@ -81,7 +81,7 @@ export function HeroV2() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Free tier includes 3 patterns · No credit card required
+              Free tier includes 30 patterns · No credit card required
             </p>
           </motion.div>
 
