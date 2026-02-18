@@ -22,7 +22,7 @@ export function CtaBanner() {
               Stop Missing Premium Domains
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-lg mx-auto">
-              Join hundreds of domain investors who catch opportunities before anyone else.
+              Catch expiring domains before anyone else — set your patterns and let us do the scanning.
             </p>
             <Link to="/signup">
               <Button
