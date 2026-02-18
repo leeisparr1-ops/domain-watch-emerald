@@ -24,6 +24,7 @@ import { FlipScoreGauge } from "./FlipScoreGauge";
 interface Analysis {
   verdict: string;
   end_user_value: string;
+  wholesale_value?: string;
   value_range?: string;
   buyer_persona: string;
   strengths: string[];
@@ -323,7 +324,7 @@ export function AIDomainAdvisor() {
             </div>
 
             {/* Flip Score Gauge + Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Flip Score Gauge */}
               <div className="flex flex-col items-center p-4 rounded-lg border border-border bg-card">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Flip Potential</p>
@@ -342,10 +343,18 @@ export function AIDomainAdvisor() {
                 <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
               </div>
 
+              {/* Wholesale Value */}
+              <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
+                <TrendingUp className="w-5 h-5 mx-auto mb-2 text-amber-500" />
+                <p className="text-xs text-muted-foreground">Wholesale Value</p>
+                <p className="text-lg font-bold text-foreground mt-1">{analysis.wholesale_value || "N/A"}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Investor-to-investor trade price</p>
+              </div>
+
               {/* Max Acquisition Price */}
               <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
-                <DollarSign className="w-5 h-5 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground">Max Acquisition Price</p>
+                <DollarSign className="w-5 h-5 mx-auto mb-2 text-emerald-500" />
+                <p className="text-xs text-muted-foreground">Max Buy Price</p>
                 <p className="text-lg font-bold text-foreground mt-1">{analysis.suggested_buy_price}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
               </div>

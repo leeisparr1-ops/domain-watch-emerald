@@ -1,4 +1,4 @@
-import { Search, Filter, ArrowUpDown, X } from "lucide-react";
+import { Search, Filter, ArrowUpDown, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,7 @@ interface SearchAndFiltersProps {
   activeFilterCount: number;
   onResetFilters: () => void;
   onPageReset: () => void;
+  isSearching?: boolean;
 }
 
 export function SearchAndFilters({
@@ -85,12 +86,17 @@ export function SearchAndFilters({
   showFilters, onToggleFilters,
   activeFilterCount, onResetFilters,
   onPageReset,
+  isSearching,
 }: SearchAndFiltersProps) {
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4 animate-in fade-in duration-300 delay-100">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          {isSearching ? (
+            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          )}
           <Input placeholder="Search domains..." value={search} onChange={e => onSearchChange(e.target.value)} className="pl-10 bg-input" />
         </div>
         <div className="flex gap-2 sm:gap-4 overflow-x-auto">
