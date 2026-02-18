@@ -1,8 +1,10 @@
 import { Navbar } from "@/components/layout/Navbar";
-import { Hero } from "@/components/home/Hero";
-import { Features } from "@/components/home/Features";
-import { HowItWorks } from "@/components/home/HowItWorks";
-import { ToolsShowcase } from "@/components/home/ToolsShowcase";
+import { HeroV2 } from "@/components/home/HeroV2";
+import { StatsBar } from "@/components/home/StatsBar";
+import { HowItWorksV2 } from "@/components/home/HowItWorksV2";
+import { ToolsShowcaseV2 } from "@/components/home/ToolsShowcaseV2";
+import { FeaturesV2 } from "@/components/home/FeaturesV2";
+import { CtaBanner } from "@/components/home/CtaBanner";
 import { Footer } from "@/components/layout/Footer";
 import { Helmet } from "react-helmet-async";
 
@@ -17,10 +19,12 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main>
-          <Hero />
-          <HowItWorks />
-          <ToolsShowcase />
-          <Features />
+          <HeroV2 />
+          <StatsBar />
+          <HowItWorksV2 />
+          <ToolsShowcaseV2 />
+          <FeaturesV2 />
+          <CtaBanner />
         </main>
         <Footer />
       </div>
