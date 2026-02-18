@@ -105,29 +105,49 @@ serve(async (req) => {
     
     const allAuctions: Auction[] = [];
     const batchSize = 1000;
-    const maxBatches = 20; // Up to 20k recently synced auctions
+    const maxBatches = 50; // Up to 50k recently synced auctions
     
     for (let batch = 0; batch < maxBatches; batch++) {
-      const { data: auctionBatch, error: auctionsError } = await supabase
-        .from("auctions")
-        .select("id, domain_name, price, tld, end_time, domain_age")
-        .gte("updated_at", recentCutoff)
-        .order("updated_at", { ascending: false })
-        .range(batch * batchSize, (batch + 1) * batchSize - 1);
+      try {
+        const { data: auctionBatch, error: auctionsError } = await supabase
+          .from("auctions")
+          .select("id, domain_name, price, tld, end_time, domain_age")
+          .gte("updated_at", recentCutoff)
+          .order("updated_at", { ascending: false })
+          .range(batch * batchSize, (batch + 1) * batchSize - 1);
 
-      if (auctionsError) {
-        console.error(`Batch ${batch} error:`, auctionsError);
+        if (auctionsError) {
+          console.error(`Batch ${batch} error:`, auctionsError);
+          // If first batch fails, try with a shorter time window
+          if (batch === 0 && allAuctions.length === 0) {
+            console.log("First batch failed, retrying with 6h window...");
+            const shortCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+            const { data: retryBatch, error: retryError } = await supabase
+              .from("auctions")
+              .select("id, domain_name, price, tld, end_time, domain_age")
+              .gte("updated_at", shortCutoff)
+              .order("updated_at", { ascending: false })
+              .range(0, 999);
+            if (!retryError && retryBatch) {
+              allAuctions.push(...(retryBatch as Auction[]));
+              console.log(`Fallback fetched ${retryBatch.length} auctions from 6h window`);
+            }
+          }
+          break;
+        }
+
+        if (!auctionBatch || auctionBatch.length === 0) {
+          break;
+        }
+
+        allAuctions.push(...(auctionBatch as Auction[]));
+        
+        if (auctionBatch.length < batchSize) {
+          break; // No more data
+        }
+      } catch (batchErr) {
+        console.error(`Batch ${batch} exception:`, batchErr);
         break;
-      }
-
-      if (!auctionBatch || auctionBatch.length === 0) {
-        break;
-      }
-
-      allAuctions.push(...(auctionBatch as Auction[]));
-      
-      if (auctionBatch.length < batchSize) {
-        break; // No more data
       }
     }
 
@@ -146,12 +166,12 @@ serve(async (req) => {
 
     console.log(`Checking ${allPatterns.length} patterns against ${auctions.length} auctions`);
 
-    // Only fetch recent alerts (last 30 days) to avoid unbounded query growth
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    // Only fetch recent alerts (last 3 days) to keep query fast and bounded
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
     const { data: existingAlerts, error: alertsError } = await supabase
       .from("pattern_alerts")
       .select("user_id, pattern_id, auction_id")
-      .gte("alerted_at", thirtyDaysAgo);
+      .gte("alerted_at", threeDaysAgo);
 
     if (alertsError) {
       console.error("Error fetching existing alerts:", alertsError);

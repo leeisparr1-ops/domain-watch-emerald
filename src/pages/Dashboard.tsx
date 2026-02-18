@@ -612,6 +612,7 @@ export default function Dashboard() {
               activeFilterCount={activeFilterCount}
               onResetFilters={resetFilters}
               onPageReset={() => setCurrentPage(1)}
+              isSearching={!!debouncedSearch && (loading || isFetchingAuctions)}
             />
           )}
 

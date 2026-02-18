@@ -66,17 +66,30 @@ serve(async (req) => {
     const systemPrompt = `You are a senior domain name investment analyst with 15 years of experience in the domain aftermarket. You provide concise, data-driven analysis.
 
 CURRENT MARKET CONTEXT (Feb 2026):
-- Hot niches: AI/Agents, Fintech, Biotech, Clean Energy, Cybersecurity, Pet Tech
-- Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard)
-- Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty
+- Hot niches: AI/Agents, Fintech, Biotech, Clean Energy, Cybersecurity, Pet Tech, Health Tech, EdTech
+- Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard), .co (startup favorite)
+- Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty, orbit, pulse, flux
+- Recent notable sales: Voice.ai ($15M), Chat.com ($15.5M), Cars.com ($872M brand value), Delete.co ($400K+), Crypto.com ($12M), Eth.co ($1M), Game.co ($1.3M), Send.ai ($450K), Auto.ai ($210K)
+
+COMPARABLE SALES DATABASE (use these to anchor valuations):
+- Single dictionary .com words (4-5 letters): $500K-$15M+ depending on commercial appeal
+- Two-word .com combos (premium niches): $50K-$500K
+- Single dictionary .ai domains: $50K-$500K+  
+- Short brandable .com (5-6 chars, pronounceable): $10K-$100K
+- Generic keyword .io: $5K-$50K
+- Longer brandable .com (7+ chars, two-word): $5K-$50K
+- Niche keyword .com: $2K-$20K
+- Non-premium TLDs (.xyz, .info, etc.): $100-$5K unless exceptional
 
 IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.
 
 CRITICAL PRICING RULES:
 - "end_user_value" is the estimated price an END USER (startup, brand, company) would pay to buy this domain for their business. This is the retail/resale value.
-- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than end_user_value (typically 10-40% of end-user value). For example if end_user_value is "$500,000 - $1,500,000", suggested_buy_price might be "$50,000 - $200,000".
-- The buy price should NEVER equal or exceed the end-user value — investors need profit margin.
+- "wholesale_value" is what the domain would trade for between DOMAIN INVESTORS/BROKERS in a wholesale transaction. Typically 20-50% of end-user value.
+- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than wholesale_value (typically 10-30% of end-user value). This is the "walk away" ceiling for smart money.
+- The buy price should NEVER equal or exceed the wholesale value — investors need profit margin.
 - For premium category-killer domains (like Delete.co selling for $400k+), end-user values can be six or seven figures.`;
+
 
     // Handle follow-up questions
     if (followUp && question && previousAnalysis) {
@@ -185,6 +198,7 @@ Provide a COMPREHENSIVE investment analysis covering:
                   properties: {
                     verdict: { type: "string", enum: ["Strong Buy", "Buy", "Hold", "Avoid"] },
                     end_user_value: { type: "string", description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000" },
+                    wholesale_value: { type: "string", description: "Price the domain would trade for between domain investors/brokers in a wholesale deal, typically 20-50% of end-user value" },
                     buyer_persona: { type: "string", description: "Specific buyer type, e.g. 'Series A fintech startup looking for a premium brand'" },
                     strengths: { type: "array", items: { type: "string" }, description: "3-5 key strengths" },
                     weaknesses: { type: "array", items: { type: "string" }, description: "3-5 risks or weaknesses" },
@@ -198,7 +212,7 @@ Provide a COMPREHENSIVE investment analysis covering:
                     risk_detail: { type: "string", description: "Detailed risk assessment: trademark, cultural, TLD perception, renewal costs" },
                     summary: { type: "string", description: "Executive summary suitable for an investment memo (2-3 sentences)" },
                   },
-                  required: ["verdict", "end_user_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "market_positioning", "development_potential", "seo_angle", "risk_detail", "summary"],
+                  required: ["verdict", "end_user_value", "wholesale_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "market_positioning", "development_potential", "seo_angle", "risk_detail", "summary"],
                   additionalProperties: false,
                 },
               },
