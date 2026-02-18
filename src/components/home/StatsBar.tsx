@@ -5,7 +5,7 @@ const stats = [
   { icon: Database, value: "2.7M+", label: "Domains Scanned Daily" },
   { icon: Clock, value: "6hr", label: "Sync Frequency" },
   { icon: Globe2, value: "45+", label: "TLDs Tracked" },
-  { icon: Users, value: "500+", label: "Domain Investors" },
+  { icon: Users, value: "4+", label: "Auction Sources" },
 ];
 
 export function StatsBar() {
