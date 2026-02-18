@@ -10,14 +10,11 @@ const corsHeaders = {
 };
 
 const FOOTER_HTML = `
-  <div style="text-align:center;padding:24px 20px;font-size:12px;color:#a1a1aa;">
-    <p style="margin:0 0 8px 0;">ExpiredHawk – Domain Monitoring Made Simple</p>
-    <p style="margin:0 0 8px 0;">
-      <a href="https://expiredhawk.com/settings" style="color:#a1a1aa;text-decoration:underline;">Manage email preferences</a>
-    </p>
-    <p style="margin:0;color:#d4d4d8;">ExpiredHawk · United Kingdom</p>
-  </div>
-`;
+<tr><td style="padding:24px 20px;text-align:center;font-size:12px;color:#71717a;border-top:1px solid #e4e4e7;">
+  <p style="margin:0 0 6px 0;">ExpiredHawk &ndash; Domain Monitoring Made Simple</p>
+  <p style="margin:0 0 6px 0;"><a href="https://expiredhawk.com/settings" style="color:#71717a;text-decoration:underline;">Manage email preferences</a></p>
+  <p style="margin:0;">ExpiredHawk &middot; United Kingdom</p>
+</td></tr>`;
 
 const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
 
@@ -28,11 +25,12 @@ function makeEmailHeaders(): Record<string, string> {
     "X-Entity-Ref-ID": crypto.randomUUID(),
     "Precedence": "bulk",
     "Feedback-ID": "announcement:expiredhawk",
+    "X-Mailer": "ExpiredHawk Notifications",
   };
 }
 
 function preheaderHtml(text: string): string {
-  return `<div style="display:none;font-size:1px;color:#f4f4f5;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${text}${"&nbsp;&zwnj;".repeat(30)}</div>`;
+  return `<div style="display:none;font-size:1px;color:#f4f4f5;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${text}${"&nbsp;&zwnj;".repeat(30)}</div>`;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -78,57 +76,66 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      const text = `ExpiredHawk Update — AI Domain Advisor & More\n\nHi there,\n\nWe've been working hard on some big upgrades, and here's what's new:\n\nAI Domain Advisor (Our Biggest Update)\nOur new flagship tool gives you deep-dive analysis on any domain — Market Positioning, SEO & Marketing potential, Risk Assessment, and a Flip Score so you can instantly gauge investment potential. It even has a chat interface so you can ask follow-up questions about any domain.\n\nOther Tool Improvements\n- Name Generator — Now links directly to GoDaddy so you can register available domains in one click\n- Brandability Scorer — Radar chart visualization showing exactly where a domain excels\n- Bulk Pronounceability Checker — Score and compare multiple domains side by side\n\nNotifications — Work in Progress\nWe're still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.\n\nAll tools are free to use — head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n— The ExpiredHawk Team${FOOTER_TEXT}`;
+      const text = `ExpiredHawk Update - AI Domain Advisor & More\n\nHi there,\n\nWe have been working hard on some big upgrades, and here is what is new:\n\nAI Domain Advisor (Our Biggest Update)\nOur new flagship tool gives you deep-dive analysis on any domain - Market Positioning, SEO & Marketing potential, Risk Assessment, and a Flip Score so you can instantly gauge investment potential. It even has a chat interface so you can ask follow-up questions about any domain.\n\nOther Tool Improvements\n- Name Generator - Now links directly to GoDaddy so you can register available domains in one click\n- Brandability Scorer - Radar chart visualization showing exactly where a domain excels\n- Bulk Pronounceability Checker - Score and compare multiple domains side by side\n\nNotifications - Work in Progress\nWe are still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.\n\nAll tools are free to use - head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n- The ExpiredHawk Team${FOOTER_TEXT}`;
 
       const announcementHtml = `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="x-apple-disable-message-reformatting"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style>body,table,td{font-family:Arial,Helvetica,sans-serif;}a{color:#16a34a;}</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
 ${preheaderHtml("Your new AI-powered co-pilot for domain analysis is here.")}
-<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-  <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
-    <h1 style="color:white;margin:0;font-size:32px;">ExpiredHawk</h1>
-    <p style="color:rgba(255,255,255,0.9);margin:8px 0 0 0;font-size:16px;">AI Domain Advisor & More</p>
-  </div>
-  
-  <div style="background:white;padding:32px 30px;border-radius:0 0 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">Hi there,</p>
-    
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We've been working hard on some big upgrades, and here's what's new:
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;">
+<tr><td align="center" style="padding:40px 10px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+  <tr><td style="background-color:#16a34a;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">
+    <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
+    <p style="color:#ffffff;margin:8px 0 0 0;font-size:14px;opacity:0.9;">AI Domain Advisor &amp; More</p>
+  </td></tr>
+  <tr><td style="background-color:#ffffff;padding:32px 30px;border-radius:0 0 8px 8px;">
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">Hi there,</p>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      We have been working hard on some big upgrades, and here is what is new:
     </p>
-    
-    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#129302; AI Domain Advisor (Our Biggest Update)</h3>
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      Our new flagship tool gives you deep-dive analysis on any domain — Market Positioning, SEO & Marketing potential, Risk Assessment, and a <strong>Flip Score</strong> so you can instantly gauge investment potential. It even has a <strong>chat interface</strong> so you can ask follow-up questions about any domain.
+
+    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">AI Domain Advisor (Our Biggest Update)</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      Our new flagship tool gives you deep-dive analysis on any domain &ndash; Market Positioning, SEO &amp; Marketing potential, Risk Assessment, and a <strong>Flip Score</strong> so you can instantly gauge investment potential. It even has a <strong>chat interface</strong> so you can ask follow-up questions about any domain.
     </p>
-    
-    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#128295; Other Tool Improvements</h3>
-    <div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:16px 20px;border-radius:8px;margin:16px 0;">
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Name Generator</strong> — Now links directly to GoDaddy so you can register available domains in one click</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Brandability Scorer</strong> — Radar chart visualization showing exactly where a domain excels</p>
-      <p style="color:#3f3f46;margin:10px 0;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> — Score and compare multiple domains side by side</p>
-    </div>
-    
-    <h3 style="color:#18181b;font-size:18px;margin-top:24px;">&#128276; Notifications — Work in Progress</h3>
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      We're still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.
+
+    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">Other Tool Improvements</h3>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Name Generator</strong> &ndash; Now links directly to GoDaddy so you can register available domains in one click</td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Brandability Scorer</strong> &ndash; Radar chart visualization showing exactly where a domain excels</td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> &ndash; Score and compare multiple domains side by side</td></tr>
+    </table>
+
+    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">Notifications &ndash; Work in Progress</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      We are still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.
     </p>
-    
-    <div style="text-align:center;margin:28px 0;">
-      <a href="https://expiredhawk.com/tools" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Try the AI Domain Advisor</a>
-    </div>
-    
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">
-      As always, if you have feedback or ideas, reply to this email or reach us at <a href="mailto:support@expiredhawk.com" style="color:#22c55e;font-weight:600;">support@expiredhawk.com</a>.
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+      <tr><td style="background-color:#16a34a;border-radius:6px;padding:12px 28px;">
+        <a href="https://expiredhawk.com/tools" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">Try the AI Domain Advisor</a>
+      </td></tr>
+    </table>
+
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      As always, if you have feedback or ideas, reply to this email or reach us at <a href="mailto:support@expiredhawk.com" style="color:#16a34a;font-weight:bold;">support@expiredhawk.com</a>.
     </p>
-    
-    <p style="color:#3f3f46;line-height:1.7;font-size:16px;">Happy hunting,</p>
-    <p style="color:#3f3f46;font-size:16px;margin-bottom:0;">— The ExpiredHawk Team</p>
-  </div>
-  
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">Happy hunting,</p>
+    <p style="color:#3f3f46;font-size:15px;margin-bottom:0;">&ndash; The ExpiredHawk Team</p>
+  </td></tr>
   ${FOOTER_HTML}
-</div>
+</table>
+</td></tr>
+</table>
 </body>
 </html>`;
 
@@ -139,7 +146,7 @@ ${preheaderHtml("Your new AI-powered co-pilot for domain analysis is here.")}
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [user.email],
-          subject: "ExpiredHawk Update — AI Domain Advisor & More",
+          subject: "ExpiredHawk Update - AI Domain Advisor & More",
           html: announcementHtml,
           text,
           headers: makeEmailHeaders(),
