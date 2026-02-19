@@ -95,6 +95,64 @@ function computeCategoryBenchmarks(sales: any[]): string {
     : "";
 }
 
+/** Extract meaningful words from a domain SLD using simple heuristics */
+function extractWords(sld: string): string[] {
+  const s = sld.toLowerCase().replace(/[^a-z]/g, "");
+  // Try camelCase / compound splits
+  const camelSplit = s.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+  
+  // Common English words to detect inside compound domains (sorted by length desc to prefer longer matches)
+  const dictionary = [
+    "cloud","smart","swift","quick","bright","light","night","black","white","green","blue",
+    "golden","silver","cyber","ultra","super","hyper","mega","micro","nano","auto",
+    "data","tech","code","byte","pixel","quantum","neural","deep","sync","flux",
+    "ship","shop","star","fire","wave","rock","stone","moon","sun","wind","storm",
+    "peak","apex","core","edge","node","link","mesh","grid","port","gate","path",
+    "vault","safe","guard","shield","armor","forge","craft","works","labs","hub",
+    "nest","hive","dock","base","camp","spot","zone","realm","world","land","domain",
+    "pay","cash","coin","gold","money","fund","bank","trade","deal","market",
+    "health","care","life","mind","body","soul","heart","pulse","vital",
+    "bright","shine","shiny","glow","spark","flash","blaze","flame","burn",
+    "clean","pure","fresh","clear","crisp","smooth","soft","bold","wild","free",
+    "fast","rapid","speed","dash","rush","zoom","leap","jump","fly","soar",
+    "prime","elite","royal","crown","king","queen","ace","pro","master","chief",
+    "zen","lux","vibe","aura","nova","neon","orbit","cosmo","astro","luna",
+    "ocean","river","lake","bay","harbor","reef","coral","wave","tide","surf",
+    "bear","wolf","hawk","eagle","lion","fox","owl","tiger","falcon","raven",
+    "robot","bot","agent","pilot","scout","guide","mentor","coach","tutor",
+    "net","web","app","dev","ops","api","bit","log","map","run","fit","pet","art","ink",
+    "box","cup","jar","bag","hat","cap","pin","gem","key","tag","tip","pop","joy",
+    "one","two","ten","max","min","big","top","new","old","hot","cool","red","sky",
+  ];
+
+  const words: string[] = [];
+  let remaining = s;
+
+  // Greedy longest-match extraction
+  while (remaining.length > 0) {
+    let matched = false;
+    for (let len = Math.min(remaining.length, 10); len >= 2; len--) {
+      const candidate = remaining.substring(0, len);
+      if (dictionary.includes(candidate) && candidate.length >= 3) {
+        words.push(candidate);
+        remaining = remaining.substring(len);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      remaining = remaining.substring(1);
+    }
+  }
+
+  // Fallback: if no words found, use trigrams
+  if (words.length === 0 && s.length >= 3) {
+    words.push(s);
+  }
+
+  return [...new Set(words)];
+}
+
 /** Smart comparable selection: score each sale by relevance to the target domain */
 function selectSmartComparables(
   domain: string,
@@ -104,6 +162,7 @@ function selectSmartComparables(
   const tld = domain.includes(".") ? domain.split(".").pop()?.toLowerCase() : "com";
   const sld = domain.includes(".") ? domain.split(".")[0].toLowerCase() : domain.toLowerCase();
   const category = classifyDomain(domain);
+  const targetWords = extractWords(sld);
   const now = new Date();
 
   const scored = allSales.map(sale => {
@@ -111,23 +170,50 @@ function selectSmartComparables(
     const saleTld = (sale.tld || "").replace(/^\./, "");
     const saleSld = sale.domain_name.split(".")[0].toLowerCase();
     const saleCategory = classifyDomain(sale.domain_name);
+    const saleWords = extractWords(saleSld);
 
-    // TLD match (strongest signal)
+    // ── KEYWORD MATCH (strongest signal: 50 pts max) ──
+    // Exact word overlap
+    const sharedWords = targetWords.filter(w => saleWords.includes(w));
+    if (sharedWords.length > 0) {
+      relevance += Math.min(sharedWords.length * 25, 50);
+    } else {
+      // Substring containment (e.g. "ship" in "shipping")
+      for (const tw of targetWords) {
+        for (const sw of saleWords) {
+          if (tw.length >= 3 && sw.length >= 3) {
+            if (sw.includes(tw) || tw.includes(sw)) {
+              relevance += 15;
+              break;
+            }
+          }
+        }
+        if (relevance > 0) break;
+      }
+      // Prefix similarity (first 3+ chars match)
+      if (relevance === 0 && sld.length >= 3 && saleSld.length >= 3) {
+        const prefixLen = Math.min(sld.length, saleSld.length, 5);
+        if (sld.substring(0, prefixLen) === saleSld.substring(0, prefixLen)) {
+          relevance += 10;
+        }
+      }
+    }
+
+    // ── TLD match (40 pts) ──
     if (saleTld === tld) relevance += 40;
-    // Same general TLD tier (premium vs alternative)
     else if (["com", "net", "org"].includes(saleTld) && ["com", "net", "org"].includes(tld || "")) relevance += 15;
     else if (["ai", "io", "co"].includes(saleTld) && ["ai", "io", "co"].includes(tld || "")) relevance += 20;
 
-    // Category match
-    if (saleCategory === category) relevance += 25;
+    // ── Category/structure match (20 pts) ──
+    if (saleCategory === category) relevance += 20;
 
-    // Name length similarity (within ±2 chars)
+    // ── Name length similarity (10 pts) ──
     const lenDiff = Math.abs(sld.length - saleSld.length);
-    if (lenDiff === 0) relevance += 15;
-    else if (lenDiff <= 2) relevance += 10;
-    else if (lenDiff <= 4) relevance += 5;
+    if (lenDiff === 0) relevance += 10;
+    else if (lenDiff <= 2) relevance += 7;
+    else if (lenDiff <= 4) relevance += 3;
 
-    // Recency bonus (more recent = more relevant)
+    // ── Recency bonus (15 pts) ──
     if (sale.sale_date) {
       const saleDate = new Date(sale.sale_date);
       const monthsAgo = (now.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
@@ -136,17 +222,17 @@ function selectSmartComparables(
       else if (monthsAgo <= 24) relevance += 5;
     }
 
-    // Price range reasonableness bonus (avoid extreme outliers for context)
-    const price = Number(sale.sale_price);
-    if (price >= 1000 && price <= 5000000) relevance += 5;
+    // ── Word-pattern similarity (adjective+noun, verb+noun, etc.) (10 pts) ──
+    if (targetWords.length === 2 && saleWords.length === 2) relevance += 10;
+    else if (targetWords.length === saleWords.length && targetWords.length > 0) relevance += 5;
 
-    return { ...sale, relevance };
+    return { ...sale, relevance, matchedWords: sharedWords || [] };
   });
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
   const ranked = scored.slice(0, maxResults);
-  const topComps = scored.slice(0, 5); // Top 5 most relevant for "why this price" explainer
+  const topComps = scored.slice(0, 5);
 
   return { ranked, topComps };
 }
@@ -193,13 +279,20 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { data: compSales } = await supabaseAdmin
+    // Fetch ALL comparable sales from database (paginate to get all)
+    const { data: compSales1 } = await supabaseAdmin
       .from("comparable_sales")
       .select("domain_name, sale_price, sale_date, tld, venue")
       .order("sale_price", { ascending: false })
       .limit(1000);
 
-    const allSales = compSales || [];
+    const { data: compSales2 } = await supabaseAdmin
+      .from("comparable_sales")
+      .select("domain_name, sale_price, sale_date, tld, venue")
+      .order("sale_price", { ascending: false })
+      .range(1000, 2000);
+
+    const allSales = [...(compSales1 || []), ...(compSales2 || [])];
 
     // ── Build enriched context ──────────────────────────────────
     // 1) TLD market stats
@@ -264,7 +357,11 @@ CRITICAL PRICING RULES:
 CONFIDENCE SCORING:
 - Return a "valuation_confidence" field: "High" (5+ close TLD+category comps), "Medium" (2-4 reasonable comps), or "Low" (few/no comparable sales data).
 - Return "key_comparables": an array of the 3-5 specific comparable sales that MOST influenced your valuation, with domain name, sale price, and why it's relevant.
-- Be transparent about confidence — if comps are sparse, say so.`;
+CRITICAL COMPARABLE SELECTION RULE:
+- The "key_comparables" you return MUST share meaningful keyword, semantic, or structural similarity with the target domain.
+- Prioritize domains containing the SAME or SIMILAR words (e.g. for "ShinyShip.com", comps like "ShipStation.com", "BrightShip.com", "ShinyStar.com" are good; "Anything.com" is NOT relevant just because it's a .com).
+- If no keyword-similar comps exist in the data, pick structurally similar domains (same word count, same pattern like adjective+noun) and EXPLICITLY note the lack of direct keyword matches.
+- Never pick generic high-value domains just to justify a price — that misleads investors.`;
 
 
     // Handle follow-up questions
