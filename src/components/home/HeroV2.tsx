@@ -33,7 +33,7 @@ export function HeroV2() {
   }, [currentIndex]);
 
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden pt-20 pb-12">
+    <section className="relative min-h-[60vh] lg:min-h-[90vh] flex items-center overflow-hidden pt-20 pb-12">
       {/* Subtle grid background */}
       <div className="absolute inset-0 pattern-grid opacity-[0.08]" />
       
@@ -48,24 +48,25 @@ export function HeroV2() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
+            className="flex flex-col items-center lg:items-start"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6 mx-auto lg:mx-0">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Scanning 2.7M+ domains daily
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] mb-6 tracking-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] mb-6 tracking-tight text-center lg:text-left">
               Never Miss an{" "}
               <span className="gradient-text">Expiring Domain</span>{" "}
               Again
             </h1>
 
-            <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
+            <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed text-center lg:text-left mx-auto lg:mx-0">
               Set your criteria once. We scan millions of expiring domains daily 
               and alert you the moment a match appears — by email or push notification.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 mb-8 justify-center lg:justify-start">
               <Link to="/signup">
                 <Button variant="hero" size="xl" className="w-full sm:w-auto">
                   <Bell className="w-5 h-5 mr-2" />
@@ -80,7 +81,7 @@ export function HeroV2() {
               </Link>
             </div>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground text-center lg:text-left">
               Free tier includes 30 patterns · No credit card required
             </p>
           </motion.div>
