@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 export function HeroV2() {
   return (
-    <section className="relative min-h-[60vh] lg:min-h-[80vh] flex items-center overflow-hidden pt-20 pb-12">
+    <section className="relative min-h-[50vh] lg:min-h-[60vh] flex items-center overflow-hidden pt-20 pb-12">
       {/* Subtle grid background */}
       <div className="absolute inset-0 pattern-grid opacity-[0.08]" />
       
