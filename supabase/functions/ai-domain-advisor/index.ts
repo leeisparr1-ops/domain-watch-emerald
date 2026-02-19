@@ -41,6 +41,31 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Fetch comparable sales from database
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const domainTld = domain.includes(".") ? domain.split(".").pop()?.toLowerCase() : null;
+    const { data: compSales } = await supabaseAdmin
+      .from("comparable_sales")
+      .select("domain_name, sale_price, sale_date, tld, venue")
+      .order("sale_price", { ascending: false })
+      .limit(200);
+
+    let compSalesContext = "";
+    if (compSales && compSales.length > 0) {
+      const tldComps = domainTld ? compSales.filter((s: any) => s.tld === `.${domainTld}`).slice(0, 15) : [];
+      const topComps = compSales.filter((s: any) => !tldComps.some((t: any) => t.domain_name === s.domain_name)).slice(0, 25);
+      const allComps = [...tldComps, ...topComps];
+
+      const lines = allComps.map((s: any) =>
+        `  - ${s.domain_name}: $${Number(s.sale_price).toLocaleString()}${s.sale_date ? ` (${s.sale_date})` : ""}${s.venue ? ` via ${s.venue}` : ""}`
+      );
+      compSalesContext = `\n\nVERIFIED COMPARABLE SALES DATABASE (${compSales.length} total records):\n${lines.join("\n")}\n\nUSE THESE VERIFIED SALES to anchor your valuations. Reference specific comps when justifying price estimates.`;
+    }
+
     // Build enriched context from pre-computed scores
     let scoresContext = "";
     if (scores) {
@@ -70,6 +95,7 @@ CURRENT MARKET CONTEXT (Feb 2026):
 - Premium TLDs: .com (king), .ai ($45k+ avg), .io (tech standard), .co (startup favorite)
 - Trending keywords: agent, agentic, neural, quantum, vault, deep, synthetic, pay, cash, clean, code, fire, beauty, orbit, pulse, flux
 - Recent notable sales: Voice.ai ($15M), Chat.com ($15.5M), Cars.com ($872M brand value), Delete.co ($400K+), Crypto.com ($12M), Eth.co ($1M), Game.co ($1.3M), Send.ai ($450K), Auto.ai ($210K)
+${compSalesContext}
 
 COMPARABLE SALES DATABASE (use these to anchor valuations):
 - Single dictionary .com words (4-5 letters): $500K-$15M+ depending on commercial appeal

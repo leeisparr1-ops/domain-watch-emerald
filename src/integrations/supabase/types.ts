@@ -77,6 +77,39 @@ export type Database = {
         }
         Relationships: []
       }
+      comparable_sales: {
+        Row: {
+          created_at: string
+          domain_name: string
+          id: string
+          notes: string | null
+          sale_date: string | null
+          sale_price: number
+          tld: string | null
+          venue: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain_name: string
+          id?: string
+          notes?: string | null
+          sale_date?: string | null
+          sale_price: number
+          tld?: string | null
+          venue?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain_name?: string
+          id?: string
+          notes?: string | null
+          sale_date?: string | null
+          sale_price?: number
+          tld?: string | null
+          venue?: string | null
+        }
+        Relationships: []
+      }
       csv_upload_jobs: {
         Row: {
           created_at: string
