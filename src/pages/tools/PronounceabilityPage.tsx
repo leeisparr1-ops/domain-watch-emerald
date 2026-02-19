@@ -13,7 +13,7 @@ const PronounceabilityPage = () => {
       <Helmet>
         <title>Domain Pronounceability Checker — Is Your Domain Easy to Say? | ExpiredHawk</title>
         <meta name="description" content="Free pronounceability scorer for domain names. Check if your domain passes the radio test — easy to say, spell, and remember. Includes trademark screening." />
-        <link rel="canonical" href="https://expiredhawk.lovable.app/tools/pronounceability" />
+        <link rel="canonical" href="https://expiredhawk.com/tools/pronounceability" />
       </Helmet>
       <div className="min-h-screen bg-background">
         <Navbar />

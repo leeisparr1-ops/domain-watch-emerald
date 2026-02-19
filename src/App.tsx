@@ -70,13 +70,13 @@ const App = () => (
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/help" element={<Help />} />
-                <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
-                <Route path="/tools/brandability-score" element={<ProtectedRoute><BrandabilityScorePage /></ProtectedRoute>} />
-                <Route path="/tools/domain-generator" element={<ProtectedRoute><DomainGeneratorPage /></ProtectedRoute>} />
+                <Route path="/tools" element={<Tools />} />
+                <Route path="/tools/brandability-score" element={<BrandabilityScorePage />} />
+                <Route path="/tools/domain-generator" element={<DomainGeneratorPage />} />
                 
-                <Route path="/tools/pronounceability" element={<ProtectedRoute><PronounceabilityPage /></ProtectedRoute>} />
-                <Route path="/tools/bulk-checker" element={<ProtectedRoute><BulkCheckerPage /></ProtectedRoute>} />
-                <Route path="/tools/tld-compare" element={<ProtectedRoute><TldComparePage /></ProtectedRoute>} />
+                <Route path="/tools/pronounceability" element={<PronounceabilityPage />} />
+                <Route path="/tools/bulk-checker" element={<BulkCheckerPage />} />
+                <Route path="/tools/tld-compare" element={<TldComparePage />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="*" element={<NotFound />} />
