@@ -13,7 +13,7 @@ const BrandabilityScorePage = () => {
       <Helmet>
         <title>Brandability Score — Rate Any Domain Name | ExpiredHawk</title>
         <meta name="description" content="Free brandability scorer: get a 0-100 score measuring how brandable your domain is. Checks pronounceability, memorability, trademark risk, and word structure." />
-        <link rel="canonical" href="https://expiredhawk.lovable.app/tools/brandability-score" />
+        <link rel="canonical" href="https://expiredhawk.com/tools/brandability-score" />
       </Helmet>
       <div className="min-h-screen bg-background">
         <Navbar />
