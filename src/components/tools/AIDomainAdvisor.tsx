@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock,
   Users, ThumbsUp, ThumbsDown, BarChart3, Flame, Send, MessageSquare,
-  Award, Mic, Sparkles, Globe2, ArrowRight,
+  Award, Mic, Sparkles, Globe2, ArrowRight, CheckCircle2, AlertTriangle, HelpCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,12 @@ import { quickValuation } from "@/lib/domainValuation";
 import { estimateSEOVolume } from "@/lib/seoVolume";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { FlipScoreGauge } from "./FlipScoreGauge";
+
+interface KeyComparable {
+  domain: string;
+  price: string;
+  relevance: string;
+}
 
 interface Analysis {
   verdict: string;
@@ -38,6 +44,8 @@ interface Analysis {
   development_potential?: string;
   seo_angle?: string;
   risk_detail?: string;
+  valuation_confidence?: string;
+  key_comparables?: KeyComparable[];
 }
 
 interface PreScores {
@@ -65,17 +73,23 @@ interface ChatMessage {
 /** Strip markdown formatting so chat replies read as clean plain text. */
 function stripMarkdown(text: string): string {
   return text
-    .replace(/#{1,6}\s+/g, "")          // ### headings
-    .replace(/\*\*(.+?)\*\*/g, "$1")     // **bold**
-    .replace(/\*(.+?)\*/g, "$1")         // *italic*
-    .replace(/__(.+?)__/g, "$1")         // __bold__
-    .replace(/_(.+?)_/g, "$1")           // _italic_
-    .replace(/~~(.+?)~~/g, "$1")         // ~~strike~~
-    .replace(/`(.+?)`/g, "$1")           // `code`
-    .replace(/^\s*[-*+]\s+/gm, "• ")     // list bullets → •
-    .replace(/^\s*\d+\.\s+/gm, (m) => m) // keep numbered lists
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/_(.+?)_/g, "$1")
+    .replace(/~~(.+?)~~/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "• ")
+    .replace(/^\s*\d+\.\s+/gm, (m) => m)
     .trim();
 }
+
+const confidenceConfig: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
+  High: { icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", label: "High Confidence" },
+  Medium: { icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400", label: "Medium Confidence" },
+  Low: { icon: HelpCircle, color: "text-red-500 dark:text-red-400", label: "Low Confidence" },
+};
 
 export function AIDomainAdvisor() {
   const [searchParams] = useSearchParams();
@@ -97,12 +111,11 @@ export function AIDomainAdvisor() {
     const domainParam = searchParams.get("domain");
     if (domainParam && !analyzedDomain) {
       setDomain(domainParam);
-      // Small delay to allow component to mount
       setTimeout(() => handleAnalyze(domainParam), 100);
     }
   }, [searchParams]);
 
-  // Auto-scroll chat only when user sends a message (not on AI response)
+  // Auto-scroll chat only when user sends a message
   const lastScrollTrigger = useRef<"user" | "assistant" | null>(null);
   useEffect(() => {
     if (chatMessages.length === 0) return;
@@ -202,7 +215,6 @@ export function AIDomainAdvisor() {
         return;
       }
 
-      // Build conversation context
       const conversationHistory = chatMessages.map(m => ({
         role: m.role,
         content: m.content,
@@ -254,6 +266,8 @@ export function AIDomainAdvisor() {
     `Who would be the ideal buyer for ${analyzedDomain}?`,
     `What content strategy would maximize this domain's value?`,
   ] : [];
+
+  const confidence = analysis?.valuation_confidence ? confidenceConfig[analysis.valuation_confidence] : null;
 
   return (
     <Card>
@@ -315,11 +329,19 @@ export function AIDomainAdvisor() {
 
         {analysis && (
           <div className="space-y-5 animate-fade-in">
-            {/* Verdict + Summary */}
+            {/* Verdict + Confidence + Summary */}
             <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-card">
-              <Badge variant="outline" className={`text-sm font-bold px-3 py-1 shrink-0 ${verdictColor(analysis.verdict)}`}>
-                {analysis.verdict}
-              </Badge>
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <Badge variant="outline" className={`text-sm font-bold px-3 py-1 ${verdictColor(analysis.verdict)}`}>
+                  {analysis.verdict}
+                </Badge>
+                {confidence && (
+                  <div className={`flex items-center gap-1 text-[10px] font-medium ${confidence.color}`}>
+                    <confidence.icon className="w-3 h-3" />
+                    {confidence.label}
+                  </div>
+                )}
+              </div>
               <p className="text-sm text-foreground leading-relaxed">{analysis.summary}</p>
             </div>
 
@@ -395,6 +417,26 @@ export function AIDomainAdvisor() {
                 <span className="text-foreground font-medium">{analysis.niche}</span>
               </div>
             </div>
+
+            {/* Key Comparables — "Why This Price?" */}
+            {analysis.key_comparables && analysis.key_comparables.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-primary" /> Why This Price? — Key Comparables
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {analysis.key_comparables.map((comp, i) => (
+                    <div key={i} className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{comp.domain}</span>
+                        <span className="text-sm font-bold text-primary">{comp.price}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{comp.relevance}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Strengths / Weaknesses */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -565,7 +607,7 @@ export function AIDomainAdvisor() {
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              AI analysis enriched with brandability ({preScores?.brandability}), demand ({preScores?.keywordDemand}), and valuation scores. Not financial advice.
+              AI analysis enriched with brandability ({preScores?.brandability}), demand ({preScores?.keywordDemand}), and {analysis.key_comparables?.length || 0} comparable sales. Not financial advice.
             </p>
           </div>
         )}
