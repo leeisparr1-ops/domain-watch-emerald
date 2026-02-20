@@ -107,16 +107,30 @@ export async function handleOAuthCallback(): Promise<boolean> {
     return false;
   }
 
-  diag("Calling setSession…");
+  diag("Calling refreshSession with refresh_token…");
 
   try {
-    const { data, error } = await supabase.auth.setSession(tokens);
-    if (error) {
-      diag(`setSession error: ${error.message}`);
-      return false;
-    }
+    // Use refreshSession instead of setSession — refreshSession exchanges the
+    // refresh_token server-side, avoiding JWT kid verification issues that
+    // occur when the OAuth broker's signing key differs from the project's.
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: tokens.refresh_token,
+    });
 
-    diag(`Session OK: ${data.user?.email ?? "no email"}`);
+    if (error) {
+      diag(`refreshSession error: ${error.message}`);
+
+      // Fallback: try setSession in case refreshSession doesn't work
+      diag("Falling back to setSession…");
+      const fallback = await supabase.auth.setSession(tokens);
+      if (fallback.error) {
+        diag(`setSession fallback error: ${fallback.error.message}`);
+        return false;
+      }
+      diag(`Fallback OK: ${fallback.data.user?.email ?? "no email"}`);
+    } else {
+      diag(`Session OK: ${data.user?.email ?? "no email"}`);
+    }
 
     // Clean tokens from URL without triggering a reload
     url.search = "";
@@ -125,7 +139,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
 
     return true;
   } catch (e) {
-    diag(`setSession exception: ${e}`);
+    diag(`exception: ${e}`);
     return false;
   }
 }
