@@ -39,9 +39,9 @@ function getStyleGuide(style: string): string {
 
 // 3 batches with different creative angles — emphasis on keyword+word combos
 const BATCH_ANGLES = [
-  `Focus on KEYWORD + WORD combinations. Pair a strong keyword from the user's niche with a short modifier word. Examples: DeepVault, CashPulse, CodeForge, MintStack, TradeNest. The combo must feel natural and brandable. At least 20 of 35 names should be keyword+word combos.`,
-  `Focus on INVENTED words and phonetic blends that sound premium. Think Spotify, Zillow, Vercel, Twilio. Names that don't exist as real words but sound amazing and are very unlikely to already be registered as .com domains. Make them OBSCURE enough to actually be available.`,
-  `Focus on SHORT powerful names and unexpected real-word pairings. Single modified words, prefixes/suffixes, and ultra-concise combos under 8 chars. Also include compound words that pair two short real words in surprising ways. Think: Snapchat, Airbnb, Coinbase. Prioritize names that are UNLIKELY to be registered.`,
+  `Focus on KEYWORD + WORD combinations directly tied to the user's topic. Take the user's keywords (or close synonyms) and pair them with a short modifier word. If the user says "robotics", names MUST relate to robotics/automation/bots. Examples for "finance": CashNex, VaultForj, MintArc, FundPulse. At least 25 of 35 names should contain the user's keyword or a direct synonym. Every name must clearly evoke the user's niche at a glance.`,
+  `Focus on INVENTED words and phonetic blends that are ROOTED in the user's topic. The coined word must still clearly evoke the user's niche — do NOT generate random syllables. If the user says "robotics", think "Robivyn", "Botiqo", "Mechara". If they say "finance", think "Fintara", "Cashlynk", "Payvora". The name should sound premium AND immediately suggest the industry. Every name must relate to the user's keywords.`,
+  `Focus on SHORT compound names and unexpected real-word pairings that are RELEVANT to the user's topic. Combine two short words where at least one relates to the user's niche. If the user says "health", think "PureZen", "WellSnap", "CareJolt". Do NOT generate generic short names with no connection to the keywords. Every name must make someone think of the user's industry. Prioritize names unlikely to be registered as .com.`,
 ];
 
 async function generateBatch(
@@ -71,14 +71,20 @@ Rules:
 - No hyphens or numbers
 - Return ONLY the name part WITHOUT any TLD (e.g. "Zolva" not "Zolva.com")
 
+CRITICAL RELEVANCE RULES:
+- EVERY name MUST be directly relevant to the user's keywords and industry. This is the #1 rule.
+- If the user says "robotics", every name must evoke robotics, automation, machines, or bots.
+- If the user says "finance", every name must evoke money, payments, investing, or trading.
+- Do NOT generate generic cool-sounding names that have no connection to the user's topic.
+- Use the user's keywords, synonyms, or root morphemes in every name.
+
 CRITICAL AVAILABILITY RULES:
-- The #1 priority is that these names are ACTUALLY AVAILABLE to register as .com domains.
+- The #2 priority is that these names are ACTUALLY AVAILABLE to register as .com domains.
 - DO NOT suggest names that are obviously common words (e.g. "Speed", "Cash", "Deep") — these .coms are ALL taken.
-- DO NOT suggest names that sound like existing companies (e.g. "Vercel", "Stripe", "Notion") — we check trademarks.
-- INVENT new combinations. Use unusual letter combos, rare word pairings, made-up portmanteaus.
-- Think about what a domainer would search on GoDaddy and find AVAILABLE — not what sounds cool but is already taken.
-- Examples of names that ARE likely available: "Quorbit", "Zyndra", "VaultNex", "PulseForj", "Codevyn", "Mintarc"
-- Examples of names that are NOT available: "DeepMind", "CashApp", "CodeFlow", "PayVault", "NeuralNet"
+- DO NOT suggest names that sound like existing companies (e.g. "Vercel", "Stripe", "Notion").
+- INVENT new combinations using the user's niche vocabulary. Use unusual letter combos, rare word pairings, made-up portmanteaus.
+- Examples of GOOD relevant names for "robotics": "Robivex", "BotForj", "Mechyra", "AutoNyx", "Geariqo"
+- Examples of BAD irrelevant names for "robotics": "Zyndra", "Quorbit", "PulseForj" (no robotics connection)
 
 - Generate exactly 35 unique names. ${batchAngle}
 - AUTOMATIC SYNERGY: Rate how well phonetics, aesthetics, trends, and niche fit together (score 1-100). High synergy = inevitable brand.
