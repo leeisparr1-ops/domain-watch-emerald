@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
-import { Loader2, Bell, BellOff, Trash2, Heart } from "lucide-react";
+import { Loader2, Bell, BellOff, Trash2, Heart, Download, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { ViewModeToggle } from "@/components/dashboard/ViewModeToggle";
 import { SearchAndFilters, SORT_OPTIONS } from "@/components/dashboard/SearchAndFilters";
 import { MatchesView } from "@/components/dashboard/MatchesView";
 import { PaginationControls } from "@/components/dashboard/PaginationControls";
+import { useDashboardKeyboardShortcuts } from "@/hooks/useDashboardKeyboardShortcuts";
 
 interface AuctionDomain {
   id: string;
@@ -134,6 +135,15 @@ export default function Dashboard() {
   const [totalMatchesCount, setTotalMatchesCount] = useState(0);
   const [hideEndedMatches, setHideEndedMatches] = useState(true);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  // Persistent filters from localStorage
+  const STORAGE_KEY = "eh_dashboard_prefs";
+  const savedPrefs = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }, []);
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [auctions, setAuctions] = useState<AuctionDomain[]>([]);
@@ -144,19 +154,29 @@ export default function Dashboard() {
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"all" | "favorites" | "matches">("all");
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [viewMode, setViewMode] = useState<"all" | "favorites" | "matches">(savedPrefs?.viewMode || "all");
+  const [itemsPerPage, setItemsPerPage] = useState(savedPrefs?.itemsPerPage || 50);
   const [jumpToPage, setJumpToPage] = useState("");
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<Filters>(savedPrefs?.filters || {
     tld: "all",
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
     inventorySource: "godaddy",
   });
-  const [sortBy, setSortBy] = useState("end_time_asc");
+  const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "end_time_asc");
+
+  // Persist filter/sort preferences
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ filters, sortBy, viewMode, itemsPerPage }));
+    } catch { /* quota exceeded - ignore */ }
+  }, [filters, sortBy, viewMode, itemsPerPage]);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [totalDomainCount, setTotalDomainCount] = useState<number | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const TIME_UPDATE_INTERVAL = 60 * 1000;
   
   const activeFilterCount = [
@@ -565,6 +585,74 @@ export default function Dashboard() {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const filtered = auctions;
 
+  // Clear selections when page/view changes
+  useEffect(() => { setSelectedRows(new Set()); setHighlightedIndex(-1); }, [currentPage, viewMode]);
+
+  // Bulk action handlers
+  const toggleRowSelection = useCallback((id: string) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllOnPage = useCallback(() => {
+    if (selectedRows.size === filtered.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filtered.map(d => d.id)));
+    }
+  }, [filtered, selectedRows.size]);
+
+  const bulkFavorite = useCallback(async () => {
+    if (selectedRows.size === 0) return;
+    const domainsToFav = filtered.filter(d => selectedRows.has(d.id));
+    for (const d of domainsToFav) {
+      if (!isFavorite(d.domain)) await toggleFavorite(d.domain, d.id);
+    }
+    setSelectedRows(new Set());
+    toast.success(`Added ${domainsToFav.length} domains to favorites`);
+  }, [selectedRows, filtered, isFavorite, toggleFavorite]);
+
+  const exportSelectedCsv = useCallback(() => {
+    const rows = selectedRows.size > 0
+      ? filtered.filter(d => selectedRows.has(d.id))
+      : filtered;
+    if (rows.length === 0) return;
+    const header = "Domain,Price,Bids,Age,TLD,Ends,Source\n";
+    const csv = header + rows.map(d =>
+      `${d.domain},${d.price},${d.numberOfBids},${d.domainAge},${d.tld},${d.auctionEndTime},${d.inventorySource || ''}`
+    ).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expiredhawk-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} domains to CSV`);
+  }, [selectedRows, filtered]);
+
+  // Keyboard shortcuts
+  useDashboardKeyboardShortcuts({
+    enabled: viewMode !== "matches" && !detailSheetOpen,
+    onNavigateUp: () => setHighlightedIndex(prev => Math.max(0, prev - 1)),
+    onNavigateDown: () => setHighlightedIndex(prev => Math.min(filtered.length - 1, prev + 1)),
+    onToggleFavorite: () => {
+      if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+        const d = filtered[highlightedIndex];
+        toggleFavorite(d.domain, d.id);
+      }
+    },
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onOpenDetail: () => {
+      if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+        handleDomainClick(filtered[highlightedIndex]);
+      }
+    },
+  });
+
   if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
 
@@ -613,6 +701,8 @@ export default function Dashboard() {
               onResetFilters={resetFilters}
               onPageReset={() => setCurrentPage(1)}
               isSearching={!!debouncedSearch && (loading || isFetchingAuctions)}
+              searchInputRef={searchInputRef}
+              onExportCsv={exportSelectedCsv}
             />
           )}
 
@@ -707,12 +797,33 @@ export default function Dashboard() {
                   </AlertDialog>
                 </div>
               )}
+              {/* Bulk Actions Bar */}
+              {selectedRows.size > 0 && (
+                <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20 animate-in fade-in duration-200">
+                  <CheckSquare className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">{selectedRows.size} selected</span>
+                  <div className="flex-1" />
+                  <Button size="sm" variant="outline" className="gap-1" onClick={bulkFavorite}>
+                    <Heart className="w-3.5 h-3.5" /> Favorite All
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={exportSelectedCsv}>
+                    <Download className="w-3.5 h-3.5" /> Export CSV
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedRows(new Set())}>
+                    Clear
+                  </Button>
+                </div>
+              )}
               <div className="animate-in fade-in duration-300 delay-200">
                 <DomainTable
                   domains={filtered}
                   onDomainClick={handleDomainClick}
                   sortBy={sortBy}
                   onSortChange={(newSort) => startSortTransition(() => { setCurrentPage(1); setSortBy(newSort); })}
+                  selectedRows={selectedRows}
+                  onToggleRow={toggleRowSelection}
+                  onSelectAll={selectAllOnPage}
+                  highlightedIndex={highlightedIndex}
                 />
               </div>
 
