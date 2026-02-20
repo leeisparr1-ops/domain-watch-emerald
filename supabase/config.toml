@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.backfill-pattern-matches]
 verify_jwt = false
+
+[functions.exchange-oauth-token]
+verify_jwt = false
