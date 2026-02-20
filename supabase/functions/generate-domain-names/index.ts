@@ -95,15 +95,16 @@ Rules:
 - Rate each name's TREND alignment (0-100) based on current 2026 market signals above
 - Consider aftermarket resale potential, not just brandability
 - CRITICAL: Generate CREATIVE, UNIQUE names that are likely UNREGISTERED. Avoid obvious two-word combos of common keywords (e.g. AgentPay, CashFlow) — these are almost always taken. Instead use: invented words (like Zolva, Finiq, Paylix), unexpected word pairings, phonetic blends, or modified spellings. Mix in some conventional names but prioritize originality.
-- Generate 15 names (we will filter down to available ones)`;
+- Generate 100 names (we will filter down to available ones). Use high variety — mix invented words, portmanteaus, phonetic blends, and creative real-word combos. Do NOT repeat patterns.
+- AUTOMATIC SYNERGY: For each name, evaluate SYNERGY — how well the keyword combination, phonetic flow, visual aesthetics, market trend alignment, and niche relevance work TOGETHER as a cohesive brand. A high-synergy name feels inevitable, not forced. Rate this as the "score" field (1-100). Examples: "Spotify" has high synergy (unique sound + tech feel + memorable). "FastHost" has low synergy (generic, forgettable).`;
 
     const tldExample = include_extra_tlds
       ? `available_tlds (array of 3-5 relevant TLD extensions, e.g. [".com", ".ai", ".io"])`
       : `available_tlds (always [".com"])`;
 
-    const userPrompt = `Generate 15 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
+    const userPrompt = `Generate 100 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
 
-Return suggestions with: name (full domain with .com extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), ${tldExample}.`;
+Return suggestions with: name (full domain with .com extension), score (1-100 SYNERGY score — how well phonetics + keywords + trends + brand potential work together holistically), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence explaining the synergy and why an investor would want this), ${tldExample}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
