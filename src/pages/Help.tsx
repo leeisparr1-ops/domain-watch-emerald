@@ -84,11 +84,11 @@ export default function Help() {
     },
     {
       question: "How many patterns can I save?",
-      answer: "Free plan: 5 patterns. Basic ($4.99/mo): 50 patterns. Advanced ($9.99/mo): 125 patterns. Upgrade anytime from the Pricing page."
+      answer: "Free plan: 30 patterns. Basic ($4.99/mo): 60 patterns. Advanced ($9.99/mo): 120 patterns. Upgrade anytime from the Pricing page."
     },
     {
       question: "How often are auctions updated?",
-      answer: "Auctions sync every 3 hours automatically. After each sync, your patterns are checked and notifications sent based on your frequency preference."
+      answer: "Auctions sync every 6 hours automatically. After each sync, your patterns are checked and notifications sent based on your frequency preference."
     },
     {
       question: "How do I control notification frequency?",
@@ -140,7 +140,7 @@ export default function Help() {
     },
     {
       question: "Do I need an account to use the Tools?",
-      answer: "Yes, all domain tools require you to be signed in. Create a free account to access the full analysis suite."
+      answer: "No — all analysis tools (Brandability Scorer, Pronounceability Checker, Bulk Checker, TLD Comparison, Domain Valuation) are free and don't require an account. The AI Name Generator and Portfolio Tracker require a free account."
     },
   ];
 

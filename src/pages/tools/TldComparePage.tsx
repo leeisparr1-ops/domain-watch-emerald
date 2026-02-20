@@ -8,7 +8,7 @@ const TldComparePage = () => (
     <Helmet>
       <title>TLD Comparison Tool — Compare Domain Extensions | ExpiredHawk</title>
       <meta name="description" content="Compare 45+ domain extensions side by side. See liquidity grades, pricing, and niche recommendations to pick the best TLD for your domain investment." />
-      <link rel="canonical" href="https://expiredhawk.lovable.app/tools/tld-compare" />
+      <link rel="canonical" href="https://expiredhawk.com/tools/tld-compare" />
     </Helmet>
     <div className="min-h-screen bg-background">
       <Navbar />

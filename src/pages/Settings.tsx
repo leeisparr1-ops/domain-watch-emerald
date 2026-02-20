@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useSearchParams, Link } from "react-router-dom";
+import { Footer } from "@/components/layout/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
@@ -291,6 +292,7 @@ export default function Settings() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

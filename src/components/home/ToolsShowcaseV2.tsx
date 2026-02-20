@@ -50,9 +50,6 @@ export function ToolsShowcaseV2() {
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Powerful <span className="gradient-text">Domain Tools</span>
-            <span className="ml-3 inline-block align-middle text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-              Beta
-            </span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Go beyond alerts. Analyze, generate, and value domains with tools built for investors.
@@ -91,12 +88,13 @@ export function ToolsShowcaseV2() {
         </div>
 
         <div className="text-center">
-          <Link to="/signup">
+          <Link to="/tools">
             <Button variant="hero" size="lg">
               Try All Tools Free
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
+          <p className="text-xs text-muted-foreground mt-3">No signup required</p>
         </div>
       </div>
     </section>

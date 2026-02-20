@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+
 import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
@@ -20,6 +20,7 @@ const Tools = () => {
       <Helmet>
         <title>Domain Tools - ExpiredHawk</title>
         <meta name="description" content="Free domain tools: pronounceability scorer, AI name generator, domain valuation, bulk checker, and TLD comparison for domainers." />
+        <link rel="canonical" href="https://expiredhawk.com/tools" />
       </Helmet>
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -29,16 +30,15 @@ const Tools = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-foreground">
                 Domain <span className="gradient-text">Tools</span>
               </h1>
-              <Badge variant="secondary" className="text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
-                Beta
-              </Badge>
             </div>
              <p className="text-muted-foreground mb-1">
               Get AI-powered domain analysis, or dive deep with individual tools below.
             </p>
             <p className="text-xs text-muted-foreground/70 mb-6">
-              🚧 All tools are in beta — results are estimates and may change as we improve.
+              Results are estimates and may improve over time.
             </p>
+
+
 
             <Tabs defaultValue={defaultTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 mb-6 h-auto">

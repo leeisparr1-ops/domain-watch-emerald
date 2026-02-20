@@ -8,7 +8,7 @@ const DomainGeneratorPage = () => (
     <Helmet>
       <title>AI Domain Name Generator — Best Domain Ideas 2026 | ExpiredHawk</title>
       <meta name="description" content="Generate brandable domain name ideas with AI. Instant pronounceability scores, availability checks, and investor-ready suggestions for domainers." />
-      <link rel="canonical" href="https://expiredhawk.lovable.app/tools/domain-generator" />
+      <link rel="canonical" href="https://expiredhawk.com/tools/domain-generator" />
     </Helmet>
     <div className="min-h-screen bg-background">
       <Navbar />
