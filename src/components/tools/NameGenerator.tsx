@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2 } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2, Save, FolderOpen, Trash2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +54,19 @@ type SortOption = "synergy" | "trend" | "alpha" | "auction";
 const CORE_TLDS = [".com"];
 const EXTRA_TLDS = [".ai", ".io", ".net", ".co", ".app", ".dev", ".org"];
 
+interface SavedSession {
+  id: string;
+  session_name: string;
+  input_mode: string;
+  keywords: string | null;
+  inspired_by: string | null;
+  competitors: string | null;
+  industry: string | null;
+  style: string;
+  suggestions: any;
+  created_at: string;
+}
+
 export function NameGenerator() {
   const [keywords, setKeywords] = useState("");
   const [inspiredBy, setInspiredBy] = useState("");
@@ -67,9 +82,89 @@ export function NameGenerator() {
   const [availabilityProgress, setAvailabilityProgress] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("synergy");
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const tldsToCheck = includeExtraTlds ? [...CORE_TLDS, ...EXTRA_TLDS] : CORE_TLDS;
+
+  // Load saved sessions on mount
+  useEffect(() => {
+    if (!user) return;
+    const loadSessions = async () => {
+      const { data } = await supabase
+        .from("generator_sessions")
+        .select("id, session_name, input_mode, keywords, inspired_by, competitors, industry, style, suggestions, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (data) setSavedSessions(data as SavedSession[]);
+    };
+    loadSessions();
+  }, [user]);
+
+  const handleSaveSession = async () => {
+    if (!user) {
+      toast({ title: "Sign in to save sessions", description: "Session saving requires an account.", variant: "destructive" });
+      return;
+    }
+    if (suggestions.length === 0) return;
+    setSavingSession(true);
+    const sessionName = `${inputMode === "keywords" ? keywords : inputMode === "competitor" ? competitors : inspiredBy} — ${new Date().toLocaleDateString()}`;
+    const { data, error } = await supabase
+      .from("generator_sessions")
+      .insert([{
+        user_id: user.id,
+        session_name: sessionName,
+        input_mode: inputMode,
+        keywords: keywords || null,
+        inspired_by: inspiredBy || null,
+        competitors: competitors || null,
+        industry: industry || null,
+        style,
+        suggestions: JSON.parse(JSON.stringify(suggestions.map((s) => ({
+          name: s.name, score: s.score, trend_score: s.trend_score, reason: s.reason,
+          pronounceScore: s.pronounceScore, tldStatuses: s.tldStatuses,
+          trademarkRisk: s.trademarkRisk, auctionMatches: s.auctionMatches,
+        })))),
+      }])
+      .select("id, session_name, input_mode, keywords, inspired_by, competitors, industry, style, suggestions, created_at")
+      .single();
+    if (error) {
+      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+    } else if (data) {
+      setSavedSessions((prev) => [data as SavedSession, ...prev]);
+      toast({ title: "Session saved!", description: sessionName });
+    }
+    setSavingSession(false);
+  };
+
+  const handleLoadSession = (session: SavedSession) => {
+    setInputMode(session.input_mode as InputMode);
+    setKeywords(session.keywords || "");
+    setInspiredBy(session.inspired_by || "");
+    setCompetitors(session.competitors || "");
+    setIndustry(session.industry || "");
+    setStyle(session.style);
+    const loaded: Suggestion[] = (session.suggestions || []).map((s: any) => ({
+      name: s.name, score: s.score, trend_score: s.trend_score, reason: s.reason,
+      pronounceScore: s.pronounceScore, tldStatuses: s.tldStatuses,
+      trademarkRisk: s.trademarkRisk, auctionMatches: s.auctionMatches,
+      checkingTlds: false,
+    }));
+    setSuggestions(loaded);
+    setHasGenerated(true);
+    setSessionsOpen(false);
+    toast({ title: "Session loaded", description: session.session_name });
+  };
+
+  const handleDeleteSession = async (id: string) => {
+    await supabase.from("generator_sessions").delete().eq("id", id);
+    setSavedSessions((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  // tldsToCheck defined above
 
   const loadingSteps = [
     { label: "Analyzing market trends & keywords...", icon: "📊" },
@@ -339,13 +434,69 @@ export function NameGenerator() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          AI Name Generator
-          <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
-            2026
-          </Badge>
-        </CardTitle>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            AI Name Generator
+            <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
+              2026
+            </Badge>
+          </CardTitle>
+          {user && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                disabled={suggestions.length === 0 || savingSession}
+                onClick={handleSaveSession}
+              >
+                {savingSession ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Save
+              </Button>
+              <Dialog open={sessionsOpen} onOpenChange={setSessionsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                    <FolderOpen className="w-3 h-3" />
+                    Sessions{savedSessions.length > 0 && ` (${savedSessions.length})`}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[60vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Saved Sessions</DialogTitle>
+                  </DialogHeader>
+                  {savedSessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No saved sessions yet. Generate names and click Save.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {savedSessions.map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/30 transition-colors">
+                          <button
+                            className="flex-1 text-left"
+                            onClick={() => handleLoadSession(session)}
+                          >
+                            <p className="text-sm font-medium text-foreground truncate">{session.session_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(session.suggestions as any[])?.length ?? 0} names · {new Date(session.created_at).toLocaleDateString()}
+                            </p>
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteSession(session.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+        </div>
         <CardDescription>
           Investor-grade domain name generation powered by 2026 market trends. Get names optimized for flipping, holding, or branding — with live availability across .com, .ai, .io, .net and more.
         </CardDescription>

@@ -211,6 +211,51 @@ export type Database = {
           },
         ]
       }
+      generator_sessions: {
+        Row: {
+          competitors: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          input_mode: string
+          inspired_by: string | null
+          keywords: string | null
+          session_name: string
+          style: string
+          suggestions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          competitors?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          input_mode?: string
+          inspired_by?: string | null
+          keywords?: string | null
+          session_name?: string
+          style?: string
+          suggestions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          competitors?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          input_mode?: string
+          inspired_by?: string | null
+          keywords?: string | null
+          session_name?: string
+          style?: string
+          suggestions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pattern_alerts: {
         Row: {
           alerted_at: string
