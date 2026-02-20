@@ -93,13 +93,15 @@ Rules:
 - ${tldInstruction}
 - Include a brief reason why each name works for investors
 - Rate each name's TREND alignment (0-100) based on current 2026 market signals above
-- Consider aftermarket resale potential, not just brandability`;
+- Consider aftermarket resale potential, not just brandability
+- CRITICAL: Generate CREATIVE, UNIQUE names that are likely UNREGISTERED. Avoid obvious two-word combos of common keywords (e.g. AgentPay, CashFlow) — these are almost always taken. Instead use: invented words (like Zolva, Finiq, Paylix), unexpected word pairings, phonetic blends, or modified spellings. Mix in some conventional names but prioritize originality.
+- Generate 15 names (we will filter down to available ones)`;
 
     const tldExample = include_extra_tlds
       ? `available_tlds (array of 3-5 relevant TLD extensions, e.g. [".com", ".ai", ".io"])`
       : `available_tlds (always [".com"])`;
 
-    const userPrompt = `Generate 10 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
+    const userPrompt = `Generate 15 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
 
 Return suggestions with: name (full domain with .com extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), ${tldExample}.`;
 
