@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,14 @@ interface TldStatus {
   status: "available" | "registered" | "unknown";
 }
 
+interface AuctionMatch {
+  domain_name: string;
+  price: number;
+  end_time: string | null;
+  inventory_source: string | null;
+  auction_type: string | null;
+}
+
 interface Suggestion {
   name: string; // just the name part, no TLD
   score: number;
@@ -33,10 +41,11 @@ interface Suggestion {
   tldStatuses?: TldStatus[];
   checkingTlds?: boolean;
   trademarkRisk?: ReturnType<typeof checkTrademarkRisk>;
+  auctionMatches?: AuctionMatch[];
 }
 
-type InputMode = "keywords" | "inspired";
-type SortOption = "synergy" | "trend" | "alpha";
+type InputMode = "keywords" | "inspired" | "competitor";
+type SortOption = "synergy" | "trend" | "alpha" | "auction";
 
 // Default: .com only (verified via RDAP — authoritative registry lookup)
 // Extra TLDs also use RDAP where supported, DNS fallback otherwise
@@ -46,6 +55,7 @@ const EXTRA_TLDS = [".ai", ".io", ".net", ".co", ".app", ".dev", ".org"];
 export function NameGenerator() {
   const [keywords, setKeywords] = useState("");
   const [inspiredBy, setInspiredBy] = useState("");
+  const [competitors, setCompetitors] = useState("");
   const [inputMode, setInputMode] = useState<InputMode>("keywords");
   const [industry, setIndustry] = useState("");
   const [style, setStyle] = useState("mixed");
@@ -66,8 +76,94 @@ export function NameGenerator() {
     { label: "Generating ~100 investor-grade names with AI (3 parallel batches)...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
     { label: availabilityProgress || `Checking availability across ${tldsToCheck.join(", ")}...`, icon: "🌐" },
+    { label: "Cross-referencing auction inventory...", icon: "🔍" },
     { label: "Filtering & ranking results...", icon: "⚡" },
   ];
+
+  // Cross-reference generated names against auctions database
+  const crossReferenceAuctions = async (items: Suggestion[]) => {
+    const names = items.map((s) => s.name.toLowerCase());
+    // Build domain names to search for (name + common TLDs)
+    const searchTlds = [".com", ".net", ".org", ".io", ".ai", ".co", ".app", ".dev"];
+    const domainsToSearch = names.flatMap((n) => searchTlds.map((tld) => `${n}${tld}`));
+
+    // Query in chunks of 500 to avoid query limits
+    const CHUNK = 500;
+    const allMatches: AuctionMatch[] = [];
+    for (let i = 0; i < domainsToSearch.length; i += CHUNK) {
+      const chunk = domainsToSearch.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from("auctions")
+        .select("domain_name, price, end_time, inventory_source, auction_type")
+        .in("domain_name", chunk);
+      if (data) allMatches.push(...(data as AuctionMatch[]));
+    }
+
+    // Map matches back to suggestions by SLD
+    setSuggestions((prev) =>
+      prev.map((s) => {
+        const sld = s.name.toLowerCase();
+        const matches = allMatches.filter((m) =>
+          m.domain_name.toLowerCase().startsWith(sld + ".")
+        );
+        return { ...s, auctionMatches: matches };
+      })
+    );
+  };
+
+  // "More like this" — generate 20 variations of a specific name
+  const [moreLikeLoading, setMoreLikeLoading] = useState<string | null>(null);
+  const handleMoreLikeThis = async (sourceName: string) => {
+    setMoreLikeLoading(sourceName);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-domain-names", {
+        body: {
+          keywords: sourceName,
+          industry: industry.trim() || undefined,
+          style,
+          inspired_by: sourceName,
+          batch_count: 1,
+        },
+      });
+      if (error) throw error;
+      const newItems: Suggestion[] = (data?.suggestions || [])
+        .slice(0, 20)
+        .map((s: any) => {
+          const namePart = s.name.replace(/\.(com|ai|io|co|net|app|dev|org)$/i, "").trim();
+          return {
+            name: namePart,
+            score: s.score,
+            trend_score: s.trend_score ?? 0,
+            reason: s.reason,
+            pronounceScore: scorePronounceability(namePart + ".com").score,
+            trademarkRisk: checkTrademarkRisk(namePart + ".com"),
+            checkingTlds: true,
+          };
+        });
+
+      // Deduplicate against existing suggestions
+      const existingNames = new Set(suggestions.map((s) => s.name.toLowerCase()));
+      const unique = newItems.filter((s) => !existingNames.has(s.name.toLowerCase()));
+
+      if (unique.length === 0) {
+        toast({ title: "No new variations found", description: "Try regenerating instead." });
+        setMoreLikeLoading(null);
+        return;
+      }
+
+      setSuggestions((prev) => [...prev, ...unique]);
+
+      // Check availability for new names
+      await checkAvailabilityInBatches(unique);
+      // Cross-reference new names against auctions
+      await crossReferenceAuctions(unique);
+
+      toast({ title: `Added ${unique.length} variations`, description: `Names inspired by "${sourceName}"` });
+    } catch (e: any) {
+      toast({ title: "Failed to generate variations", description: e.message, variant: "destructive" });
+    }
+    setMoreLikeLoading(null);
+  };
 
   const checkAvailabilityInBatches = async (items: Suggestion[]) => {
     // Build all domain combos: name × TLDs
@@ -122,7 +218,9 @@ export function NameGenerator() {
   };
 
   const handleGenerate = async () => {
-    const input = inputMode === "inspired" ? inspiredBy.trim() : keywords.trim();
+    const input = inputMode === "inspired" ? inspiredBy.trim() 
+      : inputMode === "competitor" ? competitors.trim()
+      : keywords.trim();
     if (!input) return;
     setIsLoading(true);
     setLoadingStep(0);
@@ -131,13 +229,18 @@ export function NameGenerator() {
 
     try {
       const body: Record<string, string | boolean | undefined> = {
-        keywords: inputMode === "keywords" ? input : `domains similar to ${input}`,
+        keywords: inputMode === "keywords" ? input 
+          : inputMode === "competitor" ? `domains differentiated from competitors: ${input}`
+          : `domains similar to ${input}`,
         industry: industry.trim() || undefined,
         style,
         include_extra_tlds: includeExtraTlds,
       };
       if (inputMode === "inspired") {
         body.inspired_by = input;
+      }
+      if (inputMode === "competitor") {
+        body.competitor_domains = input;
       }
 
       // Step 1: Analyzing trends
@@ -182,8 +285,12 @@ export function NameGenerator() {
       setLoadingStep(3);
       await checkAvailabilityInBatches(items);
 
-      // Step 5: Filtering
+      // Step 5: Cross-reference auctions
       setLoadingStep(4);
+      await crossReferenceAuctions(items);
+
+      // Step 6: Filtering
+      setLoadingStep(5);
       await new Promise((r) => setTimeout(r, 400));
 
       setHasGenerated(true);
@@ -225,7 +332,9 @@ export function NameGenerator() {
     return "";
   };
 
-  const canGenerate = inputMode === "inspired" ? inspiredBy.trim().length > 0 : keywords.trim().length > 0;
+  const canGenerate = inputMode === "inspired" ? inspiredBy.trim().length > 0 
+    : inputMode === "competitor" ? competitors.trim().length > 0 
+    : keywords.trim().length > 0;
 
   return (
     <Card>
@@ -244,7 +353,7 @@ export function NameGenerator() {
       <CardContent className="space-y-6">
         {/* Input Mode Tabs */}
         <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as InputMode)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-9">
+          <TabsList className="grid w-full grid-cols-3 h-9">
             <TabsTrigger value="keywords" className="text-xs flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Keywords
@@ -252,6 +361,10 @@ export function NameGenerator() {
             <TabsTrigger value="inspired" className="text-xs flex items-center gap-1.5">
               <Lightbulb className="w-3.5 h-3.5" />
               Inspired By
+            </TabsTrigger>
+            <TabsTrigger value="competitor" className="text-xs flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              vs Competitors
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -264,6 +377,18 @@ export function NameGenerator() {
               onChange={(e) => setKeywords(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !isLoading && handleGenerate()}
             />
+          ) : inputMode === "competitor" ? (
+            <div className="space-y-2">
+              <Input
+                placeholder="Competitor domains (e.g. stripe.com, plaid.com, wise.com)"
+                value={competitors}
+                onChange={(e) => setCompetitors(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !isLoading && handleGenerate()}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste competitor domain names — AI will analyze their naming patterns and generate differentiated alternatives in the same niche.
+              </p>
+            </div>
           ) : (
             <Input
               placeholder="Paste a sold domain (e.g. Surface.ai, Midnight.com)"
@@ -372,6 +497,12 @@ export function NameGenerator() {
 
           // Sort
           const sorted = [...filtered].sort((a, b) => {
+            if (sortBy === "auction") {
+              const aHas = (a.auctionMatches?.length ?? 0) > 0 ? 1 : 0;
+              const bHas = (b.auctionMatches?.length ?? 0) > 0 ? 1 : 0;
+              if (bHas !== aHas) return bHas - aHas;
+              return b.score - a.score;
+            }
             if (sortBy === "synergy") return b.score - a.score;
             if (sortBy === "trend") return (b.trend_score ?? 0) - (a.trend_score ?? 0);
             return a.name.localeCompare(b.name);
@@ -406,6 +537,7 @@ export function NameGenerator() {
                       <SelectContent>
                         <SelectItem value="synergy">Synergy Score</SelectItem>
                         <SelectItem value="trend">Trend Score</SelectItem>
+                        <SelectItem value="auction">Auction Matches</SelectItem>
                         <SelectItem value="alpha">A → Z</SelectItem>
                       </SelectContent>
                     </Select>
@@ -530,36 +662,88 @@ export function NameGenerator() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">{s.reason}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
-                      {s.checkingTlds ? (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Checking {tldsToCheck.length} TLDs...
-                        </span>
-                      ) : s.tldStatuses ? (
-                        s.tldStatuses.map((ts) => {
-                          const tld = ts.domain.substring(ts.domain.indexOf("."));
-                          const registerUrl = `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}`;
-                          return (
-                            <span key={ts.domain} className="inline-flex items-center gap-0.5">
-                              <Badge variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
-                                {statusIcon(ts)}
-                                {tld}
-                              </Badge>
-                              {ts.status === "available" && (
-                                <a
-                                  href={registerUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-1"
-                                >
-                                  Register <ExternalLink className="w-2.5 h-2.5" />
-                                </a>
-                              )}
-                            </span>
-                          );
-                        })
-                      ) : null}
+
+                    {/* Auction matches */}
+                    {s.auctionMatches && s.auctionMatches.length > 0 && (
+                      <div className="mb-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Gavel className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            {s.auctionMatches.length} in auction inventory
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {s.auctionMatches.map((am) => (
+                            <Tooltip key={am.domain_name}>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-[10px] cursor-help border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                                  {am.domain_name} — ${am.price}
+                                  {am.end_time && (
+                                    <Clock className="w-2.5 h-2.5 ml-0.5" />
+                                  )}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs">
+                                  <strong>{am.domain_name}</strong> — ${am.price}
+                                  {am.end_time && ` · Ends ${new Date(am.end_time).toLocaleDateString()}`}
+                                  {am.inventory_source && ` · ${am.inventory_source}`}
+                                  {am.auction_type && ` · ${am.auction_type}`}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
+                        {s.checkingTlds ? (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Checking {tldsToCheck.length} TLDs...
+                          </span>
+                        ) : s.tldStatuses ? (
+                          s.tldStatuses.map((ts) => {
+                            const tld = ts.domain.substring(ts.domain.indexOf("."));
+                            const registerUrl = `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}`;
+                            return (
+                              <span key={ts.domain} className="inline-flex items-center gap-0.5">
+                                <Badge variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
+                                  {statusIcon(ts)}
+                                  {tld}
+                                </Badge>
+                                {ts.status === "available" && (
+                                  <a
+                                    href={registerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-1"
+                                  >
+                                    Register <ExternalLink className="w-2.5 h-2.5" />
+                                  </a>
+                                )}
+                              </span>
+                            );
+                          })
+                        ) : null}
+                      </div>
+                      {/* More like this button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                        disabled={moreLikeLoading !== null}
+                        onClick={() => handleMoreLikeThis(s.name)}
+                      >
+                        {moreLikeLoading === s.name ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3 h-3" />
+                        )}
+                        More like this
+                      </Button>
                     </div>
                   </div>
                 );

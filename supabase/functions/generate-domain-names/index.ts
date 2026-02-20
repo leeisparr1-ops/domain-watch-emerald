@@ -174,17 +174,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { keywords, industry, style, inspired_by } = await req.json();
+    const { keywords, industry, style, inspired_by, competitor_domains, batch_count } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const inspiredByContext = inspired_by
-      ? `\nThe user wants names INSPIRED BY "${inspired_by}". Analyze its structure and generate similar-quality names that are ACTUALLY LIKELY TO BE AVAILABLE for .com registration.`
-      : "";
+    let inspiredByContext = "";
+    if (inspired_by) {
+      inspiredByContext = `\nThe user wants names INSPIRED BY "${inspired_by}". Analyze its structure and generate similar-quality names that are ACTUALLY LIKELY TO BE AVAILABLE for .com registration.`;
+    }
+    if (competitor_domains) {
+      inspiredByContext += `\nCOMPETITOR ANALYSIS MODE: The user's competitors use these domains: ${competitor_domains}. 
+Analyze their naming patterns (length, style, word types, phonetics) and generate DIFFERENTIATED alternatives that:
+1. Stand out from these competitors while staying in the same niche
+2. Are stylistically distinct — if competitors use short words, try compound names; if they use real words, try invented ones
+3. Feel premium and modern, not derivative
+4. Would make someone think "this competes with ${competitor_domains} but feels fresher"`;
+    }
 
-    // Fire 3 batches IN PARALLEL — each with a different creative angle
-    console.log("Starting 5 parallel AI batches for domain generation...");
-    const batchPromises = BATCH_ANGLES.map((angle, i) =>
+    // Use fewer batches for "more like this" requests
+    const anglesToUse = batch_count === 1 ? [BATCH_ANGLES[0]] : BATCH_ANGLES;
+
+    console.log(`Starting ${anglesToUse.length} parallel AI batches for domain generation...`);
+    const batchPromises = anglesToUse.map((angle, i) =>
       generateBatch(LOVABLE_API_KEY, keywords, industry || "", style || "mixed", inspiredByContext, angle, i)
     );
 
