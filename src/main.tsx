@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// Eagerly initialize the Lovable Cloud auth library so it can process
+// OAuth callback tokens on ANY page the user lands on after redirect.
+import "@/integrations/lovable/index";
+
 // Service worker is registered via index.html for PWABuilder detection
 // No duplicate registration needed here
 
