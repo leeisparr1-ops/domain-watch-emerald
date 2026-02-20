@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,7 @@ interface Suggestion {
 }
 
 type InputMode = "keywords" | "inspired";
+type SortOption = "synergy" | "trend" | "alpha";
 
 // Default: .com only (verified via RDAP — authoritative registry lookup)
 // Extra TLDs also use RDAP where supported, DNS fallback otherwise
@@ -54,6 +55,8 @@ export function NameGenerator() {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const [includeExtraTlds, setIncludeExtraTlds] = useState(false);
   const [availabilityProgress, setAvailabilityProgress] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("synergy");
+  const [hasGenerated, setHasGenerated] = useState(false);
   const { toast } = useToast();
 
   const tldsToCheck = includeExtraTlds ? [...CORE_TLDS, ...EXTRA_TLDS] : CORE_TLDS;
@@ -183,6 +186,7 @@ export function NameGenerator() {
       setLoadingStep(4);
       await new Promise((r) => setTimeout(r, 400));
 
+      setHasGenerated(true);
       setIsLoading(false);
     } catch (e: any) {
       console.error(e);
@@ -358,13 +362,20 @@ export function NameGenerator() {
           const filtered = showOnlyAvailable
             ? suggestions
                 .map((s) => {
-                  if (!s.tldStatuses) return s; // still checking
+                  if (!s.tldStatuses) return s;
                   const availableTlds = s.tldStatuses.filter((ts) => ts.status === "available");
                   if (availableTlds.length === 0) return null;
                   return { ...s, tldStatuses: availableTlds };
                 })
                 .filter(Boolean) as Suggestion[]
             : suggestions;
+
+          // Sort
+          const sorted = [...filtered].sort((a, b) => {
+            if (sortBy === "synergy") return b.score - a.score;
+            if (sortBy === "trend") return (b.trend_score ?? 0) - (a.trend_score ?? 0);
+            return a.name.localeCompare(b.name);
+          });
 
           const stillChecking = suggestions.some((s) => s.checkingTlds);
           const totalAvailable = suggestions.filter(
@@ -376,7 +387,7 @@ export function NameGenerator() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h4 className="text-sm font-semibold text-foreground">
                   {showOnlyAvailable && !stillChecking
-                    ? `${filtered.length} Names with Available TLDs`
+                    ? `${sorted.length} Names with Available TLDs`
                     : `${suggestions.length} Suggestions Generated`}
                   {!stillChecking && showOnlyAvailable && (
                     <span className="text-xs font-normal text-muted-foreground ml-2">
@@ -384,7 +395,32 @@ export function NameGenerator() {
                     </span>
                   )}
                 </h4>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Sort dropdown */}
+                  <div className="flex items-center gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                      <SelectTrigger className="h-7 text-xs w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="synergy">Synergy Score</SelectItem>
+                        <SelectItem value="trend">Trend Score</SelectItem>
+                        <SelectItem value="alpha">A → Z</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Regenerate button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Regenerate
+                  </Button>
                   <div className="flex items-center gap-2">
                     <Switch
                       id="available-only"
@@ -395,14 +431,10 @@ export function NameGenerator() {
                       Available only
                     </Label>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Available</span>
-                    <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-blue-500" /> Trend</span>
-                  </div>
                 </div>
               </div>
 
-              {!stillChecking && showOnlyAvailable && filtered.length === 0 && (
+              {!stillChecking && showOnlyAvailable && sorted.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No names with available TLDs found.</p>
@@ -410,7 +442,7 @@ export function NameGenerator() {
                 </div>
               )}
 
-              {filtered.map((s, i) => {
+              {sorted.map((s, i) => {
                 const tmDisplay = s.trademarkRisk ? getTrademarkRiskDisplay(s.trademarkRisk.riskLevel) : null;
                 return (
                   <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
