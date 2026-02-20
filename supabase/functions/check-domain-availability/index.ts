@@ -9,73 +9,129 @@ interface DomainCheck {
   domain: string;
   available: boolean | null;
   status: "available" | "registered" | "unknown";
+  method: "rdap" | "dns";
 }
 
-// Primary: DNS-over-HTTPS check via Google. No DNS records = likely available.
+// RDAP endpoints per TLD — these are AUTHORITATIVE registry lookups
+const RDAP_ENDPOINTS: Record<string, string> = {
+  ".com": "https://rdap.verisign.com/com/v1/domain/",
+  ".net": "https://rdap.verisign.com/net/v1/domain/",
+  ".org": "https://rdap.org/domain/",
+  ".io":  "https://rdap.nic.io/domain/",
+  ".co":  "https://rdap.nic.co/domain/",
+  ".app": "https://rdap.nic.google/domain/",
+  ".dev": "https://rdap.nic.google/domain/",
+};
+
+// Authoritative RDAP check: 200 = registered, 404 = available
+async function checkRDAP(domain: string, tld: string): Promise<DomainCheck> {
+  const endpoint = RDAP_ENDPOINTS[tld];
+  if (!endpoint) {
+    return checkDNS(domain); // fallback for TLDs without RDAP
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const resp = await fetch(`${endpoint}${domain}`, {
+      signal: controller.signal,
+      headers: { "Accept": "application/rdap+json" },
+    });
+    clearTimeout(timeout);
+
+    if (resp.status === 404 || resp.status === 400) {
+      // 404 = domain not found in registry = AVAILABLE
+      return { domain, available: true, status: "available", method: "rdap" };
+    }
+
+    if (resp.status === 200) {
+      // 200 = domain exists in registry = REGISTERED
+      return { domain, available: false, status: "registered", method: "rdap" };
+    }
+
+    // Rate limited or other error — fall back to DNS
+    if (resp.status === 429) {
+      console.warn(`RDAP rate limited for ${domain}, falling back to DNS`);
+      return checkDNS(domain);
+    }
+
+    return { domain, available: null, status: "unknown", method: "rdap" };
+  } catch (e) {
+    // Timeout or network error — fall back to DNS
+    console.warn(`RDAP failed for ${domain}: ${e}, falling back to DNS`);
+    return checkDNS(domain);
+  }
+}
+
+// Fallback: DNS-over-HTTPS check (less reliable but fast)
 async function checkDNS(domain: string): Promise<DomainCheck> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    // Check for NS records — every registered domain must have them
     const resp = await fetch(
       `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=NS`,
       { signal: controller.signal }
     );
     clearTimeout(timeout);
 
-    if (!resp.ok) {
-      return { domain, available: null, status: "unknown" };
-    }
+    if (!resp.ok) return { domain, available: null, status: "unknown", method: "dns" };
 
     const data = await resp.json();
-    
-    // Status 3 = NXDOMAIN (domain does not exist) = available
+
+    // NXDOMAIN = domain does not exist
     if (data.Status === 3) {
-      return { domain, available: true, status: "available" };
-    }
-    
-    // Status 0 = NOERROR with answers = registered
-    if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
-      return { domain, available: false, status: "registered" };
+      return { domain, available: true, status: "available", method: "dns" };
     }
 
-    // Status 0 but no answers — could be parked/available, do a secondary A record check
-    if (data.Status === 0 && (!data.Answer || data.Answer.length === 0)) {
+    // Has NS records = definitely registered
+    if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
+      return { domain, available: false, status: "registered", method: "dns" };
+    }
+
+    // No NS but NOERROR — check A records too
+    if (data.Status === 0) {
       const aResp = await fetch(
         `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`,
         { signal: AbortSignal.timeout(4000) }
       );
       if (aResp.ok) {
         const aData = await aResp.json();
-        if (aData.Status === 3) {
-          return { domain, available: true, status: "available" };
-        }
-        if (aData.Answer && aData.Answer.length > 0) {
-          return { domain, available: false, status: "registered" };
-        }
+        if (aData.Status === 3) return { domain, available: true, status: "available", method: "dns" };
+        if (aData.Answer && aData.Answer.length > 0) return { domain, available: false, status: "registered", method: "dns" };
       }
-      // No A records and no NS records — likely available (some TLDs)
-      return { domain, available: true, status: "available" };
+      // Conservative: if DNS gives ambiguous result, mark as unknown rather than falsely saying available
+      return { domain, available: null, status: "unknown", method: "dns" };
     }
 
-    // Status 2 = SERVFAIL, etc.
-    return { domain, available: null, status: "unknown" };
+    return { domain, available: null, status: "unknown", method: "dns" };
   } catch {
-    return { domain, available: null, status: "unknown" };
+    return { domain, available: null, status: "unknown", method: "dns" };
   }
 }
 
-// Process domains in batches with concurrency control and delay between batches
-async function checkBatch(domains: string[], batchSize = 20): Promise<DomainCheck[]> {
+function getTld(domain: string): string {
+  const dot = domain.indexOf(".");
+  return dot >= 0 ? domain.substring(dot) : "";
+}
+
+// Check a single domain using the best method for its TLD
+async function checkDomain(domain: string): Promise<DomainCheck> {
+  const tld = getTld(domain);
+  return checkRDAP(domain, tld);
+}
+
+// Process domains in batches with concurrency control
+async function checkBatch(domains: string[], batchSize = 15): Promise<DomainCheck[]> {
   const results: DomainCheck[] = [];
   for (let i = 0; i < domains.length; i += batchSize) {
     const batch = domains.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(checkDNS));
+    const batchResults = await Promise.all(batch.map(checkDomain));
     results.push(...batchResults);
-    // Small delay between batches to avoid rate-limiting from Google DNS
+    // Delay between batches to avoid RDAP rate-limiting
     if (i + batchSize < domains.length) {
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, 200));
     }
   }
   return results;
@@ -90,9 +146,15 @@ serve(async (req) => {
       throw new Error("domains array is required");
     }
 
-    // Allow up to 800 checks per request (100 names × 8 TLDs)
+    // Allow up to 800 checks per request
     const toCheck = domains.slice(0, 800);
+    console.log(`Checking ${toCheck.length} domains (RDAP-first for .com/.net/.org/.io/.co/.app/.dev)`);
     const results = await checkBatch(toCheck);
+
+    const rdapCount = results.filter(r => r.method === "rdap").length;
+    const dnsCount = results.filter(r => r.method === "dns").length;
+    const availCount = results.filter(r => r.status === "available").length;
+    console.log(`Results: ${availCount} available, ${rdapCount} via RDAP, ${dnsCount} via DNS fallback`);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

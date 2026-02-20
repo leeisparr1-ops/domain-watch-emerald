@@ -5,11 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const TRENDING_KEYWORDS_2026 = [
-  "agent", "agentic", "neural", "quantum", "vault", "deep", "synthetic",
-  "pay", "cash", "clean", "code", "fire", "beauty", "claw", "orbit",
-  "flux", "forge", "pulse", "nexus", "swift", "apex", "core", "zen",
-  "pixel", "grid", "stack", "bolt", "prime", "signal", "wave",
+const RECENT_PREMIUM_SALES = [
+  { name: "Midnight.com", price: "$1.15M", niche: "Brandable" },
+  { name: "C4.com", price: "$265k", niche: "Short" },
+  { name: "Surface.ai", price: "$110k", niche: "AI/Tech" },
+  { name: "Speed.ai", price: "$165k", niche: "AI/Tech" },
+  { name: "Synthetic.ai", price: "$100k", niche: "AI/Tech" },
+  { name: "Amber.ai", price: "$115k", niche: "AI/Tech" },
 ];
 
 const TRENDING_NICHES: Record<string, string[]> = {
@@ -19,15 +21,6 @@ const TRENDING_NICHES: Record<string, string[]> = {
   "Ecommerce": ["cart", "store", "shop", "deal", "market", "sell", "swift"],
   "Health": ["vita", "zen", "pure", "care", "heal", "well", "life"],
 };
-
-const RECENT_PREMIUM_SALES = [
-  { name: "Midnight.com", price: "$1.15M", niche: "Brandable" },
-  { name: "C4.com", price: "$265k", niche: "Short" },
-  { name: "Surface.ai", price: "$110k", niche: "AI/Tech" },
-  { name: "Speed.ai", price: "$165k", niche: "AI/Tech" },
-  { name: "Synthetic.ai", price: "$100k", niche: "AI/Tech" },
-  { name: "Amber.ai", price: "$115k", niche: "AI/Tech" },
-];
 
 function getStyleGuide(style: string): string {
   switch (style) {
@@ -44,11 +37,11 @@ function getStyleGuide(style: string): string {
   }
 }
 
-// Each batch asks for 35 names with a different "angle" to maximize variety
+// 3 batches with different creative angles — emphasis on keyword+word combos
 const BATCH_ANGLES = [
-  "Focus on INVENTED words, coined names, and phonetic blends. Think Spotify, Zillow, Vercel. Names that don't exist as real words but sound amazing.",
-  "Focus on UNEXPECTED real-word pairings and portmanteaus. Combine two real words in surprising ways. Think Snapchat, YouTube, Instagram.",
-  "Focus on SHORT powerful names: single modified words, prefixes/suffixes, and ultra-concise combos under 8 chars. Think Bolt, Flux, Apex, Novu.",
+  `Focus on KEYWORD + WORD combinations. Pair a strong keyword from the user's niche with a short modifier word. Examples: DeepVault, CashPulse, CodeForge, MintStack, TradeNest. The combo must feel natural and brandable. At least 20 of 35 names should be keyword+word combos.`,
+  `Focus on INVENTED words and phonetic blends that sound premium. Think Spotify, Zillow, Vercel, Twilio. Names that don't exist as real words but sound amazing and are very unlikely to already be registered as .com domains. Make them OBSCURE enough to actually be available.`,
+  `Focus on SHORT powerful names and unexpected real-word pairings. Single modified words, prefixes/suffixes, and ultra-concise combos under 8 chars. Also include compound words that pair two short real words in surprising ways. Think: Snapchat, Airbnb, Coinbase. Prioritize names that are UNLIKELY to be registered.`,
 ];
 
 async function generateBatch(
@@ -73,13 +66,22 @@ CURRENT MARKET TRENDS (Feb 2026):
 ${trendingContext}
 
 Rules:
-- Names should be short (ideally under 12 characters)
+- Names should be short (ideally 5-12 characters)
 - Easy to spell and type
 - No hyphens or numbers
 - Return ONLY the name part WITHOUT any TLD (e.g. "Zolva" not "Zolva.com")
-- CRITICAL: Generate CREATIVE, UNIQUE names likely to be UNREGISTERED. Avoid obvious combos like AgentPay or CashFlow.
+
+CRITICAL AVAILABILITY RULES:
+- The #1 priority is that these names are ACTUALLY AVAILABLE to register as .com domains.
+- DO NOT suggest names that are obviously common words (e.g. "Speed", "Cash", "Deep") — these .coms are ALL taken.
+- DO NOT suggest names that sound like existing companies (e.g. "Vercel", "Stripe", "Notion") — we check trademarks.
+- INVENT new combinations. Use unusual letter combos, rare word pairings, made-up portmanteaus.
+- Think about what a domainer would search on GoDaddy and find AVAILABLE — not what sounds cool but is already taken.
+- Examples of names that ARE likely available: "Quorbit", "Zyndra", "VaultNex", "PulseForj", "Codevyn", "Mintarc"
+- Examples of names that are NOT available: "DeepMind", "CashApp", "CodeFlow", "PayVault", "NeuralNet"
+
 - Generate exactly 35 unique names. ${batchAngle}
-- AUTOMATIC SYNERGY: Rate how well phonetics, aesthetics, trends, and niche fit together (score 1-100). High synergy = inevitable brand. Low synergy = generic/forgettable.
+- AUTOMATIC SYNERGY: Rate how well phonetics, aesthetics, trends, and niche fit together (score 1-100). High synergy = inevitable brand.
 - Include trend_score (0-100) based on 2026 market signals.
 - Each name must be DIFFERENT — no variations of the same root.`;
 
@@ -169,7 +171,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const inspiredByContext = inspired_by
-      ? `\nThe user wants names INSPIRED BY "${inspired_by}". Analyze its structure and generate similar-quality names.`
+      ? `\nThe user wants names INSPIRED BY "${inspired_by}". Analyze its structure and generate similar-quality names that are ACTUALLY LIKELY TO BE AVAILABLE for .com registration.`
       : "";
 
     // Fire 3 batches IN PARALLEL — each with a different creative angle

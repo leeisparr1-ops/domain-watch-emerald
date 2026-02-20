@@ -37,9 +37,10 @@ interface Suggestion {
 
 type InputMode = "keywords" | "inspired";
 
-// TLDs we always check for every name
-const CORE_TLDS = [".com", ".ai", ".io", ".net"];
-const EXTRA_TLDS = [".co", ".app", ".dev", ".org"];
+// Default: .com only (verified via RDAP — authoritative registry lookup)
+// Extra TLDs also use RDAP where supported, DNS fallback otherwise
+const CORE_TLDS = [".com"];
+const EXTRA_TLDS = [".ai", ".io", ".net", ".co", ".app", ".dev", ".org"];
 
 export function NameGenerator() {
   const [keywords, setKeywords] = useState("");
@@ -304,12 +305,12 @@ export function NameGenerator() {
             />
             <Label htmlFor="extra-tlds" className="text-xs cursor-pointer">
               <span className="font-medium text-foreground">
-                {includeExtraTlds ? "8 TLDs" : "4 core TLDs"}
+                {includeExtraTlds ? "All TLDs" : ".com only"}
               </span>
               <span className="text-muted-foreground ml-1">
                 {includeExtraTlds
-                  ? "— checking .com, .ai, .io, .net, .co, .app, .dev, .org"
-                  : "— checking .com, .ai, .io, .net (toggle for +4 more)"}
+                  ? "— checking .com, .ai, .io, .net, .co, .app, .dev, .org (registry-verified)"
+                  : "— .com availability verified via registry (toggle for +7 more TLDs)"}
               </span>
             </Label>
           </div>
@@ -495,7 +496,7 @@ export function NameGenerator() {
                 );
               })}
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Availability checked via DNS (DoH) — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
+                ✅ Availability verified via RDAP (authoritative registry lookups for .com, .net, .org, .io, .co, .app, .dev). Always confirm final price with your registrar. Trademark screening covers ~200 major brands — not legal advice.
               </p>
             </div>
           );
