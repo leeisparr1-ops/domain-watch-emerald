@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -420,6 +420,43 @@ export function NameGenerator() {
                   >
                     <RefreshCw className="w-3 h-3" />
                     Regenerate
+                  </Button>
+                  {/* Export CSV button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      const rows = sorted.map((s) => {
+                        const availTlds = s.tldStatuses
+                          ?.filter((ts) => ts.status === "available")
+                          .map((ts) => ts.domain) ?? [];
+                        const regTlds = s.tldStatuses
+                          ?.filter((ts) => ts.status === "registered")
+                          .map((ts) => ts.domain) ?? [];
+                        return [
+                          s.name,
+                          s.score,
+                          s.trend_score ?? 0,
+                          s.pronounceScore ?? "",
+                          s.trademarkRisk?.riskLevel ?? "",
+                          availTlds.join(" "),
+                          regTlds.join(" "),
+                          `"${s.reason.replace(/"/g, '""')}"`,
+                        ].join(",");
+                      });
+                      const csv = "Name,Synergy,Trend,Pronounceability,Trademark Risk,Available Domains,Registered Domains,Reason\n" + rows.join("\n");
+                      const blob = new Blob([csv], { type: "text/csv" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "domain-names.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <Download className="w-3 h-3" />
+                    Export
                   </Button>
                   <div className="flex items-center gap-2">
                     <Switch
