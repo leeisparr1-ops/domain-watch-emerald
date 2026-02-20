@@ -59,7 +59,7 @@ export function NameGenerator() {
 
   const loadingSteps = [
     { label: "Analyzing market trends & keywords...", icon: "📊" },
-    { label: "Generating 100 investor-grade names with AI...", icon: "🤖" },
+    { label: "Generating ~100 investor-grade names with AI (3 parallel batches)...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
     { label: availabilityProgress || `Checking availability across ${tldsToCheck.join(", ")}...`, icon: "🌐" },
     { label: "Filtering & ranking results...", icon: "⚡" },
