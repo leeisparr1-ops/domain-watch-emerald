@@ -53,15 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async (result) => {
       if (!mounted) return;
 
-      if (result.data.session) {
+      const currentSession = result.data.session;
+      console.log("[auth] getSession:", currentSession ? "found" : "none");
+
+      if (currentSession) {
         // Validate the stored session is actually accepted by the server.
-        // Stale/invalid JWTs (e.g. from a failed OAuth attempt) can persist
-        // in localStorage indefinitely, causing every page load to fail with
-        // "invalid JWT: unable to parse or verify signature".
-        const { error: userError } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError) {
           console.warn("[auth] Stored session invalid, clearing:", userError.message);
-          toast.info("Session expired — please sign in again.");
+          // Only show toast if user was previously authenticated (not fresh page load)
+          if (user) {
+            toast.info("Session expired — please sign in again.");
+          }
           await supabase.auth.signOut({ scope: 'local' });
           if (!mounted) return;
           setSession(null);
@@ -69,10 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
+        console.log("[auth] Session validated for user:", userData.user?.email);
       }
 
-      setSession(result.data.session);
-      setUser(result.data.session?.user ?? null);
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
       setLoading(false);
     });
 
