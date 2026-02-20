@@ -1,6 +1,7 @@
 import { useEffect, useState, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
@@ -48,9 +49,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Then get initial session
-    supabase.auth.getSession().then((result) => {
+    // Then get initial session and VALIDATE it
+    supabase.auth.getSession().then(async (result) => {
       if (!mounted) return;
+
+      if (result.data.session) {
+        // Validate the stored session is actually accepted by the server.
+        // Stale/invalid JWTs (e.g. from a failed OAuth attempt) can persist
+        // in localStorage indefinitely, causing every page load to fail with
+        // "invalid JWT: unable to parse or verify signature".
+        const { error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.warn("[auth] Stored session invalid, clearing:", userError.message);
+          toast.info("Session expired — please sign in again.");
+          await supabase.auth.signOut();
+          if (!mounted) return;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+
       setSession(result.data.session);
       setUser(result.data.session?.user ?? null);
       setLoading(false);
