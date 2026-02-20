@@ -205,7 +205,7 @@ export default function Signup() {
             className="w-full"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin + "/signup",
+                redirect_uri: window.location.origin,
               });
               if (error) toast.error(error.message || "Google sign-up failed");
             }}
