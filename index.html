@@ -72,6 +72,25 @@
 
   <body>
     <div id="root"></div>
+    <!-- Pre-init: one-time cleanup of stale auth tokens that have unrecognized
+         JWT signing keys. Runs BEFORE Supabase client loads so stale tokens
+         can't interfere with session recovery. Bump version to force re-clear. -->
+    <script>
+      (function() {
+        var CLEANUP_VERSION = '2';
+        try {
+          if (localStorage.getItem('eh_auth_cleanup') !== CLEANUP_VERSION) {
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+              var key = localStorage.key(i);
+              if (key && key.indexOf('sb-') === 0 && key.indexOf('-auth-token') > 0) {
+                localStorage.removeItem(key);
+              }
+            }
+            localStorage.setItem('eh_auth_cleanup', CLEANUP_VERSION);
+          }
+        } catch(e) { /* never block app startup */ }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <!-- Service Worker Registration - defer to not block initial render -->
     <script>

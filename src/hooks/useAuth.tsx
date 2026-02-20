@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (userError) {
           console.warn("[auth] Stored session invalid, clearing:", userError.message);
           toast.info("Session expired — please sign in again.");
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           if (!mounted) return;
           setSession(null);
           setUser(null);
