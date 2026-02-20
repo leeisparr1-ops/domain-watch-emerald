@@ -6,9 +6,7 @@ import "./index.css";
 // OAuth callback tokens on ANY page the user lands on after redirect.
 import "@/integrations/lovable/index";
 
-// Process OAuth redirect callback tokens BEFORE React renders.
-// This ensures supabase.auth.setSession() is called with the tokens
-// from the URL so the AuthProvider picks them up via onAuthStateChange.
+// OAuth callback handler kept as safety net for any redirect-based tokens
 import { handleOAuthCallback } from "@/lib/oauthCallback";
 
 // Service worker is registered via index.html for PWABuilder detection

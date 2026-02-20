@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { signInWithGooglePopup } from "@/lib/googleOAuthPopup";
 import { toast } from "sonner";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
 
@@ -229,10 +229,8 @@ export default function Login() {
             variant="outline"
             className="w-full"
             onClick={async () => {
-              toast.info("🔍 Starting Google OAuth…", { duration: 5000 });
-              const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
-              });
+              toast.info("Connecting to Google…", { duration: 5000 });
+              const { error } = await signInWithGooglePopup();
               if (error) toast.error(`Google sign-in failed: ${error.message}`);
             }}
           >

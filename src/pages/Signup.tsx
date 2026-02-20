@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { signInWithGooglePopup } from "@/lib/googleOAuthPopup";
 import { toast } from "sonner";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
@@ -204,9 +204,7 @@ export default function Signup() {
             variant="outline"
             className="w-full"
             onClick={async () => {
-              const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
-              });
+              const { error } = await signInWithGooglePopup();
               if (error) toast.error(error.message || "Google sign-up failed");
             }}
           >
