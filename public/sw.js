@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v8';
+const CACHE_NAME = 'expiredhawk-v9';
 const OFFLINE_URL = '/';
 
 // IMPORTANT: In preview/dev, this service worker can interfere with Vite's module loading
@@ -72,6 +72,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // NEVER intercept OAuth callback – must always hit the network
+  if (new URL(event.request.url).pathname.startsWith('/~oauth')) {
     return;
   }
 
