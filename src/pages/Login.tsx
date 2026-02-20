@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Mail, Lock, Globe, Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,12 @@ export default function Login() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirect to dashboard if already authenticated (e.g. after OAuth return)
+  useEffect(() => {
+    if (user) navigate("/dashboard", { replace: true });
+  }, [user, navigate]);
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -223,7 +230,7 @@ export default function Login() {
             className="w-full"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: `${window.location.origin}/auth/callback?next=/dashboard`,
+                redirect_uri: window.location.origin + "/login",
               });
               if (error) toast.error(error.message || "Google sign-in failed");
             }}
