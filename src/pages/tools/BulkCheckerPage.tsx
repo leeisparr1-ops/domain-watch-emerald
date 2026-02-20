@@ -8,7 +8,7 @@ const BulkCheckerPage = () => (
     <Helmet>
       <title>Bulk Domain Analyzer — Score Your Entire Portfolio | ExpiredHawk</title>
       <meta name="description" content="Analyze multiple domains at once. Get pronounceability scores, valuations, and trademark risk for your entire domain portfolio in seconds." />
-      <link rel="canonical" href="https://expiredhawk.lovable.app/tools/bulk-checker" />
+      <link rel="canonical" href="https://expiredhawk.com/tools/bulk-checker" />
     </Helmet>
     <div className="min-h-screen bg-background">
       <Navbar />

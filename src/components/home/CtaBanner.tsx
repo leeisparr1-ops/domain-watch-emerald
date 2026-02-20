@@ -27,7 +27,7 @@ export function CtaBanner() {
             <Link to="/signup">
               <Button
                 size="xl"
-                className="bg-white text-primary font-semibold hover:bg-white/90 shadow-lg"
+                className="bg-primary-foreground text-primary font-semibold hover:bg-primary-foreground/90 shadow-lg"
               >
                 Start Monitoring Free
                 <ArrowRight className="w-5 h-5 ml-2" />
