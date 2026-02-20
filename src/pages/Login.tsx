@@ -223,7 +223,7 @@ export default function Login() {
             className="w-full"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: `${window.location.origin}/auth/callback?next=/dashboard`,
               });
               if (error) toast.error(error.message || "Google sign-in failed");
             }}
