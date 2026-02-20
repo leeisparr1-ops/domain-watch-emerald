@@ -56,11 +56,16 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { keywords, industry, style, inspired_by } = await req.json();
+    const { keywords, industry, style, inspired_by, include_extra_tlds } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const styleGuide = getStyleGuide(style || "mixed");
+
+    // Determine TLD strategy
+    const tldInstruction = include_extra_tlds
+      ? `For each name, suggest relevant TLD extensions from: .com, .ai, .io, .co, .net, .app, .dev (pick the most relevant 3-5)`
+      : `For each name, ONLY suggest the .com extension. Return available_tlds as [".com"] for every suggestion`;
 
     // Build trending context
     const trendingContext = `
@@ -85,14 +90,18 @@ Rules:
 - Names should be short (ideally under 12 characters for the name part)
 - Easy to spell and type
 - No hyphens or numbers
-- For each name, suggest 8-10 TLD extensions that would work well (include .com, .io, .co, .ai, .net, .app, .dev, .xyz, .gg, .so, .tech, .health, .finance — pick the most relevant ones)
+- ${tldInstruction}
 - Include a brief reason why each name works for investors
 - Rate each name's TREND alignment (0-100) based on current 2026 market signals above
 - Consider aftermarket resale potential, not just brandability`;
 
+    const tldExample = include_extra_tlds
+      ? `available_tlds (array of 3-5 relevant TLD extensions, e.g. [".com", ".ai", ".io"])`
+      : `available_tlds (always [".com"])`;
+
     const userPrompt = `Generate 10 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
 
-Return suggestions with: name (full domain with extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), available_tlds (array of 8-10 TLD extensions worth exploring, e.g. [".com", ".ai", ".io", ".app", ".dev", ".co", ".xyz", ".tech"]).`;
+Return suggestions with: name (full domain with .com extension), score (1-100 brandability/investment score), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence why an investor would want this), ${tldExample}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

@@ -48,13 +48,14 @@ export function NameGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
+  const [includeExtraTlds, setIncludeExtraTlds] = useState(false);
   const { toast } = useToast();
 
   const loadingSteps = [
     { label: "Analyzing market trends & keywords...", icon: "📊" },
     { label: "Generating investor-grade names with AI...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
-    { label: "Checking domain availability via RDAP...", icon: "🌐" },
+    { label: "Checking .com availability...", icon: "🌐" },
     { label: "Filtering & ranking results...", icon: "⚡" },
   ];
 
@@ -112,10 +113,11 @@ export function NameGenerator() {
     setSuggestions([]);
 
     try {
-      const body: Record<string, string | undefined> = {
+      const body: Record<string, string | boolean | undefined> = {
         keywords: inputMode === "keywords" ? input : `domains similar to ${input}`,
         industry: industry.trim() || undefined,
         style,
+        include_extra_tlds: includeExtraTlds,
       };
       if (inputMode === "inspired") {
         body.inspired_by = input;
@@ -277,6 +279,20 @@ export function NameGenerator() {
             {style === "expired_pattern" && "📡 Names matching common drop patterns — the kind ExpiredHawk alerts catch daily."}
             {style === "mixed" && "🎯 Strategic mix of flip candidates, premium brands, and keyword-rich domains."}
           </p>
+
+          <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30">
+            <Switch
+              id="extra-tlds"
+              checked={includeExtraTlds}
+              onCheckedChange={setIncludeExtraTlds}
+            />
+            <Label htmlFor="extra-tlds" className="text-xs cursor-pointer">
+              <span className="font-medium text-foreground">.com only</span>
+              <span className="text-muted-foreground ml-1">
+                {includeExtraTlds ? "— also checking .ai, .io, .co, .app, .dev" : "— the king of resale (toggle for more TLDs)"}
+              </span>
+            </Label>
+          </div>
 
           <Button onClick={handleGenerate} disabled={!canGenerate || isLoading} className="w-full">
             {isLoading ? (
@@ -460,7 +476,7 @@ export function NameGenerator() {
                 );
               })}
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Availability via RDAP — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
+                Availability checked via DNS — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
               </p>
             </div>
           );
