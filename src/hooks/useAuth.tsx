@@ -2,6 +2,7 @@ import { useEffect, useState, createContext, useContext, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { flushDiagnostics } from "@/lib/oauthCallback";
 
 interface AuthContextType {
   user: User | null;
@@ -53,18 +54,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async (result) => {
       if (!mounted) return;
 
+      // Flush any OAuth diagnostic messages now that React is mounted
+      flushDiagnostics();
+
       const currentSession = result.data.session;
       console.log("[auth] getSession:", currentSession ? "found" : "none");
+
+      // Diagnostic toast for OAuth debugging
+      toast.info(`🔍 Auth init: session=${currentSession ? "YES" : "NO"}`, { duration: 8000 });
 
       if (currentSession) {
         // Validate the stored session is actually accepted by the server.
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError) {
           console.warn("[auth] Stored session invalid, clearing:", userError.message);
-          // Only show toast if user was previously authenticated (not fresh page load)
-          if (user) {
-            toast.info("Session expired — please sign in again.");
-          }
+          toast.error(`🔍 getUser failed: ${userError.message}`, { duration: 10000 });
           await supabase.auth.signOut({ scope: 'local' });
           if (!mounted) return;
           setSession(null);
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
+        toast.success(`🔍 Session valid: ${userData.user?.email}`, { duration: 8000 });
         console.log("[auth] Session validated for user:", userData.user?.email);
       }
 
