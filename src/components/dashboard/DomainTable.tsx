@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -62,26 +63,45 @@ interface DomainTableProps {
   onSortChange?: (sortKey: string) => void;
   showPatternColumn?: boolean;
   patternDescriptions?: Record<string, string>;
+  selectedRows?: Set<string>;
+  onToggleRow?: (id: string) => void;
+  onSelectAll?: () => void;
+  highlightedIndex?: number;
 }
 
-function formatTimeRemaining(endTime: string): { text: string; urgent: boolean; ended: boolean } {
+type UrgencyLevel = "ended" | "critical" | "urgent" | "soon" | "normal";
+
+function formatTimeRemaining(endTime: string): { text: string; urgent: boolean; ended: boolean; urgency: UrgencyLevel } {
   const end = new Date(endTime);
   const now = new Date();
   const diff = end.getTime() - now.getTime();
   
-  if (diff <= 0) return { text: "Ended", urgent: false, ended: true };
+  if (diff <= 0) return { text: "Ended", urgent: false, ended: true, urgency: "ended" };
   
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   
   if (hours >= 24) {
     const days = Math.floor(hours / 24);
-    return { text: `${days}d ${hours % 24}h`, urgent: false, ended: false };
+    return { text: `${days}d ${hours % 24}h`, urgent: false, ended: false, urgency: "normal" };
   }
-  if (hours > 0) {
-    return { text: `${hours}h ${minutes}m`, urgent: hours < 6, ended: false };
+  if (hours >= 6) {
+    return { text: `${hours}h ${minutes}m`, urgent: false, ended: false, urgency: "soon" };
   }
-  return { text: `${minutes}m`, urgent: true, ended: false };
+  if (hours >= 1) {
+    return { text: `${hours}h ${minutes}m`, urgent: true, ended: false, urgency: "urgent" };
+  }
+  return { text: `${minutes}m`, urgent: true, ended: false, urgency: "critical" };
+}
+
+function getUrgencyStyles(urgency: UrgencyLevel) {
+  switch (urgency) {
+    case "critical": return "text-red-600 dark:text-red-400 font-semibold animate-pulse";
+    case "urgent": return "text-orange-500 dark:text-orange-400 font-medium";
+    case "soon": return "text-amber-500 dark:text-amber-400";
+    case "ended": return "text-destructive";
+    default: return "text-muted-foreground";
+  }
 }
 
 function getDomainWithoutTld(domain: string): string {
@@ -228,7 +248,11 @@ export function DomainTable({
   sortBy, 
   onSortChange,
   showPatternColumn = false,
-  patternDescriptions = {}
+  patternDescriptions = {},
+  selectedRows,
+  onToggleRow,
+  onSelectAll,
+  highlightedIndex = -1,
 }: DomainTableProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
 
@@ -242,6 +266,15 @@ export function DomainTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
+              {onToggleRow && (
+                <TableHead className="w-8 px-2">
+                  <Checkbox
+                    checked={selectedRows?.size === domains.length && domains.length > 0}
+                    onCheckedChange={() => onSelectAll?.()}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               <TableHead className="whitespace-nowrap">Domain</TableHead>
               {showPatternColumn && (
                 <TableHead className="whitespace-nowrap">Pattern</TableHead>
@@ -268,20 +301,34 @@ export function DomainTable({
             </TableRow>
           </TableHeader>
             <TableBody>
-              {domains.map((d) => {
+              {domains.map((d, idx) => {
                 const timeInfo = formatTimeRemaining(d.auctionEndTime);
                 const domainWithoutTld = getDomainWithoutTld(d.domain);
                 const valueIndicator = getValueIndicator(d.price, d.valuation);
+                const isSelected = selectedRows?.has(d.id) ?? false;
+                const isHighlighted = idx === highlightedIndex;
                 
                 return (
                   <TableRow 
                     key={d.id}
                     className={cn(
                       "cursor-pointer transition-colors group",
-                      timeInfo.ended ? "opacity-60" : "hover:bg-muted/50"
+                      timeInfo.ended ? "opacity-60" : "hover:bg-muted/50",
+                      isSelected && "bg-primary/5",
+                      isHighlighted && "ring-1 ring-inset ring-primary/40 bg-muted/30"
                     )}
                     onClick={() => onDomainClick?.(d)}
                   >
+                    {/* Bulk checkbox */}
+                    {onToggleRow && (
+                      <TableCell className="py-2 px-2 w-8" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => onToggleRow(d.id)}
+                          aria-label={`Select ${d.domain}`}
+                        />
+                      </TableCell>
+                    )}
                     {/* Domain */}
                     <TableCell className="py-2">
                       <div className="flex items-center gap-2">
@@ -367,12 +414,16 @@ export function DomainTable({
                     <TableCell className="py-2">
                       <div className={cn(
                         "flex items-center gap-1 text-sm",
-                        timeInfo.ended ? "text-destructive" : 
-                        timeInfo.urgent ? "text-orange-500" : 
-                        "text-muted-foreground"
+                        getUrgencyStyles(timeInfo.urgency)
                       )}>
                         <Clock className="w-3 h-3" />
                         <span className="whitespace-nowrap">{timeInfo.text}</span>
+                        {timeInfo.urgency === "critical" && (
+                          <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5 ml-0.5">HOT</Badge>
+                        )}
+                        {timeInfo.urgency === "urgent" && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 ml-0.5 border-orange-400 text-orange-500">SOON</Badge>
+                        )}
                       </div>
                     </TableCell>
 

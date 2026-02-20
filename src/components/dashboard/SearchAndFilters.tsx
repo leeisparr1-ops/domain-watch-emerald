@@ -1,4 +1,4 @@
-import { Search, Filter, ArrowUpDown, X, Loader2 } from "lucide-react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +77,8 @@ interface SearchAndFiltersProps {
   onResetFilters: () => void;
   onPageReset: () => void;
   isSearching?: boolean;
+  searchInputRef?: React.RefObject<HTMLInputElement>;
+  onExportCsv?: () => void;
 }
 
 export function SearchAndFilters({
@@ -87,6 +89,8 @@ export function SearchAndFilters({
   activeFilterCount, onResetFilters,
   onPageReset,
   isSearching,
+  searchInputRef,
+  onExportCsv,
 }: SearchAndFiltersProps) {
   return (
     <>
@@ -97,7 +101,7 @@ export function SearchAndFilters({
           ) : (
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           )}
-          <Input placeholder="Search domains..." value={search} onChange={e => onSearchChange(e.target.value)} className="pl-10 bg-input" />
+          <Input ref={searchInputRef} placeholder="Search domains... (press / to focus)" value={search} onChange={e => onSearchChange(e.target.value)} className="pl-10 bg-input" />
         </div>
         <div className="flex gap-2 sm:gap-4 overflow-x-auto">
           <Select
@@ -141,6 +145,12 @@ export function SearchAndFilters({
               ))}
             </SelectContent>
           </Select>
+          {onExportCsv && (
+            <Button variant="outline" size="sm" onClick={onExportCsv} className="flex-shrink-0 gap-1">
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          )}
         </div>
       </div>
 
