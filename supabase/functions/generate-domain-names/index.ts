@@ -62,11 +62,6 @@ serve(async (req) => {
 
     const styleGuide = getStyleGuide(style || "mixed");
 
-    // Determine TLD strategy
-    const tldInstruction = include_extra_tlds
-      ? `For each name, suggest relevant TLD extensions from: .com, .ai, .io, .co, .net, .app, .dev (pick the most relevant 3-5)`
-      : `For each name, ONLY suggest the .com extension. Return available_tlds as [".com"] for every suggestion`;
-
     // Build trending context
     const trendingContext = `
 CURRENT MARKET TRENDS (Feb 2026):
@@ -79,7 +74,7 @@ CURRENT MARKET TRENDS (Feb 2026):
 Use these trends to boost relevance. Inject trending keywords naturally where they fit the user's request.`;
 
     const inspiredByContext = inspired_by
-      ? `\n\nThe user wants names INSPIRED BY the sold domain "${inspired_by}". Analyze its structure (length, word combo style, TLD, sound) and generate 10 similar-quality names. Explain in each reason how it relates to the inspiration domain.`
+      ? `\n\nThe user wants names INSPIRED BY the sold domain "${inspired_by}". Analyze its structure (length, word combo style, TLD, sound) and generate similar-quality names. Explain in each reason how it relates to the inspiration domain.`
       : "";
 
     const systemPrompt = `You are an elite domain name investment consultant used by professional domainers and flippers. Generate high-value domain name suggestions. Focus on: ${styleGuide}.
@@ -90,7 +85,7 @@ Rules:
 - Names should be short (ideally under 12 characters for the name part)
 - Easy to spell and type
 - No hyphens or numbers
-- ${tldInstruction}
+- Return ONLY the name part WITHOUT any TLD extension (e.g. "Zolva" not "Zolva.com"). We will check TLD availability separately.
 - Include a brief reason why each name works for investors
 - Rate each name's TREND alignment (0-100) based on current 2026 market signals above
 - Consider aftermarket resale potential, not just brandability
@@ -98,13 +93,9 @@ Rules:
 - Generate 100 names (we will filter down to available ones). Use high variety — mix invented words, portmanteaus, phonetic blends, and creative real-word combos. Do NOT repeat patterns.
 - AUTOMATIC SYNERGY: For each name, evaluate SYNERGY — how well the keyword combination, phonetic flow, visual aesthetics, market trend alignment, and niche relevance work TOGETHER as a cohesive brand. A high-synergy name feels inevitable, not forced. Rate this as the "score" field (1-100). Examples: "Spotify" has high synergy (unique sound + tech feel + memorable). "FastHost" has low synergy (generic, forgettable).`;
 
-    const tldExample = include_extra_tlds
-      ? `available_tlds (array of 3-5 relevant TLD extensions, e.g. [".com", ".ai", ".io"])`
-      : `available_tlds (always [".com"])`;
-
     const userPrompt = `Generate 100 domain name suggestions for: "${keywords}"${industry ? ` in the ${industry} industry` : ""}.${inspiredByContext}
 
-Return suggestions with: name (full domain with .com extension), score (1-100 SYNERGY score — how well phonetics + keywords + trends + brand potential work together holistically), trend_score (0-100 how aligned with current 2026 trends), reason (one sentence explaining the synergy and why an investor would want this), ${tldExample}.`;
+Return suggestions with: name (JUST the name, no TLD — e.g. "Zolva" not "Zolva.com"), score (1-100 SYNERGY score), trend_score (0-100 trend alignment), reason (one sentence explaining synergy and investor appeal).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -132,13 +123,12 @@ Return suggestions with: name (full domain with .com extension), score (1-100 SY
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
+                        name: { type: "string", description: "Just the name part, no TLD extension" },
                         score: { type: "number" },
                         trend_score: { type: "number" },
                         reason: { type: "string" },
-                        available_tlds: { type: "array", items: { type: "string" } },
                       },
-                      required: ["name", "score", "trend_score", "reason", "available_tlds"],
+                      required: ["name", "score", "trend_score", "reason"],
                       additionalProperties: false,
                     },
                   },
@@ -179,6 +169,14 @@ Return suggestions with: name (full domain with .com extension), score (1-100 SY
       const content = data.choices?.[0]?.message?.content || "{}";
       const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
       suggestions = JSON.parse(cleaned);
+    }
+
+    // Clean name parts — strip any TLD the AI may have appended
+    if (suggestions?.suggestions) {
+      suggestions.suggestions = suggestions.suggestions.map((s: any) => ({
+        ...s,
+        name: s.name.replace(/\.(com|ai|io|co|net|app|dev|org)$/i, "").trim(),
+      }));
     }
 
     return new Response(JSON.stringify(suggestions), {

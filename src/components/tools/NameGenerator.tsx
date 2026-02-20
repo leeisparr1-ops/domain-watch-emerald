@@ -25,11 +25,10 @@ interface TldStatus {
 }
 
 interface Suggestion {
-  name: string;
+  name: string; // just the name part, no TLD
   score: number;
   trend_score?: number;
   reason: string;
-  available_tlds: string[];
   pronounceScore?: number;
   tldStatuses?: TldStatus[];
   checkingTlds?: boolean;
@@ -37,6 +36,10 @@ interface Suggestion {
 }
 
 type InputMode = "keywords" | "inspired";
+
+// TLDs we always check for every name
+const CORE_TLDS = [".com", ".ai", ".io", ".net"];
+const EXTRA_TLDS = [".co", ".app", ".dev", ".org"];
 
 export function NameGenerator() {
   const [keywords, setKeywords] = useState("");
@@ -49,60 +52,69 @@ export function NameGenerator() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const [includeExtraTlds, setIncludeExtraTlds] = useState(false);
+  const [availabilityProgress, setAvailabilityProgress] = useState("");
   const { toast } = useToast();
+
+  const tldsToCheck = includeExtraTlds ? [...CORE_TLDS, ...EXTRA_TLDS] : CORE_TLDS;
 
   const loadingSteps = [
     { label: "Analyzing market trends & keywords...", icon: "📊" },
-    { label: "Generating investor-grade names with AI...", icon: "🤖" },
+    { label: "Generating 100 investor-grade names with AI...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
-    { label: "Checking .com availability...", icon: "🌐" },
+    { label: availabilityProgress || `Checking availability across ${tldsToCheck.join(", ")}...`, icon: "🌐" },
     { label: "Filtering & ranking results...", icon: "⚡" },
   ];
 
-  const extractNamePart = (fullDomain: string) => {
-    const dot = fullDomain.lastIndexOf(".");
-    return dot > 0 ? fullDomain.substring(0, dot) : fullDomain;
-  };
-
-  const checkAvailability = async (items: Suggestion[]) => {
+  const checkAvailabilityInBatches = async (items: Suggestion[]) => {
+    // Build all domain combos: name × TLDs
     const allDomains: string[] = [];
     items.forEach((s) => {
-      const namePart = extractNamePart(s.name);
-      s.available_tlds.forEach((tld) => {
-        const domain = `${namePart}${tld.startsWith(".") ? tld : `.${tld}`}`;
-        allDomains.push(domain);
+      tldsToCheck.forEach((tld) => {
+        allDomains.push(`${s.name.toLowerCase()}${tld}`);
       });
     });
 
     if (allDomains.length === 0) return;
 
-    try {
-      const { data, error } = await supabase.functions.invoke("check-domain-availability", {
-        body: { domains: allDomains },
-      });
+    // Split into chunks of 200 for each request (server allows 800 but let's be safe with DNS rate limits)
+    const CHUNK_SIZE = 200;
+    const chunks: string[][] = [];
+    for (let i = 0; i < allDomains.length; i += CHUNK_SIZE) {
+      chunks.push(allDomains.slice(i, i + CHUNK_SIZE));
+    }
 
-      if (error || !data?.results) {
-        console.error("Availability check failed:", error);
-        return;
+    const allResults = new Map<string, TldStatus>();
+
+    for (let c = 0; c < chunks.length; c++) {
+      setAvailabilityProgress(`Checking availability (batch ${c + 1}/${chunks.length})...`);
+      try {
+        const { data, error } = await supabase.functions.invoke("check-domain-availability", {
+          body: { domains: chunks[c] },
+        });
+
+        if (!error && data?.results) {
+          (data.results as TldStatus[]).forEach((r) => allResults.set(r.domain, r));
+        }
+      } catch (e) {
+        console.error(`Availability check batch ${c + 1} failed:`, e);
       }
 
-      const resultMap = new Map<string, TldStatus>();
-      (data.results as TldStatus[]).forEach((r) => resultMap.set(r.domain, r));
-
-      setSuggestions((prev) =>
-        prev.map((s) => {
-          const namePart = extractNamePart(s.name);
-          const tldStatuses = s.available_tlds.map((tld) => {
-            const domain = `${namePart}${tld.startsWith(".") ? tld : `.${tld}`}`;
-            return resultMap.get(domain) || { domain, available: null, status: "unknown" as const };
-          });
-          return { ...s, tldStatuses, checkingTlds: false };
-        })
-      );
-    } catch (e) {
-      console.error("Availability check error:", e);
-      setSuggestions((prev) => prev.map((s) => ({ ...s, checkingTlds: false })));
+      // Small delay between batches to avoid overwhelming the function
+      if (c < chunks.length - 1) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
     }
+
+    // Map results back to suggestions
+    setSuggestions((prev) =>
+      prev.map((s) => {
+        const tldStatuses = tldsToCheck.map((tld) => {
+          const domain = `${s.name.toLowerCase()}${tld}`;
+          return allResults.get(domain) || { domain, available: null, status: "unknown" as const };
+        });
+        return { ...s, tldStatuses, checkingTlds: false };
+      })
+    );
   };
 
   const handleGenerate = async () => {
@@ -111,6 +123,7 @@ export function NameGenerator() {
     setIsLoading(true);
     setLoadingStep(0);
     setSuggestions([]);
+    setAvailabilityProgress("");
 
     try {
       const body: Record<string, string | boolean | undefined> = {
@@ -136,12 +149,15 @@ export function NameGenerator() {
       // Step 3: Trademark screening
       setLoadingStep(2);
       const items: Suggestion[] = (data?.suggestions || []).map((s: any) => {
-        const pScore = scorePronounceability(s.name).score;
+        const namePart = s.name.replace(/\.(com|ai|io|co|net|app|dev|org)$/i, "").trim();
+        const pScore = scorePronounceability(namePart + ".com").score;
         return {
-          ...s,
+          name: namePart,
+          score: s.score,
           trend_score: s.trend_score ?? 0,
+          reason: s.reason,
           pronounceScore: pScore,
-          trademarkRisk: checkTrademarkRisk(s.name),
+          trademarkRisk: checkTrademarkRisk(namePart + ".com"),
           checkingTlds: true,
         };
       });
@@ -158,9 +174,9 @@ export function NameGenerator() {
 
       setSuggestions(items);
 
-      // Step 4: Checking availability
+      // Step 4: Checking availability across all TLDs
       setLoadingStep(3);
-      await checkAvailability(items);
+      await checkAvailabilityInBatches(items);
 
       // Step 5: Filtering
       setLoadingStep(4);
@@ -217,7 +233,7 @@ export function NameGenerator() {
           </Badge>
         </CardTitle>
         <CardDescription>
-          Investor-grade domain name generation powered by 2026 market trends. Get names optimized for flipping, holding, or branding — with live availability, trademark screening, and trend alignment scores.
+          Investor-grade domain name generation powered by 2026 market trends. Get names optimized for flipping, holding, or branding — with live availability across .com, .ai, .io, .net and more.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -287,9 +303,13 @@ export function NameGenerator() {
               onCheckedChange={setIncludeExtraTlds}
             />
             <Label htmlFor="extra-tlds" className="text-xs cursor-pointer">
-              <span className="font-medium text-foreground">.com only</span>
+              <span className="font-medium text-foreground">
+                {includeExtraTlds ? "8 TLDs" : "4 core TLDs"}
+              </span>
               <span className="text-muted-foreground ml-1">
-                {includeExtraTlds ? "— also checking .ai, .io, .co, .app, .dev" : "— the king of resale (toggle for more TLDs)"}
+                {includeExtraTlds
+                  ? "— checking .com, .ai, .io, .net, .co, .app, .dev, .org"
+                  : "— checking .com, .ai, .io, .net (toggle for +4 more)"}
               </span>
             </Label>
           </div>
@@ -333,7 +353,7 @@ export function NameGenerator() {
         )}
 
         {suggestions.length > 0 && (() => {
-          // Filter suggestions: only show TLDs that are available, and hide names with 0 available TLDs
+          // Filter suggestions: only show names that have at least 1 available TLD
           const filtered = showOnlyAvailable
             ? suggestions
                 .map((s) => {
@@ -355,8 +375,13 @@ export function NameGenerator() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h4 className="text-sm font-semibold text-foreground">
                   {showOnlyAvailable && !stillChecking
-                    ? `${filtered.length} Available Names`
-                    : `${suggestions.length} Suggestions`}
+                    ? `${filtered.length} Names with Available TLDs`
+                    : `${suggestions.length} Suggestions Generated`}
+                  {!stillChecking && showOnlyAvailable && (
+                    <span className="text-xs font-normal text-muted-foreground ml-2">
+                      ({suggestions.length} generated, {totalAvailable} have available TLDs)
+                    </span>
+                  )}
                 </h4>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -380,7 +405,7 @@ export function NameGenerator() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No names with available TLDs found.</p>
-                  <p className="text-xs mt-1">Try turning off the "Available only" filter, or generate new names.</p>
+                  <p className="text-xs mt-1">Try turning off the "Available only" filter, or generate new names with different keywords.</p>
                 </div>
               )}
 
@@ -391,11 +416,11 @@ export function NameGenerator() {
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <Globe className="w-4 h-4 text-primary" />
-                        <span className="font-semibold text-foreground">{extractNamePart(s.name)}</span>
+                        <span className="font-semibold text-foreground">{s.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="outline" className={scoreColor(s.score)}>
-                          Brand: {s.score}
+                          Synergy: {s.score}
                         </Badge>
                         {s.trend_score !== undefined && s.trend_score > 0 && (
                           <Tooltip>
@@ -439,7 +464,7 @@ export function NameGenerator() {
                       <span className="text-xs text-muted-foreground mr-1">TLDs:</span>
                       {s.checkingTlds ? (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
+                          <Loader2 className="w-3 h-3 animate-spin" /> Checking {tldsToCheck.length} TLDs...
                         </span>
                       ) : s.tldStatuses ? (
                         s.tldStatuses.map((ts) => {
@@ -464,19 +489,13 @@ export function NameGenerator() {
                             </span>
                           );
                         })
-                      ) : (
-                        s.available_tlds.map((tld) => (
-                          <Badge key={tld} variant="secondary" className="text-xs">
-                            {tld}
-                          </Badge>
-                        ))
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
               })}
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Availability checked via DNS — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
+                Availability checked via DNS (DoH) — always verify with your registrar before purchasing. Trademark screening covers ~200 major brands — not legal advice.
               </p>
             </div>
           );
