@@ -1,13 +1,12 @@
 /**
- * Force popup-based Google OAuth even on mobile / non-iframe contexts.
+ * Force popup-based Google OAuth even on mobile / non-iframe contexts,
+ * then exchange broker tokens for a valid session via edge function.
  *
- * The default @lovable.dev/cloud-auth-js library redirects the page when
- * running outside an iframe (i.e. on the published site). The redirect flow
- * returns tokens signed with a JWT kid that the Supabase project doesn't
- * recognise, causing setSession() to fail.
- *
- * The popup / web_message flow returns valid tokens. This module replicates
- * the library's popup logic so we can use it everywhere.
+ * The Lovable OAuth broker's redirect flow returns tokens signed with a
+ * JWT kid that GoTrue doesn't recognise. The popup/web_message flow
+ * returns the same problematic tokens. So after receiving them we send
+ * them to our exchange-oauth-token edge function which creates a valid
+ * session via the admin API.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -79,10 +78,11 @@ export async function signInWithGooglePopup(): Promise<{ error: Error | null }> 
   }
 
   // Detect if user closes the popup
+  let popupCheckInterval: ReturnType<typeof setInterval>;
   const popupClosedPromise = new Promise<never>((_, reject) => {
-    const interval = setInterval(() => {
+    popupCheckInterval = setInterval(() => {
       if (popup!.closed) {
-        clearInterval(interval);
+        clearInterval(popupCheckInterval);
         reject(new Error("Sign in was cancelled"));
       }
     }, 500);
@@ -110,20 +110,43 @@ export async function signInWithGooglePopup(): Promise<{ error: Error | null }> 
       return { error: new Error("No tokens received from sign in") };
     }
 
-    // Set the session using the tokens from the web_message flow
-    const { error } = await supabase.auth.setSession({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
+    // Exchange broker tokens for a valid session via our edge function
+    const { data: exchangeData, error: exchangeError } =
+      await supabase.functions.invoke("exchange-oauth-token", {
+        body: { access_token: data.access_token },
+      });
+
+    if (exchangeError) {
+      return {
+        error: new Error(`Token exchange failed: ${exchangeError.message}`),
+      };
+    }
+
+    if (!exchangeData?.hashed_token) {
+      return {
+        error: new Error(
+          exchangeData?.error || "Token exchange returned no session"
+        ),
+      };
+    }
+
+    // Use the hashed token to establish a valid session
+    const { error: otpError } = await supabase.auth.verifyOtp({
+      token_hash: exchangeData.hashed_token,
+      type: "magiclink",
     });
 
-    if (error) {
-      return { error: new Error(`Session setup failed: ${error.message}`) };
+    if (otpError) {
+      return {
+        error: new Error(`Session verification failed: ${otpError.message}`),
+      };
     }
 
     return { error: null };
   } catch (e) {
     return { error: e instanceof Error ? e : new Error(String(e)) };
   } finally {
+    clearInterval(popupCheckInterval!);
     window.removeEventListener("message", messageHandler);
     popup?.close();
   }
