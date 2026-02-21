@@ -3,7 +3,7 @@ import { checkTrademarkRisk, type TrademarkResult } from "@/lib/trademarkCheck";
 // ─── DATA SETS ───
 
 export const PREMIUM_TLDS: Record<string, number> = {
-  com: 25, net: 14, org: 13, io: 16, ai: 18, co: 14, app: 12, dev: 11, me: 9, xyz: 5, info: 4, biz: 3,
+  com: 25, net: 14, org: 13, io: 16, ai: 18, co: 14, app: 12, dev: 11, gg: 13, me: 9, xyz: 5, info: 4, biz: 3,
 };
 
 export const PREMIUM_KEYWORDS = new Set([
@@ -26,6 +26,8 @@ export const PREMIUM_KEYWORDS = new Set([
   "fund", "wealth", "capital", "equity", "invest", "profit", "revenue",
   "platform", "api", "deploy", "pipeline", "infra", "dev", "ops",
   "stream", "content", "media", "podcast", "creator", "influencer",
+  "neura", "spatial", "copilot", "genai", "llm", "agentic",
+  "esport", "loot", "raid", "quest", "arena", "guild", "clash", "boost", "rank",
 ]);
 
 export const PENALTY_KEYWORDS = new Set([
@@ -1028,9 +1030,9 @@ export const DICTIONARY_WORDS = new Set([
 // Trending keywords with heat multipliers (curated from publicly reported aftermarket trends)
 export const TRENDING_KEYWORDS: Record<string, number> = {
   // AI / Machine Learning
-  "ai": 2.5, "gpt": 2.0, "neural": 1.8, "machine": 1.5, "deep": 1.5, "learn": 1.5,
+  "ai": 2.5, "gpt": 2.0, "neural": 1.8, "neura": 1.8, "machine": 1.5, "deep": 1.5, "learn": 1.5,
   "robot": 1.6, "auto": 1.6, "smart": 1.5, "quantum": 2.0, "intel": 1.5,
-  "agent": 2.2, "agentic": 2.0, "synthetic": 1.6, "cognitive": 1.5,
+  "agent": 2.2, "agentic": 2.2, "synthetic": 1.6, "cognitive": 1.5, "spatial": 1.7, "copilot": 1.8, "genai": 2.0, "llm": 1.9,
   // Fintech / Crypto / DeFi
   "pay": 1.8, "bank": 1.8, "cash": 1.6, "loan": 1.5, "credit": 1.6, "finance": 1.8,
   "trade": 1.6, "invest": 1.7, "wallet": 1.5, "token": 1.3, "defi": 1.4, "fintech": 1.8,
@@ -1086,13 +1088,12 @@ export const TRENDING_KEYWORDS: Record<string, number> = {
   // Space & aerospace
   "rocket": 1.5, "satellite": 1.4, "lunar": 1.3, "mars": 1.4, "aerospace": 1.3,
   // VR/AR/Metaverse
-  "vr": 1.4, "ar": 1.3, "metaverse": 1.3, "virtual": 1.3, "immersive": 1.3, "spatial": 1.4,
+  "vr": 1.4, "ar": 1.3, "metaverse": 1.3, "virtual": 1.3, "immersive": 1.3,
   // Cannabis/CBD
   "cbd": 1.3, "cannabis": 1.3, "hemp": 1.3,
   // Content & creator economy
   "creator": 1.5, "influencer": 1.4, "podcast": 1.4, "content": 1.3, "newsletter": 1.3,
   // Additional trending compound terms
-  "copilot": 1.6, "chatbot": 1.5, "genai": 1.6, "llm": 1.5,
   "ev": 1.5, "charging": 1.4, "fleet": 1.3,
   "remote": 1.3, "freelance": 1.3, "gig": 1.3,
 };
@@ -1109,7 +1110,7 @@ export interface NicheDetection {
 export const NICHE_CATEGORIES: Record<string, { label: string; keywords: string[]; multiplier: number; heat: "hot" | "warm" | "stable" | "cooling" }> = {
   ai_tech: {
     label: "AI / Tech",
-    keywords: ["ai", "gpt", "neural", "machine", "deep", "learn", "robot", "auto", "smart", "quantum", "intel", "agent", "agentic", "synthetic", "cognitive", "algorithm", "compute", "llm", "model", "vision", "prompt", "copilot", "chatbot", "genai"],
+    keywords: ["ai", "gpt", "neural", "neura", "machine", "deep", "learn", "robot", "auto", "smart", "quantum", "intel", "agent", "agentic", "synthetic", "cognitive", "algorithm", "compute", "llm", "model", "vision", "prompt", "copilot", "chatbot", "genai", "spatial"],
     multiplier: 1.55,
     heat: "hot",
   },
@@ -1169,9 +1170,9 @@ export const NICHE_CATEGORIES: Record<string, { label: string; keywords: string[
   },
   gaming: {
     label: "Gaming / Entertainment",
-    keywords: ["game", "play", "stream", "video", "music", "sport", "bet", "club", "esport", "casino", "arcade", "quest", "level", "guild", "arena", "twitch", "gamer", "console", "pixel", "loot", "pvp", "mmo", "rpg"],
-    multiplier: 1.25,
-    heat: "stable",
+    keywords: ["game", "play", "stream", "video", "music", "sport", "bet", "club", "esport", "casino", "arcade", "quest", "level", "guild", "arena", "twitch", "gamer", "console", "pixel", "loot", "pvp", "mmo", "rpg", "raid", "clash", "rank", "boost", "drop", "rift", "blade", "forge", "win", "team"],
+    multiplier: 1.30,
+    heat: "warm",
   },
   jobs: {
     label: "Jobs / HR",
@@ -1276,6 +1277,7 @@ export function detectNiche(words: string[], tld: string): NicheDetection {
     if (tld === "food" && key === "food") score += 1;
     if (tld === "space" && key === "space") score += 1;
     if (tld === "game" && key === "gaming") score += 1;
+    if (tld === "gg" && key === "gaming") score += 1.5;
     if (tld === "dev" && (key === "saas" || key === "ai_tech")) score += 0.5;
     if (tld === "app" && (key === "saas" || key === "ecommerce")) score += 0.5;
 
@@ -1329,7 +1331,7 @@ export function computeTrendScore(words: string[], tld: string, nicheOverride?: 
   const tldNicheMap: Record<string, string[]> = {
     ai: ["ai_tech"], io: ["saas", "ai_tech"], bio: ["biotech"], health: ["health"],
     law: ["legal"], auto: ["automotive"], pet: ["pet"], beauty: ["beauty"],
-    food: ["food"], space: ["space"], game: ["gaming"], dev: ["saas", "ai_tech"],
+    food: ["food"], space: ["space"], game: ["gaming"], gg: ["gaming"], dev: ["saas", "ai_tech"],
     app: ["saas", "ecommerce"], finance: ["fintech"],
   };
   const synergies = tldNicheMap[tld];
@@ -1869,7 +1871,7 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && !hasPenaltyWord && trademark.riskLevel !== "high") {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
-    const tldFactor = tld === "ai" ? 0.6 : tld === "io" ? 0.4 : 0.3;
+    const tldFactor = tld === "ai" ? 0.6 : tld === "io" ? 0.4 : tld === "gg" ? 0.35 : 0.3;
 
     let altFloorMin: number, altFloorMax: number;
     if (bothDictionary && hasPremium) {
