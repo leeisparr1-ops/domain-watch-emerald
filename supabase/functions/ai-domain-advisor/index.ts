@@ -349,9 +349,9 @@ IMPORTANT: You are given pre-computed scores from our algorithmic analysis engin
 
 CRITICAL PRICING RULES:
 - "end_user_value" is the estimated price an END USER (startup, brand, company) would pay to buy this domain for their business. This is the retail/resale value.
-- "wholesale_value" is what the domain would trade for between DOMAIN INVESTORS/BROKERS in a wholesale transaction. Typically 20-50% of end-user value.
-- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller. It must ALWAYS be significantly LOWER than wholesale_value (typically 10-30% of end-user value). This is the "walk away" ceiling for smart money.
-- The buy price should NEVER equal or exceed the wholesale value — investors need profit margin.
+- "wholesale_value" is the LIQUIDATION / FIRE-SALE price — what the domain would sell for if the owner needed to dump it quickly (e.g. portfolio liquidation, urgent cash need). This is the floor price. For lower-value domains ($500-$5K end-user), liquidation is roughly 5-15% of end-user value. For mid-tier ($5K-$50K end-user), liquidation is 10-20%. For premium ($50K+ end-user), liquidation is 15-25%. The higher the domain's quality and demand, the higher the liquidation floor because buyers still compete even at fire-sale prices.
+- "suggested_buy_price" is the MAX an INVESTOR should pay to ACQUIRE the domain at auction or from a seller for a profitable flip. It must ALWAYS be between the liquidation value and end-user value (typically 15-40% of end-user value). This is the "walk away" ceiling for smart money.
+- The buy price should NEVER be below the liquidation value — if it is, the domain is a steal. It should also be well below end-user value to leave profit margin.
 - For premium category-killer domains (like Delete.com selling for $494K+), end-user values can be six or seven figures.
 
 CONFIDENCE SCORING:
@@ -474,7 +474,7 @@ Provide a COMPREHENSIVE investment analysis covering:
                   properties: {
                     verdict: { type: "string", enum: ["Strong Buy", "Buy", "Hold", "Avoid"] },
                     end_user_value: { type: "string", description: "Estimated price an end user (startup/brand/company) would pay, e.g. $500,000 - $1,500,000" },
-                    wholesale_value: { type: "string", description: "Price the domain would trade for between domain investors/brokers in a wholesale deal, typically 20-50% of end-user value" },
+                    wholesale_value: { type: "string", description: "Liquidation / fire-sale price if the owner needs to dump the domain quickly. Scales with demand: 5-15% for low-value, 10-20% for mid-tier, 15-25% for premium domains." },
                     buyer_persona: { type: "string", description: "Specific buyer type, e.g. 'Series A fintech startup looking for a premium brand'" },
                     strengths: { type: "array", items: { type: "string" }, description: "3-5 key strengths" },
                     weaknesses: { type: "array", items: { type: "string" }, description: "3-5 risks or weaknesses" },
