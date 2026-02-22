@@ -242,8 +242,12 @@ serve(async (req) => {
 
       // Only send notifications if there are TRULY new matches
       if (trulyNewCount > 0) {
-        const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
-        const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
+        // Only reference truly new matches in notification content
+        const newMatchedDomains = matchedDomains.filter(m => 
+          newAlerts.some(a => a.pattern_id === m.pattern_id && a.auction_id === m.auction_id)
+        );
+        const topMatches = newMatchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
+        const moreCount = trulyNewCount > 3 ? ` +${trulyNewCount - 3} more` : "";
         
         // Use absolute URL for icon - expiredhawk.lovable.app is the production domain
         const iconUrl = "https://expiredhawk.lovable.app/icons/icon-192.png";
@@ -256,7 +260,7 @@ serve(async (req) => {
             body: JSON.stringify({
               user_id: userId,
               payload: {
-                title: `🎯 ${matchedDomains.length} Domain${matchedDomains.length > 1 ? 's' : ''} Match Your Patterns!`,
+                title: `🎯 ${trulyNewCount} New Domain${trulyNewCount > 1 ? 's' : ''} Match Your Patterns!`,
                 body: `${topMatches}${moreCount}`,
                 icon: iconUrl,
                 badge: iconUrl,
@@ -282,7 +286,7 @@ serve(async (req) => {
               type: "pattern_match",
               userId: userId,
               data: {
-                matches: matchedDomains.slice(0, 10).map(m => ({
+                matches: newMatchedDomains.slice(0, 10).map(m => ({
                   domain: m.domain_name,
                   price: m.price,
                   pattern: m.pattern_description,
@@ -290,7 +294,7 @@ serve(async (req) => {
                   auction_id: m.auction_id,
                   end_time: m.end_time,
                 })),
-                totalMatches: matchedDomains.length,
+                totalMatches: trulyNewCount,
               },
             }),
           });
