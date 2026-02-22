@@ -27,6 +27,15 @@ interface KeyComparable {
   relevance: string;
 }
 
+interface ValueDrivers {
+  domain_length: number;
+  keywords: number;
+  tld: number;
+  brandability: number;
+  niche_demand: number;
+  comparable_sales: number;
+}
+
 interface Analysis {
   verdict: string;
   end_user_value: string;
@@ -46,6 +55,9 @@ interface Analysis {
   risk_detail?: string;
   valuation_confidence?: string;
   key_comparables?: KeyComparable[];
+  confidence_range_low?: string;
+  confidence_range_high?: string;
+  value_drivers?: ValueDrivers;
 }
 
 interface PreScores {
@@ -394,6 +406,62 @@ export function AIDomainAdvisor() {
                 <p className="text-[10px] text-muted-foreground mt-1">Quick-sale / fire-sale price</p>
               </div>
             </div>
+
+            {/* Confidence Interval Range */}
+            {analysis.confidence_range_low && analysis.confidence_range_high && (
+              <div className="p-4 rounded-lg border border-border bg-card space-y-2">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-primary" /> Confidence Interval
+                </h4>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-muted-foreground">{analysis.confidence_range_low}</span>
+                  <div className="flex-1 h-3 rounded-full bg-secondary relative overflow-hidden">
+                    <div className="absolute inset-y-0 left-[15%] right-[15%] rounded-full bg-gradient-to-r from-amber-500/60 via-emerald-500/80 to-amber-500/60" />
+                    <div className="absolute inset-y-0 left-[35%] right-[35%] rounded-full bg-emerald-500" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">{analysis.confidence_range_high}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  End-user value likely falls in this range • Centre = {analysis.end_user_value}
+                </p>
+              </div>
+            )}
+
+            {/* Value Driver Breakdown */}
+            {analysis.value_drivers && (
+              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-primary" /> Value Driver Breakdown
+                </h4>
+                <div className="space-y-2">
+                  {[
+                    { key: "keywords", label: "Keywords", color: "bg-blue-500" },
+                    { key: "tld", label: "TLD Premium", color: "bg-emerald-500" },
+                    { key: "brandability", label: "Brandability", color: "bg-violet-500" },
+                    { key: "niche_demand", label: "Niche Demand", color: "bg-amber-500" },
+                    { key: "domain_length", label: "Domain Length", color: "bg-rose-500" },
+                    { key: "comparable_sales", label: "Comparable Sales", color: "bg-cyan-500" },
+                  ]
+                    .sort((a, b) => (analysis.value_drivers![b.key as keyof ValueDrivers] || 0) - (analysis.value_drivers![a.key as keyof ValueDrivers] || 0))
+                    .map(({ key, label, color }) => {
+                      const pct = analysis.value_drivers![key as keyof ValueDrivers] || 0;
+                      if (pct === 0) return null;
+                      return (
+                        <div key={key} className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground w-28 shrink-0 text-right">{label}</span>
+                          <div className="flex-1 h-2.5 rounded-full bg-secondary overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${color} transition-all`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-foreground w-10">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Pre-computed scores strip */}
             {preScores && (
