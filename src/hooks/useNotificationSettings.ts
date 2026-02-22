@@ -3,18 +3,17 @@ import { useState, useEffect, useCallback } from 'react';
 export interface NotificationSettings {
   enabled: boolean;
   alertThresholdMinutes: number;
-  soundEnabled: boolean;
-  soundVolume: number;
   browserNotifications: boolean;
   inAppToasts: boolean;
   pushFrequencyHours: number;
+  // Legacy fields kept for backwards compat with stored settings
+  soundEnabled?: boolean;
+  soundVolume?: number;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: true,
-  alertThresholdMinutes: 60, // 1 hour default
-  soundEnabled: true,
-  soundVolume: 50,
+  alertThresholdMinutes: 60,
   browserNotifications: true,
   inAppToasts: true,
   pushFrequencyHours: 2,

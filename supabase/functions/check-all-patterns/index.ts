@@ -263,31 +263,39 @@ serve(async (req) => {
     console.log(`Found ${newAlerts.length} new matches for ${userMatchesMap.size} users`);
 
     // Record new alerts
+    let trulyNewCount = 0;
     if (newAlerts.length > 0) {
-      // Insert in batches to avoid size limits
+      // Insert in batches, using ignoreDuplicates to count only truly new
       const batchSize = 500;
       for (let i = 0; i < newAlerts.length; i += batchSize) {
         const batch = newAlerts.slice(i, i + batchSize);
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from("pattern_alerts")
-          .upsert(batch, { onConflict: "user_id,pattern_id,auction_id" });
+          .upsert(batch, { onConflict: "user_id,pattern_id,auction_id", ignoreDuplicates: true })
+          .select("id");
 
         if (insertError) {
           console.error("Error inserting alerts batch:", insertError);
         }
+        trulyNewCount += insertedData?.length ?? 0;
       }
 
-      // Update last_matched_at for patterns that matched
-      for (const patternId of matchedPatternIds) {
-        await supabase
-          .from("user_patterns")
-          .update({ last_matched_at: new Date().toISOString() })
-          .eq("id", patternId);
+      console.log(`Truly new alerts: ${trulyNewCount} out of ${newAlerts.length} matches`);
+
+      // Update last_matched_at for patterns that matched (only if truly new)
+      if (trulyNewCount > 0) {
+        for (const patternId of matchedPatternIds) {
+          await supabase
+            .from("user_patterns")
+            .update({ last_matched_at: new Date().toISOString() })
+            .eq("id", patternId);
+        }
       }
     }
 
-    // Send notifications to each user with matches
+    // Only send notifications if there are truly new matches
     let notificationsSent = 0;
+    if (trulyNewCount > 0) {
     for (const [userId, matches] of userMatchesMap) {
       if (matches.length === 0) continue;
 
@@ -345,15 +353,16 @@ serve(async (req) => {
         console.error(`Error sending email to user ${userId}:`, emailError);
       }
     }
+    } // close trulyNewCount > 0
 
     const duration = Date.now() - startTime;
     console.log(`Pattern check complete in ${duration}ms. Sent ${notificationsSent} push notifications.`);
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: `Checked ${allPatterns.length} patterns, found ${newAlerts.length} new matches`,
+      message: `Checked ${allPatterns.length} patterns, found ${trulyNewCount} truly new matches`,
       usersNotified: userMatchesMap.size,
-      totalNewMatches: newAlerts.length,
+      totalNewMatches: trulyNewCount,
       notificationsSent,
       duration_ms: duration,
     }), {
