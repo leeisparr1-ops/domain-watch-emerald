@@ -80,13 +80,28 @@ export function useFavorites() {
         // Only include auction_id if it's a valid UUID
         const isValidUuid = auctionId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(auctionId);
         
-        const { error } = await supabase
+        // Try with auction_id first, fall back to null if FK constraint fails
+        const insertData: { user_id: string; domain_name: string; auction_id?: string | null } = {
+          user_id: user.id,
+          domain_name: domainName,
+          auction_id: isValidUuid ? auctionId : null,
+        };
+
+        let { error } = await supabase
           .from('favorites')
-          .insert({
-            user_id: user.id,
-            domain_name: domainName,
-            auction_id: isValidUuid ? auctionId : null,
-          });
+          .insert(insertData);
+
+        // If FK constraint fails (auction deleted/expired), retry without auction_id
+        if (error && error.code === '23503' && insertData.auction_id) {
+          const { error: retryError } = await supabase
+            .from('favorites')
+            .insert({
+              user_id: user.id,
+              domain_name: domainName,
+              auction_id: null,
+            });
+          error = retryError;
+        }
 
         if (error) throw error;
         toast.success("Added to favorites");

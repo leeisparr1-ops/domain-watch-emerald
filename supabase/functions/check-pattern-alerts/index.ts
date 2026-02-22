@@ -213,27 +213,35 @@ serve(async (req) => {
       }
     }
 
-    // Record new alerts and send push notifications
+    // Record new alerts — use insert with onConflict ignore to count truly new ones
+    let trulyNewCount = 0;
     if (newAlerts.length > 0) {
-      const { error: insertError } = await supabase
+      // Insert only truly new alerts (ignore conflicts = already alerted)
+      const { data: insertedData, error: insertError } = await supabase
         .from("pattern_alerts")
-        .upsert(newAlerts, { onConflict: "user_id,pattern_id,auction_id" });
+        .upsert(newAlerts, { onConflict: "user_id,pattern_id,auction_id", ignoreDuplicates: true })
+        .select("id");
 
       if (insertError) {
         console.error("Error inserting alerts:", insertError);
       }
+      
+      trulyNewCount = insertedData?.length ?? 0;
+      console.log(`Truly new alerts: ${trulyNewCount} out of ${newAlerts.length} matches`);
 
       // Update last_matched_at for patterns that matched
-      const patternIds = [...new Set(newAlerts.map(a => a.pattern_id))];
-      for (const patternId of patternIds) {
-        await supabase
-          .from("user_patterns")
-          .update({ last_matched_at: new Date().toISOString() })
-          .eq("id", patternId);
+      if (trulyNewCount > 0) {
+        const patternIds = [...new Set(newAlerts.map(a => a.pattern_id))];
+        for (const patternId of patternIds) {
+          await supabase
+            .from("user_patterns")
+            .update({ last_matched_at: new Date().toISOString() })
+            .eq("id", patternId);
+        }
       }
 
-      // Send push notification for new matches
-      if (matchedDomains.length > 0) {
+      // Only send notifications if there are TRULY new matches
+      if (trulyNewCount > 0) {
         const topMatches = matchedDomains.slice(0, 3).map(m => m.domain_name).join(", ");
         const moreCount = matchedDomains.length > 3 ? ` +${matchedDomains.length - 3} more` : "";
         
@@ -290,12 +298,12 @@ serve(async (req) => {
         } catch (emailError) {
           console.error("Error sending email notification:", emailError);
         }
-      }
-    }
+      } // close trulyNewCount > 0
+    } // close newAlerts.length > 0
 
     return new Response(JSON.stringify({ 
       matches: matchedDomains,
-      newMatches: matchedDomains.length,
+      newMatches: trulyNewCount,
       totalPatterns: patterns.length,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
