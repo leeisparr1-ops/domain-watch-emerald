@@ -174,11 +174,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { keywords, industry, style, inspired_by, competitor_domains, batch_count } = await req.json();
+    const { keywords, industry, style, inspired_by, competitor_domains, batch_count, synonym_boost } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     let inspiredByContext = "";
+    if (synonym_boost) {
+      inspiredByContext += `\nSYNONYM EXPANSION MODE: Before generating names, first brainstorm 10-15 synonyms, related terms, and semantically adjacent words for the user's keywords. Then use BOTH the original keywords AND the expanded synonyms as building blocks for name generation. This dramatically increases variety and uncovers unexpected combinations. For example: "finance" → money, capital, fund, wealth, ledger, vault, mint, equity, treasury, fiscal.`;
+    }
     if (inspired_by) {
       inspiredByContext = `\nThe user wants names INSPIRED BY "${inspired_by}". Analyze its structure and generate similar-quality names that are ACTUALLY LIKELY TO BE AVAILABLE for .com registration.`;
     }
