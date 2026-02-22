@@ -475,8 +475,21 @@ export default function Dashboard() {
     setLoadingMatches(true);
     try {
       const from = (page - 1) * perPage;
-      const to = from + perPage;
+      const to = from + perPage - 1;
       const nowIso = new Date().toISOString();
+
+      // Always fetch accurate count first
+      let countQuery = supabase
+        .from('pattern_alerts')
+        .select(currentHideEnded
+          ? 'id, auctions!inner(end_time)'
+          : 'id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (currentHideEnded) countQuery = countQuery.gte('auctions.end_time', nowIso);
+      const { count: exactCount } = await countQuery.abortSignal(controller.signal);
+      if (seq !== matchesFetchSeqRef.current) return;
+      if (exactCount !== null) setTotalMatchesCount(exactCount);
+
       const select = currentHideEnded
         ? 'id, auction_id, domain_name, pattern_id, alerted_at, auctions!inner(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)'
         : 'id, auction_id, domain_name, pattern_id, alerted_at, auctions(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)';
@@ -489,9 +502,7 @@ export default function Dashboard() {
       if (dataError) throw dataError;
       if (seq !== matchesFetchSeqRef.current) return;
       const rows = (data || []) as Array<any>;
-      const hasMore = rows.length > perPage;
-      const resultsToShow = hasMore ? rows.slice(0, perPage) : rows;
-      const matches = resultsToShow.map((row) => {
+      const matches = rows.map((row) => {
         const auction = Array.isArray(row.auctions) ? row.auctions[0] : row.auctions;
         const pattern = Array.isArray(row.user_patterns) ? row.user_patterns[0] : row.user_patterns;
         return {
@@ -505,12 +516,6 @@ export default function Dashboard() {
         };
       });
       setDialogMatches(matches);
-      if (hasMore) {
-        const newEstimate = from + perPage * 100;
-        setTotalMatchesCount(prev => Math.max(prev, newEstimate));
-      } else {
-        setTotalMatchesCount(from + matches.length);
-      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         if (seq === matchesFetchSeqRef.current) { setDialogMatches([]); setTotalMatchesCount(0); setLoadingMatches(false); }
