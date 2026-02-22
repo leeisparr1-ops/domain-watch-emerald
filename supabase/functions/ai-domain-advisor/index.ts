@@ -95,13 +95,38 @@ function computeCategoryBenchmarks(sales: any[]): string {
     : "";
 }
 
+// ── Semantic category mappings for NLP-enhanced matching ──
+const SEMANTIC_CATEGORIES: Record<string, string[]> = {
+  finance: ["pay","cash","coin","gold","money","fund","bank","trade","deal","market","wealth","capital","credit","loan","invest","profit","stock","equity","fintech","wallet"],
+  tech: ["data","tech","code","byte","pixel","quantum","neural","deep","sync","flux","cloud","cyber","digital","smart","bot","agent","robot","api","dev","ops","app","web","net","compute","logic","algo"],
+  health: ["health","care","life","mind","body","soul","heart","pulse","vital","med","bio","cure","heal","wellness","therapy","pharma","clinic","dental","fit"],
+  nature: ["ocean","river","lake","bay","harbor","reef","coral","wave","tide","surf","peak","stone","rock","moon","sun","wind","storm","earth","forest","green","sky","star"],
+  animals: ["bear","wolf","hawk","eagle","lion","fox","owl","tiger","falcon","raven","pet","paws","hound","stallion","dragon"],
+  energy: ["fire","blaze","flame","burn","spark","flash","glow","shine","light","bright","neon","solar","power","bolt","electric","volt","charge"],
+  speed: ["fast","rapid","speed","dash","rush","zoom","leap","jump","fly","soar","swift","quick","turbo","rocket","jet"],
+  premium: ["prime","elite","royal","crown","king","queen","ace","pro","master","chief","lux","golden","silver","platinum","ultra","mega","supreme"],
+  security: ["vault","safe","guard","shield","armor","forge","lock","defend","protect","secure","sentinel","watch","patrol"],
+  space: ["orbit","cosmo","astro","luna","nova","stellar","galaxy","nebula","zen","aura","vibe"],
+  commerce: ["shop","store","market","hub","dock","port","base","camp","spot","zone","nest","hive","labs","works","forge","craft"],
+  creative: ["art","ink","design","pixel","craft","studio","canvas","muse","dream","vision","imagine"],
+};
+
+/** Get semantic categories for a list of words */
+function getSemanticCategories(words: string[]): string[] {
+  const cats = new Set<string>();
+  for (const word of words) {
+    for (const [cat, catWords] of Object.entries(SEMANTIC_CATEGORIES)) {
+      if (catWords.includes(word)) cats.add(cat);
+    }
+  }
+  return [...cats];
+}
+
 /** Extract meaningful words from a domain SLD using simple heuristics */
 function extractWords(sld: string): string[] {
   const s = sld.toLowerCase().replace(/[^a-z]/g, "");
-  // Try camelCase / compound splits
-  const camelSplit = s.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
   
-  // Common English words to detect inside compound domains (sorted by length desc to prefer longer matches)
+  // Common English words to detect inside compound domains
   const dictionary = [
     "cloud","smart","swift","quick","bright","light","night","black","white","green","blue",
     "golden","silver","cyber","ultra","super","hyper","mega","micro","nano","auto",
@@ -123,6 +148,13 @@ function extractWords(sld: string): string[] {
     "net","web","app","dev","ops","api","bit","log","map","run","fit","pet","art","ink",
     "box","cup","jar","bag","hat","cap","pin","gem","key","tag","tip","pop","joy",
     "one","two","ten","max","min","big","top","new","old","hot","cool","red","sky",
+    "wealth","capital","credit","loan","invest","profit","stock","equity","fintech","wallet",
+    "digital","compute","logic","algo","med","bio","cure","heal","wellness","therapy",
+    "pharma","clinic","dental","earth","forest","paws","hound","stallion","dragon",
+    "solar","power","bolt","electric","volt","charge","turbo","rocket","jet",
+    "platinum","supreme","sentinel","watch","patrol","lock","defend","protect","secure",
+    "stellar","galaxy","nebula","store","studio","canvas","muse","dream","vision","imagine",
+    "design","beauty","glow","bright","crisp",
   ];
 
   const words: string[] = [];
@@ -145,7 +177,6 @@ function extractWords(sld: string): string[] {
     }
   }
 
-  // Fallback: if no words found, use trigrams
   if (words.length === 0 && s.length >= 3) {
     words.push(s);
   }
@@ -165,6 +196,8 @@ function selectSmartComparables(
   const targetWords = extractWords(sld);
   const now = new Date();
 
+  const targetCategories = getSemanticCategories(targetWords);
+
   const scored = allSales.map(sale => {
     let relevance = 0;
     const saleTld = (sale.tld || "").replace(/^\./, "");
@@ -173,29 +206,39 @@ function selectSmartComparables(
     const saleWords = extractWords(saleSld);
 
     // ── KEYWORD MATCH (strongest signal: 50 pts max) ──
-    // Exact word overlap
     const sharedWords = targetWords.filter(w => saleWords.includes(w));
     if (sharedWords.length > 0) {
       relevance += Math.min(sharedWords.length * 25, 50);
     } else {
-      // Substring containment (e.g. "ship" in "shipping")
+      // Substring containment
+      let substringMatch = false;
       for (const tw of targetWords) {
         for (const sw of saleWords) {
           if (tw.length >= 3 && sw.length >= 3) {
             if (sw.includes(tw) || tw.includes(sw)) {
               relevance += 15;
+              substringMatch = true;
               break;
             }
           }
         }
-        if (relevance > 0) break;
+        if (substringMatch) break;
       }
-      // Prefix similarity (first 3+ chars match)
-      if (relevance === 0 && sld.length >= 3 && saleSld.length >= 3) {
+      // Prefix similarity
+      if (!substringMatch && sld.length >= 3 && saleSld.length >= 3) {
         const prefixLen = Math.min(sld.length, saleSld.length, 5);
         if (sld.substring(0, prefixLen) === saleSld.substring(0, prefixLen)) {
           relevance += 10;
         }
+      }
+    }
+
+    // ── SEMANTIC CATEGORY MATCH (NEW - 25 pts max) ──
+    if (targetCategories.length > 0) {
+      const saleCategories = getSemanticCategories(saleWords);
+      const sharedCats = targetCategories.filter(c => saleCategories.includes(c));
+      if (sharedCats.length > 0) {
+        relevance += Math.min(sharedCats.length * 12, 25);
       }
     }
 
@@ -222,11 +265,11 @@ function selectSmartComparables(
       else if (monthsAgo <= 24) relevance += 5;
     }
 
-    // ── Word-pattern similarity (adjective+noun, verb+noun, etc.) (10 pts) ──
+    // ── Word-pattern similarity (10 pts) ──
     if (targetWords.length === 2 && saleWords.length === 2) relevance += 10;
     else if (targetWords.length === saleWords.length && targetWords.length > 0) relevance += 5;
 
-    return { ...sale, relevance, matchedWords: sharedWords || [] };
+    return { ...sale, relevance, matchedWords: sharedWords || [], semanticCategories: getSemanticCategories(saleWords) };
   });
 
   scored.sort((a, b) => b.relevance - a.relevance);
@@ -447,7 +490,9 @@ Provide a COMPREHENSIVE investment analysis covering:
 12. Risk assessment — trademark concerns, cultural/linguistic issues, TLD perception, renewal cost considerations
 13. One-paragraph executive summary suitable for an investment memo
 14. Valuation confidence level (High/Medium/Low) based on comparable sales density
-15. The 3-5 specific comparable sales that most influenced your valuation — explain WHY each is relevant`;
+15. The 3-5 specific comparable sales that most influenced your valuation — explain WHY each is relevant
+16. Confidence interval: provide a low estimate and high estimate forming a range around the end-user value (e.g. if end-user value is $10K, range might be $5K-$20K). Wider range = lower confidence.
+17. Value driver breakdown: estimate what PERCENTAGE of the domain's value comes from each factor: domain_length, keywords, tld, brandability, niche_demand, and comparable_sales. These must sum to 100.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -502,8 +547,24 @@ Provide a COMPREHENSIVE investment analysis covering:
                       },
                       description: "3-5 specific comparable sales that most influenced the valuation",
                     },
+                    confidence_range_low: { type: "string", description: "Low end of confidence interval for end-user value, e.g. $3,000" },
+                    confidence_range_high: { type: "string", description: "High end of confidence interval for end-user value, e.g. $25,000" },
+                    value_drivers: {
+                      type: "object",
+                      properties: {
+                        domain_length: { type: "number", description: "Percentage of value attributed to domain length/brevity (0-100)" },
+                        keywords: { type: "number", description: "Percentage of value attributed to keyword relevance and demand (0-100)" },
+                        tld: { type: "number", description: "Percentage of value attributed to the TLD (.com, .ai, etc.) (0-100)" },
+                        brandability: { type: "number", description: "Percentage of value attributed to brandability and memorability (0-100)" },
+                        niche_demand: { type: "number", description: "Percentage of value attributed to niche/market demand (0-100)" },
+                        comparable_sales: { type: "number", description: "Percentage of value attributed to comparable sales evidence (0-100)" },
+                      },
+                      required: ["domain_length", "keywords", "tld", "brandability", "niche_demand", "comparable_sales"],
+                      additionalProperties: false,
+                      description: "Breakdown of what percentage of value each factor contributes. Must sum to 100.",
+                    },
                   },
-                  required: ["verdict", "end_user_value", "wholesale_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "market_positioning", "development_potential", "seo_angle", "risk_detail", "summary", "valuation_confidence", "key_comparables"],
+                  required: ["verdict", "end_user_value", "wholesale_value", "buyer_persona", "strengths", "weaknesses", "suggested_buy_price", "flip_score", "flip_timeline", "niche", "market_positioning", "development_potential", "seo_angle", "risk_detail", "summary", "valuation_confidence", "key_comparables", "confidence_range_low", "confidence_range_high", "value_drivers"],
                   additionalProperties: false,
                 },
               },
