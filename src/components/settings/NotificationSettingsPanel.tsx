@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Clock, RotateCcw, Smartphone, Send, Mail, AlertTriangle, RefreshCw, Bug } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bell, BellOff, Clock, RotateCcw, Smartphone, Send, Mail, AlertTriangle, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -57,7 +56,7 @@ export function NotificationSettingsPanel() {
   } = useEmailNotifications();
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const [emailInput, setEmailInput] = useState('');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnostics, setDiagnostics] = useState<{
     swStatus: string;
@@ -137,8 +136,6 @@ export function NotificationSettingsPanel() {
     if ('Notification' in window) {
       setPermissionStatus(Notification.permission);
     }
-    // Initialize audio for preview
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAsEONq+rHEqCCeH1OTRcjc2T3+6wq11NB5CeLrI2F8RAUphnbvafz4nRWC6xMGUUR8nVH2+z7ZfMB84TnG3xp1xQVQ2TXCkvraLWBwjN1Zus6SgaUgOGkVLaJiuo4BQIhYxPj9wqLO8bTcEI0BPXIS0uYxTIwgiPUlYf7C/q18wBxpCQExukb3Bd0AtCBQ8SEtqir7FgFQsCBI7SEZoir/KhFouCBE5SERkiL/Mg1stCBE5SERjiL/LglotCBE5SEVjh77KglktCBE5SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVkt');
   }, []);
 
   const requestBrowserPermission = async () => {
@@ -156,14 +153,6 @@ export function NotificationSettingsPanel() {
     } else if (permission === 'denied') {
       updateSettings({ browserNotifications: false });
       toast.error('Notifications blocked. Enable in browser settings.');
-    }
-  };
-
-  const playTestSound = () => {
-    if (audioRef.current) {
-      audioRef.current.volume = settings.soundVolume / 100;
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(console.error);
     }
   };
 
@@ -517,44 +506,6 @@ export function NotificationSettingsPanel() {
             </div>
           </div>
 
-          {/* Sound Settings */}
-          <div className="space-y-4 pt-4 border-t border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {settings.soundEnabled ? (
-                  <Volume2 className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <VolumeX className="w-4 h-4 text-muted-foreground" />
-                )}
-                <Label className="text-base">Sound Alerts</Label>
-              </div>
-              <Switch
-                checked={settings.soundEnabled}
-                onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })}
-              />
-            </div>
-
-            {settings.soundEnabled && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm text-muted-foreground">Volume</Label>
-                  <span className="text-sm font-medium">{settings.soundVolume}%</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Slider
-                    value={[settings.soundVolume]}
-                    onValueChange={([value]) => updateSettings({ soundVolume: value })}
-                    max={100}
-                    step={5}
-                    className="flex-1"
-                  />
-                  <Button variant="outline" size="sm" onClick={playTestSound}>
-                    Test
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>

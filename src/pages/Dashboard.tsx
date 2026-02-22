@@ -577,8 +577,9 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const [, setTimeTick] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => { setAuctions(prev => [...prev]); }, TIME_UPDATE_INTERVAL);
+    const interval = setInterval(() => { setTimeTick(t => t + 1); }, TIME_UPDATE_INTERVAL);
     return () => clearInterval(interval);
   }, [TIME_UPDATE_INTERVAL]);
   

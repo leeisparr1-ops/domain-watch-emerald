@@ -8,28 +8,11 @@ export function useAuctionAlerts() {
   const { user } = useAuth();
   const { settings } = useNotificationSettings();
   const alertedDomainsRef = useRef<Map<string, number>>(new Map());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const CHECK_INTERVAL = 60 * 1000; // Check every minute
 
-  // Initialize audio element
-  useEffect(() => {
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAsEONq+rHEqCCeH1OTRcjc2T3+6wq11NB5CeLrI2F8RAUphnbvafz4nRWC6xMGUUR8nVH2+z7ZfMB84TnG3xp1xQVQ2TXCkvraLWBwjN1Zus6SgaUgOGkVLaJiuo4BQIhYxPj9wqLO8bTcEI0BPXIS0uYxTIwgiPUlYf7C/q18wBxpCQExukb3Bd0AtCBQ8SEtqir7FgFQsCBI7SEZoir/KhFouCBE5SERkiL/Mg1stCBE5SERjiL/LglotCBE5SEVjh77KglktCBE5SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVktCBI6SUZjhr7JgVkt');
-  }, []);
-
-  const playAlertSound = useCallback(() => {
-    if (audioRef.current && settings.soundEnabled) {
-      audioRef.current.volume = settings.soundVolume / 100;
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(console.error);
-    }
-  }, [settings.soundEnabled, settings.soundVolume]);
 
   const sendNotification = useCallback((domain: string, timeRemaining: string) => {
     if (!settings.enabled) return;
-
-    if (settings.soundEnabled) {
-      playAlertSound();
-    }
 
     // Browser notification
     if (settings.browserNotifications && Notification.permission === 'granted') {
@@ -51,7 +34,7 @@ export function useAuctionAlerts() {
         },
       });
     }
-  }, [settings, playAlertSound]);
+  }, [settings]);
 
   const checkFavoriteAuctions = useCallback(async () => {
     if (!user || !settings.enabled) return;

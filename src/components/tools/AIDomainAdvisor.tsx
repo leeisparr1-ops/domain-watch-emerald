@@ -365,20 +365,33 @@ export function AIDomainAdvisor() {
                 <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
               </div>
 
-              {/* Liquidation Value */}
-              <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
-                <TrendingUp className="w-5 h-5 mx-auto mb-2 text-amber-500" />
-                <p className="text-xs text-muted-foreground">Liquidation Value</p>
-                <p className="text-lg font-bold text-foreground mt-1">{analysis.wholesale_value || "N/A"}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Quick-sale / fire-sale price</p>
-              </div>
-
               {/* Max Acquisition Price */}
               <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
                 <DollarSign className="w-5 h-5 mx-auto mb-2 text-emerald-500" />
                 <p className="text-xs text-muted-foreground">Max Buy Price</p>
                 <p className="text-lg font-bold text-foreground mt-1">{analysis.suggested_buy_price}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+              </div>
+
+              {/* Liquidation Value - 10% of Max Buy Price */}
+              <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
+                <TrendingUp className="w-5 h-5 mx-auto mb-2 text-amber-500" />
+                <p className="text-xs text-muted-foreground">Liquidation Value</p>
+                <p className="text-lg font-bold text-foreground mt-1">
+                  {(() => {
+                    const buyStr = analysis.suggested_buy_price || "";
+                    const nums = buyStr.match(/[\d,]+/g);
+                    if (nums && nums.length >= 1) {
+                      const vals = nums.map(n => parseInt(n.replace(/,/g, ""), 10));
+                      const liqVals = vals.map(v => Math.round(v * 0.1));
+                      return liqVals.length === 2
+                        ? `$${liqVals[0].toLocaleString()} - $${liqVals[1].toLocaleString()}`
+                        : `$${liqVals[0].toLocaleString()}`;
+                    }
+                    return "N/A";
+                  })()}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">Quick-sale / fire-sale price</p>
               </div>
             </div>
 
