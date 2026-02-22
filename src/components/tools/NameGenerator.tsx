@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2, Save, FolderOpen, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2, Save, FolderOpen, Trash2, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -85,6 +86,8 @@ export function NameGenerator() {
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
+  const [synonymBoost, setSynonymBoost] = useState(false);
+  const [maxLengthFilter, setMaxLengthFilter] = useState(0); // 0 = no filter
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -330,6 +333,7 @@ export function NameGenerator() {
         industry: industry.trim() || undefined,
         style,
         include_extra_tlds: includeExtraTlds,
+        synonym_boost: synonymBoost,
       };
       if (inputMode === "inspired") {
         body.inspired_by = input;
@@ -577,22 +581,58 @@ export function NameGenerator() {
             {style === "mixed" && "🎯 Strategic mix of flip candidates, premium brands, and keyword-rich domains."}
           </p>
 
-          <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30">
-            <Switch
-              id="extra-tlds"
-              checked={includeExtraTlds}
-              onCheckedChange={setIncludeExtraTlds}
-            />
-            <Label htmlFor="extra-tlds" className="text-xs cursor-pointer">
-              <span className="font-medium text-foreground">
-                {includeExtraTlds ? "All TLDs" : ".com only"}
-              </span>
-              <span className="text-muted-foreground ml-1">
-                {includeExtraTlds
-                  ? "— checking .com, .ai, .io, .net, .co, .app, .dev, .org (registry-verified)"
-                  : "— .com availability verified via registry (toggle for +7 more TLDs)"}
-              </span>
-            </Label>
+          <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="extra-tlds"
+                checked={includeExtraTlds}
+                onCheckedChange={setIncludeExtraTlds}
+              />
+              <Label htmlFor="extra-tlds" className="text-xs cursor-pointer">
+                <span className="font-medium text-foreground">
+                  {includeExtraTlds ? "All TLDs" : ".com only"}
+                </span>
+                <span className="text-muted-foreground ml-1">
+                  {includeExtraTlds
+                    ? "— checking .com, .ai, .io, .net, .co, .app, .dev, .org (registry-verified)"
+                    : "— .com availability verified via registry (toggle for +7 more TLDs)"}
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="synonym-boost"
+                checked={synonymBoost}
+                onCheckedChange={setSynonymBoost}
+              />
+              <Label htmlFor="synonym-boost" className="text-xs cursor-pointer">
+                <span className="font-medium text-foreground">Synonym Boost</span>
+                <span className="text-muted-foreground ml-1">
+                  — expand keywords with synonyms & related terms for more variety
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="max-length" className="text-xs font-medium text-foreground whitespace-nowrap">
+                Max Length:
+              </Label>
+              <Select value={String(maxLengthFilter)} onValueChange={(v) => setMaxLengthFilter(Number(v))}>
+                <SelectTrigger className="h-7 text-xs w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">No limit</SelectItem>
+                  <SelectItem value="5">≤ 5 chars</SelectItem>
+                  <SelectItem value="6">≤ 6 chars</SelectItem>
+                  <SelectItem value="7">≤ 7 chars</SelectItem>
+                  <SelectItem value="8">≤ 8 chars</SelectItem>
+                  <SelectItem value="10">≤ 10 chars</SelectItem>
+                  <SelectItem value="12">≤ 12 chars</SelectItem>
+                  <SelectItem value="15">≤ 15 chars</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-[10px] text-muted-foreground">Filter results by name length</span>
+            </div>
           </div>
 
           <Button onClick={handleGenerate} disabled={!canGenerate || isLoading} className="w-full">
@@ -635,16 +675,28 @@ export function NameGenerator() {
 
         {suggestions.length > 0 && (() => {
           // Filter suggestions: only show names that have at least 1 available TLD
-          const filtered = showOnlyAvailable
-            ? suggestions
-                .map((s) => {
-                  if (!s.tldStatuses) return s;
-                  const availableTlds = s.tldStatuses.filter((ts) => ts.status === "available");
-                  if (availableTlds.length === 0) return null;
-                  return { ...s, tldStatuses: availableTlds };
-                })
-                .filter(Boolean) as Suggestion[]
-            : suggestions;
+          // Filter suggestions
+          const filtered = (() => {
+            let result = suggestions as (Suggestion | null)[];
+            // Available filter
+            if (showOnlyAvailable) {
+              result = result.map((s) => {
+                if (!s) return null;
+                if (!s.tldStatuses) return s;
+                const availableTlds = s.tldStatuses.filter((ts) => ts.status === "available");
+                if (availableTlds.length === 0) return null;
+                return { ...s, tldStatuses: availableTlds };
+              });
+            }
+            // Length filter
+            if (maxLengthFilter > 0) {
+              result = result.map((s) => {
+                if (!s) return null;
+                return s.name.length <= maxLengthFilter ? s : null;
+              });
+            }
+            return result.filter(Boolean) as Suggestion[];
+          })();
 
           // Sort
           const sorted = [...filtered].sort((a, b) => {
@@ -858,7 +910,12 @@ export function NameGenerator() {
                         ) : s.tldStatuses ? (
                           s.tldStatuses.map((ts) => {
                             const tld = ts.domain.substring(ts.domain.indexOf("."));
-                            const registerUrl = `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}`;
+                            const registrars = [
+                              { name: "Spaceship", url: `https://www.spaceship.com/domain/${encodeURIComponent(ts.domain)}` },
+                              { name: "GoDaddy", url: `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}` },
+                              { name: "Namecheap", url: `https://www.namecheap.com/domains/registration/results/?domain=${encodeURIComponent(ts.domain)}` },
+                              { name: "Unstoppable", url: `https://unstoppabledomains.com/search?searchTerm=${encodeURIComponent(ts.domain.split(".")[0])}` },
+                            ];
                             return (
                               <span key={ts.domain} className="inline-flex items-center gap-0.5">
                                 <Badge variant="outline" className={`text-xs flex items-center gap-1 ${statusBadgeClass(ts)}`}>
@@ -866,14 +923,23 @@ export function NameGenerator() {
                                   {tld}
                                 </Badge>
                                 {ts.status === "available" && (
-                                  <a
-                                    href={registerUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-1"
-                                  >
-                                    Register <ExternalLink className="w-2.5 h-2.5" />
-                                  </a>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors px-1">
+                                        Register <ChevronDown className="w-2.5 h-2.5" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="min-w-[140px]">
+                                      {registrars.map((r) => (
+                                        <DropdownMenuItem key={r.name} asChild>
+                                          <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs">
+                                            <ExternalLink className="w-3 h-3" />
+                                            {r.name}
+                                          </a>
+                                        </DropdownMenuItem>
+                                      ))}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )}
                               </span>
                             );
