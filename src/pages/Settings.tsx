@@ -11,12 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
 import { useSubscription, PLAN_CONFIG } from "@/hooks/useSubscription";
+import { ComparableSalesImport } from "@/components/settings/ComparableSalesImport";
 
 export default function Settings() {
   const { user, loading } = useAuth();
   const { plan, subscribed, subscriptionEnd, loading: subLoading, checkSubscription, openCustomerPortal } = useSubscription();
   const [resending, setResending] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [searchParams] = useSearchParams();
   
   // Password change state
@@ -34,6 +36,12 @@ export default function Settings() {
       checkSubscription();
     }
   }, [searchParams, checkSubscription]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
   
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
@@ -289,6 +297,9 @@ export default function Settings() {
                 </>
               )}
             </div>
+
+            {/* Admin: Comparable Sales Import */}
+            {isAdmin && <ComparableSalesImport />}
           </div>
         </div>
       </main>
