@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { RefreshCw, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface InventoryStatus {
   type: string;
@@ -40,6 +41,8 @@ interface SyncAllDialogProps {
 
 export function SyncAllDialog({ onSyncComplete }: SyncAllDialogProps) {
   const [open, setOpen] = useState(false);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useBackClose(open, handleClose);
   const [syncing, setSyncing] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);

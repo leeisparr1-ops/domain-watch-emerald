@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { PortfolioInsert } from "@/hooks/usePortfolio";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface Props {
   onAdd: (domain: Partial<PortfolioInsert>) => Promise<void>;
@@ -14,6 +15,8 @@ interface Props {
 
 export function AddDomainDialog({ onAdd }: Props) {
   const [open, setOpen] = useState(false);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useBackClose(open, handleClose);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     domain_name: "",
