@@ -36,6 +36,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
+const Methodology = lazy(() => import("./pages/Methodology"));
 
 // Minimal loading fallback
 const PageLoader = () => (
@@ -79,6 +80,7 @@ const App = () => (
                 <Route path="/tools/tld-compare" element={<TldComparePage />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/methodology" element={<Methodology />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
