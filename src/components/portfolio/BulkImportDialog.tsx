@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Upload, FileText, ClipboardPaste, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface ParsedRow {
   domain_name: string;
@@ -73,6 +74,8 @@ function parsePlainList(text: string): ParsedRow[] {
 
 export function BulkImportDialog({ onBulkAdd }: Props) {
   const [open, setOpen] = useState(false);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useBackClose(open, handleClose);
   const [pasteText, setPasteText] = useState("");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);

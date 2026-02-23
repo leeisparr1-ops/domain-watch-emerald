@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Bookmark, Trash2, ToggleLeft, ToggleRight, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { UserPattern } from "@/hooks/useUserPatterns";
 import { EditPatternDialog } from "./EditPatternDialog";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface SavedPatternsDialogProps {
   patterns: UserPattern[];
@@ -39,6 +40,8 @@ export function SavedPatternsDialog({
   maxPatterns,
 }: SavedPatternsDialogProps) {
   const [open, setOpen] = useState(false);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useBackClose(open, handleClose);
   const [editingPattern, setEditingPattern] = useState<UserPattern | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 

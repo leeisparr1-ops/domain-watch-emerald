@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface TldStatus {
   domain: string;
@@ -85,6 +86,8 @@ export function NameGenerator() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const handleSessionsClose = useCallback(() => setSessionsOpen(false), []);
+  useBackClose(sessionsOpen, handleSessionsClose);
   const [savingSession, setSavingSession] = useState(false);
   const [synonymBoost, setSynonymBoost] = useState(false);
   const [maxLengthFilter, setMaxLengthFilter] = useState(0); // 0 = no filter

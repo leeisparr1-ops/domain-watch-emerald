@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Plus, HelpCircle, X, Trash2, DollarSign, Globe, ArrowRight, ArrowLeft, Search, Code, Ruler, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useBackClose } from "@/hooks/useBackClose";
 
 export interface Pattern {
   id: string;
@@ -200,6 +201,8 @@ export function PatternDialog({
   maxPatterns = Infinity 
 }: PatternDialogProps) {
   const [open, setOpen] = useState(false);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useBackClose(open, handleClose);
   const [customPattern, setCustomPattern] = useState("");
   const [patternType, setPatternType] = useState<"regex" | "structure" | "pronounceable" | "length" | "words">("regex");
   const [description, setDescription] = useState("");

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserPattern } from "@/hooks/useUserPatterns";
+import { useBackClose } from "@/hooks/useBackClose";
 
 const TLD_OPTIONS = [
   { value: "all", label: "All TLDs" },
@@ -55,6 +56,8 @@ export function EditPatternDialog({
   onOpenChange,
   onSave,
 }: EditPatternDialogProps) {
+  const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
+  useBackClose(open, handleClose);
   const [description, setDescription] = useState("");
   const [tldFilter, setTldFilter] = useState("all");
   const [maxPrice, setMaxPrice] = useState("");
