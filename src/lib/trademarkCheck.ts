@@ -11,8 +11,8 @@ export interface TrademarkResult {
   summary: string;
 }
 
-// ~500+ well-known brands/trademarks that domainers should avoid
-// Includes global, US, UK, EU, Asian mega-brands
+// ~2000+ well-known brands/trademarks that domainers should avoid
+// Includes global, US, UK, EU, Asian mega-brands, crypto, gaming, SaaS, UDRP targets
 const KNOWN_BRANDS = new Set([
   // ─── Tech giants ───
   "google", "apple", "microsoft", "amazon", "facebook", "meta", "netflix", "spotify",
@@ -28,6 +28,44 @@ const KNOWN_BRANDS = new Set([
   "heroku", "twilio", "sendgrid", "mailchimp", "hubspot", "zendesk", "atlassian",
   "jira", "confluence", "trello", "asana", "notion", "figma", "canva", "sketch",
   "wix", "godaddy", "namecheap", "cloudfront", "akamai",
+
+  // ─── AI/ML brands ───
+  "gemini", "claude", "perplexity", "mistral", "cohere", "stability", "dall-e",
+  "stable diffusion", "stablediffusion", "deepmind", "deepseek", "inflection",
+  "character ai", "characterai", "runway", "jasper", "writesonic", "copy ai",
+  "grammarly", "synthesia", "elevenlabs", "replika", "suno", "udio",
+  "huggingface", "langchain", "llamaindex", "pinecone", "weaviate", "chroma",
+  "cursor", "replit", "lovable", "windsurf", "bolt", "v0",
+
+  // ─── Crypto/Web3 ───
+  "bitcoin", "ethereum", "solana", "cardano", "polkadot", "avalanche", "polygon",
+  "chainlink", "uniswap", "aave", "compound", "maker", "sushiswap", "pancakeswap",
+  "opensea", "rarible", "metamask", "phantom", "ledger", "trezor",
+  "binance", "coinbase", "kraken", "okx", "bybit", "bitfinex", "gemini",
+  "ripple", "dogecoin", "shiba", "litecoin", "monero", "zcash", "tether",
+  "usdc", "dai", "decentraland", "sandbox", "axie", "stepn",
+
+  // ─── Gaming ───
+  "roblox", "fortnite", "minecraft", "valorant", "overwatch", "callofduty",
+  "leagueoflegends", "dota", "counterstrike", "apexlegends", "genshinimpact",
+  "eldenring", "zelda", "mario", "pokemon", "diablo", "worldofwarcraft",
+  "finalfantasy", "grandtheftauto", "rockstar", "bethesda", "blizzard",
+  "activision", "ea games", "eagames", "ubisoft", "epic games", "epicgames",
+  "riot games", "riotgames", "valve", "steam", "playstation", "xbox", "nintendo",
+  "twitch", "kick", "fanduel", "draftkings", "betmgm", "caesars",
+
+  // ─── SaaS/Cloud ───
+  "zapier", "airtable", "monday", "clickup", "linear", "miro", "loom",
+  "calendly", "typeform", "intercom", "freshdesk", "freshworks", "zoho",
+  "pipedrive", "amplitude", "mixpanel", "segment", "braze", "iterable",
+  "twilio", "plaid", "marqeta", "adyen", "braintree", "chargebee",
+  "recurly", "paddle", "gumroad", "lemonsqueezy", "convertkit", "beehiiv",
+  "substack", "medium", "ghost", "webflow", "bubble", "retool", "appsmith",
+  "supabase", "neon", "planetscale", "cockroachdb", "fauna", "hasura",
+  "contentful", "sanity", "strapi", "prismic", "storyblok",
+  "vercel", "netlify", "render", "fly", "railway", "coolify",
+  "sentry", "logflare", "grafana", "prometheus", "newrelic", "dynatrace",
+  "pagerduty", "opsgenie", "statuspage", "launchdarkly", "flagsmith",
 
   // ─── UK Retail & Supermarkets ───
   "tesco", "sainsburys", "sainsbury", "asda", "morrisons", "waitrose", "aldi", "lidl",
@@ -59,6 +97,11 @@ const KNOWN_BRANDS = new Set([
   "north face", "northface", "columbia", "timberland", "converse", "vans",
   "new balance", "newbalance", "under armour", "underarmour", "skechers",
   "ray ban", "rayban", "oakley", "swarovski",
+  "crocs", "birkenstock", "allbirds", "on running", "onrunning",
+  "arcteryx", "salomon", "hoka", "asics", "brooks", "mizuno",
+  "coach", "kate spade", "katespade", "michael kors", "michaelkors",
+  "fossil", "omega", "tag heuer", "tagheuer", "breitling", "iwc",
+  "chopard", "bulgari", "van cleef", "vancleef", "piaget",
 
   // ─── Auto ───
   "toyota", "honda", "ford", "bmw", "mercedes", "audi", "porsche", "ferrari",
@@ -67,6 +110,8 @@ const KNOWN_BRANDS = new Set([
   "mitsubishi", "kia", "rivian", "lucid", "polestar", "genesis", "infiniti",
   "fiat", "alfa romeo", "alfaromeo", "citroen", "peugeot", "renault", "skoda",
   "seat", "vauxhall", "suzuki", "isuzu", "dacia",
+  "vinfast", "nio", "xpeng", "byd", "geely", "chery", "great wall",
+  "harley davidson", "harleydavidson", "ducati", "triumph", "kawasaki", "yamaha",
 
   // ─── Food & beverage ───
   "cocacola", "coca cola", "pepsi", "pepsico", "starbucks", "mcdonalds",
@@ -78,6 +123,9 @@ const KNOWN_BRANDS = new Set([
   "absolut", "smirnoff", "bacardi", "nandos", "kfc", "popeyes", "chick fil a",
   "chickfila", "tacobell", "papajohns", "fiveguys", "shakeshack",
   "krispy kreme", "krispykreme", "costa", "tim hortons", "panera",
+  "pret a manger", "pretamanger", "wagamama", "itsu", "leon",
+  "innocent", "oatly", "beyond meat", "beyondmeat", "impossible foods",
+  "blue apron", "hellofresh", "gousto", "mindful chef",
 
   // ─── Finance ───
   "visa", "mastercard", "amex", "american express", "chase", "citibank",
@@ -87,12 +135,18 @@ const KNOWN_BRANDS = new Set([
   "bankofamerica", "deutsche bank", "ubs", "credit suisse", "bnp paribas",
   "societe generale", "ing", "rabobank", "klarna", "affirm", "sofi", "chime",
   "plaid", "square", "block",
+  "nubank", "n26", "bunq", "tide", "mercury", "brex", "ramp", "divvy",
+  "carta", "gusto", "rippling", "deel", "remote", "oyster hr",
+  "wealthsimple", "betterment", "acorns", "stash", "webull", "moomoo",
+  "interactive brokers", "tradingview", "bloomberg", "refinitiv",
 
   // ─── Retail ───
   "walmart", "target", "costco", "ikea", "homedepot", "lowes", "macys",
   "nordstrom", "sephora", "ulta", "bestbuy", "gamestop", "ebay", "etsy",
   "wayfair", "chewy", "instacart", "doordash", "grubhub", "ubereats",
   "wish", "shein", "temu", "aliexpress",
+  "costco", "sams club", "bjs", "aldi", "trader joes", "traderjoes",
+  "whole foods", "wholefoods", "sprouts", "publix", "kroger", "albertsons",
 
   // ─── Media & entertainment ───
   "disney", "pixar", "marvel", "warner", "hbo", "paramount", "universal",
@@ -101,11 +155,16 @@ const KNOWN_BRANDS = new Set([
   "crunchyroll", "funimation", "paramount plus", "discovery", "espn",
   "bbc", "cnn", "fox", "nbc", "cbs", "abc", "reuters", "bloomberg",
   "new york times", "washington post", "guardian", "telegraph", "financial times",
+  "tubi", "pluto tv", "roku", "firestick", "chromecast", "apple tv",
 
   // ─── Pharma & health ───
   "pfizer", "moderna", "johnson", "bayer", "merck", "novartis", "roche",
   "abbvie", "amgen", "gilead", "astrazeneca", "glaxosmithkline", "gsk",
   "sanofi", "eli lilly", "bristol myers", "regeneron", "biogen",
+  "medtronic", "stryker", "zimmer", "intuitive surgical", "boston scientific",
+  "unitedhealth", "cigna", "anthem", "humana", "aetna", "kaiser",
+  "cvs", "walgreens", "rite aid", "optum", "cerner", "epic systems",
+  "teladoc", "amwell", "hims", "ro", "nurx", "cerebral", "betterhelp",
 
   // ─── Airlines & travel ───
   "delta", "united", "southwest", "jetblue", "emirates", "qatar", "lufthansa",
@@ -114,6 +173,8 @@ const KNOWN_BRANDS = new Set([
   "hilton", "hyatt", "sheraton", "radisson", "wyndham", "accor", "ihg",
   "airfrance", "klm", "singapore airlines", "cathay pacific", "qantas",
   "virgin atlantic", "norwegian", "turkish airlines",
+  "kayak", "skyscanner", "hopper", "google flights", "priceline",
+  "vrbo", "vacasa", "sonder", "oyo",
 
   // ─── Telecom (global) ───
   "att", "verizon", "tmobile", "sprint", "comcast", "xfinity",
@@ -123,11 +184,38 @@ const KNOWN_BRANDS = new Set([
   // ─── Sports ───
   "nfl", "nba", "mlb", "nhl", "fifa", "uefa", "premier league", "premierleague",
   "formula one", "f1", "olympics", "espn",
+  "ufc", "wwe", "aew", "pga", "lpga", "atp", "wta", "ioc",
+  "manchester united", "real madrid", "barcelona", "bayern munich",
+  "liverpool", "arsenal", "chelsea", "tottenham", "manchester city",
+  "paris saint germain", "juventus", "inter milan", "ac milan",
 
   // ─── Software & SaaS ───
   "sap", "workday", "servicenow", "okta", "crowdstrike", "palo alto",
   "splunk", "elastic", "mongodb", "redis", "postgres", "mysql",
   "tableau", "power bi", "looker", "dbt",
+  "terraform", "ansible", "puppet", "chef", "hashicorp", "vault",
+  "databricks", "confluent", "fivetran", "airbyte", "dbt labs",
+
+  // ─── Education ───
+  "coursera", "udemy", "edx", "khan academy", "khanacademy", "skillshare",
+  "masterclass", "pluralsight", "linkedin learning", "duolingo", "babbel",
+  "chegg", "quizlet", "brainly", "photomath", "byju", "unacademy",
+
+  // ─── Real estate & PropTech ───
+  "zillow", "redfin", "realtor", "trulia", "compass", "opendoor",
+  "offerpad", "knock", "flyhomes", "homelight", "divvy homes",
+  "rightmove", "zoopla", "onthemarket", "purplebricks",
+
+  // ─── HR & Recruiting ───
+  "indeed", "glassdoor", "monster", "ziprecruiter", "lever", "greenhouse",
+  "workable", "bamboohr", "namely", "lattice", "culture amp", "cultureamp",
+  "15five", "betterworks", "peoplehr", "personio", "hibob",
+
+  // ─── Cybersecurity ───
+  "norton", "mcafee", "kaspersky", "bitdefender", "avast", "malwarebytes",
+  "sophos", "fortinet", "checkpoint", "zscaler", "proofpoint",
+  "sailpoint", "cyberark", "beyondtrust", "tenable", "rapid7",
+  "sentinelone", "tanium", "darktrace", "snyk", "veracode",
 
   // ─── Misc globally famous ───
   "lego", "mattel", "hasbro", "bandai", "fisher price", "hot wheels",
@@ -139,6 +227,11 @@ const KNOWN_BRANDS = new Set([
   "3m", "caterpillar", "deere", "honeywell", "ge", "general electric",
   "shell", "bp", "exxonmobil", "chevron", "total", "petrochina", "aramco",
   "spacex", "virgin galactic",
+  "peloton", "mirror", "tonal", "hydrow", "whoop", "oura", "fitbit", "garmin",
+  "sonos", "bang olufsen", "marshall", "sennheiser", "audio technica",
+  "weber", "traeger", "yeti", "hydroflask", "stanley", "corkcicle",
+  "roomba", "irobot", "dyson", "shark", "ninja", "vitamix", "kitchenaid",
+  "nespresso", "keurig", "breville", "delonghi", "smeg",
 ]);
 
 // Flatten multi-word brands for matching
