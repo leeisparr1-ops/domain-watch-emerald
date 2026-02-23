@@ -20,24 +20,30 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const systemPrompt = `You are a domain aftermarket intelligence analyst. Your job is to identify the CURRENT trending keywords, hot niches, and market signals in the domain name investment space.
+    const systemPrompt = `You are a domain aftermarket intelligence analyst with access to current search trend data (similar to Google Trends). Your job is to identify the CURRENT trending keywords, hot niches, and market signals in the domain name investment space.
 
 Focus on:
 1. Keywords that are driving high aftermarket sales RIGHT NOW
-2. Emerging industry niches with growing demand
+2. Emerging industry niches with growing demand  
 3. New technology/business terms entering mainstream vocabulary
 4. Seasonal or event-driven keyword spikes
+5. Search volume momentum — keywords with RISING search interest (like Google Trends "Breakout" or "+250%")
+6. Cross-reference domain sales data with search interest to identify undervalued keyword segments
 
-Return data that a domain investment scoring engine can use to weight keyword demand.`;
+Return data that a domain investment scoring engine can use to weight keyword demand. Weight keywords higher when both search volume AND domain sales are rising together.`;
 
     const userPrompt = `Generate a comprehensive trend report for the domain aftermarket as of February 2026.
 
 Return structured data with:
-1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. Focus on NEW or ACCELERATING terms, not evergreen ones.
-2. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }
-3. market_signals: Array of short strings describing key market movements (e.g. ".ai domains averaging $45k in Q1 2026")
+1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. Focus on NEW or ACCELERATING terms, not evergreen ones. Factor in:
+   - Google Trends-style search volume momentum (breakout terms get 2.0+)
+   - Domain aftermarket sale frequency and average prices
+   - Venture capital / startup funding trends driving keyword demand
+   - Social media buzz and news cycle momentum
+2. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect BOTH search interest growth AND domain sale activity.
+3. market_signals: Array of short strings describing key market movements (e.g. ".ai domains averaging $45k in Q1 2026", "search interest for 'agentic' up 340% YoY")
 
-Be specific and data-driven. Reference real market patterns.`;
+Be specific and data-driven. Reference real market patterns. Include search volume trend indicators where relevant.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

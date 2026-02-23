@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { scoreBrandability } from "@/lib/brandability";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
+import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation } from "@/lib/domainValuation";
 import { estimateSEOVolume } from "@/lib/seoVolume";
 import { scoreDomainAge } from "@/lib/domainAge";
@@ -466,10 +467,11 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setAiLoading(false); return; }
 
+      const enrichment = await fetchTrendEnrichment();
       const brand = scoreBrandability(domainWithTld);
       const pronounce = scorePronounceability(domainWithTld);
       const trademark = checkTrademarkRisk(domainWithTld);
-      const demand = scoreKeywordDemand(domainWithTld);
+      const demand = scoreKeywordDemand(domainWithTld, enrichment);
       const val = quickValuation(domainWithTld, pronounce.score);
       const seo = estimateSEOVolume(domainWithTld);
       const age = scoreDomainAge(null);

@@ -1,10 +1,11 @@
 /**
  * Keyword Demand Scoring Module
  * Scores domains 1-100 based on keyword demand, niche heat, and market signals.
- * Used across all tools for unified cross-tool intelligence.
+ * Uses a hybrid approach: heuristic engine (primary) + AI trend enrichment (boost modifier).
  */
 
 import { TRENDING_KEYWORDS, NICHE_CATEGORIES, PREMIUM_KEYWORDS, PENALTY_KEYWORDS, detectNiche, splitIntoWords, isSingleDictionaryWord, type NicheDetection } from "@/lib/domainValuation";
+import { computeTrendBoost, type TrendEnrichment } from "@/lib/trendEnrichment";
 
 // ─── DEMAND TIERS ───
 
@@ -37,9 +38,15 @@ export interface KeywordDemandResult {
   trendingKeywords: string[];  // which keywords are trending
   niche: NicheDetection;
   factors: { label: string; points: number; detail: string }[];
+  enriched: boolean;           // whether AI trend data was applied
 }
 
-export function scoreKeywordDemand(domain: string): KeywordDemandResult {
+/**
+ * Score keyword demand using the heuristic engine.
+ * Optionally accepts pre-fetched trend enrichment data to apply boost modifiers.
+ * When enrichment is null, the function behaves identically to the original heuristic-only version.
+ */
+export function scoreKeywordDemand(domain: string, enrichment?: TrendEnrichment | null): KeywordDemandResult {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const tld = parts[1] || "com";
@@ -56,6 +63,7 @@ export function scoreKeywordDemand(domain: string): KeywordDemandResult {
       trendingKeywords: [],
       niche: { niche: "general", label: "General", multiplier: 1.0, confidence: "Low", matchedKeywords: [] },
       factors: [{ label: "Penalty Content", points: -99, detail: "Contains risky/blacklisted keywords — zero demand signal" }],
+      enriched: false,
     };
   }
 
@@ -143,6 +151,15 @@ export function scoreKeywordDemand(domain: string): KeywordDemandResult {
     factors.push({ label: "Dictionary Word", points: dictPts, detail: `"${name}" is a real English word — evergreen demand` });
   }
 
+  // 6. AI Trend Enrichment boost (±15 pts max)
+  const enrichmentData = enrichment ?? null;
+  const { boost, factors: enrichFactors } = computeTrendBoost(meaningfulWords, niche.niche, enrichmentData);
+  if (boost !== 0) {
+    rawScore += boost;
+    factors.push(...enrichFactors);
+  }
+  const enriched = enrichmentData !== null && boost !== 0;
+
   // Clamp
   const score = Math.max(1, Math.min(100, rawScore));
 
@@ -156,5 +173,5 @@ export function scoreKeywordDemand(domain: string): KeywordDemandResult {
   else if (score >= 25) { label = "↘️ Low"; grade = "D"; }
   else { label = "⬇️ Minimal"; grade = "F"; }
 
-  return { score, label, grade, trendingKeywords, niche, factors };
+  return { score, label, grade, trendingKeywords, niche, factors, enriched };
 }

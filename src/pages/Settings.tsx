@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationSettingsPanel } from "@/components/settings/NotificationSettingsPanel";
 import { useSubscription, PLAN_CONFIG } from "@/hooks/useSubscription";
-import { ComparableSalesImport } from "@/components/settings/ComparableSalesImport";
+
 
 export default function Settings() {
   const { user, loading } = useAuth();
@@ -298,8 +298,6 @@ export default function Settings() {
               )}
             </div>
 
-            {/* Admin: Comparable Sales Import */}
-            {isAdmin && <ComparableSalesImport />}
           </div>
         </div>
       </main>

@@ -14,6 +14,7 @@ import { scoreBrandability, type BrandabilityResult } from "@/lib/brandability";
 import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { scoreKeywordDemand, type KeywordDemandResult } from "@/lib/keywordDemand";
+import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
 import { estimateSEOVolume, type SEOVolumeResult } from "@/lib/seoVolume";
 import { scoreDomainAge, type DomainAgeResult } from "@/lib/domainAge";
@@ -94,11 +95,14 @@ export function DomainReportCard() {
     setDomain(domainWithTld);
     setLoading(true);
 
+    // Fetch trend enrichment for AI-boosted scoring
+    const enrichment = await fetchTrendEnrichment();
+
     // Run client-side analyses instantly
     const brandability = scoreBrandability(domainWithTld);
     const pronounceability = scorePronounceability(domainWithTld);
     const trademark = checkTrademarkRisk(domainWithTld);
-    const keywordDemand = scoreKeywordDemand(domainWithTld);
+    const keywordDemand = scoreKeywordDemand(domainWithTld, enrichment);
     const valuation = quickValuation(domainWithTld, pronounceability.score);
     const seoVolume = estimateSEOVolume(domainWithTld);
     const domainAge = scoreDomainAge(null); // Will be enriched if data available
