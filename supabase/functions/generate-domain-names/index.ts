@@ -1,9 +1,39 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Fetch live trend data from trending_market_data table
+async function fetchLiveTrends(): Promise<{ keywords: string; niches: string; signals: string } | null> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, supabaseKey);
+    const { data } = await sb.from("trending_market_data").select("*").eq("id", "latest").single();
+    if (!data) return null;
+
+    const kwObj = data.trending_keywords as Record<string, number> | null;
+    const keywords = kwObj
+      ? Object.entries(kwObj).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => `${k} (${v}x)`).join(", ")
+      : "";
+
+    const niches = Array.isArray(data.hot_niches)
+      ? (data.hot_niches as any[]).map((n: any) => `${n.niche || n.name}: ${n.heat || "hot"}`).join(", ")
+      : "";
+
+    const signals = Array.isArray(data.market_signals)
+      ? (data.market_signals as any[]).map((s: any) => s.signal || s.description || JSON.stringify(s)).slice(0, 5).join("; ")
+      : "";
+
+    return { keywords, niches, signals };
+  } catch (e) {
+    console.error("Failed to fetch live trends:", e);
+    return null;
+  }
+}
 
 const RECENT_PREMIUM_SALES = [
   { name: "Midnight.com", price: "$1.15M", niche: "Brandable" },
@@ -54,9 +84,20 @@ async function generateBatch(
   inspiredByContext: string,
   batchAngle: string,
   batchIndex: number,
+  liveTrends: { keywords: string; niches: string; signals: string } | null,
 ): Promise<any[]> {
   const styleGuide = getStyleGuide(style || "mixed");
-  const trendingContext = `
+
+  // Use live trends from DB if available, fallback to hardcoded
+  const trendingContext = liveTrends
+    ? `
+CURRENT MARKET TRENDS (Live Data — Feb 2026):
+- Trending keywords (with heat multipliers): ${liveTrends.keywords}
+- Hot niches: ${liveTrends.niches}
+- Market signals: ${liveTrends.signals}
+- Recent sales: ${RECENT_PREMIUM_SALES.map(s => `${s.name} (${s.price})`).join(", ")}
+- Hot TLDs: .ai, .com, .io`
+    : `
 CURRENT MARKET TRENDS (Feb 2026):
 - Hot keywords: Casino, Dog, Chat, Deep, Cash, Clean, Code, Beauty, Finance, Fire
 - Trending: AI, Agent, Agentic, Pay, Claw, Neural, Quantum
@@ -178,6 +219,14 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Fetch live trend data in parallel with request parsing
+    const liveTrends = await fetchLiveTrends();
+    if (liveTrends) {
+      console.log("Using live trend data from trending_market_data table");
+    } else {
+      console.log("Falling back to hardcoded trend data");
+    }
+
     let inspiredByContext = "";
     if (synonym_boost) {
       inspiredByContext += `\nSYNONYM EXPANSION MODE: Before generating names, first brainstorm 10-15 synonyms, related terms, and semantically adjacent words for the user's keywords. Then use BOTH the original keywords AND the expanded synonyms as building blocks for name generation. This dramatically increases variety and uncovers unexpected combinations. For example: "finance" → money, capital, fund, wealth, ledger, vault, mint, equity, treasury, fiscal.`;
@@ -199,7 +248,7 @@ Analyze their naming patterns (length, style, word types, phonetics) and generat
 
     console.log(`Starting ${anglesToUse.length} parallel AI batches for domain generation...`);
     const batchPromises = anglesToUse.map((angle, i) =>
-      generateBatch(LOVABLE_API_KEY, keywords, industry || "", style || "mixed", inspiredByContext, angle, i)
+      generateBatch(LOVABLE_API_KEY, keywords, industry || "", style || "mixed", inspiredByContext, angle, i, liveTrends)
     );
 
     const batchResults = await Promise.all(batchPromises);

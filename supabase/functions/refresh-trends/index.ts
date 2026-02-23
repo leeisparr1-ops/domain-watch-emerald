@@ -127,7 +127,8 @@ Be specific and data-driven. Reference real market patterns. Include search volu
 
     // Validate basic structure
     if (!trendData.trending_keywords || typeof trendData.trending_keywords !== "object") {
-      throw new Error("Invalid trend data: missing trending_keywords");
+      console.warn("Missing trending_keywords from AI, building from niches...");
+      trendData.trending_keywords = {};
     }
 
     // Clamp all multipliers to 1.0-2.5
@@ -136,6 +137,24 @@ Be specific and data-driven. Reference real market patterns. Include search volu
       if (typeof v === "number") {
         clampedKeywords[k.toLowerCase()] = Math.max(1.0, Math.min(2.5, v));
       }
+    }
+
+    // Fallback: extract keywords from hot_niches emerging_keywords if trending_keywords was empty
+    if (Object.keys(clampedKeywords).length === 0 && Array.isArray(trendData.hot_niches)) {
+      console.log("Extracting keywords from hot_niches emerging_keywords as fallback...");
+      for (const niche of trendData.hot_niches) {
+        const heat = typeof niche.heat === "number" ? Math.max(1.0, Math.min(2.5, 1.0 + (niche.heat / 100) * 1.5)) : 1.5;
+        for (const kw of (niche.emerging_keywords || [])) {
+          // Split multi-word keywords into individual words too
+          const words = String(kw).toLowerCase().split(/\s+/);
+          for (const w of words) {
+            if (w.length >= 2 && !clampedKeywords[w]) {
+              clampedKeywords[w] = heat;
+            }
+          }
+        }
+      }
+      console.log(`Extracted ${Object.keys(clampedKeywords).length} keywords from niches`);
     }
 
     // Upsert into DB
