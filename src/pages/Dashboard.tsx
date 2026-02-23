@@ -621,6 +621,16 @@ export default function Dashboard() {
     toast.success(`Added ${domainsToFav.length} domains to favorites`);
   }, [selectedRows, filtered, isFavorite, toggleFavorite]);
 
+  const bulkUnfavorite = useCallback(async () => {
+    if (selectedRows.size === 0) return;
+    const domainsToRemove = filtered.filter(d => selectedRows.has(d.id));
+    for (const d of domainsToRemove) {
+      if (isFavorite(d.domain)) await toggleFavorite(d.domain, d.id);
+    }
+    setSelectedRows(new Set());
+    toast.success(`Removed ${domainsToRemove.length} domains from favorites`);
+  }, [selectedRows, filtered, isFavorite, toggleFavorite]);
+
   const exportSelectedCsv = useCallback(() => {
     const rows = selectedRows.size > 0
       ? filtered.filter(d => selectedRows.has(d.id))
@@ -805,19 +815,28 @@ export default function Dashboard() {
               )}
               {/* Bulk Actions Bar */}
               {selectedRows.size > 0 && (
-                <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20 animate-in fade-in duration-200">
-                  <CheckSquare className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">{selectedRows.size} selected</span>
-                  <div className="flex-1" />
-                  <Button size="sm" variant="outline" className="gap-1" onClick={bulkFavorite}>
-                    <Heart className="w-3.5 h-3.5" /> Favorite All
-                  </Button>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={exportSelectedCsv}>
-                    <Download className="w-3.5 h-3.5" /> Export CSV
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedRows(new Set())}>
-                    Clear
-                  </Button>
+                <div className="mb-3 flex flex-wrap items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 mr-auto">
+                    <CheckSquare className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium whitespace-nowrap">{selectedRows.size} selected</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {viewMode === "favorites" ? (
+                      <Button size="sm" variant="outline" className="gap-1 text-destructive hover:text-destructive" onClick={bulkUnfavorite}>
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="gap-1" onClick={bulkFavorite}>
+                        <Heart className="w-3.5 h-3.5" /> Favorite
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="gap-1" onClick={exportSelectedCsv}>
+                      <Download className="w-3.5 h-3.5" /> Export
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedRows(new Set())}>
+                      Clear
+                    </Button>
+                  </div>
                 </div>
               )}
               <div className="animate-in fade-in duration-300 delay-200">
