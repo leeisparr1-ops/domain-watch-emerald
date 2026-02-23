@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useCallback } from "react";
 import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useBackClose } from "@/hooks/useBackClose";
 import { SpamRiskBadge } from "./SpamRiskBadge";
 import { Heart } from "lucide-react";
 
@@ -82,6 +84,8 @@ function getDomainWithoutTld(domain: string): string {
 
 export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSheetProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
+  useBackClose(open, handleClose);
   
   if (!domain) return null;
 
