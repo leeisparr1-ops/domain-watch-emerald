@@ -4,7 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
@@ -59,6 +60,7 @@ interface BulkResult {
 type SortField = "flip" | "score" | "valuation" | "brand" | "demand" | "seo";
 
 export function BulkPronounceabilityChecker() {
+  const navigate = useNavigate();
   const [text, setText] = useState("");
   const [results, setResults] = useState<BulkResult[]>([]);
   const [sortField, setSortField] = useState<SortField>("score");
@@ -349,6 +351,7 @@ export function BulkPronounceabilityChecker() {
                       </Tooltip>
                     </TableHead>
                     <TableHead className="text-center">TM</TableHead>
+                    <TableHead className="text-center w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -416,6 +419,23 @@ export function BulkPronounceabilityChecker() {
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
                               <p>{r.trademark.summary}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-primary hover:text-primary/80"
+                                onClick={() => navigate(`/tools?domain=${encodeURIComponent(r.domain)}`)}
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Get full AI appraisal</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
