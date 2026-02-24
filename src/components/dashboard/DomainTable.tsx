@@ -291,7 +291,7 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Bids</TableHead>
               <SortableHeader 
                 column="valuation" 
-                label="Valuation" 
+                label="Algo Val." 
                 currentSort={sortBy}
                 onSort={onSortChange}
               />
@@ -412,26 +412,26 @@ export function DomainTable({
                             )}
                           </div>
                           <button
-                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 w-fit"
+                            className="text-xs text-primary hover:underline flex items-center gap-1 w-fit font-medium mt-0.5"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/tools?domain=${encodeURIComponent(d.domain)}`);
                             }}
                           >
-                            <Sparkles className="w-2.5 h-2.5" />
+                            <Sparkles className="w-4 h-4" />
                             AI Advisor
                           </button>
                         </div>
                       ) : (
                         <button
-                          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                          className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/tools?domain=${encodeURIComponent(d.domain)}`);
                           }}
                         >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Get valuation
+                          <Sparkles className="w-4 h-4" />
+                          AI Advisor
                         </button>
                       )}
                     </TableCell>

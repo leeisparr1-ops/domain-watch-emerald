@@ -212,7 +212,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
               </div>
             </div>
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
-              <div className="text-sm text-muted-foreground mb-1">Our Valuation</div>
+              <div className="text-sm text-muted-foreground mb-1">Algo Valuation</div>
               {domain.valuation && domain.valuation > 0 ? (
                 <>
                   <div className="text-2xl font-bold text-foreground">
