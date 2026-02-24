@@ -4,8 +4,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles, Filter, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
@@ -66,6 +69,36 @@ export function BulkPronounceabilityChecker() {
   const [sortField, setSortField] = useState<SortField>("score");
   const [sortAsc, setSortAsc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Inline filters
+  const [minFlipScore, setMinFlipScore] = useState(0);
+  const [tldFilter, setTldFilter] = useState("all");
+  const [tmRiskFilter, setTmRiskFilter] = useState("all");
+
+  const filtersActive = minFlipScore > 0 || tldFilter !== "all" || tmRiskFilter !== "all";
+
+  const clearFilters = () => {
+    setMinFlipScore(0);
+    setTldFilter("all");
+    setTmRiskFilter("all");
+  };
+
+  // Derive unique TLDs from results
+  const uniqueTlds = [...new Set(results.map(r => {
+    const parts = r.domain.split(".");
+    return parts.length > 1 ? `.${parts[parts.length - 1]}` : ".com";
+  }))].sort();
+
+  // Apply filters
+  const filteredResults = results.filter(r => {
+    if (r.flipScore < minFlipScore) return false;
+    if (tldFilter !== "all") {
+      const tld = r.domain.split(".").length > 1 ? `.${r.domain.split(".").pop()}` : ".com";
+      if (tld !== tldFilter) return false;
+    }
+    if (tmRiskFilter !== "all" && r.trademark.riskLevel !== tmRiskFilter) return false;
+    return true;
+  });
 
   const parseDomains = (raw: string) =>
     raw
@@ -190,15 +223,16 @@ export function BulkPronounceabilityChecker() {
     URL.revokeObjectURL(url);
   };
 
-  // Portfolio stats
-  const portfolioStats = results.length > 0 ? {
-    avgFlip: Math.round(results.reduce((s, r) => s + r.flipScore, 0) / results.length),
-    avgBrand: Math.round(results.reduce((s, r) => s + r.brandabilityScore, 0) / results.length),
-    avgPronounce: Math.round(results.reduce((s, r) => s + r.result.score, 0) / results.length),
-    avgDemand: Math.round(results.reduce((s, r) => s + r.demandScore, 0) / results.length),
-    totalValueMin: results.reduce((s, r) => s + r.valuationMin, 0),
-    totalValueMax: results.reduce((s, r) => s + r.valuationMax, 0),
-    topDomain: results.reduce((best, r) => r.flipScore > best.flipScore ? r : best, results[0]),
+  // Portfolio stats (based on filtered results)
+  const statsSource = filteredResults;
+  const portfolioStats = statsSource.length > 0 ? {
+    avgFlip: Math.round(statsSource.reduce((s, r) => s + r.flipScore, 0) / statsSource.length),
+    avgBrand: Math.round(statsSource.reduce((s, r) => s + r.brandabilityScore, 0) / statsSource.length),
+    avgPronounce: Math.round(statsSource.reduce((s, r) => s + r.result.score, 0) / statsSource.length),
+    avgDemand: Math.round(statsSource.reduce((s, r) => s + r.demandScore, 0) / statsSource.length),
+    totalValueMin: statsSource.reduce((s, r) => s + r.valuationMin, 0),
+    totalValueMax: statsSource.reduce((s, r) => s + r.valuationMax, 0),
+    topDomain: statsSource.reduce((best, r) => r.flipScore > best.flipScore ? r : best, statsSource[0]),
   } : null;
 
   const gradeColor = (grade: string) => {
@@ -310,7 +344,62 @@ export function BulkPronounceabilityChecker() {
         )}
 
         {results.length > 0 && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in space-y-3">
+            {/* Inline Filters */}
+            <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                <Filter className="w-3.5 h-3.5" />
+                Filters
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Min Flip Score: {minFlipScore}</label>
+                <Slider
+                  value={[minFlipScore]}
+                  onValueChange={([v]) => setMinFlipScore(v)}
+                  max={100}
+                  step={5}
+                  className="w-32"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">TLD</label>
+                <Select value={tldFilter} onValueChange={setTldFilter}>
+                  <SelectTrigger className="h-8 w-28 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All TLDs</SelectItem>
+                    {uniqueTlds.map(tld => (
+                      <SelectItem key={tld} value={tld}>{tld}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">TM Risk</label>
+                <Select value={tmRiskFilter} onValueChange={setTmRiskFilter}>
+                  <SelectTrigger className="h-8 w-28 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    <SelectItem value="none">Safe</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {filtersActive && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs gap-1">
+                  <X className="w-3 h-3" /> Clear
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {filteredResults.length}/{results.length} shown
+              </span>
+            </div>
+
             <div className="rounded-lg border border-border overflow-x-auto touch-pan-x overscroll-x-contain -mx-4 px-4 sm:mx-0 sm:px-0">
               <Table>
                 <TableHeader>
@@ -361,7 +450,7 @@ export function BulkPronounceabilityChecker() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {results.map((r, i) => {
+                  {filteredResults.map((r, i) => {
                     const tmDisplay = getTrademarkRiskDisplay(r.trademark.riskLevel);
                     return (
                       <TableRow key={i}>
