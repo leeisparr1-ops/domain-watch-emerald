@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle } from "lucide-react";
 import { scorePronounceability, countSyllables, type PronounceabilityResult } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { quickValuation } from "@/lib/domainValuation";
@@ -155,7 +155,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => [
       r.domain,
       r.flipScore,
@@ -219,6 +219,10 @@ export function BulkPronounceabilityChecker() {
         <CardDescription>
           Paste up to 50 domains or upload a CSV/TXT file. Get pronounceability, brandability, keyword demand, estimated value, and trademark risk — with portfolio stats and CSV export.
         </CardDescription>
+        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+          <AlertTriangle className="w-3 h-3 shrink-0" />
+          Valuations shown here are fast algorithmic estimates. For AI-powered appraisals, use the AI Advisor tab — those results will differ.
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <Textarea
@@ -333,9 +337,16 @@ export function BulkPronounceabilityChecker() {
                       </span>
                     </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
-                      <span className="inline-flex items-center gap-1">
-                        Value <ArrowUpDown className="w-3 h-3" />
-                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 cursor-help">
+                            Algo Est. <ArrowUpDown className="w-3 h-3" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs max-w-[200px]">Fast algorithmic estimate. Use AI Advisor for more accurate appraisals.</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableHead>
                     <TableHead className="text-center">TM</TableHead>
                   </TableRow>
@@ -415,7 +426,7 @@ export function BulkPronounceabilityChecker() {
               </Table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Sorted by {sortField === "flip" ? "flip score" : sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : sortField === "seo" ? "SEO volume" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
+              Sorted by {sortField === "flip" ? "flip score" : sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : sortField === "seo" ? "SEO volume" : "algo estimate"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort. Values are algorithmic estimates — use AI Advisor for precise appraisals.
             </p>
           </div>
         )}
