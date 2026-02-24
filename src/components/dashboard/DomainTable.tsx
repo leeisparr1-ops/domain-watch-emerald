@@ -14,7 +14,9 @@ import {
   Award,
   Mic,
   Shield,
+  Sparkles,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -255,6 +257,7 @@ export function DomainTable({
   highlightedIndex = -1,
 }: DomainTableProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const navigate = useNavigate();
 
   if (domains.length === 0) {
     return null;
@@ -286,7 +289,12 @@ export function DomainTable({
                 onSort={onSortChange}
               />
               <TableHead className="whitespace-nowrap">Bids</TableHead>
-              
+              <SortableHeader 
+                column="valuation" 
+                label="Valuation" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
@@ -386,6 +394,47 @@ export function DomainTable({
                       {d.numberOfBids}
                     </TableCell>
 
+                    {/* Valuation */}
+                    <TableCell className="py-2">
+                      {d.valuation && d.valuation > 0 ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold text-sm text-foreground">
+                              ${d.valuation.toLocaleString()}
+                            </span>
+                            {valueIndicator && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <valueIndicator.icon className={cn("w-3.5 h-3.5", valueIndicator.color)} />
+                                </TooltipTrigger>
+                                <TooltipContent side="top"><p>{valueIndicator.label} valuation</p></TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                          <button
+                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 w-fit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/tools?domain=${encodeURIComponent(d.domain)}`);
+                            }}
+                          >
+                            <Sparkles className="w-2.5 h-2.5" />
+                            AI Advisor
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/tools?domain=${encodeURIComponent(d.domain)}`);
+                          }}
+                        >
+                          <Sparkles className="w-2.5 h-2.5" />
+                          Get valuation
+                        </button>
+                      )}
+                    </TableCell>
 
                     {/* Age */}
                     <TableCell className="py-2 text-sm">

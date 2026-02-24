@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useCallback } from "react";
-import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield } from "lucide-react";
+import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,6 +85,7 @@ function getDomainWithoutTld(domain: string): string {
 
 export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSheetProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const navigate = useNavigate();
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
   useBackClose(open, handleClose);
   
@@ -197,7 +199,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
             </SheetDescription>
           </SheetHeader>
 
-        {/* Price highlight section */}
+        {/* Price & Valuation highlight section */}
         <div className="py-6 border-b border-border">
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
@@ -209,7 +211,41 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
                 {domain.numberOfBids} bid{domain.numberOfBids !== 1 ? "s" : ""}
               </div>
             </div>
+            <div className="p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="text-sm text-muted-foreground mb-1">Our Valuation</div>
+              {domain.valuation && domain.valuation > 0 ? (
+                <>
+                  <div className="text-2xl font-bold text-foreground">
+                    ${domain.valuation.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {domain.valuation > domain.price ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {Math.round(((domain.valuation - domain.price) / domain.valuation) * 100)}% below valuation
+                      </span>
+                    ) : (
+                      <span className="text-orange-500 font-medium">
+                        {Math.round(((domain.price - domain.valuation) / domain.valuation) * 100)}% above valuation
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground mt-2">Not yet valued</div>
+              )}
+            </div>
           </div>
+          <Button
+            variant="outline"
+            className="w-full mt-3 gap-2 text-primary border-primary/30 hover:bg-primary/10"
+            onClick={() => {
+              onOpenChange(false);
+              navigate(`/tools?domain=${encodeURIComponent(domain.domain)}`);
+            }}
+          >
+            <Sparkles className="w-4 h-4" />
+            Deep Analysis with AI Domain Advisor
+          </Button>
         </div>
 
         {/* Stats table */}
