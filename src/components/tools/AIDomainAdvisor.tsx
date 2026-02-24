@@ -9,6 +9,7 @@ import {
   BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock,
   Users, ThumbsUp, ThumbsDown, BarChart3, Flame, Send, MessageSquare,
   Award, Mic, Sparkles, Globe2, ArrowRight, CheckCircle2, AlertTriangle, HelpCircle,
+  Share2, Link as LinkIcon, Copy,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -343,6 +344,50 @@ export function AIDomainAdvisor() {
 
         {analysis && (
           <div className="space-y-5 animate-fade-in">
+            {/* Share Buttons */}
+            <div className="flex items-center gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => {
+                  const url = `${window.location.origin}/tools?tab=advisor&domain=${encodeURIComponent(analyzedDomain || "")}`;
+                  navigator.clipboard.writeText(url);
+                  toast({ title: "Link copied!", description: "Domain link copied to clipboard." });
+                }}
+              >
+                <LinkIcon className="w-3.5 h-3.5" /> Copy Link
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                      toast({ title: "Sign in required", description: "Log in to save shareable reports.", variant: "destructive" });
+                      return;
+                    }
+                    const { data, error } = await supabase.from("shared_reports").insert({
+                      domain_name: analyzedDomain || "",
+                      analysis: analysis as any,
+                      pre_scores: preScores as any,
+                      created_by: session.user.id,
+                    }).select("id").single();
+                    if (error) throw error;
+                    const shareUrl = `${window.location.origin}/report/${data.id}`;
+                    await navigator.clipboard.writeText(shareUrl);
+                    toast({ title: "Report shared!", description: "Shareable link copied to clipboard. Valid for 90 days." });
+                  } catch (e: any) {
+                    toast({ title: "Share failed", description: e.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <Share2 className="w-3.5 h-3.5" /> Share Report
+              </Button>
+            </div>
+
             {/* Verdict + Confidence + Summary */}
             <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-card">
               <div className="flex flex-col gap-1.5 shrink-0">

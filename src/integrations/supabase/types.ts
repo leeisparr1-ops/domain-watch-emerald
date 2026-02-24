@@ -391,6 +391,36 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_reports: {
+        Row: {
+          analysis: Json
+          created_at: string
+          created_by: string | null
+          domain_name: string
+          expires_at: string | null
+          id: string
+          pre_scores: Json | null
+        }
+        Insert: {
+          analysis: Json
+          created_at?: string
+          created_by?: string | null
+          domain_name: string
+          expires_at?: string | null
+          id?: string
+          pre_scores?: Json | null
+        }
+        Update: {
+          analysis?: Json
+          created_at?: string
+          created_by?: string | null
+          domain_name?: string
+          expires_at?: string | null
+          id?: string
+          pre_scores?: Json | null
+        }
+        Relationships: []
+      }
       sync_control: {
         Row: {
           id: number
