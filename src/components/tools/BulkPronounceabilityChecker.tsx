@@ -17,6 +17,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/** Composite flip score: weighted blend of all signals into 1-100 */
+function computeFlipScore(
+  brandability: number,
+  demand: number,
+  valuationScore: number,
+  pronounceability: number,
+  tmRisk: "none" | "low" | "medium" | "high",
+  seoVolume: number,
+): number {
+  // Weights: brand 25%, demand 25%, valuation 20%, pronounce 15%, SEO 10%, TM penalty 5%
+  const tmPenalty = tmRisk === "high" ? 0 : tmRisk === "medium" ? 40 : tmRisk === "low" ? 75 : 100;
+  const seoNorm = Math.min(100, Math.round(Math.log10(Math.max(seoVolume, 1) + 1) * 20));
+  const raw =
+    brandability * 0.25 +
+    demand * 0.25 +
+    valuationScore * 0.20 +
+    pronounceability * 0.15 +
+    seoNorm * 0.10 +
+    tmPenalty * 0.05;
+  return Math.max(1, Math.min(100, Math.round(raw)));
+}
+
 interface BulkResult {
   domain: string;
   result: PronounceabilityResult;
@@ -31,9 +53,10 @@ interface BulkResult {
   demandLabel: string;
   seoVolume: number;
   seoVolumeLabel: string;
+  flipScore: number;
 }
 
-type SortField = "score" | "valuation" | "brand" | "demand" | "seo";
+type SortField = "flip" | "score" | "valuation" | "brand" | "demand" | "seo";
 
 export function BulkPronounceabilityChecker() {
   const [text, setText] = useState("");
@@ -58,6 +81,10 @@ export function BulkPronounceabilityChecker() {
       const brandabilityScore = scoreBrandability(domain).overall;
       const demand = scoreKeywordDemand(domain);
       const seo = estimateSEOVolume(domain);
+      const flipScore = computeFlipScore(
+        brandabilityScore, demand.score, val.score, result.score,
+        trademark.riskLevel, seo.estimatedMonthlySearches,
+      );
       return {
         domain,
         result,
@@ -72,12 +99,13 @@ export function BulkPronounceabilityChecker() {
         demandLabel: demand.label,
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
+        flipScore,
       };
     });
-    scored.sort((a, b) => b.result.score - a.result.score);
+    scored.sort((a, b) => b.flipScore - a.flipScore);
     setResults(scored);
     setSortAsc(false);
-    setSortField("score");
+    setSortField("flip");
   };
 
   const handleCheck = () => {
@@ -104,6 +132,7 @@ export function BulkPronounceabilityChecker() {
 
   const sortFn = (field: SortField) => (a: BulkResult, b: BulkResult) => {
     switch (field) {
+      case "flip": return b.flipScore - a.flipScore;
       case "score": return b.result.score - a.result.score;
       case "brand": return b.brandabilityScore - a.brandabilityScore;
       case "valuation": return b.valuationScore - a.valuationScore;
@@ -126,9 +155,10 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => [
       r.domain,
+      r.flipScore,
       r.result.score,
       r.result.grade,
       r.brandabilityScore,
@@ -154,12 +184,13 @@ export function BulkPronounceabilityChecker() {
 
   // Portfolio stats
   const portfolioStats = results.length > 0 ? {
+    avgFlip: Math.round(results.reduce((s, r) => s + r.flipScore, 0) / results.length),
     avgBrand: Math.round(results.reduce((s, r) => s + r.brandabilityScore, 0) / results.length),
     avgPronounce: Math.round(results.reduce((s, r) => s + r.result.score, 0) / results.length),
     avgDemand: Math.round(results.reduce((s, r) => s + r.demandScore, 0) / results.length),
     totalValueMin: results.reduce((s, r) => s + r.valuationMin, 0),
     totalValueMax: results.reduce((s, r) => s + r.valuationMax, 0),
-    topDomain: results.reduce((best, r) => r.valuationScore > best.valuationScore ? r : best, results[0]),
+    topDomain: results.reduce((best, r) => r.flipScore > best.flipScore ? r : best, results[0]),
   } : null;
 
   const gradeColor = (grade: string) => {
@@ -227,7 +258,13 @@ export function BulkPronounceabilityChecker() {
                 Export CSV
               </Button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
+                <p className="text-xs text-muted-foreground">Avg Flip Score</p>
+                <p className={`text-lg font-bold ${portfolioStats.avgFlip >= 65 ? "text-emerald-600 dark:text-emerald-400" : portfolioStats.avgFlip >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>
+                  {portfolioStats.avgFlip}
+                </p>
+              </div>
               <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
                 <p className="text-xs text-muted-foreground">Total Est. Value</p>
                 <p className="text-sm font-bold text-foreground">
@@ -253,7 +290,7 @@ export function BulkPronounceabilityChecker() {
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 text-center">
-                <p className="text-xs text-muted-foreground">Top Domain</p>
+                <p className="text-xs text-muted-foreground">Best Flip</p>
                 <p className="text-sm font-bold text-primary truncate">{portfolioStats.topDomain.domain}</p>
               </div>
             </div>
@@ -268,6 +305,11 @@ export function BulkPronounceabilityChecker() {
                   <TableRow>
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>Domain</TableHead>
+                    <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("flip")}>
+                      <span className="inline-flex items-center gap-1">
+                        <Award className="w-3 h-3" /> Flip <ArrowUpDown className="w-3 h-3" />
+                      </span>
+                    </TableHead>
                     <TableHead className="text-center">Syl</TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("score")}>
                       <span className="inline-flex items-center gap-1">
@@ -305,6 +347,11 @@ export function BulkPronounceabilityChecker() {
                       <TableRow key={i}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                         <TableCell className="font-medium text-foreground">{r.domain}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={`text-sm font-bold ${r.flipScore >= 75 ? "text-emerald-600 dark:text-emerald-400" : r.flipScore >= 50 ? "text-blue-600 dark:text-blue-400" : r.flipScore >= 30 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                            {r.flipScore}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-center text-muted-foreground">{r.syllables}</TableCell>
                         <TableCell className="text-center font-semibold text-foreground">{r.result.score}</TableCell>
                         <TableCell className="text-center">
@@ -368,7 +415,7 @@ export function BulkPronounceabilityChecker() {
               </Table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Sorted by {sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : sortField === "seo" ? "SEO volume" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
+              Sorted by {sortField === "flip" ? "flip score" : sortField === "score" ? "pronounceability" : sortField === "brand" ? "brandability" : sortField === "demand" ? "keyword demand" : sortField === "seo" ? "SEO volume" : "estimated value"} ({sortAsc ? "asc" : "desc"}). Click headers to re-sort.
             </p>
           </div>
         )}
