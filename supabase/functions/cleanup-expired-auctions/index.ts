@@ -53,6 +53,57 @@ Deno.serve(async (req) => {
     let totalDeleted = 0;
     let batchCount = 0;
     let consecutiveErrors = 0;
+    let harvestedCount = 0;
+
+    // ------- Harvest top sales before cleanup -------
+    // Capture the highest-priced expiring auctions as wholesale comparable sales
+    async function harvestTopSales(filter: { source?: string; staleCutoff?: string; endTimeCutoff?: string }) {
+      try {
+        let query = supabase
+          .from("auctions")
+          .select("domain_name, price, end_time, tld, inventory_source")
+          .gt("price", 50) // Only meaningful sales
+          .order("price", { ascending: false })
+          .limit(100);
+
+        if (filter.source && filter.staleCutoff) {
+          query = query.eq("inventory_source", filter.source).lt("updated_at", filter.staleCutoff);
+        } else if (filter.endTimeCutoff) {
+          query = query.lt("end_time", filter.endTimeCutoff).neq("inventory_source", "namecheap");
+        }
+
+        const { data: topAuctions, error: selectErr } = await query;
+        if (selectErr || !topAuctions?.length) {
+          console.log("No high-value auctions to harvest:", selectErr?.message || "0 results");
+          return 0;
+        }
+
+        const salesToInsert = topAuctions.map((a) => ({
+          domain_name: a.domain_name,
+          sale_price: a.price,
+          sale_date: a.end_time ? new Date(a.end_time).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          tld: a.tld,
+          venue: `Wholesale - ${a.inventory_source === "namecheap" ? "Namecheap" : "GoDaddy"}`,
+          notes: `Auto-harvested from expired auction. Final bid price.`,
+        }));
+
+        // Upsert to avoid duplicates (same domain + same sale_date)
+        const { error: insertErr } = await supabase
+          .from("comparable_sales")
+          .upsert(salesToInsert, { onConflict: "domain_name", ignoreDuplicates: true });
+
+        if (insertErr) {
+          console.error("Error harvesting sales:", insertErr);
+          return 0;
+        }
+
+        console.log(`Harvested ${salesToInsert.length} top sales into comparable_sales`);
+        return salesToInsert.length;
+      } catch (e) {
+        console.error("Harvest error:", e);
+        return 0;
+      }
+    }
 
     // ------- Mode 1: Source-aware stale cleanup (by updated_at) -------
     if (source) {
@@ -63,6 +114,9 @@ Deno.serve(async (req) => {
       console.log(
         `Source cleanup: deleting '${source}' auctions not updated since ${staleCutoffISO} (${staleDays} days)`
       );
+
+      // Harvest top sales before deleting
+      harvestedCount = await harvestTopSales({ source, staleCutoff: staleCutoffISO });
 
       while (batchCount < maxBatches && consecutiveErrors < 3) {
         const { data: staleAuctions, error: selectError } = await supabase
@@ -116,11 +170,12 @@ Deno.serve(async (req) => {
       const result = {
         success: true,
         deleted: totalDeleted,
+        harvested: harvestedCount,
         batches: batchCount,
         durationMs,
         source,
         staleDays,
-        message: `Deleted ${totalDeleted} stale '${source}' auctions in ${batchCount} batches`,
+        message: `Harvested ${harvestedCount} top sales, deleted ${totalDeleted} stale '${source}' auctions`,
       };
       console.log("Source cleanup complete:", result);
       return new Response(JSON.stringify(result), {
@@ -136,6 +191,9 @@ Deno.serve(async (req) => {
     console.log(
       `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago) — excluding namecheap`
     );
+
+    // Harvest top sales before deleting
+    harvestedCount = await harvestTopSales({ endTimeCutoff: cutoffISO });
 
     while (batchCount < maxBatches && consecutiveErrors < 3) {
       // First try RPC-based batch delete (faster if available)
@@ -229,10 +287,11 @@ Deno.serve(async (req) => {
     const result = {
       success: true,
       deleted: totalDeleted,
+      harvested: harvestedCount,
       batches: batchCount,
       durationMs,
       cutoffDate: cutoffISO,
-      message: `Deleted ${totalDeleted} expired auctions in ${batchCount} batches`,
+      message: `Harvested ${harvestedCount} top sales, deleted ${totalDeleted} expired auctions`,
     };
 
     console.log("Cleanup complete:", result);
