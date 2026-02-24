@@ -158,22 +158,28 @@ export function BulkPronounceabilityChecker() {
   const handleExportCSV = () => {
     if (!results.length) return;
     const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
-    const rows = results.map(r => [
-      r.domain,
-      r.flipScore,
-      r.result.score,
-      r.result.grade,
-      r.brandabilityScore,
-      r.demandScore,
-      r.demandLabel.replace(/[🔥📈⬆️➡️↘️⬇️⛔]/g, "").trim(),
-      r.seoVolume,
-      r.seoVolumeLabel,
-      r.valuationBand,
-      r.valuationScore,
-      r.syllables,
-      getTrademarkRiskDisplay(r.trademark.riskLevel).label,
-      `"${r.trademark.summary.replace(/"/g, '""')}"`,
-    ]);
+    const rows = results.map(r => {
+      const escapeCsv = (v: string | number) => {
+        const s = String(v);
+        return s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      return [
+        escapeCsv(r.domain),
+        r.flipScore,
+        r.result.score,
+        r.result.grade,
+        r.brandabilityScore,
+        r.demandScore,
+        escapeCsv(r.demandLabel.replace(/[🔥📈⬆️➡️↘️⬇️⛔]/g, "").trim()),
+        r.seoVolume,
+        escapeCsv(r.seoVolumeLabel),
+        escapeCsv(r.valuationBand),
+        r.valuationScore,
+        r.syllables,
+        escapeCsv(getTrademarkRiskDisplay(r.trademark.riskLevel).label),
+        escapeCsv(r.trademark.summary),
+      ];
+    });
     const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -305,7 +311,7 @@ export function BulkPronounceabilityChecker() {
 
         {results.length > 0 && (
           <div className="animate-fade-in">
-            <div className="rounded-lg border border-border overflow-auto">
+            <div className="rounded-lg border border-border overflow-x-auto touch-pan-x overscroll-x-contain -mx-4 px-4 sm:mx-0 sm:px-0">
               <Table>
                 <TableHeader>
                   <TableRow>
