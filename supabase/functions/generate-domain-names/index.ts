@@ -113,6 +113,8 @@ Rules:
 - Easy to spell and type
 - No hyphens or numbers
 - Return ONLY the name part WITHOUT any TLD (e.g. "Zolva" not "Zolva.com")
+- CRITICAL: ALL names MUST be in English using ONLY ASCII Latin characters (a-z). Do NOT output names in Japanese, Chinese, Korean, Cyrillic, Arabic, or ANY non-Latin script. No Unicode characters beyond basic ASCII.
+- CRITICAL: Names must be AVAILABLE FOR HAND REGISTRATION. This means they must NOT be existing registered domains. Prioritize truly novel invented words that nobody has thought of before. Avoid any name that sounds like it could already be a company or product.
 
 CRITICAL RELEVANCE RULES:
 - EVERY name MUST be directly relevant to the user's keywords and industry. This is the #1 rule.
@@ -257,12 +259,14 @@ Analyze their naming patterns (length, style, word types, phonetics) and generat
     const batchResults = await Promise.all(batchPromises);
     
     // Combine and deduplicate by lowercase name
+    // Filter: only ASCII Latin names (strip any non-English results the AI might produce)
+    const asciiOnly = /^[a-zA-Z]+$/;
     const seen = new Set<string>();
     const allSuggestions: any[] = [];
     for (const batch of batchResults) {
       for (const s of batch) {
         const key = s.name.toLowerCase();
-        if (!seen.has(key) && s.name.length > 0) {
+        if (!seen.has(key) && s.name.length > 0 && asciiOnly.test(s.name)) {
           seen.add(key);
           allSuggestions.push(s);
         }
