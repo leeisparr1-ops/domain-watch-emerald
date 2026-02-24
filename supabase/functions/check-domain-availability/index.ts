@@ -10,14 +10,16 @@ interface DomainCheck {
   available: boolean | null;
   status: "available" | "registered" | "unknown";
   method: "rdap" | "dns";
+  verified?: boolean; // true if re-verified
 }
 
 // RDAP endpoints per TLD — these are AUTHORITATIVE registry lookups
 const RDAP_ENDPOINTS: Record<string, string> = {
   ".com": "https://rdap.verisign.com/com/v1/domain/",
   ".net": "https://rdap.verisign.com/net/v1/domain/",
-  ".org": "https://rdap.org/domain/",
+  ".org": "https://rdap.publicinterestregistry.org/rdap/domain/",
   ".io":  "https://rdap.nic.io/domain/",
+  ".ai":  "https://rdap.nic.ai/domain/",
   ".co":  "https://rdap.nic.co/domain/",
   ".app": "https://rdap.nic.google/domain/",
   ".dev": "https://rdap.nic.google/domain/",
@@ -40,9 +42,15 @@ async function checkRDAP(domain: string, tld: string): Promise<DomainCheck> {
     });
     clearTimeout(timeout);
 
-    if (resp.status === 404 || resp.status === 400) {
+    if (resp.status === 404) {
       // 404 = domain not found in registry = AVAILABLE
       return { domain, available: true, status: "available", method: "rdap" };
+    }
+
+    // IMPORTANT: 400 = bad request, NOT "available". Treat as unknown.
+    if (resp.status === 400) {
+      console.warn(`RDAP returned 400 for ${domain} — treating as unknown, falling back to DNS`);
+      return checkDNS(domain);
     }
 
     if (resp.status === 200) {
@@ -122,6 +130,75 @@ async function checkDomain(domain: string): Promise<DomainCheck> {
   return checkRDAP(domain, tld);
 }
 
+// Re-verify domains that were marked available via DNS fallback
+// DNS can give false positives, so we do a second check with RDAP on a different endpoint
+async function reVerifyAvailable(results: DomainCheck[]): Promise<DomainCheck[]> {
+  const toReVerify = results.filter(
+    (r) => r.status === "available" && r.method === "dns"
+  );
+
+  if (toReVerify.length === 0) return results;
+
+  console.log(`Re-verifying ${toReVerify.length} DNS-based "available" results...`);
+
+  const reVerified = new Map<string, DomainCheck>();
+
+  // Re-check via a second DNS query with SOA record type (more definitive)
+  for (let i = 0; i < toReVerify.length; i += 10) {
+    const batch = toReVerify.slice(i, i + 10);
+    const checks = batch.map(async (r) => {
+      try {
+        const resp = await fetch(
+          `https://dns.google/resolve?name=${encodeURIComponent(r.domain)}&type=SOA`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!resp.ok) return;
+        const data = await resp.json();
+        
+        // If SOA returns records or NOERROR with authority, domain likely exists
+        if (data.Status === 0 && (data.Answer?.length > 0 || data.Authority?.length > 0)) {
+          // Check if authority section shows the domain's own SOA (registered) 
+          // vs parent zone SOA (not registered)
+          const domainBase = r.domain.split(".").slice(-2).join(".");
+          const hasOwnSOA = data.Answer?.some((a: any) => 
+            a.name?.toLowerCase() === r.domain.toLowerCase()
+          ) || data.Authority?.some((a: any) => 
+            a.name?.toLowerCase() === r.domain.toLowerCase()
+          );
+          
+          if (hasOwnSOA) {
+            reVerified.set(r.domain, {
+              ...r,
+              available: false,
+              status: "registered",
+              verified: true,
+            });
+          }
+        }
+        // NXDOMAIN on SOA confirms it's truly available
+        if (data.Status === 3) {
+          reVerified.set(r.domain, { ...r, verified: true });
+        }
+      } catch {
+        // If re-verify fails, mark as unknown to be safe
+        reVerified.set(r.domain, {
+          ...r,
+          available: null,
+          status: "unknown",
+          verified: true,
+        });
+      }
+    });
+    await Promise.all(checks);
+    if (i + 10 < toReVerify.length) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  // Merge re-verified results
+  return results.map((r) => reVerified.get(r.domain) || r);
+}
+
 // Process domains in batches with concurrency control
 async function checkBatch(domains: string[], batchSize = 15): Promise<DomainCheck[]> {
   const results: DomainCheck[] = [];
@@ -148,13 +225,17 @@ serve(async (req) => {
 
     // Allow up to 800 checks per request
     const toCheck = domains.slice(0, 800);
-    console.log(`Checking ${toCheck.length} domains (RDAP-first for .com/.net/.org/.io/.co/.app/.dev)`);
-    const results = await checkBatch(toCheck);
+    console.log(`Checking ${toCheck.length} domains (RDAP-first for .com/.net/.org/.io/.ai/.co/.app/.dev)`);
+    let results = await checkBatch(toCheck);
+
+    // Re-verify any DNS-based "available" results to catch false positives
+    results = await reVerifyAvailable(results);
 
     const rdapCount = results.filter(r => r.method === "rdap").length;
     const dnsCount = results.filter(r => r.method === "dns").length;
     const availCount = results.filter(r => r.status === "available").length;
-    console.log(`Results: ${availCount} available, ${rdapCount} via RDAP, ${dnsCount} via DNS fallback`);
+    const reVerifiedCount = results.filter(r => r.verified).length;
+    console.log(`Results: ${availCount} available, ${rdapCount} via RDAP, ${dnsCount} via DNS, ${reVerifiedCount} re-verified`);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

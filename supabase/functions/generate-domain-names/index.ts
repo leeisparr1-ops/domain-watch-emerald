@@ -121,12 +121,15 @@ CRITICAL RELEVANCE RULES:
 - Do NOT generate generic cool-sounding names that have no connection to the user's topic.
 - Use the user's keywords, synonyms, or root morphemes in every name.
 
-CRITICAL AVAILABILITY RULES:
+CRITICAL AVAILABILITY RULES (THIS IS ESSENTIAL — users rely on these being ACTUALLY registrable):
 - The #2 priority is that these names are ACTUALLY AVAILABLE to register as .com domains.
-- DO NOT suggest names that are obviously common words (e.g. "Speed", "Cash", "Deep") — these .coms are ALL taken.
-- DO NOT suggest names that sound like existing companies (e.g. "Vercel", "Stripe", "Notion").
-- INVENT new combinations using the user's niche vocabulary. Use unusual letter combos, rare word pairings, made-up portmanteaus.
-- Examples of GOOD relevant names for "robotics": "Robivex", "BotForj", "Mechyra", "AutoNyx", "Geariqo"
+- DO NOT suggest ANY real English dictionary word as a standalone name — ALL single-word .coms are taken (e.g. "Speed", "Cash", "Deep", "Core", "Flux", "Pulse", "Signal", "Grid", "Forge", "Mint", "Prime", "Vault").
+- DO NOT suggest names that sound like existing companies or startups (e.g. "Vercel", "Stripe", "Notion", "Figma").
+- DO NOT suggest two common words combined if both are everyday words (e.g. "CloudStack", "DataPulse", "SmartGrid" — these are ALL taken).
+- INSTEAD: INVENT genuinely novel combinations. Use misspellings, letter swaps, rare suffixes (-yra, -vex, -iqo, -nyx, -ova, -ari), phonetic blends, and portmanteaus that don't exist yet.
+- Add at least one unusual element: a rare consonant cluster, a vowel swap, a truncation, or a suffix from another language.
+- Examples of GOOD names (likely available): "Robivex", "BotForj", "Mechyra", "AutoNyx", "Geariqo", "Fintara", "Cashlynk", "Payvora"
+- Examples of BAD names (definitely taken): "CloudForge", "DataPulse", "SmartCore", "DeepStack", "FluxPay", "PrimeVault"
 - Examples of BAD irrelevant names for "robotics": "Zyndra", "Quorbit", "PulseForj" (no robotics connection)
 
 - Generate exactly 40 unique names. ${batchAngle}
