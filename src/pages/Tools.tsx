@@ -4,13 +4,14 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit } from "lucide-react";
+import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit, Combine } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
 import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
 import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
+import { CompoundGenerator } from "@/components/tools/CompoundGenerator";
 
 const Tools = () => {
   const [searchParams] = useSearchParams();
@@ -41,11 +42,16 @@ const Tools = () => {
 
 
             <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 mb-6 h-auto">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6 h-auto">
                 <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <BrainCircuit className="w-4 h-4" />
                   <span className="hidden sm:inline">AI Advisor</span>
                   <span className="sm:hidden">Advisor</span>
+                </TabsTrigger>
+                <TabsTrigger value="compound" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <Combine className="w-4 h-4" />
+                  <span className="hidden sm:inline">Compound</span>
+                  <span className="sm:hidden">Compound</span>
                 </TabsTrigger>
                 <TabsTrigger value="brandability" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Award className="w-4 h-4" />
@@ -76,6 +82,9 @@ const Tools = () => {
 
               <TabsContent value="advisor">
                 <AIDomainAdvisor />
+              </TabsContent>
+              <TabsContent value="compound">
+                <CompoundGenerator />
               </TabsContent>
               <TabsContent value="brandability">
                 <div className="flex justify-end mb-2">
