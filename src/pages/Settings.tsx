@@ -18,7 +18,6 @@ export default function Settings() {
   const { plan, subscribed, subscriptionEnd, loading: subLoading, checkSubscription, openCustomerPortal } = useSubscription();
   const [resending, setResending] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [searchParams] = useSearchParams();
   
   // Password change state
@@ -37,11 +36,6 @@ export default function Settings() {
     }
   }, [searchParams, checkSubscription]);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data));
-  }, [user]);
   
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-primary">Loading...</div></div>;
   if (!user) return <Navigate to="/login" />;
