@@ -92,10 +92,11 @@ export function ToolsShowcase() {
         <div className="text-center">
           <Link to="/signup">
             <Button variant="hero" size="lg">
-              Try All Tools Free
+              Sign Up to Use Tools
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
+          <p className="text-xs text-muted-foreground mt-3">Free account required to access tools</p>
         </div>
       </div>
     </section>
