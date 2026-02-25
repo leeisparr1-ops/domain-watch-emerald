@@ -445,6 +445,7 @@ CRITICAL COMPARABLE SELECTION RULE:
           },
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
+            temperature: 0,
             messages,
           }),
         }
@@ -504,6 +505,7 @@ Provide a COMPREHENSIVE investment analysis covering:
         },
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
+          temperature: 0,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
