@@ -140,7 +140,7 @@ export default function Help() {
     },
     {
       question: "Do I need an account to use the Tools?",
-      answer: "No — all analysis tools (Brandability Scorer, Pronounceability Checker, Bulk Checker, TLD Comparison, Domain Valuation) are free and don't require an account. The AI Name Generator and Portfolio Tracker require a free account."
+      answer: "Yes — all tools require a free account to protect against bot abuse. Sign up takes seconds, and you get full access to every tool: Brandability Scorer, Pronounceability Checker, Bulk Checker, TLD Comparison, Domain Valuation, AI Name Generator, and Portfolio Tracker."
     },
   ];
 

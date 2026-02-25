@@ -16,7 +16,7 @@ const Methodology = () => {
         <title>Our Valuation Methodology — How We Price Domains | ExpiredHawk</title>
         <meta
           name="description"
-          content="Learn how ExpiredHawk values domains using 2,100+ verified sales, AI-powered analysis, and multi-signal scoring across brandability, keyword demand, and TLD trends."
+          content="Learn how ExpiredHawk values domains using thousands of verified sales, AI-powered analysis, and multi-signal scoring across brandability, keyword demand, and TLD trends."
         />
         <link rel="canonical" href="https://expiredhawk.com/methodology" />
         <script type="application/ld+json">
@@ -25,7 +25,7 @@ const Methodology = () => {
             "@type": "Article",
             headline: "How ExpiredHawk Values Domains",
             description:
-              "A transparent look at our AI-powered domain valuation methodology, built on 2,100+ verified comparable sales.",
+              "A transparent look at our AI-powered domain valuation methodology, built on thousands of verified comparable sales.",
             author: {
               "@type": "Organization",
               name: "ExpiredHawk",
@@ -45,7 +45,7 @@ const Methodology = () => {
             <div className="max-w-3xl mx-auto text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
                 <Database className="w-4 h-4" />
-                2,100+ Verified Sales
+                Thousands of Verified Sales
               </div>
               <h1 className="text-4xl md:text-5xl font-bold mb-6">
                 How We Value{" "}
@@ -69,7 +69,7 @@ const Methodology = () => {
               </div>
               <p className="text-muted-foreground mb-6 leading-relaxed">
                 At the core of every estimate is our curated <strong>comparable sales database</strong> — 
-                over 2,100 verified domain transactions from 2020 to 2026, sourced from major auction 
+                thousands of verified domain transactions from 2020 to 2026, sourced from major auction 
                 platforms and verified marketplaces. This isn't scraped wholesale data; each record 
                 represents a completed sale with a confirmed price.
               </p>
@@ -77,7 +77,7 @@ const Methodology = () => {
               <div className="grid sm:grid-cols-3 gap-4 mb-8">
                 <Card className="border-border">
                   <CardContent className="p-5 text-center">
-                    <p className="text-3xl font-bold gradient-text mb-1">2,100+</p>
+                    <p className="text-3xl font-bold gradient-text mb-1">2,500+</p>
                     <p className="text-sm text-muted-foreground">Verified Sales</p>
                   </CardContent>
                 </Card>
@@ -269,9 +269,9 @@ const Methodology = () => {
                 Run a free analysis on any domain using our tools — powered by the methodology above.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link to="/tools">
+                <Link to="/signup">
                   <Button variant="hero" size="lg">
-                    Explore Free Tools
+                    Sign Up &amp; Try It Free
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
