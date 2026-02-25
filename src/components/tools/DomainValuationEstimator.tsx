@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
 import { scoreBrandability } from "@/lib/brandability";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
@@ -458,6 +459,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [aiEndUserValue, setAiEndUserValue] = useState<string | null>(null);
   const [aiAcquisitionPrice, setAiAcquisitionPrice] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [compAnchor, setCompAnchor] = useState<AnchoredValuation | null>(null);
 
   const fetchAiPricing = async (domainWithTld: string) => {
     setAiLoading(true);
@@ -505,12 +507,37 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     }
   };
 
+  const applyCompAnchoring = async (domainWithTld: string, baseResult: ValuationResult) => {
+    try {
+      const baseQuickVal = { band: baseResult.estimatedValue, score: baseResult.overallScore, valueMin: 0, valueMax: 0 };
+      // Parse min/max from estimatedValue string
+      const parts = baseResult.estimatedValue.match(/[\d,]+/g);
+      if (parts && parts.length >= 2) {
+        baseQuickVal.valueMin = parseInt(parts[0].replace(/,/g, ""));
+        baseQuickVal.valueMax = parseInt(parts[1].replace(/,/g, ""));
+      }
+      const anchored = await anchorWithComps(domainWithTld, baseQuickVal);
+      setCompAnchor(anchored);
+      if (anchored.compAnchored) {
+        setResult(prev => prev ? {
+          ...prev,
+          estimatedValue: anchored.band,
+        } : prev);
+      }
+    } catch {
+      // Silently fail — base valuation remains
+    }
+  };
+
   const handleEstimate = () => {
     if (!domain.trim()) return;
     const input = domain.trim().toLowerCase();
     const domainWithTld = input.includes(".") ? input : `${input}.com`;
-    setResult(estimateValue(domainWithTld, nicheOverride || undefined));
+    const baseResult = estimateValue(domainWithTld, nicheOverride || undefined);
+    setResult(baseResult);
+    setCompAnchor(null);
     fetchAiPricing(domainWithTld);
+    applyCompAnchoring(domainWithTld, baseResult);
   };
 
   // Auto-run if initialDomain is provided
@@ -518,8 +545,10 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     if (initialDomain) {
       const input = initialDomain.trim().toLowerCase();
       const domainWithTld = input.includes(".") ? input : `${input}.com`;
-      setResult(estimateValue(domainWithTld));
+      const baseResult = estimateValue(domainWithTld);
+      setResult(baseResult);
       fetchAiPricing(domainWithTld);
+      applyCompAnchoring(domainWithTld, baseResult);
     }
   }, [initialDomain]);
 
@@ -606,9 +635,23 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   <>
                     <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
-                    <Badge variant="outline" className={`text-xs mt-2 ${confidenceColor(result.confidence)}`}>
-                      {result.confidence} Confidence
-                    </Badge>
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <Badge variant="outline" className={`text-xs ${confidenceColor(result.confidence)}`}>
+                        {result.confidence} Confidence
+                      </Badge>
+                      {compAnchor?.compAnchored && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs bg-accent/50 text-accent-foreground border-accent">
+                              <Database className="w-3 h-3 mr-1" /> Comp-Anchored
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>Adjusted using {compAnchor.compCount} comparable sales (median ${compAnchor.compMedian?.toLocaleString()}). Adjustment: {compAnchor.anchorAdjustment}x</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

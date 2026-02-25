@@ -1351,7 +1351,7 @@ export function computeTrendScore(words: string[], tld: string, nicheOverride?: 
   return { score, label, niche };
 }
 
-const COMMON_WORDS = new Set([
+export const COMMON_WORDS = new Set([
   ...DICTIONARY_WORDS,
   ...PREMIUM_KEYWORDS,
   "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one",
