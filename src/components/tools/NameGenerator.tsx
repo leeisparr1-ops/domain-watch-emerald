@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+import { PREMIUM_KEYWORDS, TRENDING_KEYWORDS, splitIntoWords } from "@/lib/domainValuation";
 import {
   Tooltip,
   TooltipContent,
@@ -49,12 +50,73 @@ interface Suggestion {
 }
 
 type InputMode = "keywords" | "inspired" | "competitor";
-type SortOption = "synergy" | "trend" | "alpha" | "auction";
+type SortOption = "synergy" | "trend" | "alpha" | "auction" | "flip";
 
 // Default: .com only (verified via RDAP — authoritative registry lookup)
 // Extra TLDs also use RDAP where supported, DNS fallback otherwise
 const CORE_TLDS = [".com"];
 const EXTRA_TLDS = [".ai", ".io", ".net", ".co", ".app", ".dev", ".org"];
+
+// Premium suffixes ranked by aftermarket rarity/desirability
+const PREMIUM_SUFFIXES = new Set([
+  "vex", "nyx", "ova", "ara", "ium", "lex", "ion", "ify", "rix", "tron",
+  "zen", "lix", "ova", "eon", "ux", "ix", "ox", "ax", "ex",
+]);
+
+/** Compute aftermarket flip potential score (1–100) based on length, suffix rarity, and keyword demand */
+function computePremiumScore(name: string): { score: number; label: string; tier: "S" | "A" | "B" | "C" } {
+  const lower = name.toLowerCase();
+  let score = 0;
+
+  // 1. Length factor (max 40 pts) — shorter = more valuable
+  const len = lower.length;
+  if (len <= 3) score += 40;
+  else if (len <= 4) score += 36;
+  else if (len <= 5) score += 32;
+  else if (len <= 6) score += 26;
+  else if (len <= 7) score += 20;
+  else if (len <= 8) score += 14;
+  else if (len <= 10) score += 8;
+  else score += 3;
+
+  // 2. Suffix rarity (max 20 pts)
+  const last3 = lower.slice(-3);
+  const last2 = lower.slice(-2);
+  if (PREMIUM_SUFFIXES.has(last3)) score += 20;
+  else if (PREMIUM_SUFFIXES.has(last2)) score += 15;
+  else if (/[aeiou]$/.test(lower)) score += 8; // vowel ending = brandable
+  else score += 3;
+
+  // 3. Keyword demand (max 30 pts)
+  const words = splitIntoWords(lower).filter(w => w.length >= 2);
+  let bestMult = 0;
+  let premiumHits = 0;
+  for (const w of words) {
+    const m = TRENDING_KEYWORDS[w];
+    if (m && m > bestMult) bestMult = m;
+    if (PREMIUM_KEYWORDS.has(w)) premiumHits++;
+  }
+  if (bestMult >= 2.0) score += 30;
+  else if (bestMult >= 1.5) score += 22;
+  else if (bestMult >= 1.3) score += 14;
+  else if (premiumHits > 0) score += Math.min(20, premiumHits * 10);
+  else score += 2;
+
+  // 4. Bonus: single-word coined (max 10 pts)
+  if (words.length <= 1 && len <= 7) score += 10;
+  else if (words.length === 2 && len <= 8) score += 5;
+
+  const clamped = Math.max(1, Math.min(100, score));
+
+  let label: string;
+  let tier: "S" | "A" | "B" | "C";
+  if (clamped >= 80) { label = "💎 Elite Flip"; tier = "S"; }
+  else if (clamped >= 60) { label = "🔥 High Flip"; tier = "A"; }
+  else if (clamped >= 40) { label = "📈 Moderate"; tier = "B"; }
+  else { label = "➡️ Hold"; tier = "C"; }
+
+  return { score: clamped, label, tier };
+}
 
 interface SavedSession {
   id: string;
@@ -718,6 +780,9 @@ export function NameGenerator() {
 
           // Sort
           const sorted = [...filtered].sort((a, b) => {
+            if (sortBy === "flip") {
+              return computePremiumScore(b.name).score - computePremiumScore(a.name).score;
+            }
             if (sortBy === "auction") {
               const aHas = (a.auctionMatches?.length ?? 0) > 0 ? 1 : 0;
               const bHas = (b.auctionMatches?.length ?? 0) > 0 ? 1 : 0;
@@ -756,6 +821,7 @@ export function NameGenerator() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="flip">💎 Flip Score</SelectItem>
                         <SelectItem value="synergy">Synergy Score</SelectItem>
                         <SelectItem value="trend">Trend Score</SelectItem>
                         <SelectItem value="auction">Auction Matches</SelectItem>
@@ -834,6 +900,14 @@ export function NameGenerator() {
 
               {sorted.map((s, i) => {
                 const tmDisplay = s.trademarkRisk ? getTrademarkRiskDisplay(s.trademarkRisk.riskLevel) : null;
+                const premium = computePremiumScore(s.name);
+                const premiumColor = premium.tier === "S"
+                  ? "border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                  : premium.tier === "A"
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : premium.tier === "B"
+                  ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                  : "border-border text-muted-foreground";
                 return (
                   <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -842,6 +916,17 @@ export function NameGenerator() {
                         <span className="font-semibold text-foreground">{s.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className={`cursor-help ${premiumColor}`}>
+                              {premium.tier === "S" ? "💎" : premium.tier === "A" ? "🔥" : "📊"} Flip: {premium.score}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-medium">{premium.label}</p>
+                            <p className="text-xs mt-0.5">Aftermarket flip potential based on length ({s.name.length} chars), suffix rarity, and keyword demand</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <Badge variant="outline" className={scoreColor(s.score)}>
                           Synergy: {s.score}
                         </Badge>
