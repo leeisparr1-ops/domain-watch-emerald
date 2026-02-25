@@ -76,7 +76,7 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      const text = `ExpiredHawk Update - AI Domain Advisor & More\n\nHi there,\n\nWe have been working hard on some big upgrades, and here is what is new:\n\nAI Domain Advisor (Our Biggest Update)\nOur new flagship tool gives you deep-dive analysis on any domain - Market Positioning, SEO & Marketing potential, Risk Assessment, and a Flip Score so you can instantly gauge investment potential. It even has a chat interface so you can ask follow-up questions about any domain.\n\nOther Tool Improvements\n- Name Generator - Now links directly to GoDaddy so you can register available domains in one click\n- Brandability Scorer - Radar chart visualization showing exactly where a domain excels\n- Bulk Pronounceability Checker - Score and compare multiple domains side by side\n\nNotifications - Work in Progress\nWe are still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.\n\nAll tools are free to use - head to expiredhawk.com/tools to try them out.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n- The ExpiredHawk Team${FOOTER_TEXT}`;
+      const text = `ExpiredHawk Update - February 2026\n\nHi there,\n\nWe have been shipping fast and wanted to share what is new and what is coming next.\n\nWhat We Have Built\n\nAlgorithmic Valuations on Every Listing\nEvery domain in the dashboard now shows an Algo Valuation alongside the current price. You will see a clear indicator when a domain is priced below our valuation - making it easier to spot deals at a glance.\n\nAI Domain Advisor - Deep-Linked from Dashboard\nYou can now jump straight from any listing to a full AI-powered analysis. Get Market Positioning, SEO potential, Risk Assessment, and a Flip Score - all from one click on the dashboard.\n\nName Generator - Keyword Combinations\nThe Name Generator now produces full-keyword domain ideas (like GoSolar, SolarHub, TryCrypto) alongside invented brandables. This gives you a much wider range of registrable options.\n\n2.7M+ Domain Database\nOur multi-source sync engine now processes over 2.7 million domain rows, keeping the dashboard stocked with fresh inventory.\n\nWhat We Are Building Next\n\n- Smarter valuations powered by our curated dataset of 2,400+ verified comparable sales\n- Enhanced pattern matching and alert accuracy\n- Portfolio tracking improvements with renewal cost forecasting\n- Continued notification reliability improvements\n\nAll tools remain free to use - head to expiredhawk.com/tools to explore.\n\nAs always, if you have feedback or ideas, reply to this email or reach us at support@expiredhawk.com.\n\nHappy hunting,\n- The ExpiredHawk Team${FOOTER_TEXT}`;
 
       const announcementHtml = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -89,40 +89,53 @@ serve(async (req: Request): Promise<Response> => {
 <style>body,table,td{font-family:Arial,Helvetica,sans-serif;}a{color:#16a34a;}</style>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
-${preheaderHtml("Your new AI-powered co-pilot for domain analysis is here.")}
+${preheaderHtml("Algo valuations, AI Advisor deep-links, keyword name generation and more.")}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;">
 <tr><td align="center" style="padding:40px 10px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
   <tr><td style="background-color:#16a34a;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">
     <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
-    <p style="color:#ffffff;margin:8px 0 0 0;font-size:14px;opacity:0.9;">AI Domain Advisor &amp; More</p>
+    <p style="color:#ffffff;margin:8px 0 0 0;font-size:14px;opacity:0.9;">February 2026 Update</p>
   </td></tr>
   <tr><td style="background-color:#ffffff;padding:32px 30px;border-radius:0 0 8px 8px;">
     <p style="color:#3f3f46;line-height:1.7;font-size:15px;">Hi there,</p>
     <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
-      We have been working hard on some big upgrades, and here is what is new:
+      We have been shipping fast and wanted to share what is new and what is coming next.
     </p>
 
-    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">AI Domain Advisor (Our Biggest Update)</h3>
+    <h2 style="color:#18181b;font-size:19px;margin:28px 0 16px 0;border-bottom:2px solid #e4e4e7;padding-bottom:8px;">What We Have Built</h2>
+
+    <h3 style="color:#18181b;font-size:16px;margin:20px 0 6px 0;">Algorithmic Valuations on Every Listing</h3>
     <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
-      Our new flagship tool gives you deep-dive analysis on any domain &ndash; Market Positioning, SEO &amp; Marketing potential, Risk Assessment, and a <strong>Flip Score</strong> so you can instantly gauge investment potential. It even has a <strong>chat interface</strong> so you can ask follow-up questions about any domain.
+      Every domain in the dashboard now shows an <strong>Algo Valuation</strong> alongside the current price. You will see a clear indicator when a domain is priced below our valuation &ndash; making it easier to spot deals at a glance.
     </p>
 
-    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">Other Tool Improvements</h3>
+    <h3 style="color:#18181b;font-size:16px;margin:20px 0 6px 0;">AI Domain Advisor &ndash; Deep-Linked from Dashboard</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      You can now jump straight from any listing to a full AI-powered analysis. Get Market Positioning, SEO potential, Risk Assessment, and a <strong>Flip Score</strong> &ndash; all from one click on the dashboard.
+    </p>
+
+    <h3 style="color:#18181b;font-size:16px;margin:20px 0 6px 0;">Name Generator &ndash; Keyword Combinations</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      The Name Generator now produces full-keyword domain ideas (like GoSolar, SolarHub, TryCrypto) alongside invented brandables. This gives you a much wider range of registrable options.
+    </p>
+
+    <h3 style="color:#18181b;font-size:16px;margin:20px 0 6px 0;">2.7M+ Domain Database</h3>
+    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
+      Our multi-source sync engine now processes over 2.7 million domain rows, keeping the dashboard stocked with fresh inventory.
+    </p>
+
+    <h2 style="color:#18181b;font-size:19px;margin:28px 0 16px 0;border-bottom:2px solid #e4e4e7;padding-bottom:8px;">What We Are Building Next</h2>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Name Generator</strong> &ndash; Now links directly to GoDaddy so you can register available domains in one click</td></tr>
-      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Brandability Scorer</strong> &ndash; Radar chart visualization showing exactly where a domain excels</td></tr>
-      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;"><strong>Bulk Pronounceability Checker</strong> &ndash; Score and compare multiple domains side by side</td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;">Smarter valuations powered by our curated dataset of <strong>2,400+ verified comparable sales</strong></td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;">Enhanced pattern matching and alert accuracy</td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;">Portfolio tracking improvements with renewal cost forecasting</td></tr>
+      <tr><td style="padding:6px 0;color:#3f3f46;font-size:15px;">Continued notification reliability improvements</td></tr>
     </table>
 
-    <h3 style="color:#18181b;font-size:17px;margin:24px 0 8px 0;">Notifications &ndash; Work in Progress</h3>
-    <p style="color:#3f3f46;line-height:1.7;font-size:15px;">
-      We are still actively improving our email and push notification system to make alerts faster and more reliable. Stay tuned for updates here.
-    </p>
-
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
       <tr><td style="background-color:#16a34a;border-radius:6px;padding:12px 28px;">
-        <a href="https://expiredhawk.com/tools" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">Try the AI Domain Advisor</a>
+        <a href="https://expiredhawk.com/tools" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">Explore the Tools</a>
       </td></tr>
     </table>
 
@@ -146,7 +159,7 @@ ${preheaderHtml("Your new AI-powered co-pilot for domain analysis is here.")}
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [user.email],
-          subject: "ExpiredHawk Update - AI Domain Advisor & More",
+          subject: "ExpiredHawk Update - February 2026",
           html: announcementHtml,
           text,
           headers: makeEmailHeaders(),
