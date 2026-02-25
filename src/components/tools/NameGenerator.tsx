@@ -277,8 +277,8 @@ export function NameGenerator() {
 
     if (allDomains.length === 0) return;
 
-    // Split into chunks of 200 for each request (server allows 800 but let's be safe with DNS rate limits)
-    const CHUNK_SIZE = 200;
+    // Split into chunks of 400 for each request (server allows 1000, DNS is free/unlimited)
+    const CHUNK_SIZE = 400;
     const chunks: string[][] = [];
     for (let i = 0; i < allDomains.length; i += CHUNK_SIZE) {
       chunks.push(allDomains.slice(i, i + CHUNK_SIZE));
