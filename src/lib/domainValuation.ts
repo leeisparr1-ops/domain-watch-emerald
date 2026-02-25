@@ -1,4 +1,6 @@
 import { checkTrademarkRisk, type TrademarkResult } from "@/lib/trademarkCheck";
+import { getAgeMultiplier } from "@/lib/domainAge";
+import { fetchTrendEnrichment, computeTrendBoost, type TrendEnrichment } from "@/lib/trendEnrichment";
 
 // ─── DATA SETS ───
 
@@ -1706,7 +1708,7 @@ export interface QuickValuationResult {
   valueMax: number;
 }
 
-export function quickValuation(domain: string, pronounceScore?: number): QuickValuationResult {
+export function quickValuation(domain: string, pronounceScore?: number, domainAge?: number | null): QuickValuationResult {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const tld = parts[1] || "com";
@@ -1832,6 +1834,15 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
     valueMax = Math.round(valueMax * nicheBoost);
   }
 
+  // ─── Domain Age multiplier ───
+  if (domainAge !== undefined && domainAge !== null && !hasPenaltyWord && trademark.riskLevel !== "high") {
+    const ageMult = getAgeMultiplier(domainAge);
+    if (ageMult > 1.0) {
+      valueMin = Math.round(valueMin * ageMult);
+      valueMax = Math.round(valueMax * ageMult);
+    }
+  }
+
   // Dictionary .com bonus — single dictionary words on .com are ultra-premium
   if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
     const dictFloorMin = name.length <= 3 ? 2000000 : name.length <= 4 ? 500000 : name.length <= 5 ? 200000 : name.length <= 6 ? 100000 : name.length <= 8 ? 50000 : 25000;
@@ -1895,4 +1906,82 @@ export function quickValuation(domain: string, pronounceScore?: number): QuickVa
 
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
   return { band, score: normalizedTotal, valueMin, valueMax };
+}
+
+// ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
+
+export interface EnrichedQuickValuationResult extends QuickValuationResult {
+  trendBoost: number;
+  trendFactors: { label: string; points: number; detail: string }[];
+  ageApplied: boolean;
+}
+
+/**
+ * Async variant of quickValuation that layers in:
+ * 1. Domain age multiplier (if provided)
+ * 2. AI trend enrichment boost (±15 points influence on value band)
+ *
+ * Use this in contexts where you already have (or can fetch) enrichment data.
+ * Falls back gracefully if enrichment is unavailable.
+ */
+export async function quickValuationEnriched(
+  domain: string,
+  opts?: { pronounceScore?: number; domainAge?: number | null; enrichment?: TrendEnrichment | null },
+): Promise<EnrichedQuickValuationResult> {
+  const pronounceScore = opts?.pronounceScore;
+  const domainAge = opts?.domainAge;
+
+  // Get base valuation (with age multiplier baked in)
+  const base = quickValuation(domain, pronounceScore, domainAge);
+
+  // Fetch enrichment if not provided
+  let enrichment = opts?.enrichment;
+  if (enrichment === undefined) {
+    enrichment = await fetchTrendEnrichment();
+  }
+
+  // Extract meaningful words for trend boost calculation
+  const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
+  const name = parts[0].replace(/[^a-z0-9]/g, "");
+  const tld = parts[1] || "com";
+  const wordParts = splitIntoWords(name);
+  const meaningfulWords = wordParts.filter(w => w.length >= 2 && (COMMON_WORDS.has(w) || DICTIONARY_WORDS.has(w) || PREMIUM_KEYWORDS.has(w)));
+
+  // Determine niche key for trend boost
+  let nicheKey = "general";
+  for (const [key, cat] of Object.entries(NICHE_CATEGORIES)) {
+    if (cat.keywords.some(kw => meaningfulWords.includes(kw))) {
+      nicheKey = key;
+      break;
+    }
+  }
+
+  const { boost, factors } = computeTrendBoost(meaningfulWords, nicheKey, enrichment);
+
+  let { valueMin, valueMax, score } = base;
+
+  // Apply trend boost as a value multiplier (each boost point ≈ 2% adjustment)
+  if (boost !== 0) {
+    const boostMult = 1 + boost * 0.02; // e.g. +15 → 1.30x, -10 → 0.80x
+    valueMin = Math.round(valueMin * boostMult);
+    valueMax = Math.round(valueMax * boostMult);
+  }
+
+  // Re-tighten band
+  const maxSpread = valueMin >= 100000 ? 5 : 3;
+  if (valueMax > valueMin * maxSpread) {
+    valueMax = Math.round(valueMin * maxSpread);
+  }
+
+  const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
+
+  return {
+    band,
+    score,
+    valueMin,
+    valueMax,
+    trendBoost: boost,
+    trendFactors: factors,
+    ageApplied: domainAge !== undefined && domainAge !== null && getAgeMultiplier(domainAge) > 1.0,
+  };
 }
