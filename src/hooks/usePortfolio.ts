@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { quickValuation } from "@/lib/domainValuation";
+import { quickValuation, quickValuationEnriched } from "@/lib/domainValuation";
 import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -138,9 +138,10 @@ export function usePortfolio() {
 
   const refreshValuation = async (domain: PortfolioDomain) => {
     try {
-      const baseResult = quickValuation(domain.domain_name);
+      // Use enriched valuation with trend data for best accuracy
+      const enrichedResult = await quickValuationEnriched(domain.domain_name);
       // Try comp anchoring for more accurate valuation
-      const anchored = await anchorWithComps(domain.domain_name, baseResult);
+      const anchored = await anchorWithComps(domain.domain_name, enrichedResult);
       const autoVal = Math.round((anchored.valueMin + anchored.valueMax) / 2);
       await updateDomain(domain.id, {
         auto_valuation: autoVal,
