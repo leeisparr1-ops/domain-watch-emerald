@@ -321,7 +321,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const CACHE_TTL_MINUTES = 30;
+    const CACHE_TTL_MINUTES = 1440; // 24 hours
 
     // For initial analysis (not follow-up), check cache first
     if (!followUp) {
