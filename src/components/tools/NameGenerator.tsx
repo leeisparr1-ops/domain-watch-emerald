@@ -90,6 +90,7 @@ export function NameGenerator() {
   useBackClose(sessionsOpen, handleSessionsClose);
   const [savingSession, setSavingSession] = useState(false);
   const [synonymBoost, setSynonymBoost] = useState(false);
+  const [premiumMode, setPremiumMode] = useState(false);
   const [maxLengthFilter, setMaxLengthFilter] = useState(0); // 0 = no filter
   const { toast } = useToast();
   const { user } = useAuth();
@@ -337,6 +338,7 @@ export function NameGenerator() {
         style,
         include_extra_tlds: includeExtraTlds,
         synonym_boost: synonymBoost,
+        premium_mode: premiumMode,
       };
       if (inputMode === "inspired") {
         body.inspired_by = input;
@@ -612,6 +614,19 @@ export function NameGenerator() {
                 <span className="font-medium text-foreground">Synonym Boost</span>
                 <span className="text-muted-foreground ml-1">
                   — expand keywords with synonyms & related terms for more variety
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="premium-mode"
+                checked={premiumMode}
+                onCheckedChange={setPremiumMode}
+              />
+              <Label htmlFor="premium-mode" className="text-xs cursor-pointer">
+                <span className="font-medium text-foreground">💎 Premium Mode</span>
+                <span className="text-muted-foreground ml-1">
+                  — steer toward short, high-aftermarket-value coined names with premium suffixes
                 </span>
               </Label>
             </div>

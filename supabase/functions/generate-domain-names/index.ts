@@ -221,7 +221,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { keywords, industry, style, inspired_by, competitor_domains, batch_count, synonym_boost } = await req.json();
+    const { keywords, industry, style, inspired_by, competitor_domains, batch_count, synonym_boost, premium_mode } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -234,6 +234,18 @@ serve(async (req) => {
     }
 
     let inspiredByContext = "";
+    if (premium_mode) {
+      inspiredByContext += `\nPREMIUM MODE (HIGH PRIORITY): Generate names optimized for MAXIMUM aftermarket value and 10x+ flip potential. Rules:
+- STRONGLY prefer names ≤8 characters total. Shorter = more valuable.
+- Use premium coined suffixes: -vex, -nyx, -ova, -ara, -ium, -lex, -ori, -yx, -ion, -ix, -eo, -ia. These feel luxurious and brandable.
+- Prioritize one-word coined names (Zolvex, Nexium, Quantova, Prionyx) over two-word compounds.
+- When using compounds, keep them ultra-short: 2 syllables max (FinVex, AiNyx, PayOri).
+- Use POWER ROOT WORDS that domainers pay premiums for: apex, prime, core, nexus, zen, vox, lux, nova, flux, arc, ion, orb, aero, cyber, quantum, stellar, omega.
+- Combine power roots with the user's niche keywords to create premium hybrids.
+- Think like a domain investor: would someone pay $5k-$50k+ for this name on aftermarket? If not, don't suggest it.
+- Avoid anything that sounds cheap, generic, or like a free app. Every name should feel like a $10M startup.
+- Examples of premium names: Zolvex, Quantara, Nexium, Primova, Luxyra, Voxnyx, Arcova, Stellium.`;
+    }
     if (synonym_boost) {
       inspiredByContext += `\nSYNONYM EXPANSION MODE: Before generating names, first brainstorm 10-15 synonyms, related terms, and semantically adjacent words for the user's keywords. Then use BOTH the original keywords AND the expanded synonyms as building blocks for name generation. This dramatically increases variety and uncovers unexpected combinations. For example: "finance" → money, capital, fund, wealth, ledger, vault, mint, equity, treasury, fiscal.`;
     }
