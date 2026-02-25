@@ -42,20 +42,35 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 async function getAllComps(): Promise<ComparableSale[]> {
   if (cachedComps && Date.now() - cachedAt < CACHE_TTL_MS) return cachedComps;
 
-  const { data, error } = await (supabase as any)
-    .from("comparable_sales")
-    .select("domain_name, tld, sale_price, sale_date, venue")
-    .order("sale_price", { ascending: false })
-    .limit(1000);
+  // Fetch all comps in batches to avoid the 1000-row default limit
+  const all: ComparableSale[] = [];
+  const PAGE_SIZE = 1000;
+  let from = 0;
+  let hasMore = true;
 
-  if (error || !data) {
-    console.warn("Failed to fetch comparable sales for anchoring:", error);
-    return cachedComps ?? [];
+  while (hasMore) {
+    const { data, error } = await (supabase as any)
+      .from("comparable_sales")
+      .select("domain_name, tld, sale_price, sale_date, venue")
+      .order("sale_price", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error || !data) {
+      console.warn("Failed to fetch comparable sales for anchoring:", error);
+      break;
+    }
+
+    all.push(...(data as ComparableSale[]));
+    hasMore = data.length === PAGE_SIZE;
+    from += PAGE_SIZE;
   }
 
-  cachedComps = data as ComparableSale[];
-  cachedAt = Date.now();
-  return cachedComps;
+  if (all.length > 0) {
+    cachedComps = all;
+    cachedAt = Date.now();
+  }
+
+  return cachedComps ?? [];
 }
 
 // ─── Keyword extraction helper ───
