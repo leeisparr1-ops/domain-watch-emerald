@@ -58,7 +58,7 @@ const TermsOfService = () => {
             <section>
               <h2 className="text-2xl font-semibold mb-4">4. Subscription and Payment</h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li><strong>Free Plan:</strong> Includes limited pattern monitoring (5 patterns) and access to basic domain tools.</li>
+                <li><strong>Free Plan:</strong> Includes limited pattern monitoring (30 patterns) and access to domain tools.</li>
                 <li><strong>Paid Plans:</strong> Basic ($4.99/mo) and Advanced ($9.99/mo) plans offer increased pattern limits, priority notifications, and full tool access.</li>
                 <li><strong>Billing:</strong> Subscriptions are billed monthly in advance. All fees are in USD.</li>
                 <li><strong>Automatic Renewal:</strong> Subscriptions automatically renew unless cancelled before the renewal date.</li>
