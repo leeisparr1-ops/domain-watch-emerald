@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { quickValuation } from "@/lib/domainValuation";
+import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
 
 export interface PortfolioDomain {
@@ -137,8 +138,10 @@ export function usePortfolio() {
 
   const refreshValuation = async (domain: PortfolioDomain) => {
     try {
-      const result = quickValuation(domain.domain_name);
-      const autoVal = Math.round((result.valueMin + result.valueMax) / 2);
+      const baseResult = quickValuation(domain.domain_name);
+      // Try comp anchoring for more accurate valuation
+      const anchored = await anchorWithComps(domain.domain_name, baseResult);
+      const autoVal = Math.round((anchored.valueMin + anchored.valueMax) / 2);
       await updateDomain(domain.id, {
         auto_valuation: autoVal,
         valuation_updated_at: new Date().toISOString(),
