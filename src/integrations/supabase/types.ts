@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_advisor_cache: {
+        Row: {
+          created_at: string
+          domain_name: string
+          id: string
+          response: Json
+        }
+        Insert: {
+          created_at?: string
+          domain_name: string
+          id?: string
+          response: Json
+        }
+        Update: {
+          created_at?: string
+          domain_name?: string
+          id?: string
+          response?: Json
+        }
+        Relationships: []
+      }
       auctions: {
         Row: {
           auction_type: string | null

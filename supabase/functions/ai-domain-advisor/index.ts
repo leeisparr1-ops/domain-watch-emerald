@@ -316,11 +316,34 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Fetch ALL comparable sales from database
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    const CACHE_TTL_MINUTES = 30;
+
+    // For initial analysis (not follow-up), check cache first
+    if (!followUp) {
+      const domainLower = domain.toLowerCase().trim();
+      const { data: cached } = await supabaseAdmin
+        .from("ai_advisor_cache")
+        .select("response, created_at")
+        .eq("domain_name", domainLower)
+        .maybeSingle();
+
+      if (cached) {
+        const ageMs = Date.now() - new Date(cached.created_at).getTime();
+        if (ageMs < CACHE_TTL_MINUTES * 60 * 1000) {
+          console.log(`Cache hit for ${domainLower} (${Math.round(ageMs / 60000)}m old)`);
+          return new Response(JSON.stringify(cached.response), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
+    // Fetch ALL comparable sales from database
 
     // Fetch ALL comparable sales from database (paginate to get all)
     const { data: compSales1 } = await supabaseAdmin
@@ -602,6 +625,13 @@ Provide a COMPREHENSIVE investment analysis covering:
       const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
       analysis = JSON.parse(cleaned);
     }
+
+    // Cache the result
+    const domainLower = domain.toLowerCase().trim();
+    await supabaseAdmin
+      .from("ai_advisor_cache")
+      .upsert({ domain_name: domainLower, response: analysis, created_at: new Date().toISOString() }, { onConflict: "domain_name" })
+      .then(({ error }) => { if (error) console.error("Cache write error:", error); });
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
