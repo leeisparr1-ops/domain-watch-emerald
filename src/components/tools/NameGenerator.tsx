@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
-import { PREMIUM_KEYWORDS, TRENDING_KEYWORDS, splitIntoWords } from "@/lib/domainValuation";
+import { PREMIUM_KEYWORDS, TRENDING_KEYWORDS, splitIntoWords, quickValuation } from "@/lib/domainValuation";
+import { scoreBrandability } from "@/lib/brandability";
 import {
   Tooltip,
   TooltipContent,
@@ -47,6 +48,9 @@ interface Suggestion {
   checkingTlds?: boolean;
   trademarkRisk?: ReturnType<typeof checkTrademarkRisk>;
   auctionMatches?: AuctionMatch[];
+  valuationMin?: number;
+  valuationMax?: number;
+  investmentGrade?: "S" | "A" | "B" | "C";
 }
 
 type InputMode = "keywords" | "inspired" | "competitor";
@@ -449,14 +453,24 @@ export function NameGenerator() {
       const items: Suggestion[] = (data?.suggestions || []).map((s: any) => {
         const namePart = s.name.replace(/\.(com|ai|io|co|net|app|dev|org)$/i, "").trim();
         const pScore = scorePronounceability(namePart + ".com").score;
+        const tmRisk = checkTrademarkRisk(namePart + ".com");
+        // Pre-score through valuation engine
+        const val = quickValuation(namePart + ".com", pScore);
+        const brandScore = scoreBrandability(namePart + ".com").overall;
+        // Investment grade based on combined signals
+        const combinedQuality = (val.score + brandScore + pScore) / 3;
+        const investmentGrade: "S" | "A" | "B" | "C" = combinedQuality >= 75 ? "S" : combinedQuality >= 60 ? "A" : combinedQuality >= 45 ? "B" : "C";
         return {
           name: namePart,
           score: s.score,
           trend_score: s.trend_score ?? 0,
           reason: s.reason,
           pronounceScore: pScore,
-          trademarkRisk: checkTrademarkRisk(namePart + ".com"),
+          trademarkRisk: tmRisk,
           checkingTlds: true,
+          valuationMin: val.valueMin,
+          valuationMax: val.valueMax,
+          investmentGrade,
         };
       });
 
@@ -972,6 +986,22 @@ export function NameGenerator() {
                             <p className="text-xs mt-0.5">Aftermarket flip potential based on length ({s.name.length} chars), suffix rarity, and keyword demand</p>
                           </TooltipContent>
                         </Tooltip>
+                        {s.investmentGrade && s.investmentGrade !== "C" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className={`cursor-help ${
+                                s.investmentGrade === "S" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : s.investmentGrade === "A" ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                                : "border-border text-muted-foreground"
+                              }`}>
+                                {s.investmentGrade === "S" ? "⭐" : "✓"} Grade {s.investmentGrade}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">Investment grade based on valuation ({s.valuationMin ? `$${s.valuationMin.toLocaleString()}+` : "N/A"}), brandability, and pronounceability</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                         <Badge variant="outline" className={scoreColor(s.score)}>
                           Synergy: {s.score}
                         </Badge>

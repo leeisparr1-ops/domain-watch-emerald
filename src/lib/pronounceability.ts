@@ -187,6 +187,66 @@ export function countSyllables(name: string): number {
   return Math.max(1, total);
 }
 
+// ─── Syllable Stress Patterns ───
+// Domains with natural stress patterns (trochaic: STRONG-weak) are easier to say
+const STRESSED_ENDINGS = new Set(["tion", "sion", "ment", "ness", "ful", "less", "able", "ible", "ous", "ive", "ize", "ise", "ent", "ant", "ence", "ance"]);
+const UNSTRESSED_PREFIXES = new Set(["pre", "pro", "un", "re", "de", "mis", "dis", "over", "under", "out"]);
+
+function stressPatternScore(name: string): { score: number; detail: string } {
+  const syllables = countSyllables(name);
+  
+  // 2-3 syllable names with natural trochaic stress are ideal for brands
+  if (syllables >= 2 && syllables <= 3) {
+    // Check for stressed ending patterns (these create natural rhythm)
+    for (const ending of STRESSED_ENDINGS) {
+      if (name.endsWith(ending)) {
+        return { score: 8, detail: "Natural stress pattern — rhythmic and memorable" };
+      }
+    }
+    // Check for common unstressed prefixes (creates WEAK-STRONG pattern, slightly less ideal)
+    for (const prefix of UNSTRESSED_PREFIXES) {
+      if (name.startsWith(prefix) && name.length > prefix.length + 2) {
+        return { score: 5, detail: "Prefix-stress pattern — familiar rhythm" };
+      }
+    }
+    // Check vowel-consonant alternation (creates natural flow)
+    let alternations = 0;
+    for (let i = 1; i < Math.min(name.length, 8); i++) {
+      const prevIsVowel = "aeiouy".includes(name[i - 1]);
+      const currIsVowel = "aeiouy".includes(name[i]);
+      if (prevIsVowel !== currIsVowel) alternations++;
+    }
+    const altRatio = alternations / (Math.min(name.length, 8) - 1);
+    if (altRatio >= 0.6) {
+      return { score: 7, detail: "Alternating vowel-consonant flow — very smooth" };
+    }
+    return { score: 3, detail: "Acceptable stress pattern" };
+  }
+  
+  if (syllables === 1) return { score: 4, detail: "Single syllable — punchy but simple" };
+  return { score: 0, detail: "Complex stress pattern — harder to remember" };
+}
+
+// ─── Negative Connotation Detection ───
+const NEGATIVE_SOUND_PATTERNS = [
+  { pattern: /gr[auo]n/i, detail: "Contains 'groan/grunt' sound — negative connotation" },
+  { pattern: /ugh/i, detail: "Contains 'ugh' sound — negative connotation" },
+  { pattern: /blech|bleh/i, detail: "Contains disgust sound" },
+  { pattern: /sn[aoi]r/i, detail: "Contains 'snarl/snore' sound — unfriendly" },
+  { pattern: /scr[aue]/i, detail: "Contains 'scrape/scream' sound — harsh" },
+  { pattern: /squ[eai]/i, detail: "Contains 'squeal/squash' sound — unpleasant" },
+  { pattern: /cr[auo][nwk]/i, detail: "Contains 'croak/crank' sound — negative" },
+];
+
+function negativeConnotationPenalty(name: string): { penalty: number; detail: string } {
+  for (const { pattern, detail } of NEGATIVE_SOUND_PATTERNS) {
+    if (pattern.test(name)) {
+      return { penalty: -5, detail };
+    }
+  }
+  return { penalty: 0, detail: "" };
+}
+
 export function scorePronounceability(domain: string): PronounceabilityResult {
   // Strip TLD
   const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
@@ -280,6 +340,24 @@ export function scorePronounceability(domain: string): PronounceabilityResult {
   if (/(.)\1{2,}/i.test(name)) {
     score -= 10;
     factors.push({ label: "Repetition", impact: "negative", detail: "Contains triple+ repeated characters" });
+  }
+
+  // 8. Syllable stress pattern analysis (NEW)
+  const stress = stressPatternScore(name);
+  if (stress.score > 0) {
+    score += stress.score;
+    factors.push({
+      label: "Stress Pattern",
+      impact: stress.score >= 6 ? "positive" : "neutral",
+      detail: stress.detail,
+    });
+  }
+
+  // 9. Negative connotation detection (NEW)
+  const negConnotation = negativeConnotationPenalty(name);
+  if (negConnotation.penalty < 0) {
+    score += negConnotation.penalty;
+    factors.push({ label: "Sound Connotation", impact: "negative", detail: negConnotation.detail });
   }
 
   // Clamp

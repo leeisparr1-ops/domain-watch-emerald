@@ -452,10 +452,43 @@ export function BulkPronounceabilityChecker() {
                 <TableBody>
                   {filteredResults.map((r, i) => {
                     const tmDisplay = getTrademarkRiskDisplay(r.trademark.riskLevel);
+                    // Arbitrage detection: high quality signals but low algo valuation = potential undervalued gem
+                    const qualitySignal = (r.brandabilityScore + r.demandScore + r.result.score) / 3;
+                    const valuationTier = r.valuationMin <= 500 ? "low" : r.valuationMin <= 5000 ? "mid" : "high";
+                    const isArbitrage = qualitySignal >= 55 && valuationTier === "low" && r.trademark.riskLevel !== "high";
+                    const isStrongArbitrage = qualitySignal >= 65 && r.flipScore >= 55 && valuationTier !== "high" && r.trademark.riskLevel !== "high";
                     return (
-                      <TableRow key={i}>
+                      <TableRow key={i} className={isStrongArbitrage ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell className="font-medium text-foreground">{r.domain}</TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          <span className="inline-flex items-center gap-1.5">
+                            {r.domain}
+                            {isStrongArbitrage && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0 cursor-help">
+                                    💎 Undervalued
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-[200px]">Strong quality signals (brand, demand, pronounceability) relative to current algo estimate — potential arbitrage opportunity.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {!isStrongArbitrage && isArbitrage && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 cursor-help">
+                                    📈 Watch
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-[200px]">Quality signals outpace current valuation — worth monitoring for flip potential.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-center">
                           <span className={`text-sm font-bold ${r.flipScore >= 75 ? "text-emerald-600 dark:text-emerald-400" : r.flipScore >= 50 ? "text-blue-600 dark:text-blue-400" : r.flipScore >= 30 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                             {r.flipScore}

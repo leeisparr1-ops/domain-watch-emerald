@@ -19,6 +19,7 @@ import {
   COMMON_WORDS,
   type QuickValuationResult,
 } from "@/lib/domainValuation";
+import { semanticSimilarity } from "@/lib/semanticSimilarity";
 
 export interface ComparableSale {
   domain_name: string;
@@ -102,12 +103,18 @@ function scoreRelevance(
   const lengthScore = Math.max(0, 1 - lengthDiff / 10);
 
   // Keyword overlap (0-1) — weight 25%
+  // Now uses semantic similarity as fallback when exact keywords don't match
   let keywordScore = 0;
   if (targetKeywords.length > 0) {
     const compKeywords = extractKeywords(comp.domain_name);
     const overlap = targetKeywords.filter((kw) => compKeywords.includes(kw)).length;
     keywordScore = overlap / targetKeywords.length;
-    // Also boost for partial substring match on the SLD
+    // Semantic similarity fallback: "auto" matches "car", "finance" matches "money"
+    if (keywordScore < 0.5) {
+      const semScore = semanticSimilarity(targetKeywords, compKeywords);
+      keywordScore = Math.max(keywordScore, semScore * 0.8); // 80% weight for semantic match
+    }
+    // Partial substring match as last resort
     if (keywordScore === 0) {
       const subMatch = targetKeywords.filter((kw) => compName.includes(kw) || kw.includes(compName)).length;
       keywordScore = subMatch > 0 ? 0.3 : 0;
