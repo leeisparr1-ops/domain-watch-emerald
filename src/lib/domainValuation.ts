@@ -1,6 +1,7 @@
 import { checkTrademarkRisk, type TrademarkResult } from "@/lib/trademarkCheck";
 import { getAgeMultiplier } from "@/lib/domainAge";
 import { fetchTrendEnrichment, computeTrendBoost, type TrendEnrichment } from "@/lib/trendEnrichment";
+import { HIGH_CPC_KEYWORDS } from "@/lib/semanticSimilarity";
 
 // ─── DATA SETS ───
 
@@ -1724,15 +1725,15 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
 
   let score = 0;
 
-  // Length (max 20)
+  // Length (max 20) — exponential curve: short domains are dramatically more valuable
   if (name.length <= 2) score += 20;
-  else if (name.length === 3) score += 18;
-  else if (name.length === 4) score += 16;
+  else if (name.length === 3) score += 19;
+  else if (name.length === 4) score += 17;
   else if (name.length === 5) score += 14;
-  else if (name.length === 6) score += 12;
-  else if (name.length <= 8) score += 10;
-  else if (name.length <= 10) score += 6;
-  else if (name.length <= 14) score += 3;
+  else if (name.length === 6) score += 11;
+  else if (name.length <= 8) score += 8;
+  else if (name.length <= 10) score += 5;
+  else if (name.length <= 14) score += 2;
   else score += 1;
 
   // TLD (max 25)
@@ -1849,6 +1850,36 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     const dictFloorMax = name.length <= 3 ? 10000000 : name.length <= 4 ? 2500000 : name.length <= 5 ? 1000000 : name.length <= 6 ? 500000 : name.length <= 8 ? 250000 : 100000;
     valueMin = Math.max(valueMin, dictFloorMin);
     valueMax = Math.max(valueMax, dictFloorMax);
+  }
+
+  // EMD (Exact Match Domain) premium — domains that ARE a high-CPC keyword
+  if (!hasPenaltyWord && trademark.riskLevel !== "high") {
+    const emdKey = name.toLowerCase();
+    const cpcMult = HIGH_CPC_KEYWORDS[emdKey];
+    if (cpcMult && tld === "com") {
+      // High-CPC exact match .com — massive premium
+      valueMin = Math.max(valueMin, Math.round(50000 * cpcMult));
+      valueMax = Math.max(valueMax, Math.round(500000 * cpcMult));
+    } else if (cpcMult && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10) {
+      // High-CPC exact match on other premium TLDs
+      const tldDiscount = tld === "ai" ? 0.5 : tld === "io" ? 0.3 : 0.2;
+      valueMin = Math.max(valueMin, Math.round(50000 * cpcMult * tldDiscount));
+      valueMax = Math.max(valueMax, Math.round(500000 * cpcMult * tldDiscount));
+    }
+  }
+
+  // Length-based exponential multiplier for non-dictionary short domains
+  if (!isDictWord && !hasPenaltyWord && trademark.riskLevel !== "high" && tld === "com") {
+    let lengthMult = 1.0;
+    if (name.length <= 2) lengthMult = 8.0;
+    else if (name.length === 3) lengthMult = 5.0;
+    else if (name.length === 4) lengthMult = 3.0;
+    else if (name.length === 5) lengthMult = 1.8;
+    // Only apply if it would boost (not reduce)
+    if (lengthMult > 1.0) {
+      valueMin = Math.round(valueMin * lengthMult);
+      valueMax = Math.round(valueMax * lengthMult);
+    }
   }
 
   // Two-word brandable .com bonus — tiered by word quality
