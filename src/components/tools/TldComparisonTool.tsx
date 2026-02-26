@@ -344,13 +344,13 @@ export function TldComparisonTool() {
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5">
                 <Globe2 className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold text-foreground">{cleanKeyword}</span>
-                <Badge variant="outline" className={`text-xs font-bold ${availCount >= 10 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30" : availCount >= 5 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"}`}>
-                  {availCount}/{totalChecked} TLDs available
+                <Badge variant="outline" className={`text-xs font-bold ${takenCount >= 20 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30" : takenCount >= 10 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30" : takenCount >= 3 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30" : "bg-muted text-muted-foreground border-border"}`}>
+                  {takenCount}/{totalChecked} TLDs registered
                 </Badge>
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> {availCount} Available</span>
-                <span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500" /> {takenCount} Taken</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> {takenCount} Registered</span>
+                <span className="flex items-center gap-1"><HelpCircle className="w-3 h-3 text-muted-foreground" /> {availCount} Available</span>
               </div>
             </div>
           );
