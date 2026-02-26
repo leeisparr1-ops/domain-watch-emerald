@@ -81,7 +81,7 @@ function formatTimeRemaining(endTime: string): string {
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { isFavorite, toggleFavorite, count: favoritesCount, clearAllFavorites } = useFavorites();
+  const { isFavorite, toggleFavorite, count: favoritesCount, clearAllFavorites, favoriteDomains, loading: favoritesLoading } = useFavorites();
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns, enabledCount } = useUserPatterns();
   usePatternAlerts({ enabledCount, checkPatterns });
@@ -216,9 +216,11 @@ export default function Dashboard() {
     return () => document.removeEventListener("visibilitychange", handler);
   }, []);
 
-  // Fetch favorite auctions
+  // Fetch favorite auctions — reuses cached favoriteDomains from useFavorites (no extra DB call)
   const fetchFavoriteAuctions = useCallback(async (showLoadingSpinner = true) => {
     if (!user) return;
+    // Wait for favorites to load before querying auctions
+    if (favoritesLoading) return;
     const { seq, signal } = beginNewFetch();
     try {
       if (seq === activeFetchSeqRef.current) {
@@ -226,21 +228,9 @@ export default function Dashboard() {
         else setIsFetchingAuctions(true);
         setError(null);
       }
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
-      const now = new Date();
-      const endTimeFilter = now.toISOString();
 
-      const { data: favData, error: favError } = await supabase
-        .from('favorites')
-        .select('domain_name')
-        .eq('user_id', user.id)
-        .abortSignal(signal);
-      if (favError) throw favError;
-      const favDomains = favData?.map(f => f.domain_name) || [];
-      
-      if (favDomains.length === 0) {
+      // Use cached favorites from useFavorites hook — no extra DB round-trip
+      if (favoriteDomains.length === 0) {
         if (seq === activeFetchSeqRef.current) {
           setAuctions([]);
           setTotalCount(0);
@@ -250,25 +240,16 @@ export default function Dashboard() {
         return;
       }
 
-      let countQuery = supabase
-        .from('auctions')
-        .select('id', { count: 'exact', head: true })
-        .in('domain_name', favDomains)
-        .gte('end_time', endTimeFilter)
-        .gte('price', filters.minPrice)
-        .lte('price', filters.maxPrice);
-      if (filters.tld !== "all") countQuery = countQuery.ilike('tld', filters.tld);
-      if (filters.auctionType === "bid") countQuery = countQuery.in('auction_type', ['Bid', 'auction']);
-      else if (filters.auctionType === "buynow") countQuery = countQuery.in('auction_type', ['BuyNow', 'buy-now']);
-      if (filters.inventorySource === "namecheap") countQuery = countQuery.eq('inventory_source', 'namecheap');
-      else if (filters.inventorySource === "godaddy") countQuery = countQuery.neq('inventory_source', 'namecheap');
-      const { count: totalFavCount } = await countQuery;
-      if (seq === activeFetchSeqRef.current) setTotalCount(totalFavCount || 0);
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+      const endTimeFilter = new Date().toISOString();
 
+      // Single query with count: 'exact' — combines count + data in one round-trip
       let query = supabase
         .from('auctions')
-        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk')
-        .in('domain_name', favDomains)
+        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk', { count: 'exact' })
+        .in('domain_name', favoriteDomains)
         .gte('end_time', endTimeFilter);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
@@ -280,8 +261,10 @@ export default function Dashboard() {
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
 
-      const { data, error: queryError } = await query;
+      const { data, count, error: queryError } = await query;
       if (queryError) throw queryError;
+      if (seq !== activeFetchSeqRef.current) return;
+      setTotalCount(count ?? 0);
       if (data) {
         const mapped: AuctionDomain[] = data.map(a => ({
           id: a.id, domain: a.domain_name, auctionEndTime: a.end_time || '',
@@ -293,11 +276,9 @@ export default function Dashboard() {
           pronounceabilityScore: (a as any).pronounceability_score ?? null,
           trademarkRisk: (a as any).trademark_risk ?? null,
         }));
-        if (seq === activeFetchSeqRef.current) {
-          setAuctions(mapped);
-          setLastRefresh(new Date());
-          hasLoadedOnceRef.current = true;
-        }
+        setAuctions(mapped);
+        setLastRefresh(new Date());
+        hasLoadedOnceRef.current = true;
       }
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
@@ -313,7 +294,7 @@ export default function Dashboard() {
         else setIsFetchingAuctions(false);
       }
     }
-  }, [user, beginNewFetch, currentPage, sortBy, filters, itemsPerPage]);
+  }, [user, beginNewFetch, currentPage, sortBy, filters, itemsPerPage, favoriteDomains, favoritesLoading]);
 
   const fetchAuctionsFromDb = useCallback(async (showLoadingSpinner = true, retryCount = 0) => {
     const MAX_RETRIES = 2;
@@ -548,7 +529,7 @@ export default function Dashboard() {
     } catch (error) { console.error('Error clearing matches:', error); }
   };
 
-  // Fetch initial match count
+  // Fetch initial match count — runs immediately instead of waiting 10s
   const didFetchInitialCountRef = useRef(false);
   useEffect(() => {
     if (!user || didFetchInitialCountRef.current) return;
@@ -563,8 +544,7 @@ export default function Dashboard() {
         if (!error && count !== null) setTotalMatchesCount(count);
       } catch (error) { console.error('Error fetching initial match count:', error); }
     };
-    const timeoutId = setTimeout(fetchInitialMatchCount, 10000);
-    return () => clearTimeout(timeoutId);
+    fetchInitialMatchCount();
   }, [user]);
 
   useEffect(() => {
