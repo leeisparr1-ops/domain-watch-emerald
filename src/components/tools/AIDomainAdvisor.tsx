@@ -560,27 +560,27 @@ export function AIDomainAdvisor() {
               </div>
             )}
 
-            {/* TLD Availability Section */}
+            {/* TLD Registration Section */}
             {(tldResults.length > 0 || tldChecking) && (
               <div className="p-4 rounded-lg border border-border bg-card space-y-3">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Globe2 className="w-4 h-4 text-primary" /> TLD Availability
+                  <Globe2 className="w-4 h-4 text-primary" /> TLD Registrations
                   {!tldChecking && (() => {
-                    const availCount = tldResults.filter(r => r.status === "available").length;
-                    const color = availCount >= 5 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
-                      : availCount >= 3 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
-                      : availCount >= 1 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
-                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-500/30";
+                    const regCount = tldResults.filter(r => r.status === "registered").length;
+                    const color = regCount >= 8 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
+                      : regCount >= 5 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
+                      : regCount >= 2 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
+                      : "bg-muted text-muted-foreground border-border";
                     return (
                       <Badge variant="outline" className={`text-xs font-bold ml-2 ${color}`}>
-                        {availCount}/{tldResults.length} available
+                        {regCount}/{tldResults.length} registered
                       </Badge>
                     );
                   })()}
                 </h4>
                 {tldChecking ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Checking availability across TLDs...
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking registrations across TLDs...
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -591,17 +591,15 @@ export function AIDomainAdvisor() {
                           key={r.domain}
                           variant="outline"
                           className={`text-xs flex items-center gap-1 ${
-                            r.status === "available"
+                            r.status === "registered"
                               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                              : r.status === "registered"
-                              ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400 line-through"
+                              : r.status === "available"
+                              ? ""
                               : ""
                           }`}
                         >
-                          {r.status === "available" ? (
+                          {r.status === "registered" ? (
                             <CheckCircle2 className="w-3 h-3" />
-                          ) : r.status === "registered" ? (
-                            <AlertTriangle className="w-3 h-3" />
                           ) : (
                             <HelpCircle className="w-3 h-3" />
                           )}
