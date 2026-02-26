@@ -218,7 +218,13 @@ export function AIDomainAdvisor() {
 
       // Check TLD availability for the base name
       const baseName = domainWithTld.split(".")[0];
-      const tldsToCheck = [".com", ".ai", ".io", ".net", ".co", ".app", ".dev", ".org", ".me", ".gg", ".xyz", ".tech", ".so"];
+      const tldsToCheck = [
+        ".com", ".ai", ".io", ".net", ".co", ".app", ".dev", ".org", ".me", ".gg",
+        ".xyz", ".tech", ".so", ".biz", ".cc", ".store", ".health", ".finance",
+        ".law", ".agency", ".design", ".media", ".studio", ".sh", ".bio", ".club",
+        ".pro", ".live", ".uk", ".de", ".ca", ".fr", ".nl", ".in", ".us", ".eu",
+        ".com.au", ".online", ".site", ".info", ".click", ".link", ".space", ".fun",
+      ];
       const domainsToCheck = tldsToCheck.map(tld => `${baseName}${tld}`);
       setTldChecking(true);
       try {
@@ -562,53 +568,27 @@ export function AIDomainAdvisor() {
 
             {/* TLD Registration Section */}
             {(tldResults.length > 0 || tldChecking) && (
-              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+              <div className="p-4 rounded-lg border border-border bg-card">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Globe2 className="w-4 h-4 text-primary" /> TLD Registrations
-                  {!tldChecking && (() => {
+                  {tldChecking ? (
+                    <span className="flex items-center gap-1 ml-2 text-xs text-muted-foreground font-normal">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Checking {tldResults.length > 0 ? `${tldResults.length}` : ""} TLDs...
+                    </span>
+                  ) : tldResults.length > 0 && (() => {
                     const regCount = tldResults.filter(r => r.status === "registered").length;
-                    const color = regCount >= 8 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
-                      : regCount >= 5 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
-                      : regCount >= 2 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
+                    const color = regCount >= 25 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
+                      : regCount >= 15 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
+                      : regCount >= 5 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
                       : "bg-muted text-muted-foreground border-border";
                     return (
                       <Badge variant="outline" className={`text-xs font-bold ml-2 ${color}`}>
-                        {regCount}/{tldResults.length} registered
+                        {regCount}/{tldResults.length} TLDs registered
                       </Badge>
                     );
                   })()}
                 </h4>
-                {tldChecking ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Checking registrations across TLDs...
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {tldResults.map((r) => {
-                      const tld = r.domain.substring(r.domain.indexOf("."));
-                      return (
-                        <Badge
-                          key={r.domain}
-                          variant="outline"
-                          className={`text-xs flex items-center gap-1 ${
-                            r.status === "registered"
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                              : r.status === "available"
-                              ? ""
-                              : ""
-                          }`}
-                        >
-                          {r.status === "registered" ? (
-                            <CheckCircle2 className="w-3 h-3" />
-                          ) : (
-                            <HelpCircle className="w-3 h-3" />
-                          )}
-                          {tld}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                )}
+                <p className="text-xs text-muted-foreground mt-1">Higher count = more popular name across domain extensions</p>
               </div>
             )}
 

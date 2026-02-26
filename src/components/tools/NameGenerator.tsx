@@ -52,10 +52,16 @@ interface Suggestion {
 type InputMode = "keywords" | "inspired" | "competitor";
 type SortOption = "synergy" | "trend" | "alpha" | "auction" | "flip";
 
-// Default: .com only (verified via RDAP — authoritative registry lookup)
-// Extra TLDs also use RDAP where supported, DNS fallback otherwise
+// Comprehensive TLD list for registration popularity signal
+const ALL_TLDS = [
+  ".com", ".ai", ".io", ".net", ".co", ".app", ".dev", ".org", ".me", ".gg",
+  ".xyz", ".tech", ".so", ".biz", ".cc", ".store", ".health", ".finance",
+  ".law", ".agency", ".design", ".media", ".studio", ".sh", ".bio", ".club",
+  ".pro", ".live", ".uk", ".de", ".ca", ".fr", ".nl", ".in", ".us", ".eu",
+  ".com.au", ".online", ".site", ".info", ".click", ".link", ".space", ".fun",
+];
 const CORE_TLDS = [".com"];
-const EXTRA_TLDS = [".ai", ".io", ".net", ".co", ".app", ".dev", ".org"];
+const EXTRA_TLDS = ALL_TLDS.filter(t => t !== ".com");
 
 // Premium suffixes ranked by aftermarket rarity/desirability
 const PREMIUM_SUFFIXES = new Set([
@@ -239,7 +245,7 @@ export function NameGenerator() {
     { label: "Analyzing market trends & keywords...", icon: "📊" },
     { label: "Generating ~100 names with AI...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
-    { label: availabilityProgress || `Checking availability across ${tldsToCheck.join(", ")}...`, icon: "🌐" },
+    { label: availabilityProgress || `Checking registrations across ${tldsToCheck.length} TLDs...`, icon: "🌐" },
     { label: "Cross-referencing auction inventory...", icon: "🔍" },
     { label: "Filtering & ranking results...", icon: "⚡" },
   ];
@@ -917,9 +923,9 @@ export function NameGenerator() {
                         {!s.checkingTlds && s.tldStatuses && (() => {
                           const regCount = s.tldStatuses.filter(ts => ts.status === "registered").length;
                           const totalChecked = s.tldStatuses.length;
-                          const color = regCount >= 8 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
-                            : regCount >= 5 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
-                            : regCount >= 2 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
+                          const color = regCount >= 25 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
+                            : regCount >= 15 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
+                            : regCount >= 5 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
                             : "bg-muted text-muted-foreground border-border";
                           return (
                             <Tooltip>
@@ -928,7 +934,7 @@ export function NameGenerator() {
                                   {regCount}/{totalChecked} TLDs
                                 </Badge>
                               </TooltipTrigger>
-                              <TooltipContent className="text-xs">
+                              <TooltipContent className="text-xs max-w-xs">
                                 Registered on {regCount} of {totalChecked} TLDs — higher = more popular name
                               </TooltipContent>
                             </Tooltip>
