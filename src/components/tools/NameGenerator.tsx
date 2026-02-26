@@ -52,13 +52,32 @@ interface Suggestion {
 type InputMode = "keywords" | "inspired" | "competitor";
 type SortOption = "synergy" | "trend" | "alpha" | "auction" | "flip";
 
-// Comprehensive TLD list for registration popularity signal
+// Comprehensive TLD list for registration popularity signal (~120 extensions)
 const ALL_TLDS = [
-  ".com", ".ai", ".io", ".net", ".co", ".app", ".dev", ".org", ".me", ".gg",
-  ".xyz", ".tech", ".so", ".biz", ".cc", ".store", ".health", ".finance",
-  ".law", ".agency", ".design", ".media", ".studio", ".sh", ".bio", ".club",
-  ".pro", ".live", ".uk", ".de", ".ca", ".fr", ".nl", ".in", ".us", ".eu",
-  ".com.au", ".online", ".site", ".info", ".click", ".link", ".space", ".fun",
+  // Generic legacy
+  ".com", ".net", ".org", ".info", ".biz", ".name", ".pro", ".mobi",
+  // Popular new gTLDs
+  ".ai", ".io", ".co", ".app", ".dev", ".me", ".gg", ".xyz", ".tech", ".so",
+  ".cc", ".store", ".online", ".site", ".club", ".fun", ".live", ".world",
+  ".space", ".click", ".link", ".shop", ".digital", ".cloud", ".global",
+  ".solutions", ".agency", ".media", ".studio", ".design", ".zone", ".network",
+  ".systems", ".works", ".today", ".email", ".tools", ".company", ".life",
+  ".plus", ".group", ".team", ".center", ".services", ".academy", ".ventures",
+  ".capital", ".consulting", ".management", ".finance", ".money", ".exchange",
+  ".health", ".care", ".fit", ".bio",
+  // Industry / niche
+  ".law", ".legal", ".engineering", ".software", ".technology", ".science",
+  ".games", ".game", ".play", ".tv", ".video", ".news", ".blog", ".wiki",
+  ".art", ".gallery", ".photography", ".music", ".band",
+  ".travel", ".hotel", ".restaurant", ".cafe", ".pizza", ".bar",
+  ".realty", ".estate", ".property", ".house", ".land",
+  // Country-code
+  ".uk", ".de", ".ca", ".fr", ".nl", ".in", ".us", ".eu", ".au", ".nz",
+  ".jp", ".kr", ".cn", ".br", ".mx", ".es", ".it", ".pt", ".pl", ".se",
+  ".no", ".dk", ".fi", ".ch", ".at", ".be", ".ie", ".ru", ".za", ".sg",
+  ".hk", ".tw", ".id", ".ph", ".th", ".vn", ".ng", ".ke", ".gh",
+  // Hack / short
+  ".sh", ".ly", ".is", ".to", ".ac", ".ws", ".fm", ".am", ".im", ".vc",
 ];
 const CORE_TLDS = [".com"];
 const EXTRA_TLDS = ALL_TLDS.filter(t => t !== ".com");
@@ -923,9 +942,9 @@ export function NameGenerator() {
                         {!s.checkingTlds && s.tldStatuses && (() => {
                           const regCount = s.tldStatuses.filter(ts => ts.status === "registered").length;
                           const totalChecked = s.tldStatuses.length;
-                          const color = regCount >= 25 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
-                            : regCount >= 15 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
-                            : regCount >= 5 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
+                          const color = regCount >= 60 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
+                            : regCount >= 30 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
+                            : regCount >= 10 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
                             : "bg-muted text-muted-foreground border-border";
                           return (
                             <Tooltip>
