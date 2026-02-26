@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -145,8 +145,11 @@ export function useFavorites() {
     }
   }, [user]);
 
+  const favoriteDomains = useMemo(() => Array.from(favorites), [favorites]);
+
   return {
     favorites,
+    favoriteDomains,
     loading,
     toggleFavorite,
     isFavorite,
