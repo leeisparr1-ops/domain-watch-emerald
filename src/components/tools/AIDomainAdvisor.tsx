@@ -583,7 +583,7 @@ export function AIDomainAdvisor() {
                       : "bg-muted text-muted-foreground border-border";
                     return (
                       <Badge variant="outline" className={`text-xs font-bold ml-2 ${color}`}>
-                        {regCount}/{tldResults.length} TLDs registered
+                        {regCount} TLDs registered
                       </Badge>
                     );
                   })()}
