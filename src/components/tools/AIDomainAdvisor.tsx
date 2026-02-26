@@ -105,6 +105,12 @@ const confidenceConfig: Record<string, { icon: typeof CheckCircle2; color: strin
   Low: { icon: HelpCircle, color: "text-red-500 dark:text-red-400", label: "Low Confidence" },
 };
 
+interface TldAvailResult {
+  domain: string;
+  available: boolean | null;
+  status: "available" | "registered" | "unknown";
+}
+
 export function AIDomainAdvisor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -117,6 +123,8 @@ export function AIDomainAdvisor() {
   const [followUpInput, setFollowUpInput] = useState("");
   const [isFollowUpLoading, setIsFollowUpLoading] = useState(false);
   const [analyzedDomain, setAnalyzedDomain] = useState<string | null>(null);
+  const [tldResults, setTldResults] = useState<TldAvailResult[]>([]);
+  const [tldChecking, setTldChecking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -147,6 +155,8 @@ export function AIDomainAdvisor() {
     setPreScores(null);
     setChatMessages([]);
     setAnalyzedDomain(input);
+    setTldResults([]);
+    setTldChecking(false);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -205,6 +215,24 @@ export function AIDomainAdvisor() {
 
       if (data?.error) throw new Error(data.error);
       setAnalysis(data);
+
+      // Check TLD availability for the base name
+      const baseName = domainWithTld.split(".")[0];
+      const tldsToCheck = [".com", ".ai", ".io", ".net", ".co", ".app", ".dev", ".org", ".me", ".gg", ".xyz", ".tech", ".so"];
+      const domainsToCheck = tldsToCheck.map(tld => `${baseName}${tld}`);
+      setTldChecking(true);
+      try {
+        const { data: availData } = await supabase.functions.invoke("check-domain-availability", {
+          body: { domains: domainsToCheck },
+        });
+        if (availData?.results) {
+          setTldResults(availData.results as TldAvailResult[]);
+        }
+      } catch (e) {
+        console.error("TLD availability check failed:", e);
+      } finally {
+        setTldChecking(false);
+      }
     } catch (e: any) {
       console.error(e);
       toast({ title: "Analysis failed", description: e.message || "Please try again.", variant: "destructive" });
@@ -529,6 +557,60 @@ export function AIDomainAdvisor() {
                   <p className="text-[10px] text-muted-foreground">Trademark</p>
                   <p className={`text-sm font-bold ${preScores.trademarkRisk === "None" ? "text-emerald-600 dark:text-emerald-400" : preScores.trademarkRisk === "Low" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{preScores.trademarkRisk}</p>
                 </div>
+              </div>
+            )}
+
+            {/* TLD Availability Section */}
+            {(tldResults.length > 0 || tldChecking) && (
+              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <Globe2 className="w-4 h-4 text-primary" /> TLD Availability
+                  {!tldChecking && (() => {
+                    const availCount = tldResults.filter(r => r.status === "available").length;
+                    const color = availCount >= 5 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-500/30"
+                      : availCount >= 3 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500/30"
+                      : availCount >= 1 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-500/30"
+                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-500/30";
+                    return (
+                      <Badge variant="outline" className={`text-xs font-bold ml-2 ${color}`}>
+                        {availCount}/{tldResults.length} available
+                      </Badge>
+                    );
+                  })()}
+                </h4>
+                {tldChecking ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking availability across TLDs...
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {tldResults.map((r) => {
+                      const tld = r.domain.substring(r.domain.indexOf("."));
+                      return (
+                        <Badge
+                          key={r.domain}
+                          variant="outline"
+                          className={`text-xs flex items-center gap-1 ${
+                            r.status === "available"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                              : r.status === "registered"
+                              ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400 line-through"
+                              : ""
+                          }`}
+                        >
+                          {r.status === "available" ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : r.status === "registered" ? (
+                            <AlertTriangle className="w-3 h-3" />
+                          ) : (
+                            <HelpCircle className="w-3 h-3" />
+                          )}
+                          {tld}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
