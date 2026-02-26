@@ -931,7 +931,7 @@ export function NameGenerator() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Badge variant="outline" className={`text-[10px] cursor-help ${color}`}>
-                                  {regCount}/{totalChecked} TLDs
+                                  {regCount} TLDs
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent className="text-xs max-w-xs">
