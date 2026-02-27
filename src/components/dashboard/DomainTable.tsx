@@ -15,7 +15,7 @@ import {
   Mic,
   Shield,
   Sparkles,
-  EyeOff,
+  Bird,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -516,7 +516,7 @@ export function DomainTable({
                                   onDismiss(d.domain);
                                 }}
                               >
-                                <EyeOff className="w-4 h-4 text-muted-foreground hover:text-orange-500" />
+                                <Bird className="w-4 h-4 text-muted-foreground hover:text-orange-500" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top"><p>Dismiss — won't show again</p></TooltipContent>

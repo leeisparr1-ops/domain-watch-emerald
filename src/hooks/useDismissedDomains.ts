@@ -44,9 +44,13 @@ export function useDismissedDomains() {
     try {
       const { error } = await supabase
         .from("dismissed_domains")
-        .upsert({ user_id: user.id, domain_name: domainName }, { onConflict: "user_id,domain_name" });
+        .insert({ user_id: user.id, domain_name: domainName });
 
-      if (error) throw error;
+      // Ignore unique constraint violations (already dismissed)
+      if (error && error.code === "23505") {
+        // Already dismissed, just update local state
+      } else if (error) throw error;
+
       setDismissedSet(prev => new Set([...prev, domainName]));
     } catch (error) {
       console.error("Error dismissing domain:", error);
@@ -60,9 +64,10 @@ export function useDismissedDomains() {
       const rows = domainNames.map(d => ({ user_id: user.id, domain_name: d }));
       const { error } = await supabase
         .from("dismissed_domains")
-        .upsert(rows, { onConflict: "user_id,domain_name" });
+        .insert(rows);
 
-      if (error) throw error;
+      // Ignore unique constraint violations
+      if (error && error.code !== "23505") throw error;
       setDismissedSet(prev => {
         const next = new Set(prev);
         domainNames.forEach(d => next.add(d));

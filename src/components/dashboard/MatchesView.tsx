@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Target, ChevronLeft, ChevronRight, Trash2, EyeOff, CheckSquare } from "lucide-react";
+import { Loader2, Target, ChevronLeft, ChevronRight, Trash2, Bird, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -122,7 +122,7 @@ export function MatchesView({
         </p>
         {dismissedCount > 0 && (
           <p className="text-xs text-muted-foreground mt-2">
-            <EyeOff className="w-3 h-3 inline mr-1" />
+            <Bird className="w-3 h-3 inline mr-1" />
             {dismissedCount} domain{dismissedCount !== 1 ? 's' : ''} dismissed
           </p>
         )}
@@ -184,7 +184,7 @@ export function MatchesView({
                 onClick={handleBulkDismiss}
                 className="text-orange-600 hover:text-orange-700 border-orange-300"
               >
-                <EyeOff className="w-4 h-4 mr-1" />
+              <Bird className="w-4 h-4 mr-1" />
                 Dismiss {selectedForDismiss.size}
               </Button>
             )}
@@ -216,9 +216,8 @@ export function MatchesView({
 
         {/* Dismiss instructions hint */}
         {onDismiss && selectedForDismiss.size === 0 && (
-          <p className="text-xs text-muted-foreground/60 flex items-center gap-1">
-            <EyeOff className="w-3 h-3" />
-            Tip: Click the <EyeOff className="w-3 h-3 inline" /> icon on any domain to dismiss it permanently from future matches.
+          <p className="text-xs text-muted-foreground/60 inline-flex items-center gap-1 flex-wrap">
+            Tip: Click the <Bird className="w-3 h-3 inline-block shrink-0" /> hawk icon on any domain to dismiss it permanently from future matches.
           </p>
         )}
 
