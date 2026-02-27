@@ -9,11 +9,11 @@ interface DomainCheck {
   domain: string;
   available: boolean | null;
   status: "available" | "registered" | "unknown";
-  method: "dns" | "rdap" | "soa";
+  method: "rdap" | "dns" | "soa";
   verified?: boolean;
 }
 
-// RDAP endpoints per TLD — authoritative registry lookups (used as fallback)
+// RDAP endpoints — authoritative registry lookups (most reliable source of truth)
 const RDAP_ENDPOINTS: Record<string, string> = {
   ".com": "https://rdap.verisign.com/com/v1/domain/",
   ".net": "https://rdap.verisign.com/net/v1/domain/",
@@ -23,62 +23,28 @@ const RDAP_ENDPOINTS: Record<string, string> = {
   ".co":  "https://rdap.nic.co/domain/",
   ".app": "https://rdap.nic.google/domain/",
   ".dev": "https://rdap.nic.google/domain/",
+  ".me":  "https://rdap.nic.me/domain/",
+  ".cc":  "https://rdap.verisign.com/cc/v1/domain/",
+  ".tv":  "https://rdap.verisign.com/tv/v1/domain/",
+  ".xyz": "https://rdap.nic.xyz/domain/",
+  ".info": "https://rdap.afilias.net/rdap/info/domain/",
+  ".biz": "https://rdap.nic.biz/domain/",
+  ".us":  "https://rdap.nic.us/domain/",
+  ".mobi": "https://rdap.nic.mobi/domain/",
+  ".pro":  "https://rdap.nic.pro/domain/",
+  ".name": "https://rdap.verisign.com/name/v1/domain/",
 };
 
-// ── Layer 1: DNS-over-HTTPS (free, no rate limits) ──────────────────────
-// Uses Google Public DNS to check NS/A records.
-// NXDOMAIN = likely available, has records = registered, ambiguous = unknown → fallback
-async function checkDNS(domain: string): Promise<DomainCheck> {
-  try {
-    const resp = await fetch(
-      `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=NS`,
-      { signal: AbortSignal.timeout(5000) }
-    );
-    if (!resp.ok) {
-      await resp.text();
-      return { domain, available: null, status: "unknown", method: "dns" };
-    }
+// TLDs that have reliable RDAP — use RDAP-first for these
+const RDAP_TLDS = new Set(Object.keys(RDAP_ENDPOINTS));
 
-    const data = await resp.json();
-
-    // NXDOMAIN = domain does not exist → likely available
-    if (data.Status === 3) {
-      return { domain, available: true, status: "available", method: "dns" };
-    }
-
-    // Has NS answer records = definitely registered
-    if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
-      return { domain, available: false, status: "registered", method: "dns" };
-    }
-
-    // NOERROR but no NS answers — check A records as second signal
-    if (data.Status === 0) {
-      try {
-        const aResp = await fetch(
-          `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`,
-          { signal: AbortSignal.timeout(4000) }
-        );
-        if (aResp.ok) {
-          const aData = await aResp.json();
-          if (aData.Status === 3) return { domain, available: true, status: "available", method: "dns" };
-          if (aData.Answer && aData.Answer.length > 0) return { domain, available: false, status: "registered", method: "dns" };
-        } else {
-          await aResp.text();
-        }
-      } catch { /* swallow */ }
-
-      // Ambiguous — return unknown so it falls through to RDAP
-      return { domain, available: null, status: "unknown", method: "dns" };
-    }
-
-    return { domain, available: null, status: "unknown", method: "dns" };
-  } catch {
-    return { domain, available: null, status: "unknown", method: "dns" };
-  }
+function getTld(domain: string): string {
+  const dot = domain.indexOf(".");
+  return dot >= 0 ? domain.substring(dot) : "";
 }
 
-// ── Layer 2: RDAP (authoritative, 60/min rate limit) ────────────────────
-// Only called for domains where DNS returned "unknown"
+// ── RDAP check (authoritative, most reliable) ──────────────────────────
+// For supported TLDs, this is the PRIMARY check. 404 = available, 200 = registered.
 async function checkRDAP(domain: string, tld: string): Promise<DomainCheck> {
   const endpoint = RDAP_ENDPOINTS[tld];
   if (!endpoint) {
@@ -92,16 +58,13 @@ async function checkRDAP(domain: string, tld: string): Promise<DomainCheck> {
     });
 
     if (resp.status === 404) {
-      return { domain, available: true, status: "available", method: "rdap" };
+      return { domain, available: true, status: "available", method: "rdap", verified: true };
     }
     if (resp.status === 200) {
-      await resp.text(); // consume body
-      return { domain, available: false, status: "registered", method: "rdap" };
-    }
-    if (resp.status === 400 || resp.status === 429) {
       await resp.text();
-      return { domain, available: null, status: "unknown", method: "rdap" };
+      return { domain, available: false, status: "registered", method: "rdap", verified: true };
     }
+    // Rate limited or error — return unknown
     await resp.text();
     return { domain, available: null, status: "unknown", method: "rdap" };
   } catch {
@@ -109,94 +72,90 @@ async function checkRDAP(domain: string, tld: string): Promise<DomainCheck> {
   }
 }
 
-// ── Layer 3: SOA re-verification (free, catches DNS false positives) ────
-// Only called on DNS-based "available" results to confirm
-async function reVerifyWithSOA(results: DomainCheck[]): Promise<DomainCheck[]> {
-  const toVerify = results.filter(
-    (r) => r.status === "available" && r.method === "dns"
-  );
+// ── DNS check (fallback for TLDs without RDAP) ─────────────────────────
+// NOTE: DNS NXDOMAIN does NOT reliably mean "available" — many registered
+// domains have no DNS records. This is only used for TLDs without RDAP.
+async function checkDNS(domain: string): Promise<DomainCheck> {
+  try {
+    // Check multiple record types to reduce false positives
+    const types = ["NS", "A", "SOA"];
+    for (const type of types) {
+      const resp = await fetch(
+        `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${type}`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (!resp.ok) { await resp.text(); continue; }
+      const data = await resp.json();
 
-  if (toVerify.length === 0) return results;
-  console.log(`SOA re-verifying ${toVerify.length} DNS-based "available" results...`);
-
-  const reVerified = new Map<string, DomainCheck>();
-
-  for (let i = 0; i < toVerify.length; i += 20) {
-    const batch = toVerify.slice(i, i + 20);
-    const checks = batch.map(async (r) => {
-      try {
-        const resp = await fetch(
-          `https://dns.google/resolve?name=${encodeURIComponent(r.domain)}&type=SOA`,
-          { signal: AbortSignal.timeout(5000) }
-        );
-        if (!resp.ok) { await resp.text(); return; }
-        const data = await resp.json();
-
-        if (data.Status === 3) {
-          // NXDOMAIN on SOA confirms truly available
-          reVerified.set(r.domain, { ...r, verified: true, method: "soa" });
-          return;
-        }
-
-        if (data.Status === 0 && (data.Answer?.length > 0 || data.Authority?.length > 0)) {
-          const hasOwnSOA = data.Answer?.some((a: any) =>
-            a.name?.toLowerCase() === r.domain.toLowerCase()
-          ) || data.Authority?.some((a: any) =>
-            a.name?.toLowerCase() === r.domain.toLowerCase()
+      // Has answer records = definitely registered
+      if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
+        // For SOA, check if it's the domain's own SOA (not parent zone)
+        if (type === "SOA") {
+          const hasOwnSOA = data.Answer.some((a: any) =>
+            a.name?.toLowerCase() === domain.toLowerCase()
           );
-
           if (hasOwnSOA) {
-            reVerified.set(r.domain, {
-              ...r, available: false, status: "registered", verified: true, method: "soa",
-            });
-          } else {
-            // Parent zone SOA only — still available
-            reVerified.set(r.domain, { ...r, verified: true, method: "soa" });
+            return { domain, available: false, status: "registered", method: "dns" };
           }
+          // Parent zone SOA — doesn't tell us definitively
+          continue;
         }
-      } catch {
-        reVerified.set(r.domain, { ...r, available: null, status: "unknown", verified: true });
+        return { domain, available: false, status: "registered", method: "dns" };
       }
-    });
-    await Promise.all(checks);
-    if (i + 20 < toVerify.length) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Check Authority section for SOA
+      if (data.Status === 0 && data.Authority?.length > 0 && type === "SOA") {
+        const hasOwnSOA = data.Authority.some((a: any) =>
+          a.name?.toLowerCase() === domain.toLowerCase()
+        );
+        if (hasOwnSOA) {
+          return { domain, available: false, status: "registered", method: "dns" };
+        }
+      }
+
+      // NXDOMAIN on NS query = likely available (but not 100% certain without RDAP)
+      if (data.Status === 3 && type === "NS") {
+        // Mark as available but NOT verified — user should confirm with registrar
+        return { domain, available: true, status: "available", method: "dns", verified: false };
+      }
     }
+
+    // If all checks were inconclusive
+    return { domain, available: null, status: "unknown", method: "dns" };
+  } catch {
+    return { domain, available: null, status: "unknown", method: "dns" };
   }
-
-  return results.map((r) => reVerified.get(r.domain) || r);
 }
 
-function getTld(domain: string): string {
-  const dot = domain.indexOf(".");
-  return dot >= 0 ? domain.substring(dot) : "";
-}
-
-// ── Main check pipeline: DNS → RDAP fallback ────────────────────────────
+// ── Main check: RDAP-first for supported TLDs, DNS fallback for others ──
 async function checkDomain(domain: string): Promise<DomainCheck> {
-  // Layer 1: DNS (free, unlimited)
-  const dnsResult = await checkDNS(domain);
+  const tld = getTld(domain);
 
-  // If DNS gave a definitive answer, use it (will be SOA-verified later if "available")
-  if (dnsResult.status !== "unknown") {
-    return dnsResult;
+  // For TLDs with RDAP endpoints, use RDAP as PRIMARY (authoritative)
+  if (RDAP_TLDS.has(tld)) {
+    const rdapResult = await checkRDAP(domain, tld);
+    // If RDAP gave a definitive answer, use it
+    if (rdapResult.status !== "unknown") {
+      return rdapResult;
+    }
+    // RDAP was rate-limited/errored — fall back to DNS
+    return checkDNS(domain);
   }
 
-  // Layer 2: RDAP fallback for ambiguous DNS results
-  const tld = getTld(domain);
-  return checkRDAP(domain, tld);
+  // For TLDs without RDAP, use DNS (less reliable but best we can do)
+  return checkDNS(domain);
 }
 
-// Process domains in batches — larger batches since DNS is free
-async function checkBatch(domains: string[], batchSize = 30): Promise<DomainCheck[]> {
+// Process domains in batches — throttle RDAP calls to respect rate limits
+async function checkBatch(domains: string[], batchSize = 20): Promise<DomainCheck[]> {
   const results: DomainCheck[] = [];
   for (let i = 0; i < domains.length; i += batchSize) {
     const batch = domains.slice(i, i + batchSize);
     const batchResults = await Promise.all(batch.map(checkDomain));
     results.push(...batchResults);
-    // Tiny delay between batches — DNS is free so we can go fast
+    // Small delay between batches to respect RDAP rate limits
     if (i + batchSize < domains.length) {
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 150));
     }
   }
   return results;
@@ -211,19 +170,15 @@ serve(async (req) => {
       throw new Error("domains array is required");
     }
 
-    // Allow up to 1000 checks per request (increased from 800 since DNS is free)
     const toCheck = domains.slice(0, 1000);
-    console.log(`Checking ${toCheck.length} domains (DNS-first → RDAP fallback)`);
-    let results = await checkBatch(toCheck);
+    console.log(`Checking ${toCheck.length} domains (RDAP-first for supported TLDs)`);
+    const results = await checkBatch(toCheck);
 
-    // Layer 3: SOA re-verify any DNS-based "available" to catch false positives
-    results = await reVerifyWithSOA(results);
-
-    const dnsCount = results.filter((r) => r.method === "dns").length;
     const rdapCount = results.filter((r) => r.method === "rdap").length;
-    const soaCount = results.filter((r) => r.method === "soa").length;
+    const dnsCount = results.filter((r) => r.method === "dns").length;
     const availCount = results.filter((r) => r.status === "available").length;
-    console.log(`Results: ${availCount} available | DNS: ${dnsCount}, RDAP: ${rdapCount}, SOA-verified: ${soaCount}`);
+    const verifiedCount = results.filter((r) => r.verified).length;
+    console.log(`Results: ${availCount} available (${verifiedCount} registry-verified) | RDAP: ${rdapCount}, DNS: ${dnsCount}`);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
