@@ -18,12 +18,15 @@ const FOOTER_HTML = `
 const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
 
 function makeEmailHeaders(): Record<string, string> {
+  const msgId = `<${crypto.randomUUID()}@expiredhawk.com>`;
   return {
-    "List-Unsubscribe": "<https://expiredhawk.com/settings>",
+    "List-Unsubscribe": "<mailto:unsubscribe@expiredhawk.com?subject=unsubscribe>, <https://expiredhawk.com/settings>",
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     "X-Entity-Ref-ID": crypto.randomUUID(),
+    "Message-ID": msgId,
     "Feedback-ID": "welcome:expiredhawk",
     "X-Mailer": "ExpiredHawk Notifications",
+    "X-Priority": "3",
   };
 }
 
