@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Combine, Copy, ExternalLink, Check, Loader2, Globe } from "lucide-react";
+import { Combine, Copy, ExternalLink, Check, Loader2, Globe, List } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 // Curated short words (1-2 syllables preferred) grouped by starting letter
 const WORD_BANK: Record<string, string[]> = {
@@ -58,6 +59,8 @@ export const CompoundGenerator = () => {
   const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [generated, setGenerated] = useState(false);
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   const generate = useCallback(() => {
     const kw = keyword.trim().toLowerCase().replace(/[^a-z]/g, "");
@@ -227,50 +230,94 @@ export const CompoundGenerator = () => {
         {/* Results */}
         {generated && results.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm text-muted-foreground">
                 {results.length} compounds generated
                 {availableResults.length > 0 && (
                   <span className="text-emerald-500 font-medium"> · {availableResults.length} available</span>
                 )}
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={checkAvailability}
-                disabled={checking}
-              >
-                {checking ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Globe className="w-4 h-4 mr-2" />
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedForBulk.size > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      const domains = Array.from(selectedForBulk);
+                      localStorage.setItem("eh_bulk_import", JSON.stringify(domains));
+                      toast.success(`${domains.length} domains queued for Bulk Analyzer`);
+                      navigate("/tools/bulk-checker");
+                    }}
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    Send {selectedForBulk.size} to Bulk
+                  </Button>
                 )}
-                Check Availability
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const allDomains = [...availableResults, ...uncheckedResults, ...unavailableResults];
+                    if (selectedForBulk.size === allDomains.length) {
+                      setSelectedForBulk(new Set());
+                    } else {
+                      setSelectedForBulk(new Set(allDomains.map(r => r.domain)));
+                    }
+                  }}
+                  className="text-xs gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  {selectedForBulk.size === results.length ? "Deselect All" : "Select All"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={checkAvailability}
+                  disabled={checking}
+                >
+                  {checking ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4 mr-2" />
+                  )}
+                  Check Availability
+                </Button>
+              </div>
             </div>
 
             {/* Available first */}
             <div className="flex flex-wrap gap-2">
-              {[...availableResults, ...uncheckedResults, ...unavailableResults].map((r) => (
+              {[...availableResults, ...uncheckedResults, ...unavailableResults].map((r) => {
+                const isSelected = selectedForBulk.has(r.domain);
+                return (
                 <button
                   key={r.domain}
-                  onClick={() => copyDomain(r.domain)}
+                  onClick={() => {
+                    setSelectedForBulk(prev => {
+                      const next = new Set(prev);
+                      if (next.has(r.domain)) next.delete(r.domain);
+                      else next.add(r.domain);
+                      return next;
+                    });
+                  }}
                   className={`group relative inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-mono transition-colors
-                    ${r.available === true
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
-                      : r.available === false
-                        ? "border-border/50 bg-muted/30 text-muted-foreground/50 line-through hover:bg-muted/50"
-                        : "border-border bg-card text-foreground hover:bg-accent"
+                    ${isSelected
+                      ? "border-primary/50 bg-primary/10 text-primary ring-1 ring-primary/30"
+                      : r.available === true
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                        : r.available === false
+                          ? "border-border/50 bg-muted/30 text-muted-foreground/50 line-through hover:bg-muted/50"
+                          : "border-border bg-card text-foreground hover:bg-accent"
                     }`}
                 >
-                  {copied === r.domain ? (
-                    <Check className="w-3 h-3" />
-                  ) : (
-                    <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => {}}
+                    className="w-3 h-3 pointer-events-none"
+                  />
                   {r.domain}
                 </button>
-              ))}
+              )})}
             </div>
 
             {availableResults.length > 0 && (
