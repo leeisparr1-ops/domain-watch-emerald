@@ -83,13 +83,14 @@ interface MatchesViewProps {
   onDismiss?: (domainName: string) => void;
   onDismissMany?: (domainNames: string[]) => void;
   onUndismiss?: (domainName: string) => void;
+  isFavorite?: (domainName: string) => boolean;
 }
 
 export function MatchesView({
   loading, matches, totalCount, dismissedCount = 0, dismissedList = [], page, perPage,
   hideEnded, onPageChange, onPerPageChange,
   onHideEndedChange, onClearAll, onDomainClick,
-  onDismiss, onDismissMany, onUndismiss,
+  onDismiss, onDismissMany, onUndismiss, isFavorite,
 }: MatchesViewProps) {
   const totalPages = Math.ceil(totalCount / perPage);
   const [selectedForDismiss, setSelectedForDismiss] = useState<Set<string>>(new Set());
@@ -208,6 +209,38 @@ export function MatchesView({
               <Bird className="w-4 h-4 mr-1" />
                 Dismiss {selectedForDismiss.size}
               </Button>
+            )}
+            {/* Dismiss all non-favorited */}
+            {onDismissMany && isFavorite && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-orange-600 hover:text-orange-700 border-orange-300">
+                    <Bird className="w-4 h-4 mr-1" />
+                    <span className="hidden sm:inline">Dismiss non-favorited</span>
+                    <span className="sm:hidden">Dismiss unfav</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Dismiss all non-favorited?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently dismiss {matches.filter(m => !isFavorite(m.domain_name)).length} domains that you haven't favorited. Your favorited domains will remain visible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        const nonFav = matches.filter(m => !isFavorite(m.domain_name)).map(m => m.domain_name);
+                        if (nonFav.length > 0) onDismissMany(nonFav);
+                      }}
+                      className="bg-orange-600 text-white hover:bg-orange-700"
+                    >
+                      Dismiss {matches.filter(m => !isFavorite(m.domain_name)).length} domains
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
