@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Target, ChevronLeft, ChevronRight, Trash2, Bird, CheckSquare } from "lucide-react";
+import { Loader2, Target, ChevronLeft, ChevronRight, Trash2, Bird, CheckSquare, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,6 +26,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { DomainTable } from "./DomainTable";
 
 interface MatchDomain {
@@ -66,6 +71,7 @@ interface MatchesViewProps {
   matches: MatchDomain[];
   totalCount: number;
   dismissedCount?: number;
+  dismissedList?: string[];
   page: number;
   perPage: number;
   hideEnded: boolean;
@@ -76,16 +82,18 @@ interface MatchesViewProps {
   onDomainClick: (domain: AuctionDomain) => void;
   onDismiss?: (domainName: string) => void;
   onDismissMany?: (domainNames: string[]) => void;
+  onUndismiss?: (domainName: string) => void;
 }
 
 export function MatchesView({
-  loading, matches, totalCount, dismissedCount = 0, page, perPage,
+  loading, matches, totalCount, dismissedCount = 0, dismissedList = [], page, perPage,
   hideEnded, onPageChange, onPerPageChange,
   onHideEndedChange, onClearAll, onDomainClick,
-  onDismiss, onDismissMany,
+  onDismiss, onDismissMany, onUndismiss,
 }: MatchesViewProps) {
   const totalPages = Math.ceil(totalCount / perPage);
   const [selectedForDismiss, setSelectedForDismiss] = useState<Set<string>>(new Set());
+  const [showDismissed, setShowDismissed] = useState(false);
 
   const toggleSelect = (domainName: string) => {
     setSelectedForDismiss(prev => {
@@ -114,17 +122,30 @@ export function MatchesView({
 
   if (matches.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-        <p className="mb-2">No pattern matches found.</p>
-        <p className="text-xs text-muted-foreground">
-          Matches will appear here when your patterns find new domains.
-        </p>
-        {dismissedCount > 0 && (
-          <p className="text-xs text-muted-foreground mt-2">
-            <Bird className="w-3 h-3 inline mr-1" />
-            {dismissedCount} domain{dismissedCount !== 1 ? 's' : ''} dismissed
+      <div className="space-y-4">
+        <div className="text-center py-12 text-muted-foreground">
+          <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="mb-2">No pattern matches found.</p>
+          <p className="text-xs text-muted-foreground">
+            Matches will appear here when your patterns find new domains.
           </p>
+          {dismissedCount > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              <Bird className="w-3 h-3 inline mr-1" />
+              {dismissedCount} domain{dismissedCount !== 1 ? 's' : ''} dismissed
+            </p>
+          )}
+        </div>
+
+        {/* Show dismissed section even when no active matches */}
+        {dismissedCount > 0 && onUndismiss && (
+          <DismissedDomainsSection
+            dismissedList={dismissedList}
+            dismissedCount={dismissedCount}
+            showDismissed={showDismissed}
+            onToggle={() => setShowDismissed(!showDismissed)}
+            onUndismiss={onUndismiss}
+          />
         )}
       </div>
     );
@@ -238,6 +259,17 @@ export function MatchesView({
           onToggleDismissSelect={onDismissMany ? toggleSelect : undefined}
         />
 
+        {/* Dismissed domains section */}
+        {dismissedCount > 0 && onUndismiss && (
+          <DismissedDomainsSection
+            dismissedList={dismissedList}
+            dismissedCount={dismissedCount}
+            showDismissed={showDismissed}
+            onToggle={() => setShowDismissed(!showDismissed)}
+            onUndismiss={onUndismiss}
+          />
+        )}
+
         {totalCount > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border">
             <div className="flex items-center gap-2">
@@ -270,5 +302,70 @@ export function MatchesView({
         )}
       </div>
     </TooltipProvider>
+  );
+}
+
+/** Collapsible section showing dismissed domain names with restore buttons */
+function DismissedDomainsSection({
+  dismissedList,
+  dismissedCount,
+  showDismissed,
+  onToggle,
+  onUndismiss,
+}: {
+  dismissedList: string[];
+  dismissedCount: number;
+  showDismissed: boolean;
+  onToggle: () => void;
+  onUndismiss: (domainName: string) => void;
+}) {
+  return (
+    <Collapsible open={showDismissed} onOpenChange={onToggle}>
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-between text-muted-foreground hover:text-foreground"
+        >
+          <span className="flex items-center gap-2">
+            <Bird className="w-4 h-4" />
+            View dismissed domains
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+              {dismissedCount}
+            </Badge>
+          </span>
+          {showDismissed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 space-y-1 max-h-64 overflow-y-auto">
+          {dismissedList.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-2">No dismissed domains</p>
+          ) : (
+            dismissedList.map((domain) => (
+              <div
+                key={domain}
+                className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
+              >
+                <span className="font-mono text-sm text-foreground truncate mr-2">{domain}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                      onClick={() => onUndismiss(domain)}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-primary" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left"><p>Restore — will show in matches again</p></TooltipContent>
+                </Tooltip>
+              </div>
+            ))
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

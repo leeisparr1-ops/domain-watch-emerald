@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
@@ -101,6 +101,7 @@ export function useDismissedDomains() {
   }, [user]);
 
   const dismissedCount = dismissedSet.size;
+  const dismissedList = useMemo(() => Array.from(dismissedSet), [dismissedSet]);
 
   return {
     isDismissed,
@@ -108,6 +109,7 @@ export function useDismissedDomains() {
     dismissMany,
     undismiss,
     dismissedSet,
+    dismissedList,
     dismissedCount,
     loading,
     refetch: fetchDismissed,
