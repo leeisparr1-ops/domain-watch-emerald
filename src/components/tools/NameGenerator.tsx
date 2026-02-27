@@ -841,19 +841,49 @@ export function NameGenerator() {
           const totalAvailable = suggestions.filter(
             (s) => s.tldStatuses && s.tldStatuses.some((ts) => ts.status === "available")
           ).length;
+          const registryVerified = suggestions.filter(
+            (s) => s.tldStatuses && s.tldStatuses.some((ts) => (ts as any).verified === true)
+          ).length;
 
           return (
             <div className="space-y-3 animate-fade-in">
+              {/* Results summary bar */}
+              {!stillChecking && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 text-xs flex-wrap">
+                  <span className="font-semibold text-foreground">
+                    {suggestions.length} names generated
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    {totalAvailable} with available TLDs
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">
+                    {suggestions.length - totalAvailable} fully taken
+                  </span>
+                  {showOnlyAvailable && sorted.length !== totalAvailable && (
+                    <>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">
+                        Showing {sorted.length} after filters
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              {stillChecking && (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                  <span className="text-foreground font-medium">
+                    Verifying availability via registry lookups... {suggestions.length} names queued
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h4 className="text-sm font-semibold text-foreground">
                   {showOnlyAvailable && !stillChecking
-                    ? `${sorted.length} Names with Available TLDs`
-                    : `${suggestions.length} Suggestions Generated`}
-                  {!stillChecking && showOnlyAvailable && (
-                    <span className="text-xs font-normal text-muted-foreground ml-2">
-                      ({suggestions.length} generated, {totalAvailable} have available TLDs)
-                    </span>
-                  )}
+                    ? `${sorted.length} Available Domains`
+                    : `${suggestions.length} Suggestions`}
                 </h4>
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Sort dropdown */}
