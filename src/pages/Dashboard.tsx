@@ -681,7 +681,7 @@ export default function Dashboard() {
             viewMode={viewMode}
             onViewChange={handleViewChange}
             favoritesCount={favoritesCount}
-            totalMatchesCount={totalMatchesCount}
+            totalMatchesCount={Math.max(0, totalMatchesCount - dismissedCount)}
           />
 
           {/* Search and Actions Bar - Hidden in matches view */}
@@ -732,7 +732,7 @@ export default function Dashboard() {
               <MatchesView
                 loading={loadingMatches}
                 matches={dialogMatches.filter(m => !isDismissed(m.domain_name))}
-                totalCount={totalMatchesCount}
+                totalCount={Math.max(0, totalMatchesCount - dismissedCount)}
                 dismissedCount={dismissedCount}
                 dismissedList={dismissedList}
                 page={matchesPage}
