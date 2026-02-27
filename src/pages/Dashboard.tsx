@@ -746,6 +746,7 @@ export default function Dashboard() {
                 onDismiss={dismissDomain}
                 onDismissMany={dismissMany}
                 onUndismiss={undismiss}
+                isFavorite={isFavorite}
               />
             </div>
           )}
