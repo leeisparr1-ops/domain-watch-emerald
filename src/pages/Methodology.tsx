@@ -89,7 +89,7 @@ const Methodology = () => {
                 </Card>
                 <Card className="border-border">
                   <CardContent className="p-5 text-center">
-                    <p className="text-3xl font-bold gradient-text mb-1">20+ TLDs</p>
+                    <p className="text-3xl font-bold gradient-text mb-1">45+ TLDs</p>
                     <p className="text-sm text-muted-foreground">Covered Extensions</p>
                   </CardContent>
                 </Card>
@@ -145,7 +145,7 @@ const Methodology = () => {
                   {
                     icon: Search,
                     title: "Keyword Demand",
-                    desc: "Heuristic-based analysis of root keyword search interest. We extract meaningful keywords from domain names using a 150-word dictionary and score them against known demand tiers. This is explicitly keyword demand — not domain traffic.",
+                    desc: "Heuristic-based analysis of root keyword search interest. We extract meaningful keywords from domain names using a 700+ word dictionary covering verbs, nouns, adjectives, and compound-word roots, then score them against known demand tiers. This is explicitly keyword demand — not domain traffic.",
                   },
                   {
                     icon: BarChart3,
