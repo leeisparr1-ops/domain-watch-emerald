@@ -15,6 +15,7 @@ import {
   Mic,
   Shield,
   Sparkles,
+  EyeOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,9 @@ interface DomainTableProps {
   onToggleRow?: (id: string) => void;
   onSelectAll?: () => void;
   highlightedIndex?: number;
+  onDismiss?: (domainName: string) => void;
+  selectedDismiss?: Set<string>;
+  onToggleDismissSelect?: (domainName: string) => void;
 }
 
 type UrgencyLevel = "ended" | "critical" | "urgent" | "soon" | "normal";
@@ -255,6 +259,9 @@ export function DomainTable({
   onToggleRow,
   onSelectAll,
   highlightedIndex = -1,
+  onDismiss,
+  selectedDismiss,
+  onToggleDismissSelect,
 }: DomainTableProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const navigate = useNavigate();
@@ -497,6 +504,24 @@ export function DomainTable({
                             )} 
                           />
                         </Button>
+                        {onDismiss && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDismiss(d.domain);
+                                }}
+                              >
+                                <EyeOff className="w-4 h-4 text-muted-foreground hover:text-orange-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top"><p>Dismiss — won't show again</p></TooltipContent>
+                          </Tooltip>
+                        )}
                         <a
                           href={
                             d.inventorySource === 'namecheap'

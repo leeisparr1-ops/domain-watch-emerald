@@ -173,6 +173,27 @@ export type Database = {
         }
         Relationships: []
       }
+      dismissed_domains: {
+        Row: {
+          dismissed_at: string
+          domain_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string
+          domain_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string
+          domain_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emailed_domains: {
         Row: {
           auction_id: string
