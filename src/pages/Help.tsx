@@ -64,7 +64,7 @@ export default function Help() {
     {
       icon: <Wrench className="w-6 h-6 text-primary" />,
       title: "7. Domain Tools Suite",
-      description: "Use the full analysis toolkit: Brandability Scorer (radar chart), Valuation Estimator, Pronounceability Scorer, AI Name Generator, Bulk Checker (CSV/TXT), TLD Comparison, and the unified Domain Report Card."
+      description: "Use the full analysis toolkit: Brandability Scorer (radar chart), Valuation Estimator, Pronounceability Scorer, AI Name Generator, Compound Generator, Bulk Checker (with 'Send to Bulk' from generators), TLD Comparison, and the unified Domain Report Card."
     },
     {
       icon: <ShieldAlert className="w-6 h-6 text-primary" />,
@@ -124,7 +124,7 @@ export default function Help() {
     },
     {
       question: "What TLD filters are available?",
-      answer: "Popular extensions (.com, .net, .org), tech-focused (.io, .ai, .dev, .app), and country codes (.co, .me, .tv). Set per-pattern in Add Pattern."
+      answer: "We support 45+ TLD extensions across all categories: generic (.com, .net, .org), tech (.io, .ai, .dev, .app), new gTLDs (.xyz, .gg, .me, .co), and country codes (.us, .uk, .de, .ca, and more). Set per-pattern in Add Pattern."
     },
     {
       question: "What does the spam risk badge mean?",
@@ -136,7 +136,7 @@ export default function Help() {
     },
     {
       question: "What are the Domain Tools?",
-      answer: "The Tools suite includes: AI Domain Advisor (investment analysis with chat), Brandability Scorer (radar chart with 6 dimensions), Valuation Estimator (trend-aware pricing), Pronounceability Scorer, AI Name Generator, Bulk Checker (CSV/TXT upload), TLD Comparison (45+ extensions with investor grades), and the unified Domain Report Card."
+      answer: "The Tools suite includes: AI Domain Advisor (investment analysis with chat), Brandability Scorer (radar chart with 6 dimensions), Valuation Estimator (trend-aware pricing), Pronounceability Scorer, AI Name Generator, Compound Generator (two-word brandables), Bulk Checker (CSV/TXT upload, plus 'Send to Bulk' from generators), TLD Comparison (45+ extensions with investor grades), and the unified Domain Report Card."
     },
     {
       question: "Do I need an account to use the Tools?",

@@ -11,7 +11,7 @@ const steps = [
     icon: Bell,
     step: "2",
     title: "We Scan Daily",
-    description: "ExpiredHawk checks thousands of expiring domains every few hours and compares them to your patterns.",
+    description: "ExpiredHawk checks millions of expiring domains every few hours and compares them to your patterns.",
   },
   {
     icon: Smartphone,
