@@ -22,11 +22,16 @@ const FOOTER_HTML = `
 const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
 
 function makeEmailHeaders(): Record<string, string> {
+  const msgId = `<${crypto.randomUUID()}@expiredhawk.com>`;
   return {
-    "List-Unsubscribe": "<https://expiredhawk.com/settings>",
+    "List-Unsubscribe": "<mailto:unsubscribe@expiredhawk.com?subject=unsubscribe>, <https://expiredhawk.com/settings>",
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     "X-Entity-Ref-ID": crypto.randomUUID(),
+    "Message-ID": msgId,
     "Precedence": "bulk",
+    "Feedback-ID": "bulk-welcome:expiredhawk",
+    "X-Mailer": "ExpiredHawk Notifications",
+    "X-Priority": "3",
   };
 }
 
@@ -80,7 +85,7 @@ serve(async (req: Request): Promise<Response> => {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f4f4f5;">
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-  <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
+  <div style="background:#16a34a;padding:40px 30px;border-radius:16px 16px 0 0;text-align:center;">
     <h1 style="color:white;margin:0;font-size:32px;">ExpiredHawk</h1>
     <p style="color:rgba(255,255,255,0.95);margin:15px 0 0 0;font-size:18px;">Welcome aboard</p>
   </div>
@@ -106,7 +111,7 @@ serve(async (req: Request): Promise<Response> => {
     </p>
     
     <div style="text-align:center;margin-top:30px;">
-      <a href="https://expiredhawk.com/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">
+      <a href="https://expiredhawk.com/dashboard" style="display:inline-block;background:#16a34a;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">
         Go to Your Dashboard
       </a>
     </div>
