@@ -18,18 +18,23 @@ const FOOTER_HTML = `
 
 const FOOTER_TEXT = `\n\n---\nExpiredHawk – Domain Monitoring Made Simple\nManage email preferences: https://expiredhawk.com/settings\nExpiredHawk · United Kingdom`;
 
-function makeEmailHeaders(category: string): Record<string, string> {
+function makeEmailHeaders(category: string, isBulk: boolean): Record<string, string> {
   const msgId = `<${crypto.randomUUID()}@expiredhawk.com>`;
-  return {
+  const headers: Record<string, string> = {
     "List-Unsubscribe": "<mailto:unsubscribe@expiredhawk.com?subject=unsubscribe>, <https://expiredhawk.com/settings>",
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     "X-Entity-Ref-ID": crypto.randomUUID(),
     "Message-ID": msgId,
-    "Precedence": "bulk",
     "Feedback-ID": `${category}:expiredhawk`,
     "X-Mailer": "ExpiredHawk Notifications",
     "X-Priority": "3",
+    "X-Auto-Response-Suppress": "OOF, AutoReply",
   };
+  // Only mark bulk emails as bulk — transactional/test emails must NOT have this
+  if (isBulk) {
+    headers["Precedence"] = "bulk";
+  }
+  return headers;
 }
 
 function preheaderHtml(text: string): string {
@@ -289,6 +294,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Sending email to:", recipientEmail);
 
     const category = payload.type === "test" ? "test" : "pattern_match";
+    const isBulk = payload.type === "pattern_match";
     const emailResponse: any = await resend.emails.send({
       from: "ExpiredHawk <notifications@expiredhawk.com>",
       replyTo: "support@expiredhawk.com",
@@ -296,7 +302,7 @@ serve(async (req: Request): Promise<Response> => {
       subject,
       html,
       text,
-      headers: makeEmailHeaders(category),
+      headers: makeEmailHeaders(category, isBulk),
     });
 
     if (emailResponse?.error) {
