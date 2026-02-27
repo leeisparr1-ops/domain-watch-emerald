@@ -104,8 +104,8 @@ const Methodology = () => {
                 {[
                   { label: "TLD Match", weight: "40%", desc: "Same extension gets heaviest weight — a .ai comp matters more for .ai domains" },
                   { label: "Category & Keyword Relevance", weight: "25%", desc: "NLP-based semantic matching finds comps in the same industry niche" },
-                  { label: "Length Similarity", weight: "15%", desc: "Similar character counts produce more meaningful comparisons" },
-                  { label: "Recency", weight: "15%", desc: "Recent sales reflect current market conditions more accurately" },
+                  { label: "Length Similarity", weight: "25%", desc: "Similar character counts produce more meaningful comparisons" },
+                  { label: "Recency", weight: "10%", desc: "Recent sales reflect current market conditions more accurately" },
                 ].map((item) => (
                   <div key={item.label} className="flex gap-3 p-4 rounded-lg bg-muted/50 border border-border">
                     <div className="shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
