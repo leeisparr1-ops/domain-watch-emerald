@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2, Save, FolderOpen, Trash2, ChevronDown } from "lucide-react";
+import { Sparkles, Loader2, Globe, CheckCircle2, XCircle, HelpCircle, ShieldAlert, ShieldCheck, TrendingUp, Lightbulb, Filter, ExternalLink, RefreshCw, ArrowUpDown, Download, Gavel, Clock, Wand2, Save, FolderOpen, Trash2, ChevronDown, List } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBackClose } from "@/hooks/useBackClose";
+import { useNavigate } from "react-router-dom";
 
 interface TldStatus {
   domain: string;
@@ -183,8 +185,10 @@ export function NameGenerator() {
   const [synonymBoost, setSynonymBoost] = useState(false);
   const [premiumMode, setPremiumMode] = useState(false);
   const [maxLengthFilter, setMaxLengthFilter] = useState(0); // 0 = no filter
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const tldsToCheck = includeExtraTlds ? [...CORE_TLDS, ...EXTRA_TLDS] : CORE_TLDS;
 
@@ -868,6 +872,39 @@ export function NameGenerator() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* Send to Bulk button */}
+                  {selectedForBulk.size > 0 && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => {
+                        const domains = Array.from(selectedForBulk).map(n => n.toLowerCase() + ".com");
+                        localStorage.setItem("eh_bulk_import", JSON.stringify(domains));
+                        toast({ title: `${domains.length} names queued`, description: "Opening Bulk Analyzer..." });
+                        navigate("/tools/bulk-checker");
+                      }}
+                    >
+                      <List className="w-3 h-3" />
+                      Send {selectedForBulk.size} to Bulk
+                    </Button>
+                  )}
+                  {/* Select all / deselect all */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      if (selectedForBulk.size === sorted.length) {
+                        setSelectedForBulk(new Set());
+                      } else {
+                        setSelectedForBulk(new Set(sorted.map(s => s.name)));
+                      }
+                    }}
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                    {selectedForBulk.size === sorted.length ? "Deselect All" : "Select All"}
+                  </Button>
                   {/* Regenerate button */}
                   <Button
                     variant="outline"
@@ -947,10 +984,23 @@ export function NameGenerator() {
                   : premium.tier === "B"
                   ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
                   : "border-border text-muted-foreground";
+                const isSelected = selectedForBulk.has(s.name);
                 return (
-                  <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
+                  <div key={i} className={`p-4 rounded-lg border bg-card transition-colors ${isSelected ? "border-primary/50 bg-primary/5" : s.trademarkRisk?.riskLevel === "high" ? "border-red-500/30" : s.trademarkRisk?.riskLevel === "medium" ? "border-orange-500/30" : "border-border hover:border-primary/30"}`}>
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            setSelectedForBulk(prev => {
+                              const next = new Set(prev);
+                              if (checked) next.add(s.name);
+                              else next.delete(s.name);
+                              return next;
+                            });
+                          }}
+                          className="shrink-0"
+                        />
                         <Globe className="w-4 h-4 text-primary" />
                         <span className="font-semibold text-foreground">{s.name}</span>
                         {!s.checkingTlds && s.tldStatuses && (() => {

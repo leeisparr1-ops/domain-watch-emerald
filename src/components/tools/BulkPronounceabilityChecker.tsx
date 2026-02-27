@@ -1,10 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles, Filter, X } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles, Filter, X, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,28 @@ export function BulkPronounceabilityChecker() {
   const [tmRiskFilter, setTmRiskFilter] = useState("all");
 
   const filtersActive = minFlipScore > 0 || tldFilter !== "all" || tmRiskFilter !== "all";
+
+  // Auto-import from Name Generator / Compound Generator
+  useEffect(() => {
+    try {
+      const imported = localStorage.getItem("eh_bulk_import");
+      if (imported) {
+        const domains: string[] = JSON.parse(imported);
+        localStorage.removeItem("eh_bulk_import");
+        if (domains.length > 0) {
+          const cleaned = domains
+            .map(d => d.trim().toLowerCase())
+            .filter(d => d.length >= 2 && /^[a-z0-9.-]+$/.test(d))
+            .slice(0, 50);
+          if (cleaned.length > 0) {
+            setText(cleaned.join("\n"));
+            // Auto-analyze after a tick
+            setTimeout(() => scoreDomains(cleaned), 100);
+          }
+        }
+      }
+    } catch {}
+  }, []);
 
   const clearFilters = () => {
     setMinFlipScore(0);
