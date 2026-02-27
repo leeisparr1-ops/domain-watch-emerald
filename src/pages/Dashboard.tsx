@@ -86,7 +86,7 @@ export default function Dashboard() {
   const { notificationsEnabled, toggleNotifications, permissionStatus } = useAuctionAlerts();
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns, enabledCount } = useUserPatterns();
   usePatternAlerts({ enabledCount, checkPatterns });
-  const { isDismissed, dismissDomain, dismissMany, dismissedCount } = useDismissedDomains();
+  const { isDismissed, dismissDomain, dismissMany, undismiss, dismissedCount, dismissedList } = useDismissedDomains();
   const [isSortPending, startSortTransition] = useTransition();
   const [isFetchingAuctions, setIsFetchingAuctions] = useState(false);
   const activeFetchSeqRef = useRef(0);
@@ -734,6 +734,7 @@ export default function Dashboard() {
                 matches={dialogMatches.filter(m => !isDismissed(m.domain_name))}
                 totalCount={totalMatchesCount}
                 dismissedCount={dismissedCount}
+                dismissedList={dismissedList}
                 page={matchesPage}
                 perPage={matchesPerPage}
                 hideEnded={hideEndedMatches}
@@ -744,6 +745,7 @@ export default function Dashboard() {
                 onDomainClick={handleDomainClick}
                 onDismiss={dismissDomain}
                 onDismissMany={dismissMany}
+                onUndismiss={undismiss}
               />
             </div>
           )}
