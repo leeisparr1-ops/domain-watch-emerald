@@ -270,7 +270,7 @@ export function NameGenerator() {
 
   const loadingSteps = [
     { label: "Analyzing market trends & keywords...", icon: "📊" },
-    { label: "Generating ~100 names with AI...", icon: "🤖" },
+    { label: "Generating ~300+ names across 8-9 AI batches...", icon: "🤖" },
     { label: "Screening for trademark conflicts...", icon: "🛡️" },
     { label: availabilityProgress || `Checking registrations across ${tldsToCheck.length} TLDs...`, icon: "🌐" },
     { label: "Cross-referencing auction inventory...", icon: "🔍" },
