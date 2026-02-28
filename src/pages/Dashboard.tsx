@@ -87,6 +87,25 @@ export default function Dashboard() {
   const { patterns, addPattern, removePattern, togglePattern, renamePattern, updatePattern, clearPatterns, matchesDomain, hasPatterns, checkPatterns, checking, maxPatterns, enabledCount } = useUserPatterns();
   usePatternAlerts({ enabledCount, checkPatterns });
   const { isDismissed, dismissDomain, dismissMany, undismiss, dismissedCount, dismissedList } = useDismissedDomains();
+  // Track pending refetch after dismiss actions
+  const [dismissRefetchTrigger, setDismissRefetchTrigger] = useState(0);
+
+  // Wrap dismiss actions to trigger a matches refetch afterward
+  const handleDismissDomain = useCallback(async (domainName: string) => {
+    await dismissDomain(domainName);
+    setDismissRefetchTrigger(t => t + 1);
+  }, [dismissDomain]);
+
+  const handleDismissMany = useCallback(async (domainNames: string[]) => {
+    await dismissMany(domainNames);
+    setMatchesPage(1);
+    setDismissRefetchTrigger(t => t + 1);
+  }, [dismissMany]);
+
+  const handleUndismiss = useCallback(async (domainName: string) => {
+    await undismiss(domainName);
+    setDismissRefetchTrigger(t => t + 1);
+  }, [undismiss]);
   const [isSortPending, startSortTransition] = useTransition();
   const [isFetchingAuctions, setIsFetchingAuctions] = useState(false);
   const activeFetchSeqRef = useRef(0);
@@ -559,6 +578,13 @@ export default function Dashboard() {
     if (viewMode === "matches") fetchDialogMatches(matchesPage);
   }, [viewMode, matchesPage, fetchDialogMatches]);
 
+  // Refetch matches after dismiss/undismiss actions
+  useEffect(() => {
+    if (dismissRefetchTrigger > 0 && viewMode === "matches") {
+      fetchDialogMatches(matchesPage);
+    }
+  }, [dismissRefetchTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const timer = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 250);
     return () => clearTimeout(timer);
@@ -743,9 +769,9 @@ export default function Dashboard() {
                 onHideEndedChange={setHideEndedMatches}
                 onClearAll={clearAllMatches}
                 onDomainClick={handleDomainClick}
-                onDismiss={dismissDomain}
-                onDismissMany={dismissMany}
-                onUndismiss={undismiss}
+                onDismiss={handleDismissDomain}
+                onDismissMany={handleDismissMany}
+                onUndismiss={handleUndismiss}
                 isFavorite={isFavorite}
               />
             </div>
