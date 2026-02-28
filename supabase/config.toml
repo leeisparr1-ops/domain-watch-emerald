@@ -1,67 +1,49 @@
 project_id = "orbygspxutudncbyipst"
 
-[functions.fetch-auctions]
-verify_jwt = false
-
-[functions.sync-auctions]
-verify_jwt = false
-
-[functions.cron-sync-auctions]
-verify_jwt = false
-
-[functions.check-pattern-alerts]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.get-vapid-key]
-verify_jwt = false
-
-[functions.send-email-notification]
-verify_jwt = false
-
-[functions.sync-large-inventory]
-verify_jwt = false
-
-[functions.chunked-sync-orchestrator]
-verify_jwt = false
-
-[functions.cleanup-expired-auctions]
-verify_jwt = false
-
-[functions.sync-closeout]
-verify_jwt = false
-
-[functions.bulk-upsert-auctions]
-verify_jwt = false
-
-[functions.check-domain-risk]
-verify_jwt = false
-
-[functions.check-all-patterns]
-verify_jwt = false
-
-[functions.verify-turnstile]
-verify_jwt = false
-
-[functions.compute-domain-scores]
-verify_jwt = false
-
-[functions.ai-domain-advisor]
-verify_jwt = false
-
-[functions.refresh-trends]
-verify_jwt = false
-
-[functions.check-social-handles]
-verify_jwt = false
-
-[functions.backfill-pattern-matches]
-verify_jwt = false
-
-[functions.exchange-oauth-token]
-verify_jwt = false
-
-[functions.send-weekly-admin-report]
-verify_jwt = false
+[functions]
+  [functions.ai-domain-advisor]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.backfill-pattern-matches]
+    verify_jwt = false
+  [functions.bulk-upsert-auctions]
+    verify_jwt = false
+  [functions.check-all-patterns]
+    verify_jwt = false
+  [functions.check-domain-risk]
+    verify_jwt = false
+  [functions.check-pattern-alerts]
+    verify_jwt = false
+  [functions.check-social-handles]
+    verify_jwt = false
+  [functions.chunked-sync-orchestrator]
+    verify_jwt = false
+  [functions.cleanup-expired-auctions]
+    verify_jwt = false
+  [functions.compute-domain-scores]
+    verify_jwt = false
+  [functions.cron-sync-auctions]
+    verify_jwt = false
+  [functions.exchange-oauth-token]
+    verify_jwt = false
+  [functions.fetch-auctions]
+    verify_jwt = false
+  [functions.get-vapid-key]
+    verify_jwt = false
+  [functions.refresh-trends]
+    verify_jwt = false
+  [functions.send-email-notification]
+    verify_jwt = false
+  [functions.send-push-notification]
+    verify_jwt = false
+  [functions.send-weekly-admin-report]
+    verify_jwt = false
+  [functions.sync-auctions]
+    verify_jwt = false
+  [functions.sync-closeout]
+    verify_jwt = false
+  [functions.sync-large-inventory]
+    verify_jwt = false
+  [functions.verify-turnstile]
+    verify_jwt = false
