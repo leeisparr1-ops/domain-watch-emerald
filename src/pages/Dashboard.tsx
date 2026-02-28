@@ -543,19 +543,24 @@ export default function Dashboard() {
     } catch (error) { console.error('Error clearing matches:', error); }
   };
 
-  // Fetch initial match count — runs immediately instead of waiting 10s
+  // Fetch initial match count using the RPC (excludes dismissed domains)
   const didFetchInitialCountRef = useRef(false);
   useEffect(() => {
     if (!user || didFetchInitialCountRef.current) return;
     didFetchInitialCountRef.current = true;
     const fetchInitialMatchCount = async () => {
       try {
-        const nowIso = new Date().toISOString();
-        const { count, error } = await supabase
-          .from('pattern_alerts')
-          .select('id, auctions!inner(end_time)', { count: 'exact', head: true })
-          .eq('user_id', user.id).gte('auctions.end_time', nowIso);
-        if (!error && count !== null) setTotalMatchesCount(count);
+        const { data, error } = await supabase.rpc('get_pattern_matches', {
+          p_user_id: user.id,
+          p_hide_ended: true,
+          p_offset: 0,
+          p_limit: 1,
+        });
+        if (!error && data && (data as any[]).length > 0) {
+          setTotalMatchesCount(Number((data as any[])[0].total_count));
+        } else if (!error) {
+          setTotalMatchesCount(0);
+        }
       } catch (error) { console.error('Error fetching initial match count:', error); }
     };
     fetchInitialMatchCount();

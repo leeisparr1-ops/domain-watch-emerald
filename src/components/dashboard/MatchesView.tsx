@@ -178,7 +178,7 @@ export function MatchesView({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-muted-foreground">
-              Showing {Math.min((page - 1) * perPage + 1, matches.length)}-{Math.min(page * perPage, matches.length)} of {matches.length} matches
+              Showing {Math.min((page - 1) * perPage + 1, totalCount)}-{Math.min((page - 1) * perPage + matches.length, totalCount)} of {totalCount} matches
               {dismissedCount > 0 && (
                 <span className="ml-1 text-muted-foreground/60">
                   · {dismissedCount} dismissed
@@ -224,7 +224,7 @@ export function MatchesView({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Dismiss all non-favorited?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently dismiss {matches.filter(m => !isFavorite(m.domain_name)).length} domains that you haven't favorited. Your favorited domains will remain visible.
+                      This will dismiss all {matches.filter(m => !isFavorite(m.domain_name)).length} non-favorited domains on this page. They won't appear in future matches.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
