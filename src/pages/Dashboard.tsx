@@ -477,46 +477,39 @@ export default function Dashboard() {
     setLoadingMatches(true);
     try {
       const from = (page - 1) * perPage;
-      const to = from + perPage - 1;
-      const nowIso = new Date().toISOString();
 
-      // Always fetch accurate count first
-      let countQuery = supabase
-        .from('pattern_alerts')
-        .select(currentHideEnded
-          ? 'id, auctions!inner(end_time)'
-          : 'id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (currentHideEnded) countQuery = countQuery.gte('auctions.end_time', nowIso);
-      const { count: exactCount } = await countQuery.abortSignal(controller.signal);
-      if (seq !== matchesFetchSeqRef.current) return;
-      if (exactCount !== null) setTotalMatchesCount(exactCount);
+      const { data, error: rpcError } = await supabase
+        .rpc('get_pattern_matches', {
+          p_user_id: user.id,
+          p_hide_ended: currentHideEnded,
+          p_offset: from,
+          p_limit: perPage,
+        })
+        .abortSignal(controller.signal);
 
-      const select = currentHideEnded
-        ? 'id, auction_id, domain_name, pattern_id, alerted_at, auctions!inner(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)'
-        : 'id, auction_id, domain_name, pattern_id, alerted_at, auctions(price,end_time,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source), user_patterns(description)';
-      let dataQuery = supabase
-        .from('pattern_alerts').select(select).eq('user_id', user.id)
-        .order('alerted_at', { ascending: false }).range(from, to).abortSignal(controller.signal);
-      if (currentHideEnded) dataQuery = dataQuery.gte('auctions.end_time', nowIso);
-      const { data, error: dataError } = await dataQuery;
       clearTimeout(timeoutId);
-      if (dataError) throw dataError;
+      if (rpcError) throw rpcError;
       if (seq !== matchesFetchSeqRef.current) return;
+
       const rows = (data || []) as Array<any>;
-      const matches = rows.map((row) => {
-        const auction = Array.isArray(row.auctions) ? row.auctions[0] : row.auctions;
-        const pattern = Array.isArray(row.user_patterns) ? row.user_patterns[0] : row.user_patterns;
-        return {
-          alert_id: row.id, auction_id: row.auction_id, domain_name: row.domain_name,
-          price: Number(auction?.price) || 0, end_time: auction?.end_time || null,
-          pattern_description: pattern?.description || 'Pattern',
-          bid_count: auction?.bid_count || 0, traffic_count: auction?.traffic_count || 0,
-          domain_age: auction?.domain_age || 0, auction_type: auction?.auction_type || 'Bid',
-          tld: auction?.tld || '', valuation: auction?.valuation || undefined,
-          inventory_source: auction?.inventory_source || undefined,
-        };
-      });
+      const totalFromDb = rows.length > 0 ? Number(rows[0].total_count) : 0;
+      setTotalMatchesCount(totalFromDb);
+
+      const matches = rows.map((row: any) => ({
+        alert_id: row.alert_id,
+        auction_id: row.auction_id,
+        domain_name: row.domain_name,
+        price: Number(row.price) || 0,
+        end_time: row.end_time || null,
+        pattern_description: row.pattern_description || 'Pattern',
+        bid_count: row.bid_count || 0,
+        traffic_count: row.traffic_count || 0,
+        domain_age: row.domain_age || 0,
+        auction_type: row.auction_type || 'Bid',
+        tld: row.tld || '',
+        valuation: row.valuation ? Number(row.valuation) : undefined,
+        inventory_source: row.inventory_source || undefined,
+      }));
       setDialogMatches(matches);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -707,7 +700,7 @@ export default function Dashboard() {
             viewMode={viewMode}
             onViewChange={handleViewChange}
             favoritesCount={favoritesCount}
-            totalMatchesCount={Math.max(0, totalMatchesCount - dismissedCount)}
+            totalMatchesCount={totalMatchesCount}
           />
 
           {/* Search and Actions Bar - Hidden in matches view */}
@@ -757,8 +750,8 @@ export default function Dashboard() {
             <div className="animate-in fade-in duration-300 delay-100">
               <MatchesView
                 loading={loadingMatches}
-                matches={dialogMatches.filter(m => !isDismissed(m.domain_name))}
-                totalCount={Math.max(0, totalMatchesCount - dismissedCount)}
+                matches={dialogMatches}
+                totalCount={totalMatchesCount}
                 dismissedCount={dismissedCount}
                 dismissedList={dismissedList}
                 page={matchesPage}
