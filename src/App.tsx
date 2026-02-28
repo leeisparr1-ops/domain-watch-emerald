@@ -32,6 +32,7 @@ const DomainGeneratorPage = lazy(() => import("./pages/tools/DomainGeneratorPage
 const PronounceabilityPage = lazy(() => import("./pages/tools/PronounceabilityPage"));
 const BulkCheckerPage = lazy(() => import("./pages/tools/BulkCheckerPage"));
 const TldComparePage = lazy(() => import("./pages/tools/TldComparePage"));
+const ValuationPage = lazy(() => import("./pages/tools/ValuationPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -78,6 +79,7 @@ const App = () => (
                 <Route path="/tools/pronounceability" element={<ProtectedRoute><PronounceabilityPage /></ProtectedRoute>} />
                 <Route path="/tools/bulk-checker" element={<ProtectedRoute><BulkCheckerPage /></ProtectedRoute>} />
                 <Route path="/tools/tld-compare" element={<ProtectedRoute><TldComparePage /></ProtectedRoute>} />
+                <Route path="/tools/valuation" element={<ProtectedRoute><ValuationPage /></ProtectedRoute>} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/methodology" element={<Methodology />} />
