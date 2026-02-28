@@ -683,6 +683,32 @@ export type Database = {
         Returns: boolean
       }
       get_auction_count: { Args: never; Returns: number }
+      get_pattern_matches: {
+        Args: {
+          p_hide_ended?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_user_id: string
+        }
+        Returns: {
+          alert_id: string
+          alerted_at: string
+          auction_id: string
+          auction_type: string
+          bid_count: number
+          domain_age: number
+          domain_name: string
+          end_time: string
+          inventory_source: string
+          pattern_description: string
+          pattern_id: string
+          price: number
+          tld: string
+          total_count: number
+          traffic_count: number
+          valuation: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
