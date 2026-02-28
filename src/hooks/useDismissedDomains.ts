@@ -44,12 +44,12 @@ export function useDismissedDomains() {
     try {
       const { error } = await supabase
         .from("dismissed_domains")
-        .insert({ user_id: user.id, domain_name: domainName });
+        .upsert(
+          { user_id: user.id, domain_name: domainName },
+          { onConflict: 'user_id,domain_name', ignoreDuplicates: true }
+        );
 
-      // Ignore unique constraint violations (already dismissed)
-      if (error && error.code === "23505") {
-        // Already dismissed, just update local state
-      } else if (error) throw error;
+      if (error) throw error;
 
       setDismissedSet(prev => new Set([...prev, domainName]));
     } catch (error) {
@@ -62,12 +62,13 @@ export function useDismissedDomains() {
     if (!user || domainNames.length === 0) return;
     try {
       const rows = domainNames.map(d => ({ user_id: user.id, domain_name: d }));
+      // Use upsert with ignoreDuplicates so already-dismissed domains
+      // don't cause the entire batch to fail (Postgres INSERT is atomic).
       const { error } = await supabase
         .from("dismissed_domains")
-        .insert(rows);
+        .upsert(rows, { onConflict: 'user_id,domain_name', ignoreDuplicates: true });
 
-      // Ignore unique constraint violations
-      if (error && error.code !== "23505") throw error;
+      if (error) throw error;
       setDismissedSet(prev => {
         const next = new Set(prev);
         domainNames.forEach(d => next.add(d));
