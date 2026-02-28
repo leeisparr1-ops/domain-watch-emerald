@@ -91,18 +91,29 @@ export default function Dashboard() {
   const [dismissRefetchTrigger, setDismissRefetchTrigger] = useState(0);
 
   // Wrap dismiss actions to trigger a matches refetch afterward
+  // Optimistic count updates ensure the badge decrements immediately
   const handleDismissDomain = useCallback(async (domainName: string) => {
+    // Optimistic: decrement count immediately so user sees feedback
+    setTotalMatchesCount(prev => Math.max(0, prev - 1));
+    // Remove from current page display immediately
+    setDialogMatches(prev => prev.filter(m => m.domain_name !== domainName));
     await dismissDomain(domainName);
     setDismissRefetchTrigger(t => t + 1);
   }, [dismissDomain]);
 
   const handleDismissMany = useCallback(async (domainNames: string[]) => {
+    const dismissSet = new Set(domainNames);
+    // Optimistic: decrement count and remove from display
+    setTotalMatchesCount(prev => Math.max(0, prev - domainNames.length));
+    setDialogMatches(prev => prev.filter(m => !dismissSet.has(m.domain_name)));
     await dismissMany(domainNames);
     setMatchesPage(1);
     setDismissRefetchTrigger(t => t + 1);
   }, [dismissMany]);
 
   const handleUndismiss = useCallback(async (domainName: string) => {
+    // Optimistic: increment count
+    setTotalMatchesCount(prev => prev + 1);
     await undismiss(domainName);
     setDismissRefetchTrigger(t => t + 1);
   }, [undismiss]);
