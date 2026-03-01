@@ -139,7 +139,7 @@ const SharedReport = () => {
                       </div>
                       <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
                         <DollarSign className="w-5 h-5 mx-auto mb-2 text-emerald-500" />
-                        <p className="text-xs text-muted-foreground">Max Buy Price</p>
+                        <p className="text-xs text-muted-foreground">Wholesale Value</p>
                         <p className="text-lg font-bold text-foreground mt-1">{analysis.suggested_buy_price}</p>
                       </div>
                       <div className="p-4 rounded-lg border border-border bg-card text-center flex flex-col justify-center">
