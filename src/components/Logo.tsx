@@ -28,7 +28,7 @@ export function Logo({ className = "", size = "md" }: LogoProps) {
       loading="eager"
       decoding="async"
       fetchPriority="high"
-      className={`${sizes[size]} rounded-full ${className}`}
+      className={`${sizes[size]} ${className}`}
     />
   );
 }
