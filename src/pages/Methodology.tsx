@@ -221,9 +221,9 @@ const Methodology = () => {
                     </p>
                   </div>
                   <div className="p-3 rounded-md bg-background border border-border">
-                    <p className="text-sm font-medium">Max Buy Price</p>
+                    <p className="text-sm font-medium">Wholesale Value</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      The most you should pay to maintain healthy flip margins
+                      Realistic wholesale/investor level (where many smaller end-users also buy)
                     </p>
                   </div>
                   <div className="p-3 rounded-md bg-background border border-border">
