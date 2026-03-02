@@ -324,18 +324,20 @@ serve(async (req) => {
     const CACHE_TTL_MINUTES = 1440; // 24 hours
 
     // For initial analysis (not follow-up), check cache first
+    // Cache key includes stance so different stances get different results
+    const stance = valuationStance || "balanced";
+    const cacheKey = `${domain.toLowerCase().trim()}::${stance}`;
     if (!followUp) {
-      const domainLower = domain.toLowerCase().trim();
       const { data: cached } = await supabaseAdmin
         .from("ai_advisor_cache")
         .select("response, created_at")
-        .eq("domain_name", domainLower)
+        .eq("domain_name", cacheKey)
         .maybeSingle();
 
       if (cached) {
         const ageMs = Date.now() - new Date(cached.created_at).getTime();
         if (ageMs < CACHE_TTL_MINUTES * 60 * 1000) {
-          console.log(`Cache hit for ${domainLower} (${Math.round(ageMs / 60000)}m old)`);
+          console.log(`Cache hit for ${cacheKey} (${Math.round(ageMs / 60000)}m old)`);
           return new Response(JSON.stringify(cached.response), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -645,11 +647,10 @@ Provide a COMPREHENSIVE investment analysis covering:
       analysis = JSON.parse(cleaned);
     }
 
-    // Cache the result
-    const domainLower = domain.toLowerCase().trim();
+    // Cache the result (stance-aware key)
     await supabaseAdmin
       .from("ai_advisor_cache")
-      .upsert({ domain_name: domainLower, response: analysis, created_at: new Date().toISOString() }, { onConflict: "domain_name" })
+      .upsert({ domain_name: cacheKey, response: analysis, created_at: new Date().toISOString() }, { onConflict: "domain_name" })
       .then(({ error }) => { if (error) console.error("Cache write error:", error); });
 
     return new Response(JSON.stringify(analysis), {
