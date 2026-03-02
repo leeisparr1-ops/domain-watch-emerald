@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock,
   Users, ThumbsUp, ThumbsDown, BarChart3, Flame, Send, MessageSquare,
@@ -470,7 +471,22 @@ export function AIDomainAdvisor() {
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Stance:</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1">
+              Stance:
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
+                    <p className="font-medium mb-1">How stance affects valuation:</p>
+                    <p><span className="font-medium">Conservative</span> — Weights liquidation &amp; wholesale comps. Best for quick-flip pricing.</p>
+                    <p><span className="font-medium">Balanced</span> — Blends wholesale and end-user data equally.</p>
+                    <p><span className="font-medium">Aggressive</span> — Weights end-user sales &amp; premium comps. Best for patient sellers.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
             <ToggleGroup
               type="single"
               value={valuationStance}
