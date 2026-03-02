@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
-import { Loader2, Bell, BellOff, Trash2, Heart, Download, CheckSquare } from "lucide-react";
+import { Loader2, Bell, BellOff, Trash2, Heart, Download, CheckSquare, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useAuctionAlerts } from "@/hooks/useAuctionAlerts";
 import { useUserPatterns } from "@/hooks/useUserPatterns";
 import { usePatternAlerts } from "@/hooks/usePatternAlerts";
 import { Navigate, Link } from "react-router-dom";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -702,6 +703,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <OnboardingWizard />
       <main className="pt-24 pb-12 px-4">
         <div className="container mx-auto">
           <DashboardHeader
@@ -802,9 +804,22 @@ export default function Dashboard() {
           )}
 
           {viewMode !== "matches" && !loading && !error && filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="mb-2">No auctions found matching your criteria.</p>
+            <div className="text-center py-16 text-muted-foreground">
+              <Search className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {viewMode === "favorites" ? "No favorites yet" : "No auctions found"}
+              </h3>
+              <p className="text-sm mb-4 max-w-sm mx-auto">
+                {viewMode === "favorites"
+                  ? "Star domains you're interested in and they'll appear here for quick access."
+                  : activeFilterCount > 0
+                    ? "Try adjusting your filters to see more results."
+                    : "New domains are synced every 6 hours. Check back soon!"}
+              </p>
               {activeFilterCount > 0 && <Button variant="outline" onClick={resetFilters}>Clear Filters</Button>}
+              {viewMode === "favorites" && (
+                <Button variant="outline" onClick={() => handleViewChange("all")}>Browse All Domains</Button>
+              )}
             </div>
           )}
 

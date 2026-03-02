@@ -1,14 +1,39 @@
 import { Database, Clock, Globe2, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-const stats = [
-  { icon: Database, value: "2.7M+", label: "Domains Scanned Daily" },
-  { icon: Clock, value: "6hr", label: "Sync Frequency" },
-  { icon: Globe2, value: "45+", label: "TLDs Tracked" },
-  { icon: Zap, value: "<1min", label: "Match Time" },
-];
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M+`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K+`;
+  return `${n}+`;
+}
 
 export function StatsBar() {
+  const [domainCount, setDomainCount] = useState<string>("2.7M+");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_auction_count");
+        if (!error && data && data > 100_000 && !cancelled) {
+          setDomainCount(formatCount(data));
+        }
+      } catch {
+        // keep default
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const stats = [
+    { icon: Database, value: domainCount, label: "Domains Tracked" },
+    { icon: Clock, value: "6hr", label: "Sync Frequency" },
+    { icon: Globe2, value: "45+", label: "TLDs Tracked" },
+    { icon: Zap, value: "<1min", label: "Match Time" },
+  ];
+
   return (
     <section className="py-8 border-y border-border bg-card/50">
       <div className="container mx-auto px-4">
