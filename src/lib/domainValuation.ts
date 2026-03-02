@@ -1727,11 +1727,13 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   // Long domains with poor dictionary coverage are essentially worthless
   const meaningfulChars = meaningfulWords.reduce((sum, w) => sum + w.length, 0);
   const coverageRatio = name.length > 0 ? meaningfulChars / name.length : 0;
-  const isGibberish = !isDictWord && name.length >= 10 && coverageRatio < 0.7 && premiumMatches.length === 0;
   // Even stricter: very long random strings with almost no word content
   const isHopelessJunk = !isDictWord && name.length >= 12 && coverageRatio < 0.5;
   // Also catch medium-length names that are clearly not words and not compound
   const isMediumJunk = !isDictWord && name.length >= 8 && meaningfulWords.length === 0;
+  // Gibberish: long names where dictionary words cover less than 70% — a single short
+  // premium keyword buried in noise (e.g. "payblrgfdsk") does NOT redeem the domain
+  const isGibberish = !isDictWord && name.length >= 10 && coverageRatio < 0.7;
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   if (isHopelessJunk || isMediumJunk) {
