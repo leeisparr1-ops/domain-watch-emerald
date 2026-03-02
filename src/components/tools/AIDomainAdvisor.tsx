@@ -204,9 +204,16 @@ export function AIDomainAdvisor() {
       };
       setPreScores(scores);
 
-      const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
-        body: { domain: domainWithTld, scores, valuationStance },
-      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Analysis timed out after 30 seconds. Please try again.")), 30000)
+      );
+
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke("ai-domain-advisor", {
+          body: { domain: domainWithTld, scores, valuationStance },
+        }),
+        timeoutPromise,
+      ]);
 
       if (error) {
         const msg = error.message || "";
