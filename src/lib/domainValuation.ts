@@ -1727,13 +1727,17 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   // Long domains with poor dictionary coverage are essentially worthless
   const meaningfulChars = meaningfulWords.reduce((sum, w) => sum + w.length, 0);
   const coverageRatio = name.length > 0 ? meaningfulChars / name.length : 0;
+
+  // If most of the name is covered by dictionary words (≥80%), it's NOT junk —
+  // this protects real words with minor suffixes like "creativex", "lunari", etc.
+  const highCoverage = coverageRatio >= 0.8;
+
   // Even stricter: very long random strings with almost no word content
-  const isHopelessJunk = !isDictWord && name.length >= 12 && coverageRatio < 0.5;
-  // Also catch medium-length names that are clearly not words and not compound
-  const isMediumJunk = !isDictWord && name.length >= 8 && meaningfulWords.length === 0;
-  // Gibberish: long names where dictionary words cover less than 70% — a single short
-  // premium keyword buried in noise (e.g. "payblrgfdsk") does NOT redeem the domain
-  const isGibberish = !isDictWord && name.length >= 10 && coverageRatio < 0.7;
+  const isHopelessJunk = !highCoverage && !isDictWord && name.length >= 12 && coverageRatio < 0.5;
+  // Medium-length names that are clearly noise — require BOTH zero words AND low coverage
+  const isMediumJunk = !highCoverage && !isDictWord && name.length >= 8 && meaningfulWords.length === 0 && coverageRatio < 0.3;
+  // Gibberish: long names where dictionary words cover less than 60%
+  const isGibberish = !highCoverage && !isDictWord && name.length >= 10 && coverageRatio < 0.6;
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   if (isHopelessJunk || isMediumJunk) {
