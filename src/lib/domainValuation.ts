@@ -1723,6 +1723,25 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   const isDictWord = isSingleDictionaryWord(name);
   const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && isFullyCoveredByWords(name, meaningfulWords);
 
+  // ─── GIBBERISH / JUNK DETECTION ───
+  // Long domains with poor dictionary coverage are essentially worthless
+  const meaningfulChars = meaningfulWords.reduce((sum, w) => sum + w.length, 0);
+  const coverageRatio = name.length > 0 ? meaningfulChars / name.length : 0;
+  const isGibberish = !isDictWord && name.length >= 10 && coverageRatio < 0.7 && premiumMatches.length === 0;
+  // Even stricter: very long random strings with almost no word content
+  const isHopelessJunk = !isDictWord && name.length >= 12 && coverageRatio < 0.5;
+  // Also catch medium-length names that are clearly not words and not compound
+  const isMediumJunk = !isDictWord && name.length >= 8 && meaningfulWords.length === 0;
+
+  // ─── EARLY EXIT: Junk domains are essentially worthless ───
+  if (isHopelessJunk || isMediumJunk) {
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15 };
+  }
+  if (isGibberish) {
+    // Slightly better than hopeless junk but still near-worthless
+    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50 };
+  }
+
   let score = 0;
 
   // Length (max 20) — exponential curve: short domains are dramatically more valuable
