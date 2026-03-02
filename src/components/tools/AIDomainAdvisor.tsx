@@ -22,6 +22,8 @@ import { quickValuation } from "@/lib/domainValuation";
 import { estimateSEOVolume } from "@/lib/seoVolume";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { FlipScoreGauge } from "./FlipScoreGauge";
+import { ValueDriverRadarChart } from "./ValueDriverRadarChart";
+import { ComparablesScatterChart } from "./ComparablesScatterChart";
 
 interface KeyComparable {
   domain: string;
@@ -533,32 +535,37 @@ export function AIDomainAdvisor() {
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <BarChart3 className="w-4 h-4 text-primary" /> Value Driver Breakdown
                 </h4>
-                <div className="space-y-2">
-                  {[
-                    { key: "keywords", label: "Keywords", color: "bg-blue-500" },
-                    { key: "tld", label: "TLD Premium", color: "bg-emerald-500" },
-                    { key: "brandability", label: "Brandability", color: "bg-violet-500" },
-                    { key: "niche_demand", label: "Niche Demand", color: "bg-amber-500" },
-                    { key: "domain_length", label: "Domain Length", color: "bg-rose-500" },
-                    { key: "comparable_sales", label: "Comparable Sales", color: "bg-cyan-500" },
-                  ]
-                    .sort((a, b) => (analysis.value_drivers![b.key as keyof ValueDrivers] || 0) - (analysis.value_drivers![a.key as keyof ValueDrivers] || 0))
-                    .map(({ key, label, color }) => {
-                      const pct = analysis.value_drivers![key as keyof ValueDrivers] || 0;
-                      if (pct === 0) return null;
-                      return (
-                        <div key={key} className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground w-28 shrink-0 text-right">{label}</span>
-                          <div className="flex-1 h-2.5 rounded-full bg-secondary overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${color} transition-all`}
-                              style={{ width: `${pct}%` }}
-                            />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Radar Chart */}
+                  <ValueDriverRadarChart drivers={analysis.value_drivers} />
+                  {/* Bar breakdown */}
+                  <div className="space-y-2 flex flex-col justify-center">
+                    {[
+                      { key: "keywords", label: "Keywords", color: "bg-blue-500" },
+                      { key: "tld", label: "TLD Premium", color: "bg-emerald-500" },
+                      { key: "brandability", label: "Brandability", color: "bg-violet-500" },
+                      { key: "niche_demand", label: "Niche Demand", color: "bg-amber-500" },
+                      { key: "domain_length", label: "Domain Length", color: "bg-rose-500" },
+                      { key: "comparable_sales", label: "Comparable Sales", color: "bg-cyan-500" },
+                    ]
+                      .sort((a, b) => (analysis.value_drivers![b.key as keyof ValueDrivers] || 0) - (analysis.value_drivers![a.key as keyof ValueDrivers] || 0))
+                      .map(({ key, label, color }) => {
+                        const pct = analysis.value_drivers![key as keyof ValueDrivers] || 0;
+                        if (pct === 0) return null;
+                        return (
+                          <div key={key} className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground w-28 shrink-0 text-right">{label}</span>
+                            <div className="flex-1 h-2.5 rounded-full bg-secondary overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${color} transition-all`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground w-10">{pct}%</span>
                           </div>
-                          <span className="text-xs font-semibold text-foreground w-10">{pct}%</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                  </div>
                 </div>
               </div>
             )}
@@ -642,6 +649,8 @@ export function AIDomainAdvisor() {
                     </div>
                   ))}
                 </div>
+                {/* Scatter chart of comparables */}
+                <ComparablesScatterChart comparables={analysis.key_comparables} />
               </div>
             )}
 
