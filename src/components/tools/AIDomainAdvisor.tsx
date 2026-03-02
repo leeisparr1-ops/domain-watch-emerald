@@ -500,7 +500,7 @@ export function AIDomainAdvisor() {
               <ToggleGroupItem
                 value="conservative"
                 aria-label="Conservative valuation"
-                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 <ShieldCheck className="w-3 h-3" />
                 <span className="hidden sm:inline">Conservative</span>
@@ -508,7 +508,7 @@ export function AIDomainAdvisor() {
               <ToggleGroupItem
                 value="balanced"
                 aria-label="Balanced valuation"
-                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 <Target className="w-3 h-3" />
                 <span className="hidden sm:inline">Balanced</span>
@@ -516,7 +516,7 @@ export function AIDomainAdvisor() {
               <ToggleGroupItem
                 value="aggressive"
                 aria-label="Aggressive valuation"
-                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 <Zap className="w-3 h-3" />
                 <span className="hidden sm:inline">Aggressive</span>
