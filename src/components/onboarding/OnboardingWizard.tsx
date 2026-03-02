@@ -9,9 +9,21 @@ import { useNavigate } from "react-router-dom";
 const ONBOARDING_KEY = "eh_onboarding_completed";
 
 const EXAMPLE_PATTERNS = [
-  { pattern: "^[a-z]{4,6}$", description: "Short 4-6 letter .com names", pattern_type: "regex" as const },
-  { pattern: "ai|tech|dev|app", description: "AI / Tech keywords", pattern_type: "regex" as const },
-  { pattern: "^[a-z]{3}$", description: "Three-letter domains (LLL)", pattern_type: "regex" as const },
+  { 
+    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$",
+    description: "4-letter pronounceable like rare, core, made",
+    pattern_type: "pronounceable" as const,
+  },
+  { 
+    pattern: "^[a-z]{4}$",
+    description: "Any 4-letter domain (LLLL format)",
+    pattern_type: "structure" as const,
+  },
+  { 
+    pattern: "^ai",
+    description: "Domains starting with 'ai'",
+    pattern_type: "regex" as const,
+  },
 ];
 
 export function OnboardingWizard() {
