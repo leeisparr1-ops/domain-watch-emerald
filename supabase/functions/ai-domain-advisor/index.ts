@@ -405,9 +405,11 @@ serve(async (req) => {
     // Stance-specific instructions
     const stanceInstructions: Record<string, string> = {
       conservative: `\n\nVALUATION STANCE: CONSERVATIVE
-You are advising a risk-averse investor. Use the LOWER end of comparable ranges. Weight liquidation/wholesale values heavily. Assume longer flip timelines (1.5-2× typical). Emphasize risks and downsides. Reduce end-user value by 20-30% from your neutral estimate. Suggested buy price should be very tight (10-20% of end-user). Only recommend "Strong Buy" for truly exceptional deals.`,
+You are advising a risk-averse investor. Use the LOWER end of comparable ranges. Weight liquidation/wholesale values heavily. Emphasize risks and downsides. Reduce end-user value by 20-30% from your neutral estimate. Suggested buy price should be very tight (10-20% of end-user). Only recommend "Strong Buy" for truly exceptional deals.
+FLIP SCORE RULE: Because conservative pricing means the domain is priced LOW and attractively, it is EASIER to flip quickly. Therefore the flip_score should be HIGHER (typically +1-2 points vs balanced) and the flip_timeline should be SHORTER. Lower price = faster sale = higher flip potential.`,
       aggressive: `\n\nVALUATION STANCE: AGGRESSIVE
-You are advising an aggressive growth investor. Use the HIGHER end of comparable ranges. Weight end-user potential and emerging market trends heavily. Assume shorter flip timelines and best-case buyer scenarios. Emphasize upside potential and development value. Increase end-user value by 20-30% from your neutral estimate. Suggested buy price can be more generous (25-45% of end-user). Factor in brand potential and future market growth.`,
+You are advising an aggressive growth investor. Use the HIGHER end of comparable ranges. Weight end-user potential and emerging market trends heavily. Emphasize upside potential and development value. Increase end-user value by 20-30% from your neutral estimate. Suggested buy price can be more generous (25-45% of end-user). Factor in brand potential and future market growth.
+FLIP SCORE RULE: Because aggressive pricing means the domain is priced HIGH for end-user buyers, it is HARDER to flip quickly — you need to find the right buyer willing to pay a premium. Therefore the flip_score should be LOWER (typically -1-2 points vs balanced) and the flip_timeline should be LONGER. Higher price = longer wait = lower flip potential.`,
       balanced: "",
     };
     const stanceContext = stanceInstructions[valuationStance || "balanced"] || "";
