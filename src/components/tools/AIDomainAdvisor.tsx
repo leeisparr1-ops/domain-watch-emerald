@@ -465,7 +465,11 @@ export function AIDomainAdvisor() {
               onKeyDown={(e) => e.key === "Enter" && !isLoading && handleAnalyze()}
               className="flex-1"
             />
-            <Button onClick={() => handleAnalyze()} disabled={!domain.trim() || isLoading}>
+            <Button 
+              onClick={() => handleAnalyze()} 
+              disabled={!domain.trim() || isLoading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 disabled:bg-emerald-600/50"
+            >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
               <span className="ml-2 hidden sm:inline">Analyze</span>
             </Button>
