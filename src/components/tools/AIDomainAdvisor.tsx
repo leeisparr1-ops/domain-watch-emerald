@@ -1,15 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   BrainCircuit, Loader2, TrendingUp, ShieldAlert, Target, DollarSign, Clock,
   Users, ThumbsUp, ThumbsDown, BarChart3, Flame, Send, MessageSquare,
   Award, Mic, Sparkles, Globe2, ArrowRight, CheckCircle2, AlertTriangle, HelpCircle,
-  Share2, Link as LinkIcon, Copy,
+  Share2, Link as LinkIcon, Copy, ShieldCheck, Zap, TrendingDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -127,6 +128,8 @@ export function AIDomainAdvisor() {
   const [analyzedDomain, setAnalyzedDomain] = useState<string | null>(null);
   const [tldResults, setTldResults] = useState<TldAvailResult[]>([]);
   const [tldChecking, setTldChecking] = useState(false);
+  const [valuationStance, setValuationStance] = useState<"conservative" | "balanced" | "aggressive">("balanced");
+  const [streamingContent, setStreamingContent] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -201,7 +204,7 @@ export function AIDomainAdvisor() {
       setPreScores(scores);
 
       const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
-        body: { domain: domainWithTld, scores },
+        body: { domain: domainWithTld, scores, valuationStance },
       });
 
       if (error) {
@@ -276,6 +279,7 @@ export function AIDomainAdvisor() {
     setChatMessages(prev => [...prev, userMsg]);
     setFollowUpInput("");
     setIsFollowUpLoading(true);
+    setStreamingContent("");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -290,36 +294,134 @@ export function AIDomainAdvisor() {
         content: m.content,
       }));
 
-      const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
-        body: {
+      // Use streaming for follow-up
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-domain-advisor`;
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
           domain: analyzedDomain,
           scores: preScores,
           followUp: true,
           question,
           previousAnalysis: analysis,
           conversationHistory,
-        },
+          stream: true,
+          valuationStance,
+        }),
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(errText || "Failed to get response");
+      }
 
-      const assistantMsg: ChatMessage = {
-        role: "assistant",
-        content: data.answer || data.summary || "I couldn't generate a response.",
-        timestamp: new Date(),
-      };
-      setChatMessages(prev => [...prev, assistantMsg]);
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantSoFar = "";
+      let streamDone = false;
+
+      // Add placeholder assistant message
+      setChatMessages(prev => [...prev, { role: "assistant", content: "", timestamp: new Date() }]);
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") {
+            streamDone = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantSoFar += content;
+              const cleanContent = stripMarkdown(assistantSoFar);
+              setChatMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: cleanContent, timestamp: new Date() };
+                return updated;
+              });
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantSoFar += content;
+              const cleanContent = stripMarkdown(assistantSoFar);
+              setChatMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: cleanContent, timestamp: new Date() };
+                return updated;
+              });
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // If nothing streamed, fall back to non-streaming response
+      if (!assistantSoFar) {
+        try {
+          const fallbackResp = await resp.text();
+          const fallbackData = JSON.parse(fallbackResp);
+          assistantSoFar = fallbackData.answer || fallbackData.summary || "I couldn't generate a response.";
+          setChatMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "assistant", content: stripMarkdown(assistantSoFar), timestamp: new Date() };
+            return updated;
+          });
+        } catch { /* already handled */ }
+      }
     } catch (e: any) {
       console.error(e);
-      const errorMsg: ChatMessage = {
-        role: "assistant",
-        content: "Sorry, I couldn't process that. Please try again.",
-        timestamp: new Date(),
-      };
-      setChatMessages(prev => [...prev, errorMsg]);
+      setChatMessages(prev => {
+        // If last message is empty assistant, replace it with error
+        if (prev.length > 0 && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: "Sorry, I couldn't process that. Please try again.", timestamp: new Date() };
+          return updated;
+        }
+        return [...prev, { role: "assistant", content: "Sorry, I couldn't process that. Please try again.", timestamp: new Date() }];
+      });
     } finally {
       setIsFollowUpLoading(false);
+      setStreamingContent("");
     }
   };
 
@@ -331,9 +433,11 @@ export function AIDomainAdvisor() {
   };
 
   const suggestedFollowUps = analyzedDomain ? [
-    `What's the flip ROI for ${analyzedDomain} in e-commerce?`,
-    `Compare ${analyzedDomain} to similar .com domains`,
-    `Who would be the ideal buyer for ${analyzedDomain}?`,
+    `What if I brand it differently — what names would maximize value?`,
+    `Compare flip potential vs. holding ${analyzedDomain} for 24 months`,
+    `Generate an Afternic listing description at the end-user price`,
+    `Is the trademark risk higher in EU vs. US?`,
+    `Who would be the ideal end-user buyer?`,
     `What content strategy would maximize this domain's value?`,
   ] : [];
 
@@ -351,18 +455,54 @@ export function AIDomainAdvisor() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex gap-3">
-          <Input
-            placeholder="Enter a domain (e.g. quantumpay.ai)"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !isLoading && handleAnalyze()}
-            className="flex-1"
-          />
-          <Button onClick={() => handleAnalyze()} disabled={!domain.trim() || isLoading}>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-            <span className="ml-2 hidden sm:inline">Analyze</span>
-          </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-3 flex-1">
+            <Input
+              placeholder="Enter a domain (e.g. quantumpay.ai)"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !isLoading && handleAnalyze()}
+              className="flex-1"
+            />
+            <Button onClick={() => handleAnalyze()} disabled={!domain.trim() || isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+              <span className="ml-2 hidden sm:inline">Analyze</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Stance:</span>
+            <ToggleGroup
+              type="single"
+              value={valuationStance}
+              onValueChange={(v) => { if (v) setValuationStance(v as any); }}
+              className="bg-secondary/50 rounded-lg p-0.5"
+            >
+              <ToggleGroupItem
+                value="conservative"
+                aria-label="Conservative valuation"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+              >
+                <ShieldCheck className="w-3 h-3" />
+                <span className="hidden sm:inline">Conservative</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="balanced"
+                aria-label="Balanced valuation"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+              >
+                <Target className="w-3 h-3" />
+                <span className="hidden sm:inline">Balanced</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="aggressive"
+                aria-label="Aggressive valuation"
+                className="text-xs px-2.5 py-1 h-8 gap-1 data-[state=on]:bg-card data-[state=on]:shadow-sm"
+              >
+                <Zap className="w-3 h-3" />
+                <span className="hidden sm:inline">Aggressive</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
 
         {/* Pre-computed scores shown while AI is loading */}
@@ -757,17 +897,27 @@ export function AIDomainAdvisor() {
               </div>
             </div>
 
-            {/* Conversational Chat */}
+            {/* Persistent Conversational Chat Agent */}
             <div className="border border-border rounded-lg overflow-hidden">
-              <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">Ask Follow-Up Questions</span>
+              <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Domain Chat Agent</span>
+                  {chatMessages.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {chatMessages.length} messages
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  Full context • {valuationStance === "conservative" ? "Conservative" : valuationStance === "aggressive" ? "Aggressive" : "Balanced"} stance
+                </span>
               </div>
 
               {/* Chat Messages */}
               {chatMessages.length > 0 && (
-                <div className="h-72 overflow-y-auto p-4 overscroll-contain touch-pan-y">
-                  <div className="space-y-3">
+                <ScrollArea className="h-80">
+                  <div className="p-4 space-y-3">
                     {chatMessages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
@@ -775,11 +925,11 @@ export function AIDomainAdvisor() {
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
                         }`}>
-                          {msg.role === "assistant" ? stripMarkdown(msg.content) : msg.content}
+                          {msg.role === "assistant" ? (msg.content || "...") : msg.content}
                         </div>
                       </div>
                     ))}
-                    {isFollowUpLoading && (
+                    {isFollowUpLoading && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
                       <div className="flex justify-start">
                         <div className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm flex items-center gap-2">
                           <Loader2 className="w-3 h-3 animate-spin" /> Thinking...
@@ -788,7 +938,7 @@ export function AIDomainAdvisor() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
-                </div>
+                </ScrollArea>
               )}
 
               {/* Suggested Questions */}
@@ -809,7 +959,7 @@ export function AIDomainAdvisor() {
               {/* Input */}
               <div className="flex gap-2 p-3 border-t border-border">
                 <Input
-                  placeholder={`Ask about ${analyzedDomain || "this domain"}...`}
+                  placeholder={`Ask anything about ${analyzedDomain || "this domain"}...`}
                   value={followUpInput}
                   onChange={(e) => setFollowUpInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !isFollowUpLoading && handleFollowUp()}

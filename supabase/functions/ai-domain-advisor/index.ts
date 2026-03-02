@@ -308,7 +308,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { domain, scores, followUp, question, previousAnalysis, conversationHistory } = body;
+    const { domain, scores, followUp, question, previousAnalysis, conversationHistory, stream, valuationStance } = body;
 
     if (!domain || typeof domain !== "string")
       throw new Error("Missing domain parameter");
@@ -400,6 +400,16 @@ serve(async (req) => {
       scoresContext = `\n\nPRE-COMPUTED ANALYSIS DATA:\n${parts.join("\n")}`;
     }
 
+    // Stance-specific instructions
+    const stanceInstructions: Record<string, string> = {
+      conservative: `\n\nVALUATION STANCE: CONSERVATIVE
+You are advising a risk-averse investor. Use the LOWER end of comparable ranges. Weight liquidation/wholesale values heavily. Assume longer flip timelines (1.5-2× typical). Emphasize risks and downsides. Reduce end-user value by 20-30% from your neutral estimate. Suggested buy price should be very tight (10-20% of end-user). Only recommend "Strong Buy" for truly exceptional deals.`,
+      aggressive: `\n\nVALUATION STANCE: AGGRESSIVE
+You are advising an aggressive growth investor. Use the HIGHER end of comparable ranges. Weight end-user potential and emerging market trends heavily. Assume shorter flip timelines and best-case buyer scenarios. Emphasize upside potential and development value. Increase end-user value by 20-30% from your neutral estimate. Suggested buy price can be more generous (25-45% of end-user). Factor in brand potential and future market growth.`,
+      balanced: "",
+    };
+    const stanceContext = stanceInstructions[valuationStance || "balanced"] || "";
+
     const systemPrompt = `You are a senior domain name investment analyst with 15 years of experience in the domain aftermarket. You provide concise, data-driven analysis.
 
 CURRENT MARKET CONTEXT (Feb 2026):
@@ -410,6 +420,7 @@ CURRENT MARKET CONTEXT (Feb 2026):
 ${tldStatsContext}
 ${categoryBenchmarks}
 ${compSalesContext}
+${stanceContext}
 
 IMPORTANT: You are given pre-computed scores from our algorithmic analysis engine. Use these as data anchors — your verdict should be INFORMED by but not slavishly follow the scores. Add qualitative insights the algorithm can't capture: brand feel, end-user appeal, industry timing, and comparable sales context. If the algorithmic valuation seems off, explain why and provide your own range.
 
@@ -470,6 +481,7 @@ CRITICAL COMPARABLE SELECTION RULE:
             model: "google/gemini-3-flash-preview",
             temperature: 0,
             messages,
+            stream: !!stream,
           }),
         }
       );
@@ -486,6 +498,13 @@ CRITICAL COMPARABLE SELECTION RULE:
         const t = await response.text();
         console.error("AI gateway error:", response.status, t);
         throw new Error("AI gateway error");
+      }
+
+      // If streaming, pass through the SSE stream
+      if (stream && response.body) {
+        return new Response(response.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
       }
 
       const data = await response.json();
