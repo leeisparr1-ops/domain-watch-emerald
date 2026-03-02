@@ -32,7 +32,7 @@ const Methodology = () => {
               url: "https://expiredhawk.com",
             },
             datePublished: "2026-02-23",
-            dateModified: "2026-02-23",
+            dateModified: "2026-03-02",
           })}
         </script>
       </Helmet>
@@ -77,7 +77,7 @@ const Methodology = () => {
               <div className="grid sm:grid-cols-3 gap-4 mb-8">
                 <Card className="border-border">
                   <CardContent className="p-5 text-center">
-                    <p className="text-3xl font-bold gradient-text mb-1">2,500+</p>
+                    <p className="text-3xl font-bold gradient-text mb-1">2,800+</p>
                     <p className="text-sm text-muted-foreground">Verified Sales</p>
                   </CardContent>
                 </Card>
