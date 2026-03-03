@@ -534,6 +534,7 @@ export type Database = {
           generated_at: string
           hot_niches: Json
           id: string
+          keyword_volumes: Json
           market_signals: Json
           model_used: string | null
           trending_keywords: Json
@@ -543,6 +544,7 @@ export type Database = {
           generated_at?: string
           hot_niches?: Json
           id?: string
+          keyword_volumes?: Json
           market_signals?: Json
           model_used?: string | null
           trending_keywords?: Json
@@ -552,6 +554,7 @@ export type Database = {
           generated_at?: string
           hot_niches?: Json
           id?: string
+          keyword_volumes?: Json
           market_signals?: Json
           model_used?: string | null
           trending_keywords?: Json

@@ -1,21 +1,14 @@
 /**
  * SEO Keyword Volume Estimation Module
- * Heuristic-based search volume estimation using keyword patterns and niche signals.
- * No external API required — uses keyword demand data + heuristics.
+ * Uses AI-estimated search volumes from the trend enrichment layer when available,
+ * falling back to hardcoded heuristics. This hybrid approach gives us real(ish)
+ * Google-sourced volume estimates without a paid API.
  */
 
 import { PREMIUM_KEYWORDS, TRENDING_KEYWORDS, DICTIONARY_WORDS, splitIntoWords } from "@/lib/domainValuation";
+import type { TrendEnrichment } from "@/lib/trendEnrichment";
 
-// Estimated monthly search volume tiers based on keyword category
-const VOLUME_TIERS: Record<string, { min: number; max: number }> = {
-  "ultra_high": { min: 100000, max: 1000000 },   // "insurance", "loans", "health"
-  "high": { min: 10000, max: 100000 },            // "solar panels", "crypto wallet"
-  "medium": { min: 1000, max: 10000 },            // "pet food", "web design"
-  "low": { min: 100, max: 1000 },                 // niche terms
-  "minimal": { min: 0, max: 100 },                // obscure/invented
-};
-
-// High-volume head terms with approximate monthly searches
+// Fallback head terms with approximate monthly searches (used when no AI data available)
 const HEAD_TERMS: Record<string, number> = {
   "insurance": 823000, "loans": 450000, "mortgage": 368000, "lawyer": 301000,
   "credit": 246000, "attorney": 201000, "hosting": 165000, "casino": 550000,
@@ -40,25 +33,52 @@ export interface SEOVolumeResult {
   competitionLevel: string;     // "Extreme", "High", "Medium", "Low"
   topKeyword: string | null;    // The highest-volume keyword found
   organicPotential: string;     // Summary sentence
+  trendDirection?: "rising" | "falling" | "stable"; // From AI data
+  cpcEstimate?: number;         // Estimated CPC from AI data
+  dataSource: "ai" | "heuristic"; // Whether AI volume data was used
 }
 
-export function estimateSEOVolume(domain: string): SEOVolumeResult {
+/**
+ * Estimate SEO volume for a domain. When enrichment data with keyword_volumes
+ * is available, uses AI-estimated volumes. Otherwise falls back to heuristics.
+ */
+export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment | null): SEOVolumeResult {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const words = splitIntoWords(name).filter(w => w.length >= 2);
 
+  const hasAiVolumes = enrichment?.keywordVolumes && Object.keys(enrichment.keywordVolumes).length > 0;
+
   let totalVolume = 0;
   let topKeyword: string | null = null;
   let topVolume = 0;
+  let trendDirection: "rising" | "falling" | "stable" | undefined;
+  let cpcEstimate: number | undefined;
+  let usedAi = false;
 
-  // Check each word against head terms
   for (const word of words) {
+    // Try AI volume data first
+    if (hasAiVolumes) {
+      const aiData = enrichment!.keywordVolumes[word];
+      if (aiData && aiData.volume > 0) {
+        totalVolume += aiData.volume;
+        usedAi = true;
+        if (aiData.volume > topVolume) {
+          topVolume = aiData.volume;
+          topKeyword = word;
+          trendDirection = aiData.trend as "rising" | "falling" | "stable";
+          cpcEstimate = aiData.cpc_estimate;
+        }
+        continue; // AI data found, skip heuristic for this word
+      }
+    }
+
+    // Fallback to heuristic
     const vol = HEAD_TERMS[word];
     if (vol) {
       totalVolume += vol;
       if (vol > topVolume) { topVolume = vol; topKeyword = word; }
     } else if (TRENDING_KEYWORDS[word] && TRENDING_KEYWORDS[word] >= 1.5) {
-      // Trending keyword → estimate moderate volume
       const estimatedVol = Math.round(5000 * TRENDING_KEYWORDS[word]);
       totalVolume += estimatedVol;
       if (estimatedVol > topVolume) { topVolume = estimatedVol; topKeyword = word; }
@@ -71,9 +91,9 @@ export function estimateSEOVolume(domain: string): SEOVolumeResult {
     }
   }
 
-  // Multi-word compound bonus (compound keywords often have their own search volume)
+  // Multi-word compound discount
   if (words.length >= 2 && totalVolume > 0) {
-    totalVolume = Math.round(totalVolume * 0.6); // compound terms get fraction of individual volumes
+    totalVolume = Math.round(totalVolume * 0.6);
   }
 
   // Determine labels
@@ -97,14 +117,17 @@ export function estimateSEOVolume(domain: string): SEOVolumeResult {
     volumeLabel = "Minimal"; volumeScore = 5; competitionLevel = "Low";
   }
 
+  // Trend direction label for organic potential
+  const trendLabel = trendDirection === "rising" ? " (↑ rising)" : trendDirection === "falling" ? " (↓ declining)" : "";
+
   // Organic potential summary
   let organicPotential: string;
   if (volumeScore >= 80) {
-    organicPotential = `High organic traffic potential — "${topKeyword}" drives ~${totalVolume.toLocaleString()} monthly searches. Expect strong type-in traffic.`;
+    organicPotential = `High organic traffic potential — "${topKeyword}" drives ~${totalVolume.toLocaleString()} monthly searches${trendLabel}. Expect strong type-in traffic.`;
   } else if (volumeScore >= 50) {
-    organicPotential = `Moderate organic potential — keywords drive ~${totalVolume.toLocaleString()} monthly searches. Good for niche authority sites.`;
+    organicPotential = `Moderate organic potential — keywords drive ~${totalVolume.toLocaleString()} monthly searches${trendLabel}. Good for niche authority sites.`;
   } else if (volumeScore >= 20) {
-    organicPotential = `Limited organic volume (~${totalVolume.toLocaleString()}/mo). Value comes from brandability rather than search traffic.`;
+    organicPotential = `Limited organic volume (~${totalVolume.toLocaleString()}/mo)${trendLabel}. Value comes from brandability rather than search traffic.`;
   } else {
     organicPotential = `Minimal search volume detected. This domain's value is brand-driven, not SEO-driven.`;
   }
@@ -116,5 +139,8 @@ export function estimateSEOVolume(domain: string): SEOVolumeResult {
     competitionLevel,
     topKeyword,
     organicPotential,
+    trendDirection,
+    cpcEstimate,
+    dataSource: usedAi ? "ai" : "heuristic",
   };
 }
