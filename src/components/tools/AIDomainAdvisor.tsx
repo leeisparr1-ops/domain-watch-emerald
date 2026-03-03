@@ -26,6 +26,7 @@ import { splitIntoWords } from "@/lib/domainValuation";
 import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { FlipScoreGauge } from "./FlipScoreGauge";
+import { SEOVolumeSparkline } from "./SEOVolumeSparkline";
 import { ValueDriverRadarChart } from "./ValueDriverRadarChart";
 import { ComparablesScatterChart } from "./ComparablesScatterChart";
 
@@ -81,6 +82,9 @@ interface PreScores {
   seoVolume: number;
   seoVolumeLabel: string;
   seoDataSource: "dataforseo" | "ai" | "heuristic";
+  seoMonthlySearches?: { year: number; month: number; search_volume: number }[];
+  seoCpcEstimate?: number;
+  seoTrendDirection?: "rising" | "falling" | "stable";
   domainAgeLabel: string;
   comparableSales: { domain: string; price: string; date: string; pattern: string }[];
 }
@@ -260,6 +264,9 @@ export function AIDomainAdvisor() {
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
         seoDataSource: seo.dataSource,
+        seoMonthlySearches: seo.monthlySearches,
+        seoCpcEstimate: seo.cpcEstimate,
+        seoTrendDirection: seo.trendDirection,
         domainAgeLabel: age.ageLabel,
         comparableSales: [],
       };
@@ -917,10 +924,18 @@ export function AIDomainAdvisor() {
                     <p className={`text-sm font-bold ${preScores.trademarkRisk === "None" ? "text-emerald-600 dark:text-emerald-400" : preScores.trademarkRisk === "Low" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{preScores.trademarkRisk}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between px-1 flex-wrap gap-1">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <BarChart3 className="w-3 h-3" />
                     SEO: ~{preScores.seoVolume.toLocaleString()}/mo ({preScores.seoVolumeLabel})
+                    {preScores.seoTrendDirection && (
+                      <span className={`text-[10px] ${preScores.seoTrendDirection === "rising" ? "text-emerald-600 dark:text-emerald-400" : preScores.seoTrendDirection === "falling" ? "text-red-600 dark:text-red-400" : ""}`}>
+                        {preScores.seoTrendDirection === "rising" ? "↑" : preScores.seoTrendDirection === "falling" ? "↓" : "→"}
+                      </span>
+                    )}
+                    {preScores.seoCpcEstimate != null && (
+                      <span className="text-[10px]">${preScores.seoCpcEstimate.toFixed(2)} CPC</span>
+                    )}
                   </div>
                   <Badge
                     variant="outline"
@@ -935,6 +950,12 @@ export function AIDomainAdvisor() {
                     {preScores.seoDataSource === "dataforseo" ? "📊 Google Ads data" : preScores.seoDataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
                   </Badge>
                 </div>
+                {preScores.seoMonthlySearches && preScores.seoMonthlySearches.length >= 2 && (
+                  <div className="mt-2 px-1">
+                    <p className="text-[10px] text-muted-foreground mb-1">12-Month Search Trend</p>
+                    <SEOVolumeSparkline monthlySearches={preScores.seoMonthlySearches} height={52} />
+                  </div>
+                )}
               </div>
             )}
 
