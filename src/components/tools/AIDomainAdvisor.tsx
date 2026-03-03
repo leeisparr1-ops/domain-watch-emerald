@@ -260,7 +260,6 @@ export function AIDomainAdvisor() {
 
       if (data?.error) throw new Error(data.error);
       setAnalysis(data);
-      setPreScores(scores);
       updateStep(3, "done");
 
       // Step 4: TLD availability (non-blocking visual)
@@ -302,6 +301,8 @@ export function AIDomainAdvisor() {
         setTldChecking(false);
       }
       updateStep(4, "done");
+      // All steps done — NOW reveal scores
+      setPreScores(scores);
     } catch (e: any) {
       console.error(e);
       toast({ title: "Analysis failed", description: e.message || "Please try again.", variant: "destructive" });
@@ -564,50 +565,86 @@ export function AIDomainAdvisor() {
           </div>
         </div>
 
-        {/* Staged loading progress */}
+        {/* Hawk-themed loading overlay */}
         {isLoading && analysisSteps.length > 0 && (
-          <div className="space-y-3 animate-fade-in p-4 rounded-lg border border-border bg-card">
-            <p className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              Analyzing {analyzedDomain}…
-            </p>
-            <div className="space-y-2">
+          <div className="animate-fade-in rounded-xl border border-border bg-gradient-to-b from-card to-secondary/20 overflow-hidden">
+            {/* Header with hawk icon */}
+            <div className="flex flex-col items-center pt-8 pb-4 px-6">
+              <div className="relative mb-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 text-emerald-600 dark:text-emerald-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Z" />
+                    <path d="M12 8c-2 0-4 1.5-4 4 0 1.5.8 2.8 2 3.5" />
+                    <path d="M12 8c2 0 4 1.5 4 4 0 1.5-.8 2.8-2 3.5" />
+                    <circle cx="10" cy="11" r="0.5" fill="currentColor" />
+                    <circle cx="14" cy="11" r="0.5" fill="currentColor" />
+                    <path d="M11 14.5L12 16l1-1.5" />
+                  </svg>
+                </div>
+                {/* Scanning ring animation */}
+                <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-emerald-500/30 animate-ping" style={{ animationDuration: "2s" }} />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">
+                Researching {analyzedDomain}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Running thorough analysis — please wait
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="px-6 pb-3">
+              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700 ease-out"
+                  style={{
+                    width: `${Math.round((analysisSteps.filter(s => s.status === "done").length / analysisSteps.length) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Steps checklist */}
+            <div className="px-6 pb-6 space-y-3">
               {analysisSteps.map((step, i) => (
-                <div key={i} className="flex items-center gap-2.5">
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 transition-all duration-300 ${
+                    step.status === "running" ? "translate-x-1" : ""
+                  }`}
+                >
                   {step.status === "done" ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    </div>
                   ) : step.status === "running" ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    </div>
                   ) : (
-                    <div className="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
+                    <div className="w-6 h-6 rounded-full border-2 border-muted/40 shrink-0" />
                   )}
-                  <span className={`text-sm ${step.status === "done" ? "text-muted-foreground line-through" : step.status === "running" ? "text-foreground font-medium" : "text-muted-foreground/60"}`}>
+                  <span
+                    className={`text-sm transition-colors duration-300 ${
+                      step.status === "done"
+                        ? "text-muted-foreground"
+                        : step.status === "running"
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground/40"
+                    }`}
+                  >
                     {step.label}
                   </span>
                 </div>
               ))}
             </div>
-            {/* Show pre-scores once computed */}
-            {preScores && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border mt-2">
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Brand</p>
-                  <p className="text-sm font-semibold text-foreground">{preScores.brandability}/100</p>
-                </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Demand</p>
-                  <p className="text-sm font-semibold text-foreground">{preScores.keywordDemand}/100</p>
-                </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Valuation</p>
-                  <p className="text-xs font-semibold text-foreground">{preScores.valuationRange}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Niche</p>
-                  <p className="text-xs font-semibold text-foreground">{preScores.niche}</p>
-                </div>
-              </div>
-            )}
+
+            {/* Subtle footer tip */}
+            <div className="bg-secondary/30 px-6 py-3 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground/60 text-center">
+                Thorough research takes a moment — accuracy over speed
+              </p>
+            </div>
           </div>
         )}
 
