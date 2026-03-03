@@ -1,14 +1,14 @@
 /**
- * SEO Keyword Volume Estimation Module
- * Uses AI-estimated search volumes from the trend enrichment layer when available,
- * falling back to hardcoded heuristics. This hybrid approach gives us real(ish)
- * Google-sourced volume estimates without a paid API.
+ * SEO Keyword Volume Module
+ * Uses DataForSEO real search volumes when available (via edge function + cache),
+ * falling back to AI enrichment data, then hardcoded heuristics.
  */
 
 import { PREMIUM_KEYWORDS, TRENDING_KEYWORDS, DICTIONARY_WORDS, splitIntoWords } from "@/lib/domainValuation";
 import type { TrendEnrichment } from "@/lib/trendEnrichment";
+import { supabase } from "@/integrations/supabase/client";
 
-// Fallback head terms with approximate monthly searches (used when no AI data available)
+// Fallback head terms with approximate monthly searches
 const HEAD_TERMS: Record<string, number> = {
   "insurance": 823000, "loans": 450000, "mortgage": 368000, "lawyer": 301000,
   "credit": 246000, "attorney": 201000, "hosting": 165000, "casino": 550000,
@@ -28,72 +28,105 @@ const HEAD_TERMS: Record<string, number> = {
 
 export interface SEOVolumeResult {
   estimatedMonthlySearches: number;
-  volumeLabel: string;          // "Very High", "High", "Medium", "Low", "Minimal"
-  volumeScore: number;          // 0-100
-  competitionLevel: string;     // "Extreme", "High", "Medium", "Low"
-  topKeyword: string | null;    // The highest-volume keyword found
-  organicPotential: string;     // Summary sentence
-  trendDirection?: "rising" | "falling" | "stable"; // From AI data
-  cpcEstimate?: number;         // Estimated CPC from AI data
-  dataSource: "ai" | "heuristic"; // Whether AI volume data was used
+  volumeLabel: string;
+  volumeScore: number;
+  competitionLevel: string;
+  topKeyword: string | null;
+  organicPotential: string;
+  trendDirection?: "rising" | "falling" | "stable";
+  cpcEstimate?: number;
+  dataSource: "dataforseo" | "ai" | "heuristic";
+  monthlySearches?: { year: number; month: number; search_volume: number }[];
 }
 
 /**
- * Estimate SEO volume for a domain. When enrichment data with keyword_volumes
- * is available, uses AI-estimated volumes. Otherwise falls back to heuristics.
+ * Fetch real keyword volumes from DataForSEO via our edge function.
+ * Returns a map of keyword → volume data.
  */
-export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment | null): SEOVolumeResult {
+export async function fetchKeywordVolumes(
+  keywords: string[]
+): Promise<Record<string, { volume: number; cpc: number | null; competition: number | null; competition_level: string | null; trend: string | null; monthly_searches: any[]; source: string }>> {
+  try {
+    const { data, error } = await supabase.functions.invoke("keyword-volume-lookup", {
+      body: { keywords },
+    });
+
+    if (error) {
+      console.warn("keyword-volume-lookup error:", error);
+      return {};
+    }
+
+    return data?.keywords || {};
+  } catch (err) {
+    console.warn("Failed to fetch keyword volumes:", err);
+    return {};
+  }
+}
+
+/**
+ * Estimate SEO volume for a domain. Prefers DataForSEO data if provided,
+ * then AI enrichment, then heuristics.
+ */
+export function estimateSEOVolume(
+  domain: string,
+  enrichment?: TrendEnrichment | null,
+  dataForSeoData?: Record<string, { volume: number; cpc: number | null; competition: number | null; competition_level: string | null; trend: string | null; monthly_searches: any[] }>
+): SEOVolumeResult {
   const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const words = splitIntoWords(name).filter(w => w.length >= 2);
 
+  const hasDataForSeo = dataForSeoData && Object.keys(dataForSeoData).length > 0;
   const hasAiVolumes = enrichment?.keywordVolumes && Object.keys(enrichment.keywordVolumes).length > 0;
 
-  // Sanity caps: AI models routinely overestimate Google search volumes by 100-1000x.
-  // Real-world reference points (Ahrefs/SEMrush verified):
-  //   "insurance" ≈ 823K, "home" ≈ 550K, "casino" ≈ 550K, "car" ≈ 450K
-  //   "crypto" ≈ 301K, "ai" ≈ 450K, "app" ≈ 301K
-  // Maximum single-keyword monthly search volume on Google is ~5M (e.g., "facebook", "youtube")
-  const MAX_SINGLE_KEYWORD_VOLUME = 2_000_000; // generous cap for any single keyword
-  const MAX_TOTAL_VOLUME = 5_000_000;           // cap for compound domains
-
-  // Cross-reference table: if AI volume for a known keyword is >5x heuristic, use heuristic
-  function sanitizeAiVolume(word: string, aiVolume: number): number {
-    const heuristicRef = HEAD_TERMS[word];
-    if (heuristicRef) {
-      // AI is wildly off — trust heuristic within a 3x tolerance
-      if (aiVolume > heuristicRef * 3) return heuristicRef;
-      if (aiVolume < heuristicRef * 0.2) return heuristicRef; // AI too low
-    }
-    return Math.min(aiVolume, MAX_SINGLE_KEYWORD_VOLUME);
-  }
+  const MAX_SINGLE_KEYWORD_VOLUME = 2_000_000;
+  const MAX_TOTAL_VOLUME = 5_000_000;
 
   let totalVolume = 0;
   let topKeyword: string | null = null;
   let topVolume = 0;
   let trendDirection: "rising" | "falling" | "stable" | undefined;
   let cpcEstimate: number | undefined;
-  let usedAi = false;
+  let dataSource: "dataforseo" | "ai" | "heuristic" = "heuristic";
+  let monthlySearches: any[] | undefined;
 
   for (const word of words) {
-    // Try AI volume data first
+    // Priority 1: DataForSEO real data
+    if (hasDataForSeo && dataForSeoData![word]) {
+      const d = dataForSeoData![word];
+      if (d.volume > 0) {
+        const vol = Math.min(d.volume, MAX_SINGLE_KEYWORD_VOLUME);
+        totalVolume += vol;
+        dataSource = "dataforseo";
+        if (vol > topVolume) {
+          topVolume = vol;
+          topKeyword = word;
+          trendDirection = d.trend as "rising" | "falling" | "stable";
+          cpcEstimate = d.cpc ?? undefined;
+          monthlySearches = d.monthly_searches;
+        }
+        continue;
+      }
+    }
+
+    // Priority 2: AI enrichment data (with sanity check)
     if (hasAiVolumes) {
       const aiData = enrichment!.keywordVolumes[word];
       if (aiData && aiData.volume > 0) {
-        const vol = sanitizeAiVolume(word, aiData.volume);
+        const vol = sanitizeAiVolume(word, aiData.volume, MAX_SINGLE_KEYWORD_VOLUME);
         totalVolume += vol;
-        usedAi = true;
+        if (dataSource !== "dataforseo") dataSource = "ai";
         if (vol > topVolume) {
           topVolume = vol;
           topKeyword = word;
           trendDirection = aiData.trend as "rising" | "falling" | "stable";
           cpcEstimate = aiData.cpc_estimate;
         }
-        continue; // AI data found, skip heuristic for this word
+        continue;
       }
     }
 
-    // Fallback to heuristic
+    // Priority 3: Heuristic fallback
     const vol = HEAD_TERMS[word];
     if (vol) {
       totalVolume += vol;
@@ -116,7 +149,6 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
     totalVolume = Math.round(totalVolume * 0.6);
   }
 
-  // Final sanity cap
   totalVolume = Math.min(totalVolume, MAX_TOTAL_VOLUME);
 
   // Determine labels
@@ -140,19 +172,23 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
     volumeLabel = "Minimal"; volumeScore = 5; competitionLevel = "Low";
   }
 
-  // Trend direction label for organic potential
-  const trendLabel = trendDirection === "rising" ? " (↑ rising)" : trendDirection === "falling" ? " (↓ declining)" : "";
+  // Use DataForSEO competition level if available
+  if (dataSource === "dataforseo" && dataForSeoData && topKeyword && dataForSeoData[topKeyword]?.competition_level) {
+    competitionLevel = capitalizeFirst(dataForSeoData[topKeyword].competition_level!);
+  }
 
-  // Organic potential summary
+  const trendLabel = trendDirection === "rising" ? " (↑ rising)" : trendDirection === "falling" ? " (↓ declining)" : "";
+  const sourceTag = dataSource === "dataforseo" ? " [Google Ads data]" : dataSource === "ai" ? " [AI-estimated]" : "";
+
   let organicPotential: string;
   if (volumeScore >= 80) {
-    organicPotential = `High organic traffic potential — "${topKeyword}" drives ~${totalVolume.toLocaleString()} monthly searches${trendLabel}. Expect strong type-in traffic.`;
+    organicPotential = `High organic traffic potential — "${topKeyword}" drives ~${totalVolume.toLocaleString()} monthly searches${trendLabel}${sourceTag}. Expect strong type-in traffic.`;
   } else if (volumeScore >= 50) {
-    organicPotential = `Moderate organic potential — keywords drive ~${totalVolume.toLocaleString()} monthly searches${trendLabel}. Good for niche authority sites.`;
+    organicPotential = `Moderate organic potential — keywords drive ~${totalVolume.toLocaleString()} monthly searches${trendLabel}${sourceTag}. Good for niche authority sites.`;
   } else if (volumeScore >= 20) {
-    organicPotential = `Limited organic volume (~${totalVolume.toLocaleString()}/mo)${trendLabel}. Value comes from brandability rather than search traffic.`;
+    organicPotential = `Limited organic volume (~${totalVolume.toLocaleString()}/mo)${trendLabel}${sourceTag}. Value comes from brandability rather than search traffic.`;
   } else {
-    organicPotential = `Minimal search volume detected. This domain's value is brand-driven, not SEO-driven.`;
+    organicPotential = `Minimal search volume detected${sourceTag}. This domain's value is brand-driven, not SEO-driven.`;
   }
 
   return {
@@ -164,6 +200,20 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
     organicPotential,
     trendDirection,
     cpcEstimate,
-    dataSource: usedAi ? "ai" : "heuristic",
+    dataSource,
+    monthlySearches,
   };
+}
+
+function sanitizeAiVolume(word: string, aiVolume: number, max: number): number {
+  const heuristicRef = HEAD_TERMS[word];
+  if (heuristicRef) {
+    if (aiVolume > heuristicRef * 3) return heuristicRef;
+    if (aiVolume < heuristicRef * 0.2) return heuristicRef;
+  }
+  return Math.min(aiVolume, max);
+}
+
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
