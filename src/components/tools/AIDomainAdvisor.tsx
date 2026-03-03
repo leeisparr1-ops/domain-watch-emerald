@@ -134,6 +134,21 @@ export function AIDomainAdvisor() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Staged loading state
+  type StepStatus = "pending" | "running" | "done";
+  interface AnalysisStep { label: string; status: StepStatus }
+  const INITIAL_STEPS: AnalysisStep[] = [
+    { label: "Fetching market trends & enrichment data", status: "pending" },
+    { label: "Scoring brandability & pronounceability", status: "pending" },
+    { label: "Evaluating keyword demand & SEO volume", status: "pending" },
+    { label: "Running AI deep analysis", status: "pending" },
+    { label: "Checking TLD availability", status: "pending" },
+  ];
+  const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
+  const updateStep = (idx: number, status: StepStatus) => {
+    setAnalysisSteps(prev => prev.map((s, i) => i === idx ? { ...s, status } : s));
+  };
+
   // Auto-analyze from URL params (one-click from alerts)
   useEffect(() => {
     const domainParam = searchParams.get("domain");
@@ -163,6 +178,7 @@ export function AIDomainAdvisor() {
     setAnalyzedDomain(input);
     setTldResults([]);
     setTldChecking(false);
+    setAnalysisSteps(INITIAL_STEPS.map(s => ({ ...s })));
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -173,17 +189,28 @@ export function AIDomainAdvisor() {
           variant: "destructive",
         });
         setIsLoading(false);
+        setAnalysisSteps([]);
         return;
       }
 
       const domainWithTld = input.includes(".") ? input : `${input}.com`;
+
+      // Step 0: Fetch market trends
+      updateStep(0, "running");
       const enrichment = await fetchTrendEnrichment();
+      updateStep(0, "done");
+
+      // Step 1: Score brandability & pronounceability
+      updateStep(1, "running");
       const brand = scoreBrandability(domainWithTld);
       const pronounce = scorePronounceability(domainWithTld);
       const trademark = checkTrademarkRisk(domainWithTld);
+      updateStep(1, "done");
+
+      // Step 2: Keyword demand & SEO
+      updateStep(2, "running");
       const demand = scoreKeywordDemand(domainWithTld, enrichment);
       const val = quickValuation(domainWithTld, pronounce.score);
-      
       const seo = estimateSEOVolume(domainWithTld);
       const age = scoreDomainAge(null);
 
@@ -203,7 +230,10 @@ export function AIDomainAdvisor() {
         comparableSales: [],
       };
       setPreScores(scores);
+      updateStep(2, "done");
 
+      // Step 3: AI deep analysis
+      updateStep(3, "running");
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Analysis timed out after 30 seconds. Please try again.")), 30000)
       );
@@ -228,13 +258,13 @@ export function AIDomainAdvisor() {
 
       if (data?.error) throw new Error(data.error);
       setAnalysis(data);
+      updateStep(3, "done");
 
-      // Check TLD availability for the base name
+      // Step 4: TLD availability (non-blocking visual)
+      updateStep(4, "running");
       const baseName = domainWithTld.split(".")[0];
       const tldsToCheck = [
-        // Generic legacy
         ".com", ".net", ".org", ".info", ".biz", ".name", ".pro", ".mobi",
-        // Popular new gTLDs
         ".ai", ".io", ".co", ".app", ".dev", ".me", ".gg", ".xyz", ".tech", ".so",
         ".cc", ".store", ".online", ".site", ".club", ".fun", ".live", ".world",
         ".space", ".click", ".link", ".shop", ".digital", ".cloud", ".global",
@@ -243,18 +273,15 @@ export function AIDomainAdvisor() {
         ".plus", ".group", ".team", ".center", ".services", ".academy", ".ventures",
         ".capital", ".consulting", ".management", ".finance", ".money", ".exchange",
         ".health", ".care", ".fit", ".bio",
-        // Industry / niche
         ".law", ".legal", ".engineering", ".software", ".technology", ".science",
         ".games", ".game", ".play", ".tv", ".video", ".news", ".blog", ".wiki",
         ".art", ".gallery", ".photography", ".music", ".band",
         ".travel", ".hotel", ".restaurant", ".cafe", ".pizza", ".bar",
         ".realty", ".estate", ".property", ".house", ".land",
-        // Country-code
         ".uk", ".de", ".ca", ".fr", ".nl", ".in", ".us", ".eu", ".au", ".nz",
         ".jp", ".kr", ".cn", ".br", ".mx", ".es", ".it", ".pt", ".pl", ".se",
         ".no", ".dk", ".fi", ".ch", ".at", ".be", ".ie", ".ru", ".za", ".sg",
         ".hk", ".tw", ".id", ".ph", ".th", ".vn", ".ng", ".ke", ".gh",
-        // Hack / short
         ".sh", ".ly", ".is", ".to", ".ac", ".ws", ".fm", ".am", ".im", ".vc",
       ];
       const domainsToCheck = tldsToCheck.map(tld => `${baseName}${tld}`);
@@ -271,11 +298,13 @@ export function AIDomainAdvisor() {
       } finally {
         setTldChecking(false);
       }
+      updateStep(4, "done");
     } catch (e: any) {
       console.error(e);
       toast({ title: "Analysis failed", description: e.message || "Please try again.", variant: "destructive" });
     } finally {
       setIsLoading(false);
+      setAnalysisSteps([]);
     }
   };
 
@@ -532,35 +561,50 @@ export function AIDomainAdvisor() {
           </div>
         </div>
 
-        {/* Pre-computed scores shown while AI is loading */}
-        {preScores && !analysis && isLoading && (
-          <div className="space-y-3 animate-fade-in">
-            <p className="text-xs text-muted-foreground flex items-center gap-2">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              AI is analyzing — here are your pre-computed scores:
+        {/* Staged loading progress */}
+        {isLoading && analysisSteps.length > 0 && (
+          <div className="space-y-3 animate-fade-in p-4 rounded-lg border border-border bg-card">
+            <p className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              Analyzing {analyzedDomain}…
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
-                <BarChart3 className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Brand</p>
-                <p className="text-sm font-semibold text-foreground">{preScores.brandability}/100</p>
-              </div>
-              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
-                <Flame className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Demand</p>
-                <p className="text-sm font-semibold text-foreground">{preScores.keywordDemand}/100</p>
-              </div>
-              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
-                <DollarSign className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Valuation</p>
-                <p className="text-xs font-semibold text-foreground">{preScores.valuationRange}</p>
-              </div>
-              <div className="p-2.5 rounded-lg border border-border bg-card text-center">
-                <Target className="w-3.5 h-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Niche</p>
-                <p className="text-xs font-semibold text-foreground">{preScores.niche}</p>
-              </div>
+            <div className="space-y-2">
+              {analysisSteps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  {step.status === "done" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : step.status === "running" ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-muted shrink-0" />
+                  )}
+                  <span className={`text-sm ${step.status === "done" ? "text-muted-foreground line-through" : step.status === "running" ? "text-foreground font-medium" : "text-muted-foreground/60"}`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
             </div>
+            {/* Show pre-scores once computed */}
+            {preScores && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border mt-2">
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Brand</p>
+                  <p className="text-sm font-semibold text-foreground">{preScores.brandability}/100</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Demand</p>
+                  <p className="text-sm font-semibold text-foreground">{preScores.keywordDemand}/100</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Valuation</p>
+                  <p className="text-xs font-semibold text-foreground">{preScores.valuationRange}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                  <p className="text-[10px] text-muted-foreground">Niche</p>
+                  <p className="text-xs font-semibold text-foreground">{preScores.niche}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
