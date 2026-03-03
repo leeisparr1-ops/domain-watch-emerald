@@ -21,7 +21,8 @@ import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkChec
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation } from "@/lib/domainValuation";
-import { estimateSEOVolume } from "@/lib/seoVolume";
+import { estimateSEOVolume, fetchKeywordVolumes } from "@/lib/seoVolume";
+import { splitIntoWords } from "@/lib/domainValuation";
 import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { FlipScoreGauge } from "./FlipScoreGauge";
@@ -79,7 +80,7 @@ interface PreScores {
   trademarkRisk: string;
   seoVolume: number;
   seoVolumeLabel: string;
-  seoDataSource: "ai" | "heuristic";
+  seoDataSource: "dataforseo" | "ai" | "heuristic";
   domainAgeLabel: string;
   comparableSales: { domain: string; price: string; date: string; pattern: string }[];
 }
@@ -226,11 +227,24 @@ export function AIDomainAdvisor() {
       const trademark = checkTrademarkRisk(domainWithTld);
       updateStep(1, "done");
 
-      // Step 2: Keyword demand & SEO
+      // Step 2: Keyword demand & SEO (with real DataForSEO data)
       updateStep(2, "running");
       const demand = scoreKeywordDemand(domainWithTld, enrichment);
       const val = quickValuation(domainWithTld, pronounce.score);
-      const seo = estimateSEOVolume(domainWithTld, enrichment);
+      
+      // Fetch real search volumes from DataForSEO
+      const sld = domainWithTld.split(".")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
+      const seoWords = splitIntoWords(sld).filter((w: string) => w.length >= 2);
+      let dataForSeoData: Record<string, any> | undefined;
+      try {
+        if (seoWords.length > 0) {
+          dataForSeoData = await fetchKeywordVolumes(seoWords);
+        }
+      } catch (e) {
+        console.warn("DataForSEO fetch failed, using fallback:", e);
+      }
+      
+      const seo = estimateSEOVolume(domainWithTld, enrichment, dataForSeoData);
       const age = scoreDomainAge(null);
 
       const scores: PreScores = {
@@ -911,12 +925,14 @@ export function AIDomainAdvisor() {
                   <Badge
                     variant="outline"
                     className={`text-[10px] px-1.5 py-0 h-5 ${
-                      preScores.seoDataSource === "ai"
+                      preScores.seoDataSource === "dataforseo"
+                        ? "border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                        : preScores.seoDataSource === "ai"
                         ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
                         : "border-border text-muted-foreground"
                     }`}
                   >
-                    {preScores.seoDataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                    {preScores.seoDataSource === "dataforseo" ? "📊 Google Ads data" : preScores.seoDataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
                   </Badge>
                 </div>
               </div>

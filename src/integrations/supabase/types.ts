@@ -298,6 +298,48 @@ export type Database = {
         }
         Relationships: []
       }
+      keyword_volume_cache: {
+        Row: {
+          competition: number | null
+          competition_level: string | null
+          cpc: number | null
+          data_source: string
+          expires_at: string
+          fetched_at: string
+          id: string
+          keyword: string
+          monthly_searches: Json | null
+          search_volume: number
+          trend_direction: string | null
+        }
+        Insert: {
+          competition?: number | null
+          competition_level?: string | null
+          cpc?: number | null
+          data_source?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          keyword: string
+          monthly_searches?: Json | null
+          search_volume?: number
+          trend_direction?: string | null
+        }
+        Update: {
+          competition?: number | null
+          competition_level?: string | null
+          cpc?: number | null
+          data_source?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          keyword?: string
+          monthly_searches?: Json | null
+          search_volume?: number
+          trend_direction?: string | null
+        }
+        Relationships: []
+      }
       pattern_alerts: {
         Row: {
           alerted_at: string
