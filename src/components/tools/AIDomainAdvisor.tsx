@@ -212,7 +212,7 @@ export function AIDomainAdvisor() {
       updateStep(2, "running");
       const demand = scoreKeywordDemand(domainWithTld, enrichment);
       const val = quickValuation(domainWithTld, pronounce.score);
-      const seo = estimateSEOVolume(domainWithTld);
+      const seo = estimateSEOVolume(domainWithTld, enrichment);
       const age = scoreDomainAge(null);
 
       const scores: PreScores = {
@@ -231,7 +231,7 @@ export function AIDomainAdvisor() {
         domainAgeLabel: age.ageLabel,
         comparableSales: [],
       };
-      setPreScores(scores);
+      // Don't show pre-scores yet — wait until AI analysis completes
       updateStep(2, "done");
 
       // Step 3: AI deep analysis
@@ -260,6 +260,7 @@ export function AIDomainAdvisor() {
 
       if (data?.error) throw new Error(data.error);
       setAnalysis(data);
+      setPreScores(scores);
       updateStep(3, "done");
 
       // Step 4: TLD availability (non-blocking visual)
