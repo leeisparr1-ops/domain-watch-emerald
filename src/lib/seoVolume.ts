@@ -49,6 +49,25 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
 
   const hasAiVolumes = enrichment?.keywordVolumes && Object.keys(enrichment.keywordVolumes).length > 0;
 
+  // Sanity caps: AI models routinely overestimate Google search volumes by 100-1000x.
+  // Real-world reference points (Ahrefs/SEMrush verified):
+  //   "insurance" ≈ 823K, "home" ≈ 550K, "casino" ≈ 550K, "car" ≈ 450K
+  //   "crypto" ≈ 301K, "ai" ≈ 450K, "app" ≈ 301K
+  // Maximum single-keyword monthly search volume on Google is ~5M (e.g., "facebook", "youtube")
+  const MAX_SINGLE_KEYWORD_VOLUME = 2_000_000; // generous cap for any single keyword
+  const MAX_TOTAL_VOLUME = 5_000_000;           // cap for compound domains
+
+  // Cross-reference table: if AI volume for a known keyword is >5x heuristic, use heuristic
+  function sanitizeAiVolume(word: string, aiVolume: number): number {
+    const heuristicRef = HEAD_TERMS[word];
+    if (heuristicRef) {
+      // AI is wildly off — trust heuristic within a 3x tolerance
+      if (aiVolume > heuristicRef * 3) return heuristicRef;
+      if (aiVolume < heuristicRef * 0.2) return heuristicRef; // AI too low
+    }
+    return Math.min(aiVolume, MAX_SINGLE_KEYWORD_VOLUME);
+  }
+
   let totalVolume = 0;
   let topKeyword: string | null = null;
   let topVolume = 0;
@@ -61,10 +80,11 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
     if (hasAiVolumes) {
       const aiData = enrichment!.keywordVolumes[word];
       if (aiData && aiData.volume > 0) {
-        totalVolume += aiData.volume;
+        const vol = sanitizeAiVolume(word, aiData.volume);
+        totalVolume += vol;
         usedAi = true;
-        if (aiData.volume > topVolume) {
-          topVolume = aiData.volume;
+        if (vol > topVolume) {
+          topVolume = vol;
           topKeyword = word;
           trendDirection = aiData.trend as "rising" | "falling" | "stable";
           cpcEstimate = aiData.cpc_estimate;
@@ -95,6 +115,9 @@ export function estimateSEOVolume(domain: string, enrichment?: TrendEnrichment |
   if (words.length >= 2 && totalVolume > 0) {
     totalVolume = Math.round(totalVolume * 0.6);
   }
+
+  // Final sanity cap
+  totalVolume = Math.min(totalVolume, MAX_TOTAL_VOLUME);
 
   // Determine labels
   let volumeLabel: string;

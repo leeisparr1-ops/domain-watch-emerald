@@ -41,11 +41,20 @@ Return structured data with:
    - Domain aftermarket sale frequency and average prices
    - Venture capital / startup funding trends driving keyword demand
    - Social media buzz and news cycle momentum
-2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing (e.g. insurance, loans, crypto, health, etc.). Be as accurate as possible with volume estimates based on your training data about Google search volumes. This data will replace hardcoded heuristics.
+2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing (e.g. insurance, loans, crypto, health, etc.).
+
+CRITICAL ACCURACY REQUIREMENTS FOR VOLUME ESTIMATES:
+- Use EXACT Google Keyword Planner / SEMrush / Ahrefs-calibrated monthly search volumes
+- Reference points you MUST match closely: "insurance" ≈ 823,000/mo, "home" ≈ 550,000/mo, "casino" ≈ 550,000/mo, "ai" ≈ 450,000/mo, "crypto" ≈ 301,000/mo, "car" ≈ 450,000/mo, "app" ≈ 301,000/mo, "bitcoin" ≈ 368,000/mo, "travel" ≈ 368,000/mo
+- NO keyword should exceed 2,000,000 monthly searches unless it's a navigation query (like "facebook" or "youtube")
+- Most industry keywords are in the 100,000-900,000 range
+- Niche/emerging keywords are typically 1,000-50,000
+- DO NOT inflate volumes by 10x-1000x — these numbers are shown to professional domain investors who will immediately spot inaccuracies
+
 3. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect BOTH search interest growth AND domain sale activity.
 4. market_signals: Array of short strings describing key market movements (e.g. ".ai domains averaging $45k in Q1 2026", "search interest for 'agentic' up 340% YoY")
 
-Be specific and data-driven. Reference real market patterns. Include search volume trend indicators where relevant. For keyword_volumes, provide your best estimates of real Google monthly search volumes.`;
+Be specific and data-driven. Reference real market patterns. Include search volume trend indicators where relevant.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -174,12 +183,32 @@ Be specific and data-driven. Reference real market patterns. Include search volu
 
     // Validate and normalize keyword_volumes from initial call
     let keywordVolumes: Record<string, { volume: number; trend: string; cpc_estimate?: number }> = {};
+
+    // Known reference volumes for sanity-checking AI output (SEMrush/Ahrefs calibrated)
+    const REFERENCE_VOLUMES: Record<string, number> = {
+      "insurance": 823000, "loans": 450000, "mortgage": 368000, "lawyer": 301000,
+      "credit": 246000, "attorney": 201000, "hosting": 165000, "casino": 550000,
+      "health": 450000, "fitness": 201000, "crypto": 301000, "bitcoin": 368000,
+      "vpn": 246000, "software": 135000, "cloud": 165000, "travel": 368000,
+      "hotel": 301000, "dating": 246000, "jobs": 368000, "home": 550000,
+      "car": 450000, "auto": 201000, "bank": 301000, "ai": 450000,
+      "app": 301000, "game": 368000, "food": 301000, "news": 550000,
+      "music": 368000, "video": 450000, "energy": 165000, "solar": 135000,
+    };
+    const MAX_VOLUME = 2_000_000; // absolute cap per keyword
+
+    function clampVolume(keyword: string, rawVolume: number): number {
+      const ref = REFERENCE_VOLUMES[keyword];
+      if (ref && rawVolume > ref * 3) return ref; // AI hallucinated, use reference
+      return Math.min(Math.max(0, Math.round(rawVolume)), MAX_VOLUME);
+    }
+
     if (trendData.keyword_volumes && typeof trendData.keyword_volumes === "object") {
       for (const [k, v] of Object.entries(trendData.keyword_volumes)) {
         const val = v as any;
         if (val && typeof val === "object" && typeof val.volume === "number") {
           keywordVolumes[k.toLowerCase()] = {
-            volume: Math.max(0, Math.round(val.volume)),
+            volume: clampVolume(k.toLowerCase(), val.volume),
             trend: ["rising", "falling", "stable"].includes(val.trend) ? val.trend : "stable",
             cpc_estimate: typeof val.cpc_estimate === "number" ? Math.round(val.cpc_estimate * 100) / 100 : undefined,
           };
@@ -226,7 +255,7 @@ Return structured data mapping each keyword to its volume estimate.`;
             body: JSON.stringify({
               model: "google/gemini-2.5-flash",
               messages: [
-                { role: "system", content: "You are a search volume estimation expert. Provide your best estimates of real Google monthly search volumes based on your training data. Be as accurate as possible." },
+                { role: "system", content: "You are a search volume estimation expert calibrated to Google Keyword Planner / SEMrush / Ahrefs data. Reference points: insurance≈823K, home≈550K, casino≈550K, ai≈450K, crypto≈301K, app≈301K. Most industry keywords are 100K-900K. Niche terms are 1K-50K. NO keyword exceeds 2M unless it's a navigational query. Be precise — domain investors will verify these numbers." },
                 { role: "user", content: volumePrompt },
               ],
               tools: [
@@ -284,7 +313,7 @@ Return structured data mapping each keyword to its volume estimate.`;
             for (const entry of entries) {
               if (entry && typeof entry.keyword === "string" && typeof entry.volume === "number") {
                 keywordVolumes[entry.keyword.toLowerCase()] = {
-                  volume: Math.max(0, Math.round(entry.volume)),
+                  volume: clampVolume(entry.keyword.toLowerCase(), entry.volume),
                   trend: ["rising", "falling", "stable"].includes(entry.trend) ? entry.trend : "stable",
                   cpc_estimate: typeof entry.cpc === "number" ? Math.round(entry.cpc * 100) / 100 : undefined,
                 };
