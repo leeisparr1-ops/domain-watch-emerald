@@ -59,7 +59,8 @@ serve(async (req) => {
       // Get customer email
       const customer = await stripe.customers.retrieve(sub.customer as string);
       const email = (customer as any).email || "unknown";
-      const ends = new Date(sub.current_period_end * 1000).toISOString().split("T")[0];
+      const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null;
+      const ends = periodEnd && !isNaN(periodEnd.getTime()) ? periodEnd.toISOString().split("T")[0] : "N/A";
       subscriberDetails.push({ email, plan, ends });
     }
 
