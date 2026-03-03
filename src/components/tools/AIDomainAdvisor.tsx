@@ -709,7 +709,7 @@ export function AIDomainAdvisor() {
           </div>
         )}
 
-        {analysis && (
+        {analysis && !isLoading && (
           <div className="space-y-5 animate-fade-in">
             {/* Share Buttons */}
             <div className="flex items-center gap-2 justify-end">
