@@ -78,6 +78,7 @@ interface PreScores {
   trademarkRisk: string;
   seoVolume: number;
   seoVolumeLabel: string;
+  seoDataSource: "ai" | "heuristic";
   domainAgeLabel: string;
   comparableSales: { domain: string; price: string; date: string; pattern: string }[];
 }
@@ -226,6 +227,7 @@ export function AIDomainAdvisor() {
         trademarkRisk: getTrademarkRiskDisplay(trademark.riskLevel).label,
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
+        seoDataSource: seo.dataSource,
         domainAgeLabel: age.ageLabel,
         comparableSales: [],
       };
@@ -783,22 +785,40 @@ export function AIDomainAdvisor() {
 
             {/* Pre-computed scores strip */}
             {preScores && (
-              <div className="grid grid-cols-4 gap-2">
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Brand</p>
-                  <p className={`text-sm font-bold ${preScores.brandability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.brandability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.brandability}</p>
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                    <p className="text-[10px] text-muted-foreground">Brand</p>
+                    <p className={`text-sm font-bold ${preScores.brandability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.brandability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.brandability}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                    <p className="text-[10px] text-muted-foreground">Pronounce</p>
+                    <p className={`text-sm font-bold ${preScores.pronounceability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.pronounceability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.pronounceability}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                    <p className="text-[10px] text-muted-foreground">Demand</p>
+                    <p className={`text-sm font-bold ${preScores.keywordDemand >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.keywordDemand >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.keywordDemand}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-secondary/50 text-center">
+                    <p className="text-[10px] text-muted-foreground">Trademark</p>
+                    <p className={`text-sm font-bold ${preScores.trademarkRisk === "None" ? "text-emerald-600 dark:text-emerald-400" : preScores.trademarkRisk === "Low" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{preScores.trademarkRisk}</p>
+                  </div>
                 </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Pronounce</p>
-                  <p className={`text-sm font-bold ${preScores.pronounceability >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.pronounceability >= 50 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.pronounceability}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Demand</p>
-                  <p className={`text-sm font-bold ${preScores.keywordDemand >= 70 ? "text-emerald-600 dark:text-emerald-400" : preScores.keywordDemand >= 40 ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}`}>{preScores.keywordDemand}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-secondary/50 text-center">
-                  <p className="text-[10px] text-muted-foreground">Trademark</p>
-                  <p className={`text-sm font-bold ${preScores.trademarkRisk === "None" ? "text-emerald-600 dark:text-emerald-400" : preScores.trademarkRisk === "Low" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{preScores.trademarkRisk}</p>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <BarChart3 className="w-3 h-3" />
+                    SEO: ~{preScores.seoVolume.toLocaleString()}/mo ({preScores.seoVolumeLabel})
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-1.5 py-0 h-5 ${
+                      preScores.seoDataSource === "ai"
+                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    {preScores.seoDataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                  </Badge>
                 </div>
               </div>
             )}
