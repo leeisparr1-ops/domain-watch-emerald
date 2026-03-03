@@ -68,7 +68,7 @@ interface ComparableSale {
 // Curated comparable sales from publicly reported aftermarket data.
 const COMPARABLE_SALES: ComparableSale[] = [
   // Ultra-short / 2-3 letter
-  { domain: "AI.com", price: "$11,000,000", date: "2023", pattern: "2-letter .com", keywords: ["ai"] },
+  { domain: "AI.com", price: "$70,000,000", date: "2025", pattern: "2-letter .com", keywords: ["ai"] },
   { domain: "TX.com", price: "$950,000", date: "2024", pattern: "2-letter .com", keywords: ["tx"] },
   { domain: "GPT.ai", price: "$152,000", date: "2024", pattern: "3-letter .ai", keywords: ["gpt"] },
   { domain: "VPN.com", price: "$610,000", date: "2023", pattern: "3-letter .com", keywords: ["vpn"] },
@@ -537,6 +537,8 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     const baseResult = estimateValue(domainWithTld, nicheOverride || undefined);
     setResult(baseResult);
     setCompAnchor(null);
+    // Show heuristic SEO data immediately, then upgrade to AI when available
+    setSeoData(estimateSEOVolume(domainWithTld, null));
     fetchTrendEnrichment().then(enrichment => {
       setSeoData(estimateSEOVolume(domainWithTld, enrichment));
     });
@@ -551,6 +553,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
       const domainWithTld = input.includes(".") ? input : `${input}.com`;
       const baseResult = estimateValue(domainWithTld);
       setResult(baseResult);
+      setSeoData(estimateSEOVolume(domainWithTld, null));
       fetchTrendEnrichment().then(enrichment => {
         setSeoData(estimateSEOVolume(domainWithTld, enrichment));
       });
