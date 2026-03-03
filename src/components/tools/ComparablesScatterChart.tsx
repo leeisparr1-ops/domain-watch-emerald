@@ -66,7 +66,11 @@ export function ComparablesScatterChart({ comparables }: ComparablesScatterChart
             dataKey="price"
             name="Sale Price"
             tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => {
+              if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+              if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
+              return `$${v}`;
+            }}
           />
           <Tooltip content={<CustomTooltip />} />
           <Scatter data={data}>
