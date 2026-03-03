@@ -452,6 +452,20 @@ function getNicheHeatColor(heat: "hot" | "warm" | "stable" | "cooling"): string 
   }
 }
 
+type AnalysisStep = {
+  label: string;
+  status: "pending" | "running" | "done";
+};
+
+const ANALYSIS_STEPS: AnalysisStep[] = [
+  { label: "Analyzing domain structure & TLD", status: "pending" },
+  { label: "Scoring brandability & pronounceability", status: "pending" },
+  { label: "Checking keyword demand & SEO volume", status: "pending" },
+  { label: "Fetching market trend intelligence", status: "pending" },
+  { label: "Finding comparable sales", status: "pending" },
+  { label: "Running AI valuation model", status: "pending" },
+];
+
 export function DomainValuationEstimator({ initialDomain }: { initialDomain?: string } = {}) {
   const [domain, setDomain] = useState(initialDomain || "");
   const [nicheOverride, setNicheOverride] = useState<string>("");
@@ -461,57 +475,56 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [aiLoading, setAiLoading] = useState(false);
   const [compAnchor, setCompAnchor] = useState<AnchoredValuation | null>(null);
   const [seoData, setSeoData] = useState<SEOVolumeResult | null>(null);
+  const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
+  const [analysisRunning, setAnalysisRunning] = useState(false);
 
-  const fetchAiPricing = async (domainWithTld: string) => {
-    setAiLoading(true);
-    setAiEndUserValue(null);
-    setAiAcquisitionPrice(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setAiLoading(false); return; }
-
-      const enrichment = await fetchTrendEnrichment();
-      const brand = scoreBrandability(domainWithTld);
-      const pronounce = scorePronounceability(domainWithTld);
-      const trademark = checkTrademarkRisk(domainWithTld);
-      const demand = scoreKeywordDemand(domainWithTld, enrichment);
-      const val = quickValuation(domainWithTld, pronounce.score, null);
-      const seo = estimateSEOVolume(domainWithTld, enrichment);
-      const age = scoreDomainAge(null);
-
-      const scores = {
-        brandability: brand.overall,
-        pronounceability: pronounce.score,
-        keywordDemand: demand.score,
-        keywordDemandLabel: demand.label,
-        valuationRange: val.band,
-        niche: demand.niche.label,
-        trademarkRisk: getTmDisplay(trademark.riskLevel).label,
-        seoVolume: seo.estimatedMonthlySearches,
-        seoVolumeLabel: seo.volumeLabel,
-        domainAgeLabel: age.ageLabel,
-        comparableSales: [],
-      };
-
-      const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
-        body: { domain: domainWithTld, scores },
-      });
-
-      if (!error && data && !data.error) {
-        setAiEndUserValue(data.end_user_value || data.value_range || null);
-        setAiAcquisitionPrice(data.suggested_buy_price || null);
-      }
-    } catch (e) {
-      console.error("AI pricing fetch failed:", e);
-    } finally {
-      setAiLoading(false);
-    }
+  const updateStep = (index: number, status: "running" | "done") => {
+    setAnalysisSteps(prev => prev.map((s, i) => i === index ? { ...s, status } : s));
   };
 
-  const applyCompAnchoring = async (domainWithTld: string, baseResult: ValuationResult) => {
+  const runFullAnalysis = async (inputDomain: string, niche?: string) => {
+    const domainWithTld = inputDomain.includes(".") ? inputDomain : `${inputDomain}.com`;
+    const steps = ANALYSIS_STEPS.map(s => ({ ...s }));
+    setAnalysisSteps(steps);
+    setAnalysisRunning(true);
+    setResult(null);
+    setCompAnchor(null);
+    setSeoData(null);
+    setAiEndUserValue(null);
+    setAiAcquisitionPrice(null);
+
+    // Step 1: Domain structure
+    updateStep(0, "running");
+    await new Promise(r => setTimeout(r, 200));
+    const baseResult = estimateValue(domainWithTld, niche || undefined);
+    updateStep(0, "done");
+
+    // Step 2: Brandability & pronounceability
+    updateStep(1, "running");
+    await new Promise(r => setTimeout(r, 150));
+    updateStep(1, "done");
+
+    // Step 3: Keyword demand & SEO
+    updateStep(2, "running");
+    setSeoData(estimateSEOVolume(domainWithTld, null));
+    await new Promise(r => setTimeout(r, 150));
+    updateStep(2, "done");
+
+    // Step 4: Market trends (async)
+    updateStep(3, "running");
+    const enrichment = await fetchTrendEnrichment();
+    if (enrichment) {
+      setSeoData(estimateSEOVolume(domainWithTld, enrichment));
+    }
+    updateStep(3, "done");
+
+    // Show base result now
+    setResult(baseResult);
+
+    // Step 5: Comparable sales (async)
+    updateStep(4, "running");
     try {
       const baseQuickVal = { band: baseResult.estimatedValue, score: baseResult.overallScore, valueMin: 0, valueMax: 0 };
-      // Parse min/max from estimatedValue string
       const parts = baseResult.estimatedValue.match(/[\d,]+/g);
       if (parts && parts.length >= 2) {
         baseQuickVal.valueMin = parseInt(parts[0].replace(/,/g, ""));
@@ -520,45 +533,62 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
       const anchored = await anchorWithComps(domainWithTld, baseQuickVal);
       setCompAnchor(anchored);
       if (anchored.compAnchored) {
-        setResult(prev => prev ? {
-          ...prev,
-          estimatedValue: anchored.band,
-        } : prev);
+        setResult(prev => prev ? { ...prev, estimatedValue: anchored.band } : prev);
       }
-    } catch {
-      // Silently fail — base valuation remains
+    } catch { /* base valuation remains */ }
+    updateStep(4, "done");
+
+    // Step 6: AI valuation
+    updateStep(5, "running");
+    setAiLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const brand = scoreBrandability(domainWithTld);
+        const pronounce = scorePronounceability(domainWithTld);
+        const trademark = checkTrademarkRisk(domainWithTld);
+        const demand = scoreKeywordDemand(domainWithTld, enrichment);
+        const val = quickValuation(domainWithTld, pronounce.score, null);
+        const seo = estimateSEOVolume(domainWithTld, enrichment);
+        const age = scoreDomainAge(null);
+        const scores = {
+          brandability: brand.overall,
+          pronounceability: pronounce.score,
+          keywordDemand: demand.score,
+          keywordDemandLabel: demand.label,
+          valuationRange: val.band,
+          niche: demand.niche.label,
+          trademarkRisk: getTmDisplay(trademark.riskLevel).label,
+          seoVolume: seo.estimatedMonthlySearches,
+          seoVolumeLabel: seo.volumeLabel,
+          domainAgeLabel: age.ageLabel,
+          comparableSales: [],
+        };
+        const { data, error } = await supabase.functions.invoke("ai-domain-advisor", {
+          body: { domain: domainWithTld, scores },
+        });
+        if (!error && data && !data.error) {
+          setAiEndUserValue(data.end_user_value || data.value_range || null);
+          setAiAcquisitionPrice(data.suggested_buy_price || null);
+        }
+      }
+    } catch (e) {
+      console.error("AI pricing fetch failed:", e);
     }
+    setAiLoading(false);
+    updateStep(5, "done");
+    setAnalysisRunning(false);
   };
 
   const handleEstimate = () => {
     if (!domain.trim()) return;
-    const input = domain.trim().toLowerCase();
-    const domainWithTld = input.includes(".") ? input : `${input}.com`;
-    const baseResult = estimateValue(domainWithTld, nicheOverride || undefined);
-    setResult(baseResult);
-    setCompAnchor(null);
-    // Show heuristic SEO data immediately, then upgrade to AI when available
-    setSeoData(estimateSEOVolume(domainWithTld, null));
-    fetchTrendEnrichment().then(enrichment => {
-      setSeoData(estimateSEOVolume(domainWithTld, enrichment));
-    });
-    fetchAiPricing(domainWithTld);
-    applyCompAnchoring(domainWithTld, baseResult);
+    runFullAnalysis(domain.trim().toLowerCase(), nicheOverride || undefined);
   };
 
   // Auto-run if initialDomain is provided
   useEffect(() => {
     if (initialDomain) {
-      const input = initialDomain.trim().toLowerCase();
-      const domainWithTld = input.includes(".") ? input : `${input}.com`;
-      const baseResult = estimateValue(domainWithTld);
-      setResult(baseResult);
-      setSeoData(estimateSEOVolume(domainWithTld, null));
-      fetchTrendEnrichment().then(enrichment => {
-        setSeoData(estimateSEOVolume(domainWithTld, enrichment));
-      });
-      fetchAiPricing(domainWithTld);
-      applyCompAnchoring(domainWithTld, baseResult);
+      runFullAnalysis(initialDomain.trim().toLowerCase());
     }
   }, [initialDomain]);
 
@@ -596,8 +626,10 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
               onKeyDown={(e) => e.key === "Enter" && handleEstimate()}
               className="flex-1"
             />
-            <Button onClick={handleEstimate} disabled={!domain.trim()}>
-              Estimate
+            <Button onClick={handleEstimate} disabled={!domain.trim() || analysisRunning}>
+              {analysisRunning ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Analyzing…</>
+              ) : "Estimate"}
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -620,6 +652,30 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
             )}
           </div>
         </div>
+
+        {/* ─── Staged Analysis Loading ─── */}
+        {analysisRunning && !result && (
+          <div className="rounded-xl border border-border bg-card p-6 space-y-3 animate-fade-in">
+            <div className="flex items-center gap-2 mb-4">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="font-semibold text-foreground">Analyzing domain…</span>
+            </div>
+            {analysisSteps.map((step, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                {step.status === "done" ? (
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                ) : step.status === "running" ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                ) : (
+                  <div className="w-4 h-4 rounded-full border border-muted-foreground/30 shrink-0" />
+                )}
+                <span className={step.status === "pending" ? "text-muted-foreground" : "text-foreground"}>
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {result && (
           <div className="space-y-5 animate-fade-in">
