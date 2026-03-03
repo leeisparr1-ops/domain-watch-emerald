@@ -22,6 +22,7 @@ import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation } from "@/lib/domainValuation";
 import { estimateSEOVolume } from "@/lib/seoVolume";
+import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { FlipScoreGauge } from "./FlipScoreGauge";
 import { ValueDriverRadarChart } from "./ValueDriverRadarChart";
@@ -137,18 +138,34 @@ export function AIDomainAdvisor() {
 
   // Staged loading state
   type StepStatus = "pending" | "running" | "done";
-  interface AnalysisStep { label: string; status: StepStatus }
+  interface AnalysisStep { label: string; status: StepStatus; estimatedMs: number }
   const INITIAL_STEPS: AnalysisStep[] = [
-    { label: "Fetching market trends & enrichment data", status: "pending" },
-    { label: "Scoring brandability & pronounceability", status: "pending" },
-    { label: "Evaluating keyword demand & SEO volume", status: "pending" },
-    { label: "Running AI deep analysis", status: "pending" },
-    { label: "Checking TLD availability", status: "pending" },
+    { label: "Fetching market trends & enrichment data", status: "pending", estimatedMs: 2000 },
+    { label: "Scoring brandability & pronounceability", status: "pending", estimatedMs: 500 },
+    { label: "Evaluating keyword demand & SEO volume", status: "pending", estimatedMs: 800 },
+    { label: "Finding comparable sales data", status: "pending", estimatedMs: 3000 },
+    { label: "Checking spam & blacklist risk", status: "pending", estimatedMs: 4000 },
+    { label: "Running AI deep analysis", status: "pending", estimatedMs: 12000 },
+    { label: "Checking TLD availability", status: "pending", estimatedMs: 5000 },
   ];
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
+  const [analysisStartTime, setAnalysisStartTime] = useState<number>(0);
+  const [etaSeconds, setEtaSeconds] = useState<number>(0);
   const updateStep = (idx: number, status: StepStatus) => {
     setAnalysisSteps(prev => prev.map((s, i) => i === idx ? { ...s, status } : s));
   };
+
+  // ETA countdown timer
+  useEffect(() => {
+    if (!isLoading || analysisStartTime === 0) return;
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - analysisStartTime) / 1000;
+      const totalEstimate = INITIAL_STEPS.reduce((s, st) => s + st.estimatedMs, 0) / 1000;
+      const remaining = Math.max(0, Math.ceil(totalEstimate - elapsed));
+      setEtaSeconds(remaining);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isLoading, analysisStartTime]);
 
   // Auto-analyze from URL params (one-click from alerts)
   useEffect(() => {
@@ -180,7 +197,8 @@ export function AIDomainAdvisor() {
     setTldResults([]);
     setTldChecking(false);
     setAnalysisSteps(INITIAL_STEPS.map(s => ({ ...s })));
-
+    setAnalysisStartTime(Date.now());
+    setEtaSeconds(Math.ceil(INITIAL_STEPS.reduce((s, st) => s + st.estimatedMs, 0) / 1000));
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -231,18 +249,52 @@ export function AIDomainAdvisor() {
         domainAgeLabel: age.ageLabel,
         comparableSales: [],
       };
-      // Don't show pre-scores yet — wait until AI analysis completes
       updateStep(2, "done");
 
-      // Step 3: AI deep analysis
+      // Step 3: Find comparable sales data
       updateStep(3, "running");
+      let anchoredVal: AnchoredValuation | null = null;
+      try {
+        anchoredVal = await anchorWithComps(domainWithTld, val);
+        if (anchoredVal.compAnchored) {
+          scores.valuationRange = anchoredVal.band;
+          scores.comparableSales = []; // Will be populated by AI analysis
+        }
+      } catch (e) {
+        console.warn("Comparable sales anchoring failed:", e);
+      }
+      updateStep(3, "done");
+
+      // Step 4: Check spam & blacklist risk
+      updateStep(4, "running");
+      let domainRiskData: { risk_level?: string; surbl?: boolean; details?: string[] } | null = null;
+      try {
+        const { data: riskResp } = await supabase.functions.invoke("check-domain-risk", {
+          body: { domain: domainWithTld },
+        });
+        if (riskResp) domainRiskData = riskResp;
+      } catch (e) {
+        console.warn("Domain risk check failed:", e);
+      }
+      updateStep(4, "done");
+
+      // Step 5: AI deep analysis (with enriched data)
+      updateStep(5, "running");
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Analysis timed out after 30 seconds. Please try again.")), 30000)
       );
 
       const { data, error } = await Promise.race([
         supabase.functions.invoke("ai-domain-advisor", {
-          body: { domain: domainWithTld, scores, valuationStance },
+          body: {
+            domain: domainWithTld,
+            scores,
+            valuationStance,
+            domainRisk: domainRiskData,
+            compAnchored: anchoredVal?.compAnchored || false,
+            compMedian: anchoredVal?.compMedian || null,
+            compCount: anchoredVal?.compCount || 0,
+          },
         }),
         timeoutPromise,
       ]);
@@ -260,10 +312,10 @@ export function AIDomainAdvisor() {
 
       if (data?.error) throw new Error(data.error);
       setAnalysis(data);
-      updateStep(3, "done");
+      updateStep(5, "done");
 
-      // Step 4: TLD availability (non-blocking visual)
-      updateStep(4, "running");
+      // Step 6: TLD availability
+      updateStep(6, "running");
       const baseName = domainWithTld.split(".")[0];
       const tldsToCheck = [
         ".com", ".net", ".org", ".info", ".biz", ".name", ".pro", ".mobi",
@@ -300,7 +352,7 @@ export function AIDomainAdvisor() {
       } finally {
         setTldChecking(false);
       }
-      updateStep(4, "done");
+      updateStep(6, "done");
       // All steps done — NOW reveal scores
       setPreScores(scores);
     } catch (e: any) {
@@ -590,6 +642,12 @@ export function AIDomainAdvisor() {
               <p className="text-xs text-muted-foreground mt-1">
                 Running thorough analysis — please wait
               </p>
+              {etaSeconds > 0 && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground/80">
+                  <Clock className="w-3 h-3" />
+                  <span>~{etaSeconds}s remaining</span>
+                </div>
+              )}
             </div>
 
             {/* Progress bar */}
@@ -640,9 +698,12 @@ export function AIDomainAdvisor() {
             </div>
 
             {/* Subtle footer tip */}
-            <div className="bg-secondary/30 px-6 py-3 border-t border-border/50">
-              <p className="text-[10px] text-muted-foreground/60 text-center">
-                Thorough research takes a moment — accuracy over speed
+            <div className="bg-secondary/30 px-6 py-3 border-t border-border/50 flex items-center justify-between">
+              <p className="text-[10px] text-muted-foreground/60">
+                7 research steps • accuracy over speed
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {analysisSteps.filter(s => s.status === "done").length}/{analysisSteps.length} complete
               </p>
             </div>
           </div>
