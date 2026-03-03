@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles, Filter, X, Wand2 } from "lucide-react";
+import { List, ArrowUpDown, ShieldAlert, ShieldCheck, Upload, Award, Download, BarChart3, Flame, Search, AlertTriangle, Sparkles, Filter, X, Wand2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,8 @@ import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } fro
 import { quickValuation } from "@/lib/domainValuation";
 import { scoreBrandability } from "@/lib/brandability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
-import { estimateSEOVolume } from "@/lib/seoVolume";
+import { estimateSEOVolume, fetchKeywordVolumes } from "@/lib/seoVolume";
+import { splitIntoWords } from "@/lib/domainValuation";
 import {
   Tooltip,
   TooltipContent,
@@ -57,6 +58,7 @@ interface BulkResult {
   demandLabel: string;
   seoVolume: number;
   seoVolumeLabel: string;
+  seoDataSource: "dataforseo" | "ai" | "heuristic";
   flipScore: number;
 }
 
@@ -66,6 +68,7 @@ export function BulkPronounceabilityChecker() {
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [results, setResults] = useState<BulkResult[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sortField, setSortField] = useState<SortField>("score");
   const [sortAsc, setSortAsc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +132,26 @@ export function BulkPronounceabilityChecker() {
       .filter((d) => d.length >= 2 && /^[a-z0-9.-]+$/.test(d))
       .slice(0, 50);
 
-  const scoreDomains = (domains: string[]) => {
+  const scoreDomains = async (domains: string[]) => {
+    setIsAnalyzing(true);
+    try {
+    // Collect all unique keywords across all domains for a single batch fetch
+    const allKeywords = new Set<string>();
+    for (const domain of domains) {
+      const sld = domain.split(".")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
+      splitIntoWords(sld).filter((w: string) => w.length >= 2).forEach((w: string) => allKeywords.add(w));
+    }
+
+    // Batch fetch real keyword volumes from DataForSEO
+    let dataForSeoData: Record<string, any> = {};
+    try {
+      if (allKeywords.size > 0) {
+        dataForSeoData = await fetchKeywordVolumes([...allKeywords]);
+      }
+    } catch (e) {
+      console.warn("Bulk DataForSEO fetch failed, using fallback:", e);
+    }
+
     const scored = domains.map((domain) => {
       const result = scorePronounceability(domain);
       const trademark = checkTrademarkRisk(domain);
@@ -137,7 +159,7 @@ export function BulkPronounceabilityChecker() {
       const syllables = countSyllables(domain.split(".")[0]);
       const brandabilityScore = scoreBrandability(domain).overall;
       const demand = scoreKeywordDemand(domain);
-      const seo = estimateSEOVolume(domain);
+      const seo = estimateSEOVolume(domain, null, Object.keys(dataForSeoData).length > 0 ? dataForSeoData : undefined);
       const flipScore = computeFlipScore(
         brandabilityScore, demand.score, val.score, result.score,
         trademark.riskLevel, seo.estimatedMonthlySearches,
@@ -156,6 +178,7 @@ export function BulkPronounceabilityChecker() {
         demandLabel: demand.label,
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
+        seoDataSource: seo.dataSource,
         flipScore,
       };
     });
@@ -163,12 +186,15 @@ export function BulkPronounceabilityChecker() {
     setResults(scored);
     setSortAsc(false);
     setSortField("flip");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     const domains = parseDomains(text);
     if (!domains.length) return;
-    scoreDomains(domains);
+    await scoreDomains(domains);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,9 +322,12 @@ export function BulkPronounceabilityChecker() {
           rows={5}
         />
         <div className="flex gap-3">
-          <Button onClick={handleCheck} disabled={!text.trim()} className="flex-1">
-            <List className="w-4 h-4 mr-2" />
-            Analyze All ({Math.min(50, text.split(/[\n,;]+/).filter(s => s.trim().replace(/\s+/g, "")).length)} domains)
+          <Button onClick={handleCheck} disabled={!text.trim() || isAnalyzing} className="flex-1">
+            {isAnalyzing ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" />Fetching SEO data…</>
+            ) : (
+              <><List className="w-4 h-4 mr-2" />Analyze All ({Math.min(50, text.split(/[\n,;]+/).filter(s => s.trim().replace(/\s+/g, "")).length)} domains)</>
+            )}
           </Button>
           <input
             ref={fileInputRef}

@@ -12,7 +12,8 @@ import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation } from "@/lib/domainValuation";
-import { estimateSEOVolume, type SEOVolumeResult } from "@/lib/seoVolume";
+import { estimateSEOVolume, fetchKeywordVolumes, type SEOVolumeResult } from "@/lib/seoVolume";
+import { SEOVolumeSparkline } from "./SEOVolumeSparkline";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { getTrademarkRiskDisplay as getTmDisplay } from "@/lib/trademarkCheck";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
@@ -504,17 +505,26 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     await new Promise(r => setTimeout(r, 150));
     updateStep(1, "done");
 
-    // Step 3: Keyword demand & SEO
+    // Step 3: Keyword demand & SEO (with real DataForSEO data)
     updateStep(2, "running");
-    setSeoData(estimateSEOVolume(domainWithTld, null));
-    await new Promise(r => setTimeout(r, 150));
+    const sld = domainWithTld.split(".")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
+    const seoWords = splitIntoWords(sld).filter((w: string) => w.length >= 2);
+    let dataForSeoData: Record<string, any> | undefined;
+    try {
+      if (seoWords.length > 0) {
+        dataForSeoData = await fetchKeywordVolumes(seoWords);
+      }
+    } catch (e) {
+      console.warn("DataForSEO fetch failed, using fallback:", e);
+    }
+    setSeoData(estimateSEOVolume(domainWithTld, null, dataForSeoData));
     updateStep(2, "done");
 
     // Step 4: Market trends (async)
     updateStep(3, "running");
     const enrichment = await fetchTrendEnrichment();
     if (enrichment) {
-      setSeoData(estimateSEOVolume(domainWithTld, enrichment));
+      setSeoData(estimateSEOVolume(domainWithTld, enrichment, dataForSeoData));
     }
     updateStep(3, "done");
 
@@ -549,7 +559,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
         const trademark = checkTrademarkRisk(domainWithTld);
         const demand = scoreKeywordDemand(domainWithTld, enrichment);
         const val = quickValuation(domainWithTld, pronounce.score, null);
-        const seo = estimateSEOVolume(domainWithTld, enrichment);
+        const seo = estimateSEOVolume(domainWithTld, enrichment, dataForSeoData);
         const age = scoreDomainAge(null);
         const scores = {
           brandability: brand.overall,
@@ -834,8 +844,14 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-primary" />
                     <span className="text-sm font-semibold text-foreground">SEO Volume</span>
-                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${seoData.dataSource === "ai" ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}>
-                      {seoData.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                      seoData.dataSource === "dataforseo"
+                        ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                        : seoData.dataSource === "ai"
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "bg-muted text-muted-foreground border border-border"
+                    }`}>
+                      {seoData.dataSource === "dataforseo" ? "📊 Google Ads data" : seoData.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -851,6 +867,12 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                     )}
                   </div>
                 </div>
+                {seoData.monthlySearches && seoData.monthlySearches.length >= 2 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] text-muted-foreground mb-1">12-Month Search Trend</p>
+                    <SEOVolumeSparkline monthlySearches={seoData.monthlySearches} height={64} />
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-2">{seoData.organicPotential}</p>
               </div>
             )}
