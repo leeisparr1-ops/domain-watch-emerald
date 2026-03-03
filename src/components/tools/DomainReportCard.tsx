@@ -171,7 +171,7 @@ export function DomainReportCard() {
       `📊 Brandability: ${report.brandability.overall}/100 (${report.brandability.grade})\n` +
       `🗣 Pronounceability: ${report.pronounceability.score}/100 (${report.pronounceability.grade})\n` +
       `🔥 Keyword Demand: ${report.keywordDemand.score}/100 (${report.keywordDemand.label})\n` +
-      `🔍 Keyword Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo)\n` +
+      `🔍 Keyword Volume: ${report.seoVolume.volumeLabel} (~${report.seoVolume.estimatedMonthlySearches.toLocaleString()}/mo) [${report.seoVolume.dataSource === "ai" ? "AI-estimated" : "Heuristic"}]\n` +
       `💰 End-User Value: ${report.valuation.band}\n` +
       `🛡 Trademark: ${getTrademarkRiskDisplay(report.trademark.riskLevel).label}\n` +
       `🌐 Availability: ${report.availability.status}\n` +
@@ -445,7 +445,11 @@ export function DomainReportCard() {
 
               {/* SEO & Age Insights */}
               <div className="text-xs p-2 rounded-md border border-border bg-secondary/30 text-muted-foreground space-y-1">
-                <p>🔍 <span className="font-medium text-foreground">SEO:</span> {report.seoVolume.organicPotential}</p>
+                <p className="flex items-center gap-1.5 flex-wrap">🔍 <span className="font-medium text-foreground">SEO:</span> {report.seoVolume.organicPotential}
+                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${report.seoVolume.dataSource === "ai" ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}>
+                    {report.seoVolume.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                  </span>
+                </p>
                 <p>📅 <span className="font-medium text-foreground">Age:</span> {report.domainAge.valueImpact}</p>
               </div>
 

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
 import { scoreBrandability } from "@/lib/brandability";
@@ -12,7 +12,7 @@ import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
 import { quickValuation } from "@/lib/domainValuation";
-import { estimateSEOVolume } from "@/lib/seoVolume";
+import { estimateSEOVolume, type SEOVolumeResult } from "@/lib/seoVolume";
 import { scoreDomainAge } from "@/lib/domainAge";
 import { getTrademarkRiskDisplay as getTmDisplay } from "@/lib/trademarkCheck";
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
@@ -460,6 +460,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [aiAcquisitionPrice, setAiAcquisitionPrice] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [compAnchor, setCompAnchor] = useState<AnchoredValuation | null>(null);
+  const [seoData, setSeoData] = useState<SEOVolumeResult | null>(null);
 
   const fetchAiPricing = async (domainWithTld: string) => {
     setAiLoading(true);
@@ -536,6 +537,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     const baseResult = estimateValue(domainWithTld, nicheOverride || undefined);
     setResult(baseResult);
     setCompAnchor(null);
+    fetchTrendEnrichment().then(enrichment => {
+      setSeoData(estimateSEOVolume(domainWithTld, enrichment));
+    });
     fetchAiPricing(domainWithTld);
     applyCompAnchoring(domainWithTld, baseResult);
   };
@@ -547,6 +551,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
       const domainWithTld = input.includes(".") ? input : `${input}.com`;
       const baseResult = estimateValue(domainWithTld);
       setResult(baseResult);
+      fetchTrendEnrichment().then(enrichment => {
+        setSeoData(estimateSEOVolume(domainWithTld, enrichment));
+      });
       fetchAiPricing(domainWithTld);
       applyCompAnchoring(domainWithTld, baseResult);
     }
@@ -760,6 +767,34 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 </p>
               )}
             </div>
+
+            {/* SEO Volume Insight */}
+            {seoData && (
+              <div className="p-4 rounded-xl bg-secondary/30 border border-border/50">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">SEO Volume</span>
+                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${seoData.dataSource === "ai" ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}>
+                      {seoData.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{seoData.volumeLabel}</Badge>
+                    <Badge variant="outline" className="text-xs">~{seoData.estimatedMonthlySearches.toLocaleString()}/mo</Badge>
+                    {seoData.trendDirection && (
+                      <Badge variant="outline" className={`text-xs ${seoData.trendDirection === "rising" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : seoData.trendDirection === "falling" ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" : ""}`}>
+                        {seoData.trendDirection === "rising" ? "↑" : seoData.trendDirection === "falling" ? "↓" : "→"} {seoData.trendDirection}
+                      </Badge>
+                    )}
+                    {seoData.cpcEstimate && (
+                      <Badge variant="outline" className="text-xs">${seoData.cpcEstimate.toFixed(2)} CPC</Badge>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{seoData.organicPotential}</p>
+              </div>
+            )}
 
             {/* Trademark Alert */}
             {result.trademark.riskLevel !== "none" && (
