@@ -4,12 +4,21 @@
  * boost modifiers for the keyword demand scorer. This is the hybrid approach:
  * the heuristic engine remains the primary scorer, and this layer adds
  * real-time market intelligence as a modifier (±15 points max).
+ * 
+ * Also provides AI-estimated keyword search volumes for the SEO Volume module.
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
+export interface KeywordVolumeEstimate {
+  volume: number;       // Estimated monthly Google searches
+  trend: "rising" | "falling" | "stable";
+  cpc_estimate?: number; // Estimated CPC in USD
+}
+
 export interface TrendEnrichment {
   keywords: Record<string, number>;  // keyword → AI heat multiplier (1.0-2.5)
+  keywordVolumes: Record<string, KeywordVolumeEstimate>;  // keyword → volume data
   hotNiches: { niche: string; label: string; heat: number; emerging_keywords?: string[] }[];
   marketSignals: string[];
   generatedAt: string;
@@ -33,7 +42,7 @@ export async function fetchTrendEnrichment(): Promise<TrendEnrichment | null> {
   try {
     const { data, error } = await supabase
       .from("trending_market_data")
-      .select("trending_keywords, hot_niches, market_signals, generated_at")
+      .select("trending_keywords, keyword_volumes, hot_niches, market_signals, generated_at")
       .eq("id", "latest")
       .maybeSingle();
 
@@ -45,6 +54,7 @@ export async function fetchTrendEnrichment(): Promise<TrendEnrichment | null> {
 
     const enrichment: TrendEnrichment = {
       keywords: (data.trending_keywords as Record<string, number>) || {},
+      keywordVolumes: (data.keyword_volumes as unknown as Record<string, KeywordVolumeEstimate>) || {},
       hotNiches: (data.hot_niches as TrendEnrichment["hotNiches"]) || [],
       marketSignals: (data.market_signals as string[]) || [],
       generatedAt,
@@ -62,12 +72,6 @@ export async function fetchTrendEnrichment(): Promise<TrendEnrichment | null> {
 /**
  * Calculate a boost modifier (can be negative) based on trend enrichment data.
  * Returns a value between -10 and +15 to add to the heuristic score.
- * 
- * Boost logic:
- * - If a keyword appears in AI trends with higher heat than the heuristic → positive boost
- * - If a keyword is in AI "emerging" list but not in heuristic → discovery boost
- * - If AI trends show the niche is cooling → slight negative modifier
- * - Stale data gets halved boost
  */
 export function computeTrendBoost(
   meaningfulWords: string[],
@@ -88,7 +92,6 @@ export function computeTrendBoost(
     if (aiHeat && aiHeat > 1.0) {
       bestAiHeat = Math.max(bestAiHeat, aiHeat);
     }
-    // Discovery: AI found a trending keyword not in our heuristic TRENDING_KEYWORDS
     if (aiHeat && aiHeat >= 1.5) {
       discoveredKeywords.push(word);
     }
@@ -139,9 +142,7 @@ export function computeTrendBoost(
     factors.push({ label: "Stale Data", points: rawBoost - originalBoost, detail: "Trend data >24h old — boost halved" });
   }
 
-  // Clamp to [-10, +15]
   const boost = Math.max(-10, Math.min(15, rawBoost));
-
   return { boost, factors };
 }
 

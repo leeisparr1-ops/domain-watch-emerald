@@ -475,7 +475,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
       const trademark = checkTrademarkRisk(domainWithTld);
       const demand = scoreKeywordDemand(domainWithTld, enrichment);
       const val = quickValuation(domainWithTld, pronounce.score, null);
-      const seo = estimateSEOVolume(domainWithTld);
+      const seo = estimateSEOVolume(domainWithTld, enrichment);
       const age = scoreDomainAge(null);
 
       const scores = {

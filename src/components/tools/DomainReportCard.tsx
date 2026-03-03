@@ -104,7 +104,7 @@ export function DomainReportCard() {
     const trademark = checkTrademarkRisk(domainWithTld);
     const keywordDemand = scoreKeywordDemand(domainWithTld, enrichment);
     const valuation = quickValuation(domainWithTld, pronounceability.score, null);
-    const seoVolume = estimateSEOVolume(domainWithTld);
+    const seoVolume = estimateSEOVolume(domainWithTld, enrichment);
     const domainAge = scoreDomainAge(null); // Will be enriched if data available
 
     const reportData: ReportData = {
