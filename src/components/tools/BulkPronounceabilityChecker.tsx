@@ -238,7 +238,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "SEO Data Source", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => {
       const escapeCsv = (v: string | number) => {
         const s = String(v);
@@ -254,6 +254,7 @@ export function BulkPronounceabilityChecker() {
         escapeCsv(r.demandLabel.replace(/[🔥📈⬆️➡️↘️⬇️⛔]/g, "").trim()),
         r.seoVolume,
         escapeCsv(r.seoVolumeLabel),
+        escapeCsv(r.seoDataSource === "dataforseo" ? "Google Ads" : r.seoDataSource === "ai" ? "AI" : "Heuristic"),
         escapeCsv(r.valuationBand),
         r.valuationScore,
         r.syllables,
@@ -484,6 +485,16 @@ export function BulkPronounceabilityChecker() {
                         <Search className="w-3 h-3" /> SEO Vol <ArrowUpDown className="w-3 h-3" />
                       </span>
                     </TableHead>
+                    <TableHead className="text-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs cursor-help">Source</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs max-w-[180px]">Where SEO volume data came from: Google Ads (DataForSEO), AI estimate, or heuristic fallback.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -580,6 +591,17 @@ export function BulkPronounceabilityChecker() {
                               <p className="text-xs">~{r.seoVolume.toLocaleString()} est. monthly searches</p>
                             </TooltipContent>
                           </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                            r.seoDataSource === "dataforseo"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+                              : r.seoDataSource === "ai"
+                              ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-300 dark:border-violet-700"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}>
+                            {r.seoDataSource === "dataforseo" ? "📊 Google Ads" : r.seoDataSource === "ai" ? "🤖 AI" : "📐 Heuristic"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}
