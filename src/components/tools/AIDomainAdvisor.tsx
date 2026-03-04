@@ -951,9 +951,8 @@ export function AIDomainAdvisor() {
                   </Badge>
                 </div>
                 {preScores.seoMonthlySearches && preScores.seoMonthlySearches.length >= 2 && (
-                  <div className="mt-2 px-1">
-                    <p className="text-[10px] text-muted-foreground mb-1">12-Month Search Trend</p>
-                    <SEOVolumeSparkline monthlySearches={preScores.seoMonthlySearches} height={52} />
+                  <div className="mt-2">
+                    <SEOVolumeSparkline monthlySearches={preScores.seoMonthlySearches} variant="detailed" height={140} />
                   </div>
                 )}
               </div>

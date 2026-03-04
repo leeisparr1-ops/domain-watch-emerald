@@ -869,8 +869,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 </div>
                 {seoData.monthlySearches && seoData.monthlySearches.length >= 2 && (
                   <div className="mt-3">
-                    <p className="text-[10px] text-muted-foreground mb-1">12-Month Search Trend</p>
-                    <SEOVolumeSparkline monthlySearches={seoData.monthlySearches} height={64} />
+                    <SEOVolumeSparkline monthlySearches={seoData.monthlySearches} variant="detailed" height={140} />
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mt-2">{seoData.organicPotential}</p>
