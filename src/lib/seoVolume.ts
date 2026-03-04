@@ -89,6 +89,7 @@ export function estimateSEOVolume(
   let cpcEstimate: number | undefined;
   let dataSource: "dataforseo" | "ai" | "heuristic" = "heuristic";
   let monthlySearches: any[] | undefined;
+  const allMonthlyArrays: any[][] = []; // collect monthly data from all keywords for aggregation
 
   for (const word of words) {
     // Priority 1: DataForSEO real data
@@ -98,12 +99,14 @@ export function estimateSEOVolume(
         const vol = Math.min(d.volume, MAX_SINGLE_KEYWORD_VOLUME);
         totalVolume += vol;
         dataSource = "dataforseo";
+        if (d.monthly_searches?.length) {
+          allMonthlyArrays.push(d.monthly_searches);
+        }
         if (vol > topVolume) {
           topVolume = vol;
           topKeyword = word;
           trendDirection = d.trend as "rising" | "falling" | "stable";
           cpcEstimate = d.cpc ?? undefined;
-          monthlySearches = d.monthly_searches;
         }
         continue;
       }
@@ -142,6 +145,11 @@ export function estimateSEOVolume(
       totalVolume += 1000;
       if (1000 > topVolume) { topVolume = 1000; topKeyword = word; }
     }
+  }
+
+  // Aggregate monthly searches across all keywords
+  if (allMonthlyArrays.length > 0) {
+    monthlySearches = aggregateMonthlySearches(allMonthlyArrays);
   }
 
   // Multi-word compound discount
@@ -212,6 +220,29 @@ function sanitizeAiVolume(word: string, aiVolume: number, max: number): number {
     if (aiVolume < heuristicRef * 0.2) return heuristicRef;
   }
   return Math.min(aiVolume, max);
+}
+
+/**
+ * Aggregate monthly search arrays from multiple keywords.
+ * Each array has objects like { year, month, search_volume }.
+ * We sum search_volume for matching year+month across all keywords.
+ */
+function aggregateMonthlySearches(arrays: any[][]): any[] {
+  const map = new Map<string, { year: number; month: number; search_volume: number }>();
+
+  for (const arr of arrays) {
+    for (const entry of arr) {
+      const key = `${entry.year}-${entry.month}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.search_volume += entry.search_volume;
+      } else {
+        map.set(key, { year: entry.year, month: entry.month, search_volume: entry.search_volume });
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.year - b.year || a.month - b.month);
 }
 
 function capitalizeFirst(s: string): string {

@@ -12,6 +12,10 @@ interface SEOVolumeSparklineProps {
   monthlySearches: MonthlySearch[];
   height?: number;
   variant?: "compact" | "detailed";
+  /** If set and only one keyword has trend data, show which keyword the chart represents */
+  topKeyword?: string | null;
+  /** Number of keywords aggregated — used to decide whether to show clarifying label */
+  keywordCount?: number;
 }
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -26,8 +30,12 @@ export function SEOVolumeSparkline({
   monthlySearches,
   height,
   variant = "detailed",
+  topKeyword,
+  keywordCount,
 }: SEOVolumeSparklineProps) {
   if (!monthlySearches || monthlySearches.length < 2) return null;
+
+  const showKeywordLabel = variant === "detailed" && topKeyword && (keywordCount === undefined || keywordCount <= 1);
 
   const data = monthlySearches
     .sort((a, b) => a.year - b.year || a.month - b.month)
@@ -106,9 +114,16 @@ export function SEOVolumeSparkline({
     <div className="rounded-lg border border-border bg-card p-3 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">
-          Search Volume Trends (Last 12 Months)
-        </p>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Search Volume Trends (Last 12 Months)
+          </p>
+          {showKeywordLabel && (
+            <p className="text-[10px] text-muted-foreground/70">
+              Showing trend for "{topKeyword}"
+            </p>
+          )}
+        </div>
         <Badge variant="outline" className={`text-[10px] gap-1 ${trendBadgeClass}`}>
           <TrendIcon className="w-3 h-3" />
           {trendPercent > 0 ? "+" : ""}{trendPercent}% {trendLabel}
