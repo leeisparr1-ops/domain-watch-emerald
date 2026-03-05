@@ -32,8 +32,7 @@ export function HeroV2() {
           </h1>
 
           <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-            Set your criteria once. We scan millions of expiring domains daily 
-            and alert you the moment a match appears — by email or push notification.
+            Pattern-based alerts that surface hidden gems from millions of expiring domains — delivered to your inbox or phone.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-8">
