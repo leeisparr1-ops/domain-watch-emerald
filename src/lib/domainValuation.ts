@@ -1759,6 +1759,20 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
   }
 
+  // ─── AUTO-STANCE DETECTION ───
+  // Brandable: short, pronounceable, coined or single-word
+  // Keyword-rich: contains premium/trending keywords, longer compound names
+  const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
+  const ratio = vowelCount / name.length;
+  const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
+  const isBrandable = (isDictWord && name.length <= 8) || (isPronounceable && name.length <= 7 && junkChars === 0);
+  const isKeywordRich = premiumMatches.length >= 2 || (premiumMatches.length === 1 && meaningfulWords.length >= 2);
+  
+  // Stance adjusts weight distribution:
+  // Brandable → heavier weight on length, brandability, pronounceability
+  // Keyword → heavier weight on keywords, niche demand, trending
+  const stance = isBrandable && !isKeywordRich ? "brandable" : isKeywordRich ? "keyword" : "balanced";
+
   let score = 0;
 
   // Length (max 20) — exponential curve: short domains are dramatically more valuable
