@@ -1972,7 +1972,26 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   }
 
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
-  return { band, score: normalizedTotal, valueMin, valueMax };
+
+  // Compute value drivers (normalized to 0-100)
+  const lengthDriver = name.length <= 2 ? 100 : name.length === 3 ? 95 : name.length === 4 ? 85 : name.length === 5 ? 70 : name.length === 6 ? 55 : name.length <= 8 ? 40 : name.length <= 10 ? 25 : name.length <= 14 ? 10 : 5;
+  const tldDriver = Math.min(100, (PREMIUM_TLDS[tld] || 3) * 4);
+  const keywordDriver = hasPenaltyWord ? 0 : isDictWord ? 100 : premiumMatches.length >= 2 ? 90 : premiumMatches.length === 1 ? 70 : meaningfulWords.length >= 2 ? 55 : meaningfulWords.length === 1 ? 35 : 5;
+  const brandDriver = hasPenaltyWord ? 0 : isDictWord && name.length <= 8 ? 100 : isPronounceable && meaningfulWords.length >= 1 && name.length <= 8 ? 90 : isPronounceable && meaningfulWords.length >= 1 ? 70 : isPronounceable ? 50 : 20;
+  const nicheDriver = niche.multiplier > 1.0 && niche.confidence !== "Low" ? Math.min(100, Math.round((niche.multiplier - 1) * 200)) : trends.length > 0 ? Math.min(100, Math.round((trendMult - 1) * 150)) : 10;
+
+  const drivers: ValueDrivers = {
+    domain_length: lengthDriver,
+    keywords: keywordDriver,
+    tld: tldDriver,
+    brandability: brandDriver,
+    niche_demand: nicheDriver,
+    comparable_sales: 0, // populated by comp anchoring
+  };
+
+  const confidence: QuickValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
+
+  return { band, score: normalizedTotal, valueMin, valueMax, drivers, confidence };
 }
 
 // ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
