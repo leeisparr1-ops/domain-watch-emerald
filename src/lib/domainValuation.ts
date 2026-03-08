@@ -1702,11 +1702,22 @@ export function getTrendingMultiplier(words: string[]): { multiplier: number; tr
 
 // ─── QUICK VALUATION (for Bulk Analyzer & Name Generator) ───
 
+export interface ValueDrivers {
+  domain_length: number;
+  keywords: number;
+  tld: number;
+  brandability: number;
+  niche_demand: number;
+  comparable_sales: number;
+}
+
 export interface QuickValuationResult {
   band: string;
   score: number;
   valueMin: number;
   valueMax: number;
+  drivers: ValueDrivers;
+  confidence: "High" | "Medium" | "Low";
 }
 
 export function quickValuation(domain: string, pronounceScore?: number, domainAge?: number | null): QuickValuationResult {
