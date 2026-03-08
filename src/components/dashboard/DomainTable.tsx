@@ -314,6 +314,7 @@ export function DomainTable({
                 currentSort={sortBy}
                 onSort={onSortChange}
               />
+              <TableHead className="whitespace-nowrap">Deal</TableHead>
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
               <TableHead className="whitespace-nowrap">Traffic</TableHead>
