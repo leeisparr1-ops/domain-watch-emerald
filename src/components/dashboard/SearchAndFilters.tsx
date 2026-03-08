@@ -70,6 +70,23 @@ export const SORT_OPTIONS: SortOption[] = [
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
 ];
 
+interface SearchAndFiltersProps {
+  search: string;
+  onSearchChange: (value: string) => void;
+  filters: Filters;
+  onFiltersChange: (updater: (prev: Filters) => Filters) => void;
+  sortBy: string;
+  onSortChange: (value: string) => void;
+  showFilters: boolean;
+  onToggleFilters: () => void;
+  activeFilterCount: number;
+  onResetFilters: () => void;
+  onPageReset: () => void;
+  isSearching?: boolean;
+  searchInputRef?: React.RefObject<HTMLInputElement>;
+  onExportCsv?: () => void;
+}
+
 interface SavedPreset {
   name: string;
   filters: Filters;
