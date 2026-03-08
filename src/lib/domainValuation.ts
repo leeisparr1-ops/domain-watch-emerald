@@ -1702,11 +1702,22 @@ export function getTrendingMultiplier(words: string[]): { multiplier: number; tr
 
 // ─── QUICK VALUATION (for Bulk Analyzer & Name Generator) ───
 
+export interface ValueDrivers {
+  domain_length: number;
+  keywords: number;
+  tld: number;
+  brandability: number;
+  niche_demand: number;
+  comparable_sales: number;
+}
+
 export interface QuickValuationResult {
   band: string;
   score: number;
   valueMin: number;
   valueMax: number;
+  drivers: ValueDrivers;
+  confidence: "High" | "Medium" | "Low";
 }
 
 export function quickValuation(domain: string, pronounceScore?: number, domainAge?: number | null): QuickValuationResult {
@@ -1741,12 +1752,26 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   if (isHopelessJunk || isMediumJunk) {
-    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15 };
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
   }
   if (isGibberish) {
     // Slightly better than hopeless junk but still near-worthless
-    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50 };
+    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
   }
+
+  // ─── AUTO-STANCE DETECTION ───
+  // Brandable: short, pronounceable, coined or single-word
+  // Keyword-rich: contains premium/trending keywords, longer compound names
+  const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
+  const ratio = vowelCount / name.length;
+  const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
+  const isBrandable = (isDictWord && name.length <= 8) || (isPronounceable && name.length <= 7 && junkChars === 0);
+  const isKeywordRich = premiumMatches.length >= 2 || (premiumMatches.length === 1 && meaningfulWords.length >= 2);
+  
+  // Stance adjusts weight distribution:
+  // Brandable → heavier weight on length, brandability, pronounceability
+  // Keyword → heavier weight on keywords, niche demand, trending
+  const stance = isBrandable && !isKeywordRich ? "brandable" : isKeywordRich ? "keyword" : "balanced";
 
   let score = 0;
 
@@ -1773,10 +1798,7 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (meaningfulWords.length >= 1) score += 6 + Math.min(4, premiumMatches.length * 2);
   else score += 2;
 
-  // Brandability (max 15)
-  const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
-  const ratio = vowelCount / name.length;
-  const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
+  // Brandability (max 15) — boosted for brandable stance
   if (hasPenaltyWord) score += 1;
   else if (isDictWord && name.length <= 8) score += 15;
   else if (isPronounceable && meaningfulWords.length >= 1 && junkChars <= 1 && name.length <= 8) score += 15;
@@ -1796,10 +1818,16 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (isDictWord) score += 8;
   else score += 2;
 
-  // Pronounceability bonus (max 5)
+  // Pronounceability bonus (max 5) — boosted for brandable stance
   if (pronounceScore !== undefined) {
-    score += Math.round(pronounceScore * 0.05);
+    const pronounceBonus = stance === "brandable" ? 0.08 : 0.05;
+    score += Math.round(pronounceScore * pronounceBonus);
   }
+
+  // Stance adjustment: brandable domains get a bonus for high pronounceability + short length
+  if (stance === "brandable" && isPronounceable && name.length <= 6) score += 3;
+  // Keyword-rich domains get bonus for multiple premium keywords  
+  if (stance === "keyword" && premiumMatches.length >= 2) score += 3;
 
   // TM penalty — softer for multi-word domains where brand is partial
   const isMultiWord = meaningfulWords.length >= 2;
@@ -1961,7 +1989,26 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   }
 
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
-  return { band, score: normalizedTotal, valueMin, valueMax };
+
+  // Compute value drivers (normalized to 0-100)
+  const lengthDriver = name.length <= 2 ? 100 : name.length === 3 ? 95 : name.length === 4 ? 85 : name.length === 5 ? 70 : name.length === 6 ? 55 : name.length <= 8 ? 40 : name.length <= 10 ? 25 : name.length <= 14 ? 10 : 5;
+  const tldDriver = Math.min(100, (PREMIUM_TLDS[tld] || 3) * 4);
+  const keywordDriver = hasPenaltyWord ? 0 : isDictWord ? 100 : premiumMatches.length >= 2 ? 90 : premiumMatches.length === 1 ? 70 : meaningfulWords.length >= 2 ? 55 : meaningfulWords.length === 1 ? 35 : 5;
+  const brandDriver = hasPenaltyWord ? 0 : isDictWord && name.length <= 8 ? 100 : isPronounceable && meaningfulWords.length >= 1 && name.length <= 8 ? 90 : isPronounceable && meaningfulWords.length >= 1 ? 70 : isPronounceable ? 50 : 20;
+  const nicheDriver = niche.multiplier > 1.0 && niche.confidence !== "Low" ? Math.min(100, Math.round((niche.multiplier - 1) * 200)) : trends.length > 0 ? Math.min(100, Math.round((trendMult - 1) * 150)) : 10;
+
+  const drivers: ValueDrivers = {
+    domain_length: lengthDriver,
+    keywords: keywordDriver,
+    tld: tldDriver,
+    brandability: brandDriver,
+    niche_demand: nicheDriver,
+    comparable_sales: 0, // populated by comp anchoring
+  };
+
+  const confidence: QuickValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
+
+  return { band, score: normalizedTotal, valueMin, valueMax, drivers, confidence };
 }
 
 // ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
@@ -2036,6 +2083,8 @@ export async function quickValuationEnriched(
     score,
     valueMin,
     valueMax,
+    drivers: base.drivers,
+    confidence: base.confidence,
     trendBoost: boost,
     trendFactors: factors,
     ageApplied: domainAge !== undefined && domainAge !== null && getAgeMultiplier(domainAge) > 1.0,

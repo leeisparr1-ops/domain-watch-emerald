@@ -19,6 +19,17 @@ function renewalWarning(d: PortfolioDomain) {
   return null;
 }
 
+function renewalRoiWarning(d: PortfolioDomain): { label: string; color: string } | null {
+  if (d.status === "sold") return null;
+  const renewal = Number(d.renewal_cost_yearly) || 0;
+  const valuation = d.auto_valuation;
+  if (renewal <= 0 || !valuation || valuation <= 0) return null;
+  const yearsToBreakEven = valuation / renewal;
+  if (yearsToBreakEven < 1) return { label: `⚠️ Renewal > Value — consider dropping`, color: "text-destructive" };
+  if (yearsToBreakEven < 2) return { label: `Renewal is ${Math.round(renewal / valuation * 100)}% of value`, color: "text-amber-500" };
+  return null;
+}
+
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   holding: { label: "Holding", variant: "secondary" },
   listed: { label: "Listed", variant: "default" },
@@ -153,6 +164,15 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
                   {d.status === "sold" ? "-" : fmt(d.auto_valuation)}
+                  {(() => {
+                    const roiWarn = renewalRoiWarning(d);
+                    if (!roiWarn) return null;
+                    return (
+                      <p className={`text-[10px] mt-0.5 font-medium ${roiWarn.color}`}>
+                        {roiWarn.label}
+                      </p>
+                    );
+                  })()}
                 </td>
                 <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
                 <td className="px-4 py-3 text-right font-mono">

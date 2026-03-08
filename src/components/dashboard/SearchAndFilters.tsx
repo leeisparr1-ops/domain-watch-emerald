@@ -1,4 +1,5 @@
-import { Search, Filter, ArrowUpDown, X, Loader2, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Filters {
   tld: string;
@@ -81,6 +87,25 @@ interface SearchAndFiltersProps {
   onExportCsv?: () => void;
 }
 
+interface SavedPreset {
+  name: string;
+  filters: Filters;
+  sortBy: string;
+}
+
+const PRESETS_KEY = "eh_filter_presets";
+
+function loadPresets(): SavedPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function savePresets(presets: SavedPreset[]) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
 export function SearchAndFilters({
   search, onSearchChange,
   filters, onFiltersChange,
@@ -92,6 +117,31 @@ export function SearchAndFilters({
   searchInputRef,
   onExportCsv,
 }: SearchAndFiltersProps) {
+  const [presets, setPresets] = useState<SavedPreset[]>(() => loadPresets());
+  const [presetName, setPresetName] = useState("");
+  const [showSavePopover, setShowSavePopover] = useState(false);
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return;
+    const newPreset: SavedPreset = { name: presetName.trim(), filters, sortBy };
+    const updated = [...presets.filter(p => p.name !== newPreset.name), newPreset];
+    setPresets(updated);
+    savePresets(updated);
+    setPresetName("");
+    setShowSavePopover(false);
+  };
+
+  const handleLoadPreset = (preset: SavedPreset) => {
+    onPageReset();
+    onFiltersChange(() => preset.filters);
+    onSortChange(preset.sortBy);
+  };
+
+  const handleDeletePreset = (name: string) => {
+    const updated = presets.filter(p => p.name !== name);
+    setPresets(updated);
+    savePresets(updated);
+  };
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4 animate-in fade-in duration-300 delay-100">
@@ -150,6 +200,69 @@ export function SearchAndFilters({
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Export</span>
             </Button>
+          )}
+          {/* Saved Presets */}
+          {presets.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-shrink-0 gap-1">
+                  <Bookmark className="w-4 h-4" />
+                  <span className="hidden sm:inline">Presets</span>
+                  <Badge variant="default" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {presets.length}
+                  </Badge>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-2">
+                <div className="space-y-1">
+                  {presets.map((p) => (
+                    <div key={p.name} className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 justify-start text-xs h-8 truncate"
+                        onClick={() => handleLoadPreset(p)}
+                      >
+                        {p.name}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => handleDeletePreset(p.name)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+          {activeFilterCount > 0 && (
+            <Popover open={showSavePopover} onOpenChange={setShowSavePopover}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-shrink-0 gap-1">
+                  <Save className="w-4 h-4" />
+                  <span className="hidden sm:inline">Save</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-3">
+                <p className="text-xs text-muted-foreground mb-2">Save current filters as a preset</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Preset name..."
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSavePreset()}
+                    className="h-8 text-xs"
+                  />
+                  <Button size="sm" className="h-8 px-3" onClick={handleSavePreset} disabled={!presetName.trim()}>
+                    Save
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       </div>

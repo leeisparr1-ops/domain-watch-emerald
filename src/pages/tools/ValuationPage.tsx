@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
+import { ValueDriverRadarChart } from "@/components/tools/ValueDriverRadarChart";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   DollarSign, TrendingUp, TrendingDown, Minus, Flame, Target, Lock, Loader2,
-  BarChart3, Search, ShieldCheck, ArrowRight, Sparkles
+  BarChart3, Search, ShieldCheck, ArrowRight, Sparkles, Radar
 } from "lucide-react";
 import {
   quickValuation,
@@ -24,6 +25,7 @@ import {
   getTrendingMultiplier,
   isSingleDictionaryWord,
   isFullyCoveredByWords,
+  type ValueDrivers,
 } from "@/lib/domainValuation";
 import { checkTrademarkRisk } from "@/lib/trademarkCheck";
 
@@ -42,11 +44,13 @@ interface TeaserResult {
   nicheKeywords: string[];
   trademarkRisk: string;
   factorCount: number;
+  drivers: ValueDrivers;
 }
 
 function runTeaserAnalysis(domain: string): TeaserResult {
   const domainWithTld = domain.includes(".") ? domain : `${domain}.com`;
   const val = quickValuation(domainWithTld);
+  const drivers = val.drivers;
   const parts = domainWithTld.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const tld = parts[1] || "com";
@@ -56,7 +60,7 @@ function runTeaserAnalysis(domain: string): TeaserResult {
   const { score: trendScore, label: trendLabel, niche } = computeTrendScore(meaningfulWords, tld);
   const trademark = checkTrademarkRisk(domainWithTld);
 
-  const confidence: TeaserResult["confidence"] = val.score >= 75 ? "High" : val.score >= 50 ? "Medium" : "Low";
+  const confidence = val.confidence;
 
   return {
     estimatedValue: val.band,
@@ -71,6 +75,7 @@ function runTeaserAnalysis(domain: string): TeaserResult {
     nicheKeywords: niche.matchedKeywords,
     trademarkRisk: trademark.riskLevel,
     factorCount: 8,
+    drivers,
   };
 }
 
@@ -374,6 +379,18 @@ const ValuationPage = () => {
                           </Badge>
                         )}
                       </div>
+                    </div>
+
+                    {/* Value Driver Radar Chart (PUBLIC) */}
+                    <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Radar className="w-4 h-4 text-primary" />
+                        <h4 className="text-sm font-semibold text-foreground">Value Drivers</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        What's contributing to this domain's value score
+                      </p>
+                      <ValueDriverRadarChart drivers={teaser.drivers} />
                     </div>
 
                     {/* Teaser CTA banner */}
