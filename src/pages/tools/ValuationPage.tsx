@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import { DomainValuationEstimator } from "@/components/tools/DomainValuationEstimator";
+import { ValueDriverRadarChart } from "@/components/tools/ValueDriverRadarChart";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   DollarSign, TrendingUp, TrendingDown, Minus, Flame, Target, Lock, Loader2,
-  BarChart3, Search, ShieldCheck, ArrowRight, Sparkles
+  BarChart3, Search, ShieldCheck, ArrowRight, Sparkles, Radar
 } from "lucide-react";
 import {
   quickValuation,
@@ -24,6 +25,7 @@ import {
   getTrendingMultiplier,
   isSingleDictionaryWord,
   isFullyCoveredByWords,
+  type ValueDrivers,
 } from "@/lib/domainValuation";
 import { checkTrademarkRisk } from "@/lib/trademarkCheck";
 
