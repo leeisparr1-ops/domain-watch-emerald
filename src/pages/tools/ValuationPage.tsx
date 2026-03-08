@@ -44,6 +44,7 @@ interface TeaserResult {
   nicheKeywords: string[];
   trademarkRisk: string;
   factorCount: number;
+  drivers: ValueDrivers;
 }
 
 function runTeaserAnalysis(domain: string): TeaserResult {
