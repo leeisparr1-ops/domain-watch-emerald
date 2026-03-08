@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/hooks/useAuth";
@@ -188,7 +188,8 @@ function AuthGate() {
 
 const ValuationPage = () => {
   const [searchParams] = useSearchParams();
-  const domainParam = searchParams.get("domain") || "";
+  const { domain: routeDomain } = useParams<{ domain: string }>();
+  const domainParam = routeDomain || searchParams.get("domain") || "";
   const { user, loading: authLoading } = useAuth();
 
   const [domain, setDomain] = useState(domainParam);
@@ -216,7 +217,9 @@ const ValuationPage = () => {
     }
   }, [domainParam]);
 
-  const domainForSeo = domainParam || "your domain";
+  const canonicalUrl = routeDomain
+    ? `https://expiredhawk.com/value/${routeDomain}`
+    : "https://expiredhawk.com/tools/valuation";
   const seoTitle = domainParam
     ? `${domainParam} Valuation — What's It Worth? | ExpiredHawk`
     : "Domain Valuation Estimator — What's Your Domain Worth? | ExpiredHawk";
@@ -231,7 +234,7 @@ const ValuationPage = () => {
         <Helmet>
           <title>{seoTitle}</title>
           <meta name="description" content={seoDesc} />
-          <link rel="canonical" href="https://expiredhawk.com/tools/valuation" />
+          <link rel="canonical" href={canonicalUrl} />
         </Helmet>
         <div className="min-h-screen bg-background">
           <Navbar />
@@ -252,7 +255,7 @@ const ValuationPage = () => {
       <Helmet>
         <title>{seoTitle}</title>
         <meta name="description" content={seoDesc} />
-        <link rel="canonical" href="https://expiredhawk.com/tools/valuation" />
+        <link rel="canonical" href={canonicalUrl} />
         {/* JSON-LD for SEO */}
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
