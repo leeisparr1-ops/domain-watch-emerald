@@ -255,7 +255,7 @@ const ValuationPage = () => {
       <Helmet>
         <title>{seoTitle}</title>
         <meta name="description" content={seoDesc} />
-        <link rel="canonical" href="https://expiredhawk.com/tools/valuation" />
+        <link rel="canonical" href={canonicalUrl} />
         {/* JSON-LD for SEO */}
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
