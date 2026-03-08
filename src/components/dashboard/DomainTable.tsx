@@ -456,6 +456,26 @@ export function DomainTable({
                       )}
                     </TableCell>
 
+                    {/* Deal Score */}
+                    <TableCell className="py-2">
+                      {(() => {
+                        const deal = getDealScore(d.price, d.valuation);
+                        if (!deal) return <span className="text-muted-foreground/50 text-xs">-</span>;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5 font-semibold", deal.color, deal.bg)}>
+                                {deal.label}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>Deal Score: Algo valuation is {deal.label} of asking price</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </TableCell>
+
                     {/* Age */}
                     <TableCell className="py-2 text-sm">
                       {d.domainAge > 0 ? (
