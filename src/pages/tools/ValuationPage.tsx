@@ -217,7 +217,9 @@ const ValuationPage = () => {
     }
   }, [domainParam]);
 
-  const domainForSeo = domainParam || "your domain";
+  const canonicalUrl = routeDomain
+    ? `https://expiredhawk.com/value/${routeDomain}`
+    : "https://expiredhawk.com/tools/valuation";
   const seoTitle = domainParam
     ? `${domainParam} Valuation — What's It Worth? | ExpiredHawk`
     : "Domain Valuation Estimator — What's Your Domain Worth? | ExpiredHawk";
