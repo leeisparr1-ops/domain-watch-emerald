@@ -50,6 +50,7 @@ interface TeaserResult {
 function runTeaserAnalysis(domain: string): TeaserResult {
   const domainWithTld = domain.includes(".") ? domain : `${domain}.com`;
   const val = quickValuation(domainWithTld);
+  const drivers = val.drivers;
   const parts = domainWithTld.toLowerCase().replace(/^www\./, "").split(".");
   const name = parts[0].replace(/[^a-z0-9]/g, "");
   const tld = parts[1] || "com";
