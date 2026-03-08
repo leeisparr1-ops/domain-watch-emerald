@@ -234,7 +234,7 @@ const ValuationPage = () => {
         <Helmet>
           <title>{seoTitle}</title>
           <meta name="description" content={seoDesc} />
-          <link rel="canonical" href="https://expiredhawk.com/tools/valuation" />
+          <link rel="canonical" href={canonicalUrl} />
         </Helmet>
         <div className="min-h-screen bg-background">
           <Navbar />
