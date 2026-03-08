@@ -1818,10 +1818,16 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (isDictWord) score += 8;
   else score += 2;
 
-  // Pronounceability bonus (max 5)
+  // Pronounceability bonus (max 5) — boosted for brandable stance
   if (pronounceScore !== undefined) {
-    score += Math.round(pronounceScore * 0.05);
+    const pronounceBonus = stance === "brandable" ? 0.08 : 0.05;
+    score += Math.round(pronounceScore * pronounceBonus);
   }
+
+  // Stance adjustment: brandable domains get a bonus for high pronounceability + short length
+  if (stance === "brandable" && isPronounceable && name.length <= 6) score += 3;
+  // Keyword-rich domains get bonus for multiple premium keywords  
+  if (stance === "keyword" && premiumMatches.length >= 2) score += 3;
 
   // TM penalty — softer for multi-word domains where brand is partial
   const isMultiWord = meaningfulWords.length >= 2;
