@@ -1752,7 +1752,7 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   if (isHopelessJunk || isMediumJunk) {
-    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15 };
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
   }
   if (isGibberish) {
     // Slightly better than hopeless junk but still near-worthless
