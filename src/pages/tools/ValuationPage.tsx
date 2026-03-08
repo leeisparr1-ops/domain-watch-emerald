@@ -60,7 +60,7 @@ function runTeaserAnalysis(domain: string): TeaserResult {
   const { score: trendScore, label: trendLabel, niche } = computeTrendScore(meaningfulWords, tld);
   const trademark = checkTrademarkRisk(domainWithTld);
 
-  const confidence: TeaserResult["confidence"] = val.score >= 75 ? "High" : val.score >= 50 ? "Medium" : "Low";
+  const confidence = val.confidence;
 
   return {
     estimatedValue: val.band,
