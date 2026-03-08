@@ -1,0 +1,1 @@
+ALTER TABLE public.favorites ADD COLUMN last_known_price numeric NULL;
