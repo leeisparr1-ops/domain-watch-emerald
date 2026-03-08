@@ -1,4 +1,5 @@
-import { Search, Filter, ArrowUpDown, X, Loader2, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Filters {
   tld: string;
