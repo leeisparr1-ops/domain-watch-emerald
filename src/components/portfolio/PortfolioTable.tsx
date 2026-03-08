@@ -164,6 +164,15 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
                   {d.status === "sold" ? "-" : fmt(d.auto_valuation)}
+                  {(() => {
+                    const roiWarn = renewalRoiWarning(d);
+                    if (!roiWarn) return null;
+                    return (
+                      <p className={`text-[10px] mt-0.5 font-medium ${roiWarn.color}`}>
+                        {roiWarn.label}
+                      </p>
+                    );
+                  })()}
                 </td>
                 <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
                 <td className="px-4 py-3 text-right font-mono">
