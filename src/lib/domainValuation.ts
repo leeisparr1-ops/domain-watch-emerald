@@ -2066,6 +2066,8 @@ export async function quickValuationEnriched(
     score,
     valueMin,
     valueMax,
+    drivers: base.drivers,
+    confidence: base.confidence,
     trendBoost: boost,
     trendFactors: factors,
     ageApplied: domainAge !== undefined && domainAge !== null && getAgeMultiplier(domainAge) > 1.0,

@@ -534,7 +534,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     // Step 5: Comparable sales (async)
     updateStep(4, "running");
     try {
-      const baseQuickVal = { band: baseResult.estimatedValue, score: baseResult.overallScore, valueMin: 0, valueMax: 0 };
+      const baseQuickVal: any = { band: baseResult.estimatedValue, score: baseResult.overallScore, valueMin: 0, valueMax: 0, drivers: { domain_length: 0, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Medium" as const };
       const parts = baseResult.estimatedValue.match(/[\d,]+/g);
       if (parts && parts.length >= 2) {
         baseQuickVal.valueMin = parseInt(parts[0].replace(/,/g, ""));

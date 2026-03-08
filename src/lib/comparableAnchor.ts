@@ -218,6 +218,8 @@ export async function anchorWithComps(
       score: baseVal.score,
       valueMin: newMin,
       valueMax: finalMax,
+      drivers: { ...(baseVal as any).drivers, comparable_sales: Math.min(100, scored.length * 10) },
+      confidence: baseVal.confidence,
       compAnchored: true,
       compMedian: Math.round(compMedian),
       compCount: scored.length,
