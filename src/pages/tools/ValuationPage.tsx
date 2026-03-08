@@ -188,7 +188,8 @@ function AuthGate() {
 
 const ValuationPage = () => {
   const [searchParams] = useSearchParams();
-  const domainParam = searchParams.get("domain") || "";
+  const { domain: routeDomain } = useParams<{ domain: string }>();
+  const domainParam = routeDomain || searchParams.get("domain") || "";
   const { user, loading: authLoading } = useAuth();
 
   const [domain, setDomain] = useState(domainParam);
