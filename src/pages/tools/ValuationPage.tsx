@@ -381,6 +381,18 @@ const ValuationPage = () => {
                       </div>
                     </div>
 
+                    {/* Value Driver Radar Chart (PUBLIC) */}
+                    <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Radar className="w-4 h-4 text-primary" />
+                        <h4 className="text-sm font-semibold text-foreground">Value Drivers</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        What's contributing to this domain's value score
+                      </p>
+                      <ValueDriverRadarChart drivers={teaser.drivers} />
+                    </div>
+
                     {/* Teaser CTA banner */}
                     <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                       <div className="flex items-center gap-3">
