@@ -1798,10 +1798,7 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (meaningfulWords.length >= 1) score += 6 + Math.min(4, premiumMatches.length * 2);
   else score += 2;
 
-  // Brandability (max 15)
-  const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
-  const ratio = vowelCount / name.length;
-  const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
+  // Brandability (max 15) — boosted for brandable stance
   if (hasPenaltyWord) score += 1;
   else if (isDictWord && name.length <= 8) score += 15;
   else if (isPronounceable && meaningfulWords.length >= 1 && junkChars <= 1 && name.length <= 8) score += 15;
