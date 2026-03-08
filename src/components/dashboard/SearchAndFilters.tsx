@@ -70,21 +70,23 @@ export const SORT_OPTIONS: SortOption[] = [
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
 ];
 
-interface SearchAndFiltersProps {
-  search: string;
-  onSearchChange: (value: string) => void;
+interface SavedPreset {
+  name: string;
   filters: Filters;
-  onFiltersChange: (updater: (prev: Filters) => Filters) => void;
   sortBy: string;
-  onSortChange: (value: string) => void;
-  showFilters: boolean;
-  onToggleFilters: () => void;
-  activeFilterCount: number;
-  onResetFilters: () => void;
-  onPageReset: () => void;
-  isSearching?: boolean;
-  searchInputRef?: React.RefObject<HTMLInputElement>;
-  onExportCsv?: () => void;
+}
+
+const PRESETS_KEY = "eh_filter_presets";
+
+function loadPresets(): SavedPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function savePresets(presets: SavedPreset[]) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
 
 export function SearchAndFilters({
@@ -98,6 +100,31 @@ export function SearchAndFilters({
   searchInputRef,
   onExportCsv,
 }: SearchAndFiltersProps) {
+  const [presets, setPresets] = useState<SavedPreset[]>(() => loadPresets());
+  const [presetName, setPresetName] = useState("");
+  const [showSavePopover, setShowSavePopover] = useState(false);
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return;
+    const newPreset: SavedPreset = { name: presetName.trim(), filters, sortBy };
+    const updated = [...presets.filter(p => p.name !== newPreset.name), newPreset];
+    setPresets(updated);
+    savePresets(updated);
+    setPresetName("");
+    setShowSavePopover(false);
+  };
+
+  const handleLoadPreset = (preset: SavedPreset) => {
+    onPageReset();
+    onFiltersChange(() => preset.filters);
+    onSortChange(preset.sortBy);
+  };
+
+  const handleDeletePreset = (name: string) => {
+    const updated = presets.filter(p => p.name !== name);
+    setPresets(updated);
+    savePresets(updated);
+  };
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4 animate-in fade-in duration-300 delay-100">
