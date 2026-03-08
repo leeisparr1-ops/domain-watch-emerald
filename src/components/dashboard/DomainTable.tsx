@@ -131,6 +131,18 @@ function getValueIndicator(price: number, valuation?: number) {
   return { icon: Minus, color: "text-muted-foreground", label: "Fair price" };
 }
 
+function getDealScore(price: number, valuation?: number): { score: number; label: string; color: string; bg: string } | null {
+  if (!valuation || valuation <= 0 || price <= 0) return null;
+  const ratio = valuation / price;
+  if (ratio >= 5) return { score: 10, label: "10x", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" };
+  if (ratio >= 3) return { score: 9, label: `${ratio.toFixed(1)}x`, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" };
+  if (ratio >= 2) return { score: 8, label: `${ratio.toFixed(1)}x`, color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10" };
+  if (ratio >= 1.5) return { score: 7, label: `${ratio.toFixed(1)}x`, color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10" };
+  if (ratio >= 1.0) return { score: 5, label: "Fair", color: "text-muted-foreground", bg: "bg-muted/50" };
+  if (ratio >= 0.5) return { score: 3, label: `${ratio.toFixed(1)}x`, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" };
+  return { score: 1, label: `${ratio.toFixed(1)}x`, color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" };
+}
+
 type SortableColumn = "domain_name" | "price" | "end_time" | "bid_count" | "domain_age" | "valuation";
 
 function getQuickScoreColor(score: number) {
