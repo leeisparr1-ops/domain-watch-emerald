@@ -75,6 +75,7 @@ function runTeaserAnalysis(domain: string): TeaserResult {
     nicheKeywords: niche.matchedKeywords,
     trademarkRisk: trademark.riskLevel,
     factorCount: 8,
+    drivers,
   };
 }
 
