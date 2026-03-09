@@ -50,6 +50,77 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // Fetch real trending market data (shared across all users)
+    let trendingSection = "";
+    let trendingText = "";
+    try {
+      const { data: trendData } = await supabase
+        .from("trending_market_data")
+        .select("hot_niches, market_signals, generated_at")
+        .eq("id", "latest")
+        .maybeSingle();
+
+      if (trendData && trendData.generated_at) {
+        const ageMs = Date.now() - new Date(trendData.generated_at as string).getTime();
+        const isFresh = ageMs < 7 * 24 * 60 * 60 * 1000; // <7 days old
+
+        if (isFresh) {
+          const niches = (trendData.hot_niches as any[]) || [];
+          const signals = (trendData.market_signals as string[]) || [];
+          // Only show top 5 niches with heat >= 40 (real signal, not noise)
+          const topNiches = niches
+            .filter((n: any) => n.heat >= 40 && n.label)
+            .sort((a: any, b: any) => b.heat - a.heat)
+            .slice(0, 5);
+
+          if (topNiches.length >= 2) {
+            const nicheRows = topNiches.map((n: any) => {
+              const heatColor = n.heat >= 80 ? "#dc2626" : n.heat >= 60 ? "#ea580c" : "#ca8a04";
+              const heatLabel = n.heat >= 80 ? "Hot" : n.heat >= 60 ? "Warm" : "Rising";
+              const keywords = (n.emerging_keywords || []).slice(0, 3).join(", ");
+              return `<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#1f2937;font-size:14px;">${n.label}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">
+                  <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff;background-color:${heatColor};">${heatLabel} ${n.heat}</span>
+                </td>
+                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:12px;">${keywords || "-"}</td>
+              </tr>`;
+            }).join("");
+
+            trendingSection = `
+              <div style="margin:24px 0 0 0;">
+                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Niches This Week</h3>
+                <p style="color:#6b7280;font-size:13px;margin:0 0 12px 0;">AI-analyzed market trends based on real auction and search data.</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;">
+                  <tr style="background-color:#f9fafb;">
+                    <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Niche</th>
+                    <th style="padding:8px 12px;text-align:center;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Heat</th>
+                    <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Keywords</th>
+                  </tr>
+                  ${nicheRows}
+                </table>
+              </div>`;
+
+            // Top market signal as a tip
+            if (signals.length > 0) {
+              trendingSection += `
+                <p style="margin:12px 0 0 0;padding:10px 14px;background-color:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px;font-size:13px;color:#15803d;">
+                  <strong>Market Signal:</strong> ${signals[0]}
+                </p>`;
+            }
+
+            trendingText = `\n\nTrending Niches:\n${topNiches.map((n: any) => `- ${n.label} (Heat: ${n.heat}/100)${n.emerging_keywords?.length ? ` — ${n.emerging_keywords.slice(0, 3).join(", ")}` : ""}`).join("\n")}`;
+            if (signals.length > 0) {
+              trendingText += `\n\nMarket Signal: ${signals[0]}`;
+            }
+          }
+        }
+      }
+    } catch (trendError) {
+      console.warn("Could not fetch trending data for digest:", trendError);
+      // Non-fatal — continue without trending section
+    }
+
     console.log(`Processing weekly digest for ${users.length} users`);
     let sentCount = 0;
 
@@ -116,6 +187,7 @@ serve(async (req: Request): Promise<Response> => {
       ${domainRows}
     </table>
     ${totalCount > 10 ? `<p style="color:#71717a;font-size:14px;font-style:italic;">...and ${totalCount - 10} more matches</p>` : ""}
+    ${trendingSection}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
       <tr><td style="background-color:#16a34a;border-radius:6px;padding:12px 28px;">
         <a href="https://expiredhawk.com/dashboard" style="color:#fff;text-decoration:none;font-weight:bold;font-size:15px;">View All Matches</a>
@@ -131,7 +203,7 @@ serve(async (req: Request): Promise<Response> => {
 </table>
 </body></html>`;
 
-        const text = `Your Weekly Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
+        const text = `Your Weekly Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}${trendingText}\n\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
 
         await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
