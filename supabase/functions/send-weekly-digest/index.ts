@@ -18,11 +18,18 @@ serve(async (req: Request): Promise<Response> => {
     reqBody = await req.json();
   } catch { /* no body */ }
 
-  // Auth: require system secret (called from cron) — skip for test_email (admin testing)
+  // Auth: require system secret (called from cron or test)
   const isTestMode = !!reqBody?.test_email;
   const systemSecret = req.headers.get("x-system-secret") || req.headers.get("Authorization")?.replace("Bearer ", "");
   const expectedSecret = Deno.env.get("SYNC_SECRET");
-  if (!isTestMode && (!expectedSecret || systemSecret !== expectedSecret)) {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const isAuthed = expectedSecret && (systemSecret === expectedSecret || systemSecret === serviceRoleKey);
+  if (!isAuthed) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json", ...corsHeaders },
