@@ -187,6 +187,7 @@ serve(async (req: Request): Promise<Response> => {
       ${domainRows}
     </table>
     ${totalCount > 10 ? `<p style="color:#71717a;font-size:14px;font-style:italic;">...and ${totalCount - 10} more matches</p>` : ""}
+    ${trendingSection}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
       <tr><td style="background-color:#16a34a;border-radius:6px;padding:12px 28px;">
         <a href="https://expiredhawk.com/dashboard" style="color:#fff;text-decoration:none;font-weight:bold;font-size:15px;">View All Matches</a>
