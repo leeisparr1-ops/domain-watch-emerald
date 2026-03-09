@@ -128,7 +128,81 @@ serve(async (req: Request): Promise<Response> => {
       // Non-fatal — continue without trending section
     }
 
-    console.log(`Processing weekly digest for ${users.length} users`);
+    // Test mode: send preview digest to test_email with sample data
+    if (testEmail) {
+      const sampleMatches = [
+        { domain_name: "cloudstack.com", pattern_description: "Tech keywords", price: 125 },
+        { domain_name: "petbuddy.net", pattern_description: "Pet niche", price: 45 },
+        { domain_name: "greenleaf.org", pattern_description: "Eco brands", price: 88 },
+      ];
+      const totalCount = sampleMatches.length;
+      const domainRows = sampleMatches.map((m) => `
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-family:monospace;color:#1f2937;font-size:14px;">${m.domain_name}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">${m.pattern_description}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#16a34a;font-weight:bold;text-align:right;font-size:14px;">$${m.price}</td>
+        </tr>
+      `).join("");
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>body,table,td{font-family:Arial,Helvetica,sans-serif;}a{color:#16a34a;}</style></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;">
+<div style="display:none;font-size:1px;color:#f4f4f5;line-height:1px;max-height:0;opacity:0;overflow:hidden;">TEST DIGEST - Sample data${"&nbsp;&zwnj;".repeat(30)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
+<tr><td align="center" style="padding:40px 10px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background-color:#16a34a;padding:28px 30px;text-align:center;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
+  </td></tr>
+  <tr><td style="background-color:#fff;padding:32px 30px;border-radius:0 0 8px 8px;">
+    <p style="background-color:#fef3c7;padding:8px 12px;border-radius:4px;font-size:12px;color:#92400e;margin:0 0 16px 0;"><strong>TEST EMAIL</strong> — This is a preview of the weekly digest template.</p>
+    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Weekly Domain Digest</h2>
+    <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern matches waiting for you.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr style="background-color:#f9fafb;">
+        <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Domain</th>
+        <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Pattern</th>
+        <th style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Price</th>
+      </tr>
+      ${domainRows}
+    </table>
+    ${trendingSection}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+      <tr><td style="background-color:#16a34a;border-radius:6px;padding:12px 28px;">
+        <a href="https://expiredhawk.com/dashboard" style="color:#fff;text-decoration:none;font-weight:bold;font-size:15px;">View All Matches</a>
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:24px 20px;text-align:center;font-size:12px;color:#71717a;border-top:1px solid #e4e4e7;">
+    <p style="margin:0 0 6px;">ExpiredHawk - Domain Monitoring Made Simple</p>
+    <p style="margin:0 0 6px;"><a href="https://expiredhawk.com/settings" style="color:#71717a;text-decoration:underline;">Manage email preferences</a></p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+
+      await resend.emails.send({
+        from: "ExpiredHawk <notifications@expiredhawk.com>",
+        replyTo: "support@expiredhawk.com",
+        to: [testEmail],
+        subject: "[TEST] Your Weekly Domain Digest",
+        html,
+        text: `TEST DIGEST\n\nSample matches:\n${sampleMatches.map(m => `- ${m.domain_name} ($${m.price}) - ${m.pattern_description}`).join("\n")}\n${trendingText}\n\nView matches: https://expiredhawk.com/dashboard`,
+        headers: {
+          "X-Entity-Ref-ID": crypto.randomUUID(),
+        },
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, test: true, sent_to: testEmail, has_trending: trendingSection.length > 0 }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log(`Processing weekly digest for ${users!.length} users`);
     let sentCount = 0;
 
     for (const userSetting of users) {
