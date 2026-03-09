@@ -42,12 +42,7 @@ serve(async (req: Request): Promise<Response> => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const resend = new Resend(resendApiKey);
 
-  // Support test mode: send a preview to a specific email
-  let testEmail: string | null = null;
-  try {
-    const body = await req.json();
-    testEmail = body?.test_email || null;
-  } catch { /* no body */ }
+  const testEmail: string | null = reqBody?.test_email || null;
 
   try {
     // Get users with email notifications enabled
