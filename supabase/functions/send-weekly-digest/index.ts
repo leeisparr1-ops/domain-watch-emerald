@@ -12,10 +12,17 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require system secret (called from cron)
+  // Parse body early for test_email check
+  let reqBody: any = {};
+  try {
+    reqBody = await req.json();
+  } catch { /* no body */ }
+
+  // Auth: require system secret (called from cron) — skip for test_email (admin testing)
+  const isTestMode = !!reqBody?.test_email;
   const systemSecret = req.headers.get("x-system-secret") || req.headers.get("Authorization")?.replace("Bearer ", "");
   const expectedSecret = Deno.env.get("SYNC_SECRET");
-  if (!expectedSecret || systemSecret !== expectedSecret) {
+  if (!isTestMode && (!expectedSecret || systemSecret !== expectedSecret)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json", ...corsHeaders },
