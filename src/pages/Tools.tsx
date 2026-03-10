@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit, Combine } from "lucide-react";
+import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit, Combine, Diamond } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
