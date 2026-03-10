@@ -91,6 +91,11 @@ const CATEGORY_META: Record<string, { title: string; color: string; activeColor:
     color: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/30 dark:hover:bg-teal-500/20",
     activeColor: "bg-teal-500/20 text-teal-600 border-teal-500/50 ring-1 ring-teal-500/20 dark:bg-teal-500/30 dark:text-teal-300 dark:border-teal-400/50",
   },
+  finance: {
+    title: "Finance",
+    color: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30 dark:hover:bg-orange-500/20",
+    activeColor: "bg-orange-500/20 text-orange-600 border-orange-500/50 ring-1 ring-orange-500/20 dark:bg-orange-500/30 dark:text-orange-300 dark:border-orange-400/50",
+  },
   modifiers: {
     title: "Modifiers",
     color: "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20",
