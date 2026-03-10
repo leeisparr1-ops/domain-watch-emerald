@@ -675,11 +675,11 @@ export function PatternDialog({
               </div>
             </div>
 
-            {/* Keywords */}
+            {/* Tech & AI */}
             <div>
-              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Keywords</h5>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tech & AI</h5>
               <div className="flex flex-wrap gap-1.5">
-                {PATTERN_PRESETS.filter(p => p.category === "keyword").map((preset, idx) => {
+                {PATTERN_PRESETS.filter(p => p.category === "tech_ai").map((preset, idx) => {
                   const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
                   return (
                     <button
@@ -693,6 +693,93 @@ export function PatternDialog({
                         ${alreadyAdded
                           ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20 opacity-60 cursor-not-allowed"
                           : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Business */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Business</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "business").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-sm ring-1 ring-rose-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Lifestyle */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Lifestyle</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "lifestyle").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50 shadow-sm ring-1 ring-teal-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20 hover:bg-teal-100 dark:hover:bg-teal-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modifiers */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Modifiers</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "modifiers").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/50 shadow-sm ring-1 ring-indigo-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/15"
                         }
                         disabled:opacity-50 disabled:cursor-not-allowed
                       `}
