@@ -182,7 +182,7 @@ export function OnboardingWizard() {
       <p className="text-sm text-muted-foreground mb-4">Tap chips to add patterns. Pick as many as you like.</p>
 
       <div className="space-y-3 mb-4 max-h-[280px] overflow-y-auto pr-1">
-        {(["structure", "pronounceable", "tech_ai", "business", "lifestyle", "modifiers"] as const).map((cat) => {
+        {(["structure", "pronounceable", "tech_ai", "business", "lifestyle", "finance", "modifiers"] as const).map((cat) => {
           const meta = CATEGORY_META[cat];
           const presets = PRESET_PATTERNS.filter((p) => p.category === cat);
           return (

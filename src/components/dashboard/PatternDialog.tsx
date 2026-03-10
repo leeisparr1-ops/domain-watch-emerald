@@ -770,6 +770,35 @@ export function PatternDialog({
               </div>
             </div>
 
+            {/* Finance */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Finance</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "finance").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/50 shadow-sm ring-1 ring-orange-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20 hover:bg-orange-100 dark:hover:bg-orange-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Modifiers */}
             <div>
               <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Modifiers</h5>
