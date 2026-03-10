@@ -96,17 +96,26 @@ export function DomainReportCard() {
     setDomain(domainWithTld);
     setLoading(true);
 
-    // Fetch trend enrichment for AI-boosted scoring
-    const enrichment = await fetchTrendEnrichment();
+    // Fetch trend enrichment + DataForSEO keyword volumes in parallel
+    const sld = domainWithTld.split(".")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
+    const keywords = splitIntoWords(sld).filter((w: string) => w.length >= 2);
 
-    // Run client-side analyses instantly
+    const [enrichment, dataForSeoData] = await Promise.all([
+      fetchTrendEnrichment(),
+      keywords.length > 0
+        ? fetchKeywordVolumes(keywords).catch(() => ({} as Record<string, any>))
+        : Promise.resolve({} as Record<string, any>),
+    ]);
+
+    // Run client-side analyses with real DataForSEO data
     const brandability = scoreBrandability(domainWithTld);
     const pronounceability = scorePronounceability(domainWithTld);
     const trademark = checkTrademarkRisk(domainWithTld);
     const keywordDemand = scoreKeywordDemand(domainWithTld, enrichment);
     const valuation = quickValuation(domainWithTld, pronounceability.score, null);
-    const seoVolume = estimateSEOVolume(domainWithTld, enrichment);
-    const domainAge = scoreDomainAge(null); // Will be enriched if data available
+    const hasDataForSeo = Object.keys(dataForSeoData).length > 0;
+    const seoVolume = estimateSEOVolume(domainWithTld, enrichment, hasDataForSeo ? dataForSeoData : undefined);
+    const domainAge = scoreDomainAge(null);
 
     const reportData: ReportData = {
       domain: domainWithTld,
