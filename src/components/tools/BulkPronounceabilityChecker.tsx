@@ -504,6 +504,12 @@ export function BulkPronounceabilityChecker() {
                         </TooltipContent>
                       </Tooltip>
                     </TableHead>
+                    <TableHead className="text-center">
+                      <span className="text-xs">CPC</span>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <span className="text-xs">Trend</span>
+                    </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
                       <Tooltip>
                         <TooltipTrigger asChild>
