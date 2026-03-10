@@ -11,9 +11,10 @@ import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, ExternalLink, RefreshCw, X } from "lucide-react";
+import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, ExternalLink, RefreshCw, X, Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface GemResult {
   total_count: number;
@@ -83,6 +84,7 @@ function gemLabel(score: number): string {
 
 export function HiddenGemsFinder() {
   const navigate = useNavigate();
+  const { favorites, toggleFavorite } = useFavorites();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
@@ -318,7 +320,7 @@ export function HiddenGemsFinder() {
                         <TooltipContent>Auction End Time</TooltipContent>
                       </Tooltip>
                     </TableHead>
-                    <TableHead className="w-10" />
+                    <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -422,24 +424,42 @@ export function HiddenGemsFinder() {
                         )}
                       </TableCell>
 
-                      {/* Analyze link */}
+                      {/* Actions */}
                       <TableCell>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/tools?tab=advisor&domain=${gem.domain_name}`);
-                              }}
-                            >
-                              <Sparkles className="w-4 h-4 text-primary" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Deep Analyze</TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-7 w-7 transition-opacity ${favorites.has(gem.domain_name) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(gem.domain_name, gem.id);
+                                }}
+                              >
+                                <Heart className={`w-4 h-4 ${favorites.has(gem.domain_name) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{favorites.has(gem.domain_name) ? "Remove from Watchlist" : "Save to Watchlist"}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/tools?tab=advisor&domain=${gem.domain_name}`);
+                                }}
+                              >
+                                <Sparkles className="w-4 h-4 text-primary" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Deep Analyze</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
