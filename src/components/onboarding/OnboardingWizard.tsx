@@ -8,23 +8,51 @@ import { useNavigate } from "react-router-dom";
 
 const ONBOARDING_KEY = "eh_onboarding_completed";
 
-const EXAMPLE_PATTERNS = [
-  { 
-    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$",
-    description: "4-letter pronounceable like rare, core, made",
-    pattern_type: "pronounceable" as const,
-  },
-  { 
-    pattern: "^[a-z]{4}$",
-    description: "Any 4-letter domain (LLLL format)",
-    pattern_type: "structure" as const,
-  },
-  { 
-    pattern: "^ai",
-    description: "Domains starting with 'ai'",
-    pattern_type: "regex" as const,
-  },
+interface PatternPreset {
+  label: string;
+  pattern: string;
+  pattern_type: "regex" | "structure" | "pronounceable";
+  description: string;
+  category: "structure" | "pronounceable" | "keyword";
+}
+
+const PRESET_PATTERNS: PatternPreset[] = [
+  // Structure
+  { label: "LLL", pattern: "^[a-z]{3}$", pattern_type: "structure", description: "3-letter domains", category: "structure" },
+  { label: "LLLL", pattern: "^[a-z]{4}$", pattern_type: "structure", description: "4-letter domains", category: "structure" },
+  { label: "LLLLL", pattern: "^[a-z]{5}$", pattern_type: "structure", description: "5-letter domains", category: "structure" },
+  { label: "6-Letter", pattern: "^[a-z]{6}$", pattern_type: "structure", description: "6-letter domains", category: "structure" },
+  // Pronounceable
+  { label: "CVCV", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "4-letter pronounceable (e.g. rare, core)", category: "pronounceable" },
+  { label: "CVVC", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "4-letter with vowel pair (e.g. been, cool)", category: "pronounceable" },
+  { label: "CVCVC", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "5-letter pronounceable (e.g. pixel)", category: "pronounceable" },
+  { label: "VCV", pattern: "^[aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "3-letter vowel-led (e.g. ado, ace)", category: "pronounceable" },
+  // Keywords
+  { label: "AI", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "keyword" },
+  { label: "Tech", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "keyword" },
+  { label: "Data", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "keyword" },
+  { label: "Cloud", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "keyword" },
+  { label: "App", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "keyword" },
+  { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "keyword" },
 ];
+
+const CATEGORY_META: Record<string, { title: string; color: string; activeColor: string }> = {
+  structure: {
+    title: "Structure",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/20",
+    activeColor: "bg-emerald-500/20 text-emerald-600 border-emerald-500/50 ring-1 ring-emerald-500/20 dark:bg-emerald-500/30 dark:text-emerald-300 dark:border-emerald-400/50",
+  },
+  pronounceable: {
+    title: "Pronounceable",
+    color: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30 dark:hover:bg-purple-500/20",
+    activeColor: "bg-purple-500/20 text-purple-600 border-purple-500/50 ring-1 ring-purple-500/20 dark:bg-purple-500/30 dark:text-purple-300 dark:border-purple-400/50",
+  },
+  keyword: {
+    title: "Keywords",
+    color: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30 dark:hover:bg-amber-500/20",
+    activeColor: "bg-amber-500/20 text-amber-600 border-amber-500/50 ring-1 ring-amber-500/20 dark:bg-amber-500/30 dark:text-amber-300 dark:border-amber-400/50",
+  },
+};
 
 export function OnboardingWizard() {
   const { user } = useAuth();
@@ -32,13 +60,12 @@ export function OnboardingWizard() {
   const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
-  const [addedPattern, setAddedPattern] = useState<string | null>(null);
+  const [addedPatterns, setAddedPatterns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
     const completed = localStorage.getItem(ONBOARDING_KEY);
     if (completed) return;
-    // Show after a short delay for new users with no patterns
     const timer = setTimeout(() => {
       if (!hasPatterns) setVisible(true);
     }, 1500);
@@ -50,15 +77,23 @@ export function OnboardingWizard() {
     localStorage.setItem(ONBOARDING_KEY, "1");
   };
 
-  const handleAddExample = async (example: typeof EXAMPLE_PATTERNS[0]) => {
+  const handleAddPreset = async (preset: PatternPreset) => {
+    if (addedPatterns.has(preset.pattern)) return;
     const result = await addPattern({
-      pattern: example.pattern,
-      pattern_type: example.pattern_type,
-      description: example.description,
+      pattern: preset.pattern,
+      pattern_type: preset.pattern_type,
+      description: preset.description,
     });
     if (result) {
-      setAddedPattern(example.pattern);
-      setTimeout(() => setStep(2), 600);
+      setAddedPatterns((prev) => new Set(prev).add(preset.pattern));
+    }
+  };
+
+  const handleFinish = () => {
+    if (addedPatterns.size > 0) {
+      setStep(2);
+    } else {
+      setStep(2);
     }
   };
 
@@ -92,33 +127,49 @@ export function OnboardingWizard() {
       </Button>
     </motion.div>,
 
-    // Step 1: Pick an example pattern
+    // Step 1: Chip-style pattern picker
     <motion.div key="pick-pattern" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-      <h3 className="text-lg font-bold text-foreground mb-1">Quick Start Patterns</h3>
-      <p className="text-sm text-muted-foreground mb-4">Tap one to add it instantly, or create your own later.</p>
-      <div className="space-y-2 mb-4">
-        {EXAMPLE_PATTERNS.map((example) => (
-          <button
-            key={example.pattern}
-            onClick={() => handleAddExample(example)}
-            disabled={addedPattern === example.pattern}
-            className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all disabled:opacity-50 group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">{example.description}</p>
-                <code className="text-xs text-muted-foreground font-mono">{example.pattern}</code>
+      <h3 className="text-lg font-bold text-foreground mb-1">Quick Add Patterns</h3>
+      <p className="text-sm text-muted-foreground mb-4">Tap chips to add patterns. Pick as many as you like.</p>
+
+      <div className="space-y-3 mb-4 max-h-[280px] overflow-y-auto pr-1">
+        {(["structure", "pronounceable", "keyword"] as const).map((cat) => {
+          const meta = CATEGORY_META[cat];
+          const presets = PRESET_PATTERNS.filter((p) => p.category === cat);
+          return (
+            <div key={cat}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{meta.title}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {presets.map((preset) => {
+                  const added = addedPatterns.has(preset.pattern) || patterns.some((p) => p.pattern === preset.pattern);
+                  return (
+                    <button
+                      key={preset.pattern}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={added}
+                      title={preset.description}
+                      className={`px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all ${
+                        added ? meta.activeColor + " cursor-default opacity-80" : meta.color + " cursor-pointer"
+                      }`}
+                    >
+                      {added && <CheckCircle2 className="w-3 h-3 inline mr-1 -mt-0.5" />}
+                      {preset.label}
+                    </button>
+                  );
+                })}
               </div>
-              {addedPattern === example.pattern ? (
-                <CheckCircle2 className="w-5 h-5 text-primary" />
-              ) : (
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              )}
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
-      <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="w-full text-muted-foreground">
+
+      <div className="flex gap-2">
+        <Button onClick={handleFinish} className="flex-1">
+          {addedPatterns.size > 0 ? `Continue (${addedPatterns.size} added)` : "Continue"}
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
+      <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="w-full text-muted-foreground mt-1">
         Skip — I'll create my own
       </Button>
     </motion.div>,
@@ -129,8 +180,8 @@ export function OnboardingWizard() {
         <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
         <h3 className="text-lg font-bold text-foreground mb-1">You're all set!</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          {addedPattern
-            ? "Your pattern is live. We'll scan millions of domains and alert you when there's a match."
+          {addedPatterns.size > 0
+            ? `${addedPatterns.size} pattern${addedPatterns.size > 1 ? "s" : ""} added! We'll scan millions of domains and alert you when there's a match.`
             : "Head to Settings to enable email or push alerts, and create patterns from the dashboard."}
         </p>
         <div className="flex flex-col gap-2">
