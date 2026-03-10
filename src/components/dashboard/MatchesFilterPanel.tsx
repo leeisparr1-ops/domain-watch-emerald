@@ -276,7 +276,7 @@ export function MatchesFilterPanel({
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-5">
+          <div className="px-4 pb-4 space-y-5 max-h-[60vh] overflow-y-auto">
             {/* TLD Section */}
             {sortedTlds.length > 0 && (
               <div>
