@@ -80,7 +80,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
   description: string;
-  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers" | "numeric";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "finance" | "modifiers" | "numeric";
 }
 
 const PATTERN_PRESETS: PatternPreset[] = [
@@ -119,6 +119,14 @@ const PATTERN_PRESETS: PatternPreset[] = [
   { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "lifestyle" },
   { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "lifestyle" },
   { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "lifestyle" },
+  // Finance
+  { label: "Finance", pattern: "finance", pattern_type: "regex", description: "Contains 'finance'", category: "finance" },
+  { label: "Credit", pattern: "credit", pattern_type: "regex", description: "Contains 'credit'", category: "finance" },
+  { label: "Invest", pattern: "invest", pattern_type: "regex", description: "Contains 'invest'", category: "finance" },
+  { label: "Fund", pattern: "fund", pattern_type: "regex", description: "Contains 'fund'", category: "finance" },
+  { label: "Money", pattern: "money", pattern_type: "regex", description: "Contains 'money'", category: "finance" },
+  { label: "Bank", pattern: "bank", pattern_type: "regex", description: "Contains 'bank'", category: "finance" },
+  { label: "Trade", pattern: "trade", pattern_type: "regex", description: "Contains 'trade'", category: "finance" },
   // Modifiers
   { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "modifiers" },
   { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "modifiers" },
@@ -751,6 +759,35 @@ export function PatternDialog({
                         ${alreadyAdded
                           ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50 shadow-sm ring-1 ring-teal-500/20 opacity-60 cursor-not-allowed"
                           : "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20 hover:bg-teal-100 dark:hover:bg-teal-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Finance */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Finance</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "finance").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/50 shadow-sm ring-1 ring-orange-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20 hover:bg-orange-100 dark:hover:bg-orange-500/15"
                         }
                         disabled:opacity-50 disabled:cursor-not-allowed
                       `}

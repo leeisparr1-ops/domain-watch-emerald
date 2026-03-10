@@ -13,7 +13,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable";
   description: string;
-  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "finance" | "modifiers";
 }
 
 const PRESET_PATTERNS: PatternPreset[] = [
@@ -50,6 +50,14 @@ const PRESET_PATTERNS: PatternPreset[] = [
   { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "lifestyle" },
   { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "lifestyle" },
   { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "lifestyle" },
+  // Finance
+  { label: "Finance", pattern: "finance", pattern_type: "regex", description: "Contains 'finance'", category: "finance" },
+  { label: "Credit", pattern: "credit", pattern_type: "regex", description: "Contains 'credit'", category: "finance" },
+  { label: "Invest", pattern: "invest", pattern_type: "regex", description: "Contains 'invest'", category: "finance" },
+  { label: "Fund", pattern: "fund", pattern_type: "regex", description: "Contains 'fund'", category: "finance" },
+  { label: "Money", pattern: "money", pattern_type: "regex", description: "Contains 'money'", category: "finance" },
+  { label: "Bank", pattern: "bank", pattern_type: "regex", description: "Contains 'bank'", category: "finance" },
+  { label: "Trade", pattern: "trade", pattern_type: "regex", description: "Contains 'trade'", category: "finance" },
   // Modifiers
   { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "modifiers" },
   { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "modifiers" },
@@ -82,6 +90,11 @@ const CATEGORY_META: Record<string, { title: string; color: string; activeColor:
     title: "Lifestyle",
     color: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/30 dark:hover:bg-teal-500/20",
     activeColor: "bg-teal-500/20 text-teal-600 border-teal-500/50 ring-1 ring-teal-500/20 dark:bg-teal-500/30 dark:text-teal-300 dark:border-teal-400/50",
+  },
+  finance: {
+    title: "Finance",
+    color: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30 dark:hover:bg-orange-500/20",
+    activeColor: "bg-orange-500/20 text-orange-600 border-orange-500/50 ring-1 ring-orange-500/20 dark:bg-orange-500/30 dark:text-orange-300 dark:border-orange-400/50",
   },
   modifiers: {
     title: "Modifiers",
@@ -169,7 +182,7 @@ export function OnboardingWizard() {
       <p className="text-sm text-muted-foreground mb-4">Tap chips to add patterns. Pick as many as you like.</p>
 
       <div className="space-y-3 mb-4 max-h-[280px] overflow-y-auto pr-1">
-        {(["structure", "pronounceable", "tech_ai", "business", "lifestyle", "modifiers"] as const).map((cat) => {
+        {(["structure", "pronounceable", "tech_ai", "business", "lifestyle", "finance", "modifiers"] as const).map((cat) => {
           const meta = CATEGORY_META[cat];
           const presets = PRESET_PATTERNS.filter((p) => p.category === cat);
           return (
