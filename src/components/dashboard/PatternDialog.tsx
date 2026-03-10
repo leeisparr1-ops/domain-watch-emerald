@@ -75,79 +75,40 @@ interface PatternDialogProps {
   maxPatterns?: number;
 }
 
-const PATTERN_PRESETS = [
-  { 
-    label: "Short pronounceable (CVCV)", 
-    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$",
-    pattern_type: "pronounceable" as const,
-    description: "4-letter pronounceable like rare, core, made"
-  },
-  { 
-    label: "CVVC pattern", 
-    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$",
-    pattern_type: "pronounceable" as const,
-    description: "4-letter with double vowel like cool, boom"
-  },
-  { 
-    label: "3-letter domains", 
-    pattern: "^[a-z]{3}$",
-    pattern_type: "structure" as const,
-    description: "Any 3-letter domain (LLL format)"
-  },
-  { 
-    label: "4-letter domains", 
-    pattern: "^[a-z]{4}$",
-    pattern_type: "structure" as const,
-    description: "Any 4-letter domain (LLLL format)"
-  },
-  { 
-    label: "5-letter domains", 
-    pattern: "^[a-z]{5}$",
-    pattern_type: "structure" as const,
-    description: "Any 5-letter domain (LLLLL format)"
-  },
-  { 
-    label: "Numbers only", 
-    pattern: "^[0-9]+$",
-    pattern_type: "structure" as const,
-    description: "Numeric domains like 123, 8888"
-  },
-  { 
-    label: "Word + Number", 
-    pattern: "^[a-z]+[0-9]+$",
-    pattern_type: "structure" as const,
-    description: "Pattern like app2, cloud9"
-  },
-  { 
-    label: "Starts with 'ai'", 
-    pattern: "^ai",
-    pattern_type: "regex" as const,
-    description: "Domains starting with 'ai'"
-  },
-  { 
-    label: "Contains 'tech'", 
-    pattern: "tech",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'tech'"
-  },
-  { 
-    label: "Keyword + robotics", 
-    pattern: "robotics",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'robotics'"
-  },
-  { 
-    label: "Keyword + intel", 
-    pattern: "intel",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'intel'"
-  },
-  { 
-    label: "Repeating letters", 
-    pattern: "([a-z])\\1",
-    pattern_type: "regex" as const,
-    description: "Has consecutive repeated letters"
-  },
+interface PatternPreset {
+  label: string;
+  pattern: string;
+  pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
+  description: string;
+  category: "structure" | "pronounceable" | "keyword" | "numeric";
+}
+
+const PATTERN_PRESETS: PatternPreset[] = [
+  // Structure
+  { label: "3-Letter (LLL)", pattern: "^[a-z]{3}$", pattern_type: "structure", description: "Any 3-letter domain", category: "structure" },
+  { label: "4-Letter (LLLL)", pattern: "^[a-z]{4}$", pattern_type: "structure", description: "Any 4-letter domain", category: "structure" },
+  { label: "5-Letter (LLLLL)", pattern: "^[a-z]{5}$", pattern_type: "structure", description: "Any 5-letter domain", category: "structure" },
+  { label: "6-Letter", pattern: "^[a-z]{6}$", pattern_type: "structure", description: "Any 6-letter domain", category: "structure" },
+  { label: "Word + Number", pattern: "^[a-z]+[0-9]+$", pattern_type: "structure", description: "Pattern like app2, cloud9", category: "structure" },
+  { label: "Repeating Letters", pattern: "([a-z])\\1", pattern_type: "regex", description: "Has consecutive repeated letters", category: "structure" },
+  // Pronounceable
+  { label: "CVCV (4-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "4-letter like rare, core", category: "pronounceable" },
+  { label: "CVVC (4-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "4-letter like cool, boom", category: "pronounceable" },
+  { label: "CVCVC (5-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "5-letter like vapor, lemon", category: "pronounceable" },
+  { label: "VCV (3-char)", pattern: "^[aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "3-letter like ace, ape", category: "pronounceable" },
+  // Keyword
+  { label: "Starts 'ai'", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "keyword" },
+  { label: "Contains 'tech'", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "keyword" },
+  { label: "Contains 'data'", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "keyword" },
+  { label: "Contains 'cloud'", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "keyword" },
+  { label: "Contains 'app'", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "keyword" },
+  { label: "Contains 'crypto'", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "keyword" },
+  { label: "Contains 'health'", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "keyword" },
+  { label: "Contains 'pay'", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "keyword" },
+  // Numeric
+  { label: "Numbers Only", pattern: "^[0-9]+$", pattern_type: "structure", description: "Numeric like 123, 8888", category: "numeric" },
+  { label: "3-Digit", pattern: "^[0-9]{3}$", pattern_type: "structure", description: "3-digit numeric domains", category: "numeric" },
+  { label: "4-Digit", pattern: "^[0-9]{4}$", pattern_type: "structure", description: "4-digit numeric domains", category: "numeric" },
 ];
 
 const TLD_OPTIONS = [
@@ -637,22 +598,120 @@ export function PatternDialog({
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {PATTERN_PRESETS.map((preset, idx) => (
-                <Button
-                  key={idx}
-                  variant="outline"
-                  size="sm"
-                  className="justify-start h-auto py-2 px-3"
-                  onClick={() => handleAddPreset(preset)}
-                  disabled={isAtLimit || patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))}
-                >
-                  <div className="text-left">
-                    <div className="font-medium">{preset.label}</div>
-                    <div className="text-xs text-muted-foreground">{preset.description}</div>
-                  </div>
-                </Button>
-              ))}
+            {/* Structure */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Structure</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "structure").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pronounceable */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Pronounceable</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "pronounceable").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 shadow-sm ring-1 ring-purple-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Keywords */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Keywords</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "keyword").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Numeric */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Numeric</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "numeric").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           {/* Custom Pattern */}
