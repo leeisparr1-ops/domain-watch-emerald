@@ -453,13 +453,57 @@ export function DomainReportCard() {
                 </div>
               )}
 
-              {/* SEO & Age Insights */}
-              <div className="text-xs p-2 rounded-md border border-border bg-secondary/30 text-muted-foreground space-y-1">
+              {/* SEO & Keyword Insights */}
+              <div className="text-xs p-3 rounded-md border border-border bg-secondary/30 text-muted-foreground space-y-2">
                 <p className="flex items-center gap-1.5 flex-wrap">🔍 <span className="font-medium text-foreground">SEO:</span> {report.seoVolume.organicPotential}
-                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${report.seoVolume.dataSource === "ai" ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}>
-                    {report.seoVolume.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
+                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                    report.seoVolume.dataSource === "dataforseo" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700" :
+                    report.seoVolume.dataSource === "ai" ? "bg-primary/10 text-primary border border-primary/20" :
+                    "bg-muted text-muted-foreground border border-border"
+                  }`}>
+                    {report.seoVolume.dataSource === "dataforseo" ? "📊 Google Ads" : report.seoVolume.dataSource === "ai" ? "✨ AI-estimated" : "Heuristic"}
                   </span>
                 </p>
+
+                {/* CPC, Competition, Trend row */}
+                {(report.seoVolume.cpcEstimate != null || report.seoVolume.trendDirection) && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {report.seoVolume.cpcEstimate != null && (
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                        💲 ${report.seoVolume.cpcEstimate.toFixed(2)} CPC
+                      </Badge>
+                    )}
+                    {report.seoVolume.competitionLevel && (
+                      <Badge variant="outline" className={`text-[10px] py-0 px-1.5 ${
+                        report.seoVolume.competitionLevel === "High" ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800" :
+                        report.seoVolume.competitionLevel === "Medium" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800" :
+                        "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                      }`}>
+                        {report.seoVolume.competitionLevel === "High" ? "🔴" : report.seoVolume.competitionLevel === "Medium" ? "🟡" : "🟢"} {report.seoVolume.competitionLevel} Competition
+                      </Badge>
+                    )}
+                    {report.seoVolume.trendDirection && (
+                      <Badge variant="outline" className={`text-[10px] py-0 px-1.5 ${
+                        report.seoVolume.trendDirection === "rising" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                        report.seoVolume.trendDirection === "falling" ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800" :
+                        "bg-muted text-muted-foreground border-border"
+                      }`}>
+                        {report.seoVolume.trendDirection === "rising" ? "📈" : report.seoVolume.trendDirection === "falling" ? "📉" : "➡️"} {report.seoVolume.trendDirection.charAt(0).toUpperCase() + report.seoVolume.trendDirection.slice(1)}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* Monthly search sparkline */}
+                {report.seoVolume.monthlySearches && report.seoVolume.monthlySearches.length >= 3 && (
+                  <div className="pt-1">
+                    <SEOVolumeSparkline
+                      monthlySearches={report.seoVolume.monthlySearches}
+                      variant="detailed"
+                    />
+                  </div>
+                )}
+
                 <p>📅 <span className="font-medium text-foreground">Age:</span> {report.domainAge.valueImpact}</p>
               </div>
 
