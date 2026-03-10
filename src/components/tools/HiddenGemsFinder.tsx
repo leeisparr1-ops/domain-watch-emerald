@@ -84,6 +84,7 @@ function gemLabel(score: number): string {
 
 export function HiddenGemsFinder() {
   const navigate = useNavigate();
+  const { favorites, toggleFavorite } = useFavorites();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
