@@ -12,6 +12,7 @@ import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
 import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
 import { CompoundGenerator } from "@/components/tools/CompoundGenerator";
+import { HiddenGemsFinder } from "@/components/tools/HiddenGemsFinder";
 
 const Tools = () => {
   const [searchParams] = useSearchParams();
