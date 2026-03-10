@@ -108,6 +108,8 @@ export function HiddenGemsFinder() {
       return (data as unknown as GemResult[]) || [];
     },
     staleTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const totalCount = data?.[0]?.total_count ?? 0;
