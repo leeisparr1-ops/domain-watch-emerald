@@ -33,6 +33,7 @@ const PronounceabilityPage = lazy(() => import("./pages/tools/PronounceabilityPa
 const BulkCheckerPage = lazy(() => import("./pages/tools/BulkCheckerPage"));
 const TldComparePage = lazy(() => import("./pages/tools/TldComparePage"));
 const ValuationPage = lazy(() => import("./pages/tools/ValuationPage"));
+const HiddenGemsPage = lazy(() => import("./pages/tools/HiddenGemsPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
