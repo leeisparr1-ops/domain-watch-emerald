@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
-import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark } from "lucide-react";
+import { useState } from "react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,8 +17,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-interface Filters {
+export interface Filters {
   tld: string;
   auctionType: string;
   minPrice: number;
@@ -41,11 +48,14 @@ const TLD_OPTIONS = [
   { value: ".ai", label: ".ai" },
   { value: ".xyz", label: ".xyz" },
   { value: ".info", label: ".info" },
+  { value: ".dev", label: ".dev" },
+  { value: ".app", label: ".app" },
+  { value: ".me", label: ".me" },
 ];
 
 const AUCTION_TYPE_OPTIONS = [
   { value: "all", label: "All Types" },
-  { value: "bid", label: "Bid Auctions" },
+  { value: "bid", label: "Bid" },
   { value: "buynow", label: "Buy Now" },
 ];
 
@@ -58,8 +68,8 @@ const SOURCE_OPTIONS = [
 const PRICE_PRESETS = [
   { label: "Any", min: 0, max: 1000000 },
   { label: "Under $50", min: 0, max: 50 },
-  { label: "$50-$500", min: 50, max: 500 },
-  { label: "$500-$5K", min: 500, max: 5000 },
+  { label: "$50–$500", min: 50, max: 500 },
+  { label: "$500–$5K", min: 500, max: 5000 },
   { label: "$5K+", min: 5000, max: 1000000 },
 ];
 
@@ -106,6 +116,59 @@ function savePresets(presets: SavedPreset[]) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
 
+/** Reusable chip button matching the MatchesFilterPanel style */
+function ChipButton({
+  label,
+  active,
+  onClick,
+  color = "default",
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  color?: "default" | "green" | "blue" | "amber" | "purple" | "rose" | "teal" | "orange";
+}) {
+  const colorMap = {
+    default: active
+      ? "bg-primary/20 text-primary border-primary/50 shadow-sm ring-1 ring-primary/20"
+      : "bg-muted/60 text-foreground border-border/60 hover:bg-muted hover:border-muted-foreground/30",
+    green: active
+      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/20"
+      : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/15",
+    blue: active
+      ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20"
+      : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/15",
+    amber: active
+      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20"
+      : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15",
+    purple: active
+      ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 shadow-sm ring-1 ring-purple-500/20"
+      : "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/15",
+    rose: active
+      ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-sm ring-1 ring-rose-500/20"
+      : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/15",
+    teal: active
+      ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50 shadow-sm ring-1 ring-teal-500/20"
+      : "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20 hover:bg-teal-100 dark:hover:bg-teal-500/15",
+    orange: active
+      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/50 shadow-sm ring-1 ring-orange-500/20"
+      : "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20 hover:bg-orange-100 dark:hover:bg-orange-500/15",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-medium
+        border transition-all duration-150 cursor-pointer select-none
+        ${colorMap[color]}
+      `}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function SearchAndFilters({
   search, onSearchChange,
   filters, onFiltersChange,
@@ -142,8 +205,10 @@ export function SearchAndFilters({
     setPresets(updated);
     savePresets(updated);
   };
+
   return (
     <>
+      {/* Search bar + sort + actions row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-4 animate-in fade-in duration-300 delay-100">
         <div className="relative flex-1">
           {isSearching ? (
@@ -154,36 +219,6 @@ export function SearchAndFilters({
           <Input ref={searchInputRef} placeholder="Search domains... (press / to focus)" value={search} onChange={e => onSearchChange(e.target.value)} className="pl-10 bg-input" />
         </div>
         <div className="flex gap-2 sm:gap-4 overflow-x-auto">
-          <Select
-            value={filters.inventorySource}
-            onValueChange={(value) => {
-              onPageReset();
-              onFiltersChange(f => ({ ...f, inventorySource: value }));
-            }}
-          >
-            <SelectTrigger className="w-[130px] sm:w-[160px] bg-background flex-shrink-0">
-              <SelectValue placeholder="Marketplace" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
-              {SOURCE_OPTIONS.map(option => (
-                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button 
-            variant={showFilters ? "secondary" : "outline"} 
-            onClick={onToggleFilters}
-            className="relative flex-shrink-0"
-            size="sm"
-          >
-            <Filter className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Filters</span>
-            {activeFilterCount > 0 && (
-              <Badge variant="default" className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
           <Select value={sortBy} onValueChange={(value) => { onPageReset(); onSortChange(value); }}>
             <SelectTrigger className="w-[140px] sm:w-[180px] bg-background flex-shrink-0">
               <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
@@ -267,92 +302,166 @@ export function SearchAndFilters({
         </div>
       </div>
 
-      {showFilters && (
-        <div className="mb-6 p-4 rounded-xl glass border border-border animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Filter Auctions</h3>
-            {activeFilterCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={onResetFilters}>
-                <X className="w-4 h-4 mr-1" /> Clear Filters
-              </Button>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">TLD Extension</label>
-              <Select value={filters.tld} onValueChange={(value) => { onPageReset(); onFiltersChange(f => ({ ...f, tld: value })); }}>
-                <SelectTrigger className="bg-background"><SelectValue placeholder="Select TLD" /></SelectTrigger>
-                <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
-                  {TLD_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Auction Type</label>
-              <Select value={filters.auctionType} onValueChange={(value) => { onPageReset(); onFiltersChange(f => ({ ...f, auctionType: value })); }}>
-                <SelectTrigger className="bg-background"><SelectValue placeholder="Select Type" /></SelectTrigger>
-                <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
-                  {AUCTION_TYPE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Marketplace</label>
-              <Select value={filters.inventorySource} onValueChange={(value) => { onPageReset(); onFiltersChange(f => ({ ...f, inventorySource: value })); }}>
-                <SelectTrigger className="bg-background"><SelectValue placeholder="Select Source" /></SelectTrigger>
-                <SelectContent className="bg-popover text-popover-foreground border border-border shadow-md z-[100]">
-                  {SOURCE_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Price Range</label>
-              <div className="flex flex-wrap gap-2">
-                {PRICE_PRESETS.map(preset => (
-                  <Button 
-                    key={preset.label}
-                    variant={filters.minPrice === preset.min && filters.maxPrice === preset.max ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => { onPageReset(); onFiltersChange(f => ({ ...f, minPrice: preset.min, maxPrice: preset.max })); }}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
+      {/* Chip-based Filter Panel */}
+      <Collapsible open={showFilters} onOpenChange={onToggleFilters}>
+        <div className="mb-4 rounded-xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden animate-in fade-in duration-300 delay-100">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-primary" />
+                <span className="font-semibold text-sm">Filter by Category</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="default" className="h-5 px-1.5 text-xs">
+                    {activeFilterCount}
+                  </Badge>
+                )}
               </div>
-            </div>
-          </div>
+              <div className="flex items-center gap-2">
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResetFilters();
+                    }}
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Reset
+                  </Button>
+                )}
+                <svg
+                  className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${showFilters ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+          </CollapsibleTrigger>
 
-          {activeFilterCount > 0 && (
-            <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-2">
-              {filters.tld !== "all" && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  TLD: {filters.tld}
-                  <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, tld: "all" }))} />
-                </Badge>
-              )}
-              {filters.auctionType !== "all" && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Type: {filters.auctionType}
-                  <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, auctionType: "all" }))} />
-                </Badge>
-              )}
-              {filters.inventorySource !== "all" && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Source: {SOURCE_OPTIONS.find(s => s.value === filters.inventorySource)?.label}
-                  <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, inventorySource: "all" }))} />
-                </Badge>
-              )}
-              {(filters.minPrice > 0 || filters.maxPrice < 1000000) && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  ${filters.minPrice.toLocaleString()} - ${filters.maxPrice.toLocaleString()}
-                  <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, minPrice: 0, maxPrice: 1000000 }))} />
-                </Badge>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* TLD Extension */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  TLD Extension
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {TLD_OPTIONS.map((opt) => (
+                    <ChipButton
+                      key={opt.value}
+                      label={opt.label}
+                      active={filters.tld === opt.value}
+                      onClick={() => {
+                        onPageReset();
+                        onFiltersChange(f => ({ ...f, tld: opt.value }));
+                      }}
+                      color="green"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Marketplace */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Marketplace
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {SOURCE_OPTIONS.map((opt) => (
+                    <ChipButton
+                      key={opt.value}
+                      label={opt.label}
+                      active={filters.inventorySource === opt.value}
+                      onClick={() => {
+                        onPageReset();
+                        onFiltersChange(f => ({ ...f, inventorySource: opt.value }));
+                      }}
+                      color="blue"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Auction Type */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Auction Type
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {AUCTION_TYPE_OPTIONS.map((opt) => (
+                    <ChipButton
+                      key={opt.value}
+                      label={opt.label}
+                      active={filters.auctionType === opt.value}
+                      onClick={() => {
+                        onPageReset();
+                        onFiltersChange(f => ({ ...f, auctionType: opt.value }));
+                      }}
+                      color="purple"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Price Range
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRICE_PRESETS.map((preset) => (
+                    <ChipButton
+                      key={preset.label}
+                      label={preset.label}
+                      active={filters.minPrice === preset.min && filters.maxPrice === preset.max}
+                      onClick={() => {
+                        onPageReset();
+                        onFiltersChange(f => ({ ...f, minPrice: preset.min, maxPrice: preset.max }));
+                      }}
+                      color="amber"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Active filter summary */}
+              {activeFilterCount > 0 && (
+                <div className="pt-3 border-t border-border flex flex-wrap gap-1.5">
+                  {filters.tld !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      TLD: {filters.tld}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, tld: "all" }))} />
+                    </Badge>
+                  )}
+                  {filters.auctionType !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      Type: {AUCTION_TYPE_OPTIONS.find(o => o.value === filters.auctionType)?.label}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, auctionType: "all" }))} />
+                    </Badge>
+                  )}
+                  {filters.inventorySource !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      Source: {SOURCE_OPTIONS.find(s => s.value === filters.inventorySource)?.label}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, inventorySource: "all" }))} />
+                    </Badge>
+                  )}
+                  {(filters.minPrice > 0 || filters.maxPrice < 1000000) && (
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      ${filters.minPrice.toLocaleString()} – ${filters.maxPrice.toLocaleString()}
+                      <X className="w-3 h-3 cursor-pointer" onClick={() => onFiltersChange(f => ({ ...f, minPrice: 0, maxPrice: 1000000 }))} />
+                    </Badge>
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </CollapsibleContent>
         </div>
-      )}
+      </Collapsible>
     </>
   );
 }
