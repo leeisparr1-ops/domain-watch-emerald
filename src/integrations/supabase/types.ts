@@ -45,6 +45,7 @@ export type Database = {
           domain_name: string
           domain_risk: Json | null
           end_time: string | null
+          gem_score: number | null
           id: string
           inventory_source: string | null
           price: number
@@ -65,6 +66,7 @@ export type Database = {
           domain_name: string
           domain_risk?: Json | null
           end_time?: string | null
+          gem_score?: number | null
           id?: string
           inventory_source?: string | null
           price?: number
@@ -85,6 +87,7 @@ export type Database = {
           domain_name?: string
           domain_risk?: Json | null
           end_time?: string | null
+          gem_score?: number | null
           id?: string
           inventory_source?: string | null
           price?: number

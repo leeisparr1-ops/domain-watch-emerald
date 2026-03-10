@@ -374,6 +374,88 @@ function checkTrademarkRisk(domain: string): string {
   return "none";
 }
 
+// ─── Niche detection (simplified server-side port) ───
+
+const NICHE_KEYWORDS: Record<string, string[]> = {
+  ai_tech: ["ai","gpt","neural","neura","machine","deep","learn","robot","auto","smart","quantum","intel","agent","agentic","synthetic","cognitive","algorithm","compute","llm","model","vision","prompt","copilot","chatbot","genai","spatial"],
+  fintech: ["pay","bank","cash","loan","credit","finance","trade","invest","wallet","fintech","money","fund","wealth","capital","equity","profit","defi","token","ledger"],
+  health: ["health","med","fit","care","dental","clinic","therapy","mental","wellness","organic","nutrition","vitamin","supplement","telehealth","pharma","patient","doctor"],
+  biotech: ["bio","biotech","gene","genome","dna","rna","protein","cell","stem","enzyme","peptide","antibody","vaccine","clinical","molecular","lab","research","science"],
+  ecommerce: ["shop","store","buy","sell","deal","sale","market","retail","commerce","cart","order","wholesale","merchant","checkout","marketplace","product"],
+  saas: ["cloud","tech","code","data","app","web","server","host","stack","saas","api","dev","cyber","digital","platform","software","system","deploy","devops"],
+  security: ["secure","guard","shield","vault","safe","protect","defense","lock","cyber","firewall","encryption","threat","breach","sentinel","compliance"],
+  crypto: ["crypto","blockchain","token","defi","nft","web3","dao","chain","coin","mining","staking","swap","dex","ledger","hash","node","wallet"],
+  gaming: ["game","play","stream","video","music","sport","bet","club","esport","casino","arcade","quest","level","guild","arena","gamer","pixel","win"],
+  real_estate: ["home","homes","house","land","estate","rent","property","build","room","space","real","mortgage","apartment","condo","realty"],
+  energy: ["solar","green","energy","power","electric","carbon","climate","eco","renewable","hydrogen","wind","battery","grid","volt","clean"],
+  travel: ["travel","hotel","flight","trip","tour","cruise","food","chef","wine","luxury","life","vacation","resort","booking","adventure"],
+  pet: ["pet","dog","cat","puppy","kitten","vet","paw","bark","fur","breed","groom","kennel","animal","shelter"],
+  beauty: ["beauty","skin","hair","makeup","cosmetic","glow","lash","nail","serum","fashion","style","wear","skincare"],
+  food: ["food","eat","meal","recipe","cook","chef","kitchen","restaurant","cafe","bistro","bakery","grill","pizza","sushi","vegan"],
+};
+
+function detectNiche(domainName: string): string {
+  const name = domainName.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+  const words = splitIntoWords(name);
+  let bestNiche = "general";
+  let bestScore = 0;
+  for (const [niche, keywords] of Object.entries(NICHE_KEYWORDS)) {
+    const matches = words.filter(w => keywords.includes(w)).length;
+    if (matches > bestScore) { bestScore = matches; bestNiche = niche; }
+  }
+  return bestScore >= 1 ? bestNiche : "general";
+}
+
+// ─── Gem score computation ───
+
+function computeGemScore(
+  domain: string,
+  price: number,
+  valuation: number | null,
+  brandabilityScore: number,
+  pronounceabilityScore: number,
+  domainAge: number | null,
+  bidCount: number,
+  trafficCount: number,
+  tld: string | null,
+): number {
+  if (!valuation || valuation <= price || price <= 0) return 0;
+
+  const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+  const dealRatio = Math.min(10, valuation / price);
+
+  // Deal score (25%): undervalued domains
+  const dealPts = Math.min(100, dealRatio * 10) * 25 / 100;
+
+  // Brandability (20%)
+  const brandPts = brandabilityScore * 20 / 100;
+
+  // Pronounceability (10%)
+  const pronPts = pronounceabilityScore * 10 / 100;
+
+  // Domain age (10%): older = more established
+  const agePts = Math.min(100, (domainAge || 0) * 5) * 10 / 100;
+
+  // Short length (10%)
+  const lenPts = Math.max(0, Math.min(100, (15 - name.length) * 8)) * 10 / 100;
+
+  // Low competition (10%): fewer bids = less noticed
+  const compPts = Math.max(0, Math.min(100, (10 - bidCount) * 10)) * 10 / 100;
+
+  // Traffic signal (10%): existing traffic is a strong gem signal
+  const trafficPts = Math.min(100, trafficCount > 0 ? Math.min(100, Math.log10(trafficCount + 1) * 30) : 0) * 10 / 100;
+
+  // TLD premium (5%)
+  const tldScore = tld === "ai" ? 100 : tld === "com" ? 80 : tld === "io" ? 70
+    : ["co","app","dev"].includes(tld || "") ? 50
+    : ["net","org"].includes(tld || "") ? 35 : 10;
+  const tldPts = tldScore * 5 / 100;
+
+  return Math.max(0, Math.min(100, Math.round(
+    dealPts + brandPts + pronPts + agePts + lenPts + compPts + trafficPts + tldPts
+  )));
+}
+
 // ─── Main handler ───
 
 interface ScoreRequest {
@@ -405,17 +487,21 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    let domains: { domain_name: string }[] = [];
+    let domains: { domain_name: string; price: number; valuation: number | null; domain_age: number | null; bid_count: number; traffic_count: number; tld: string | null }[] = [];
 
     if (body.mode === "batch" && body.domain_names?.length) {
-      // Score specific domains (called after sync)
-      domains = body.domain_names.map(d => ({ domain_name: d }));
+      // Score specific domains — fetch their current data for gem score
+      const { data } = await supabase
+        .from("auctions")
+        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
+        .in("domain_name", body.domain_names);
+      domains = data || [];
     } else {
       // Audit mode: pick unscored or stale domains
       const limit = body.limit || 500;
       const { data, error } = await supabase
         .from("auctions")
-        .select("domain_name")
+        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
         .or("scores_computed_at.is.null,scores_computed_at.lt." + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .limit(limit);
       
@@ -447,13 +533,23 @@ Deno.serve(async (req) => {
       const batch = domains.slice(i, i + BATCH_SIZE);
       const now = new Date().toISOString();
       
-      const updates = batch.map(d => ({
-        domain_name: d.domain_name,
-        brandability_score: scoreBrandability(d.domain_name),
-        pronounceability_score: scorePronounceability(d.domain_name),
-        trademark_risk: checkTrademarkRisk(d.domain_name),
-        scores_computed_at: now,
-      }));
+      const updates = batch.map(d => {
+        const brand = scoreBrandability(d.domain_name);
+        const pron = scorePronounceability(d.domain_name);
+        const tm = checkTrademarkRisk(d.domain_name);
+        const gem = computeGemScore(
+          d.domain_name, d.price, d.valuation,
+          brand, pron, d.domain_age, d.bid_count, d.traffic_count, d.tld,
+        );
+        return {
+          domain_name: d.domain_name,
+          brandability_score: brand,
+          pronounceability_score: pron,
+          trademark_risk: tm,
+          gem_score: gem > 0 ? gem : null,
+          scores_computed_at: now,
+        };
+      });
 
       const { error } = await supabase
         .from("auctions")
