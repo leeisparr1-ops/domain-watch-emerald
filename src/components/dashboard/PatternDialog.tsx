@@ -598,22 +598,120 @@ export function PatternDialog({
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {PATTERN_PRESETS.map((preset, idx) => (
-                <Button
-                  key={idx}
-                  variant="outline"
-                  size="sm"
-                  className="justify-start h-auto py-2 px-3"
-                  onClick={() => handleAddPreset(preset)}
-                  disabled={isAtLimit || patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld))}
-                >
-                  <div className="text-left">
-                    <div className="font-medium">{preset.label}</div>
-                    <div className="text-xs text-muted-foreground">{preset.description}</div>
-                  </div>
-                </Button>
-              ))}
+            {/* Structure */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Structure</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "structure").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pronounceable */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Pronounceable</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "pronounceable").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 shadow-sm ring-1 ring-purple-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Keywords */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Keywords</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "keyword").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Numeric */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Numeric</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "numeric").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           {/* Custom Pattern */}
