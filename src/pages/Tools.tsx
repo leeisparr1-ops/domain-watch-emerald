@@ -43,7 +43,7 @@ const Tools = () => {
 
 
             <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6 h-auto">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 mb-6 h-auto">
                 <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <BrainCircuit className="w-4 h-4" />
                   <span className="hidden sm:inline">AI Advisor</span>
