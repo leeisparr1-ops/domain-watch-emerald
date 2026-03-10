@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit, Combine } from "lucide-react";
+import { Mic, Sparkles, List, Globe2, Award, ExternalLink, BrainCircuit, Combine, Diamond } from "lucide-react";
 import { PronounceabilityScorer } from "@/components/tools/PronounceabilityScorer";
 import { NameGenerator } from "@/components/tools/NameGenerator";
 import { BulkPronounceabilityChecker } from "@/components/tools/BulkPronounceabilityChecker";
@@ -12,6 +12,7 @@ import { TldComparisonTool } from "@/components/tools/TldComparisonTool";
 import { BrandabilityScorer } from "@/components/tools/BrandabilityScorer";
 import { AIDomainAdvisor } from "@/components/tools/AIDomainAdvisor";
 import { CompoundGenerator } from "@/components/tools/CompoundGenerator";
+import { HiddenGemsFinder } from "@/components/tools/HiddenGemsFinder";
 
 const Tools = () => {
   const [searchParams] = useSearchParams();
@@ -42,11 +43,16 @@ const Tools = () => {
 
 
             <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6 h-auto">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 mb-6 h-auto">
                 <TabsTrigger value="advisor" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <BrainCircuit className="w-4 h-4" />
                   <span className="hidden sm:inline">AI Advisor</span>
                   <span className="sm:hidden">Advisor</span>
+                </TabsTrigger>
+                <TabsTrigger value="gems" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <Diamond className="w-4 h-4" />
+                  <span className="hidden sm:inline">Hidden Gems</span>
+                  <span className="sm:hidden">Gems</span>
                 </TabsTrigger>
                 <TabsTrigger value="compound" className="flex items-center gap-1.5 text-xs md:text-sm">
                   <Combine className="w-4 h-4" />
@@ -82,6 +88,14 @@ const Tools = () => {
 
               <TabsContent value="advisor">
                 <AIDomainAdvisor />
+              </TabsContent>
+              <TabsContent value="gems">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/hidden-gems" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+                <HiddenGemsFinder />
               </TabsContent>
               <TabsContent value="compound">
                 <CompoundGenerator />

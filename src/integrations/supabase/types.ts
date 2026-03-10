@@ -730,6 +730,39 @@ export type Database = {
         Args: { lock_duration_minutes?: number; lock_holder: string }
         Returns: boolean
       }
+      find_hidden_gems: {
+        Args: {
+          p_limit?: number
+          p_max_length?: number
+          p_max_price?: number
+          p_min_brandability?: number
+          p_min_gem_score?: number
+          p_min_pronounceability?: number
+          p_offset?: number
+          p_sort_by?: string
+          p_sort_dir?: string
+          p_tld_filter?: string
+        }
+        Returns: {
+          auction_type: string
+          bid_count: number
+          brandability_score: number
+          deal_ratio: number
+          domain_age: number
+          domain_name: string
+          end_time: string
+          gem_score: number
+          id: string
+          inventory_source: string
+          price: number
+          pronounceability_score: number
+          tld: string
+          total_count: number
+          trademark_risk: string
+          traffic_count: number
+          valuation: number
+        }[]
+      }
       get_auction_count: { Args: never; Returns: number }
       get_pattern_matches: {
         Args: {

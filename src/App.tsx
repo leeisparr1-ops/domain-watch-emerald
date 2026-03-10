@@ -33,6 +33,7 @@ const PronounceabilityPage = lazy(() => import("./pages/tools/PronounceabilityPa
 const BulkCheckerPage = lazy(() => import("./pages/tools/BulkCheckerPage"));
 const TldComparePage = lazy(() => import("./pages/tools/TldComparePage"));
 const ValuationPage = lazy(() => import("./pages/tools/ValuationPage"));
+const HiddenGemsPage = lazy(() => import("./pages/tools/HiddenGemsPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -80,6 +81,7 @@ const App = () => (
                 <Route path="/tools/bulk-checker" element={<ProtectedRoute><BulkCheckerPage /></ProtectedRoute>} />
                 <Route path="/tools/tld-compare" element={<ProtectedRoute><TldComparePage /></ProtectedRoute>} />
                 <Route path="/tools/valuation" element={<ValuationPage />} />
+                <Route path="/tools/hidden-gems" element={<ProtectedRoute><HiddenGemsPage /></ProtectedRoute>} />
                 <Route path="/value/:domain" element={<ValuationPage />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
