@@ -80,7 +80,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
   description: string;
-  category: "structure" | "pronounceable" | "keyword" | "numeric";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers" | "numeric";
 }
 
 const PATTERN_PRESETS: PatternPreset[] = [
@@ -96,31 +96,34 @@ const PATTERN_PRESETS: PatternPreset[] = [
   { label: "CVVC (4-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "4-letter like cool, boom", category: "pronounceable" },
   { label: "CVCVC (5-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "5-letter like vapor, lemon", category: "pronounceable" },
   { label: "VCV (3-char)", pattern: "^[aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "3-letter like ace, ape", category: "pronounceable" },
-  // Keyword
-  { label: "AI", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "keyword" },
-  { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "keyword" },
-  { label: "Group", pattern: "group", pattern_type: "regex", description: "Contains 'group'", category: "keyword" },
-  { label: "Home", pattern: "home", pattern_type: "regex", description: "Contains 'home'", category: "keyword" },
-  { label: "Tech", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "keyword" },
-  { label: "IT", pattern: "^it|it$", pattern_type: "regex", description: "Starts or ends with 'it'", category: "keyword" },
-  { label: "Health", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "keyword" },
-  { label: "Agent", pattern: "agent", pattern_type: "regex", description: "Contains 'agent'", category: "keyword" },
-  { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "keyword" },
-  { label: "Studio", pattern: "studio", pattern_type: "regex", description: "Contains 'studio'", category: "keyword" },
-  { label: "Capital", pattern: "capital", pattern_type: "regex", description: "Contains 'capital'", category: "keyword" },
-  { label: "Club", pattern: "club", pattern_type: "regex", description: "Contains 'club'", category: "keyword" },
-  { label: "Us", pattern: "us$", pattern_type: "regex", description: "Ends with 'us'", category: "keyword" },
-  { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "keyword" },
-  { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "keyword" },
-  { label: "Your", pattern: "^your", pattern_type: "regex", description: "Starts with 'your'", category: "keyword" },
-  { label: "Solutions", pattern: "solutions", pattern_type: "regex", description: "Contains 'solutions'", category: "keyword" },
-  { label: "House", pattern: "house", pattern_type: "regex", description: "Contains 'house'", category: "keyword" },
-  { label: "Services", pattern: "services", pattern_type: "regex", description: "Contains 'services'", category: "keyword" },
-  { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "keyword" },
-  { label: "Data", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "keyword" },
-  { label: "Cloud", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "keyword" },
-  { label: "App", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "keyword" },
-  { label: "Crypto", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "keyword" },
+  // Tech & AI
+  { label: "AI", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "tech_ai" },
+  { label: "Tech", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "tech_ai" },
+  { label: "Data", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "tech_ai" },
+  { label: "Cloud", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "tech_ai" },
+  { label: "App", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "tech_ai" },
+  { label: "Crypto", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "tech_ai" },
+  { label: "Agent", pattern: "agent", pattern_type: "regex", description: "Contains 'agent'", category: "tech_ai" },
+  { label: "IT", pattern: "^it|it$", pattern_type: "regex", description: "Starts or ends with 'it'", category: "tech_ai" },
+  // Business
+  { label: "Group", pattern: "group", pattern_type: "regex", description: "Contains 'group'", category: "business" },
+  { label: "Capital", pattern: "capital", pattern_type: "regex", description: "Contains 'capital'", category: "business" },
+  { label: "Club", pattern: "club", pattern_type: "regex", description: "Contains 'club'", category: "business" },
+  { label: "Studio", pattern: "studio", pattern_type: "regex", description: "Contains 'studio'", category: "business" },
+  { label: "Solutions", pattern: "solutions", pattern_type: "regex", description: "Contains 'solutions'", category: "business" },
+  { label: "Services", pattern: "services", pattern_type: "regex", description: "Contains 'services'", category: "business" },
+  // Lifestyle
+  { label: "Home", pattern: "home", pattern_type: "regex", description: "Contains 'home'", category: "lifestyle" },
+  { label: "House", pattern: "house", pattern_type: "regex", description: "Contains 'house'", category: "lifestyle" },
+  { label: "Health", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "lifestyle" },
+  { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "lifestyle" },
+  { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "lifestyle" },
+  { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "lifestyle" },
+  // Modifiers
+  { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "modifiers" },
+  { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "modifiers" },
+  { label: "Your", pattern: "^your", pattern_type: "regex", description: "Starts with 'your'", category: "modifiers" },
+  { label: "Us", pattern: "us$", pattern_type: "regex", description: "Ends with 'us'", category: "modifiers" },
   // Numeric
   { label: "Numbers Only", pattern: "^[0-9]+$", pattern_type: "structure", description: "Numeric like 123, 8888", category: "numeric" },
   { label: "3-Digit", pattern: "^[0-9]{3}$", pattern_type: "structure", description: "3-digit numeric domains", category: "numeric" },
@@ -672,11 +675,11 @@ export function PatternDialog({
               </div>
             </div>
 
-            {/* Keywords */}
+            {/* Tech & AI */}
             <div>
-              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Keywords</h5>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tech & AI</h5>
               <div className="flex flex-wrap gap-1.5">
-                {PATTERN_PRESETS.filter(p => p.category === "keyword").map((preset, idx) => {
+                {PATTERN_PRESETS.filter(p => p.category === "tech_ai").map((preset, idx) => {
                   const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
                   return (
                     <button
@@ -690,6 +693,93 @@ export function PatternDialog({
                         ${alreadyAdded
                           ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20 opacity-60 cursor-not-allowed"
                           : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Business */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Business</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "business").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-sm ring-1 ring-rose-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Lifestyle */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Lifestyle</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "lifestyle").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50 shadow-sm ring-1 ring-teal-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20 hover:bg-teal-100 dark:hover:bg-teal-500/15"
+                        }
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modifiers */}
+            <div>
+              <h5 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Modifiers</h5>
+              <div className="flex flex-wrap gap-1.5">
+                {PATTERN_PRESETS.filter(p => p.category === "modifiers").map((preset, idx) => {
+                  const alreadyAdded = patterns.some(p => p.pattern === preset.pattern && p.tld_filter === (presetTld === "any" ? null : presetTld));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddPreset(preset)}
+                      disabled={isAtLimit || alreadyAdded}
+                      title={preset.description}
+                      className={`
+                        inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium
+                        border transition-all duration-150 cursor-pointer select-none
+                        ${alreadyAdded
+                          ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/50 shadow-sm ring-1 ring-indigo-500/20 opacity-60 cursor-not-allowed"
+                          : "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/15"
                         }
                         disabled:opacity-50 disabled:cursor-not-allowed
                       `}

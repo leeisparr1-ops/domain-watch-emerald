@@ -13,7 +13,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable";
   description: string;
-  category: "structure" | "pronounceable" | "keyword";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers";
 }
 
 const PRESET_PATTERNS: PatternPreset[] = [
@@ -27,31 +27,34 @@ const PRESET_PATTERNS: PatternPreset[] = [
   { label: "CVVC", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "4-letter with vowel pair (e.g. been, cool)", category: "pronounceable" },
   { label: "CVCVC", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "5-letter pronounceable (e.g. pixel)", category: "pronounceable" },
   { label: "VCV", pattern: "^[aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "3-letter vowel-led (e.g. ado, ace)", category: "pronounceable" },
-  // Keywords
-  { label: "AI", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "keyword" },
-  { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "keyword" },
-  { label: "Group", pattern: "group", pattern_type: "regex", description: "Contains 'group'", category: "keyword" },
-  { label: "Home", pattern: "home", pattern_type: "regex", description: "Contains 'home'", category: "keyword" },
-  { label: "Tech", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "keyword" },
-  { label: "IT", pattern: "^it|it$", pattern_type: "regex", description: "Starts or ends with 'it'", category: "keyword" },
-  { label: "Health", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "keyword" },
-  { label: "Agent", pattern: "agent", pattern_type: "regex", description: "Contains 'agent'", category: "keyword" },
-  { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "keyword" },
-  { label: "Studio", pattern: "studio", pattern_type: "regex", description: "Contains 'studio'", category: "keyword" },
-  { label: "Capital", pattern: "capital", pattern_type: "regex", description: "Contains 'capital'", category: "keyword" },
-  { label: "Club", pattern: "club", pattern_type: "regex", description: "Contains 'club'", category: "keyword" },
-  { label: "Us", pattern: "us$", pattern_type: "regex", description: "Ends with 'us'", category: "keyword" },
-  { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "keyword" },
-  { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "keyword" },
-  { label: "Your", pattern: "^your", pattern_type: "regex", description: "Starts with 'your'", category: "keyword" },
-  { label: "Solutions", pattern: "solutions", pattern_type: "regex", description: "Contains 'solutions'", category: "keyword" },
-  { label: "House", pattern: "house", pattern_type: "regex", description: "Contains 'house'", category: "keyword" },
-  { label: "Services", pattern: "services", pattern_type: "regex", description: "Contains 'services'", category: "keyword" },
-  { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "keyword" },
-  { label: "Data", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "keyword" },
-  { label: "Cloud", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "keyword" },
-  { label: "App", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "keyword" },
-  { label: "Crypto", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "keyword" },
+  // Tech & AI
+  { label: "AI", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "tech_ai" },
+  { label: "Tech", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "tech_ai" },
+  { label: "Data", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "tech_ai" },
+  { label: "Cloud", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "tech_ai" },
+  { label: "App", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "tech_ai" },
+  { label: "Crypto", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "tech_ai" },
+  { label: "Agent", pattern: "agent", pattern_type: "regex", description: "Contains 'agent'", category: "tech_ai" },
+  { label: "IT", pattern: "^it|it$", pattern_type: "regex", description: "Starts or ends with 'it'", category: "tech_ai" },
+  // Business
+  { label: "Group", pattern: "group", pattern_type: "regex", description: "Contains 'group'", category: "business" },
+  { label: "Capital", pattern: "capital", pattern_type: "regex", description: "Contains 'capital'", category: "business" },
+  { label: "Club", pattern: "club", pattern_type: "regex", description: "Contains 'club'", category: "business" },
+  { label: "Studio", pattern: "studio", pattern_type: "regex", description: "Contains 'studio'", category: "business" },
+  { label: "Solutions", pattern: "solutions", pattern_type: "regex", description: "Contains 'solutions'", category: "business" },
+  { label: "Services", pattern: "services", pattern_type: "regex", description: "Contains 'services'", category: "business" },
+  // Lifestyle
+  { label: "Home", pattern: "home", pattern_type: "regex", description: "Contains 'home'", category: "lifestyle" },
+  { label: "House", pattern: "house", pattern_type: "regex", description: "Contains 'house'", category: "lifestyle" },
+  { label: "Health", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "lifestyle" },
+  { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "lifestyle" },
+  { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "lifestyle" },
+  { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "lifestyle" },
+  // Modifiers
+  { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "modifiers" },
+  { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "modifiers" },
+  { label: "Your", pattern: "^your", pattern_type: "regex", description: "Starts with 'your'", category: "modifiers" },
+  { label: "Us", pattern: "us$", pattern_type: "regex", description: "Ends with 'us'", category: "modifiers" },
 ];
 
 const CATEGORY_META: Record<string, { title: string; color: string; activeColor: string }> = {
@@ -65,10 +68,25 @@ const CATEGORY_META: Record<string, { title: string; color: string; activeColor:
     color: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30 dark:hover:bg-purple-500/20",
     activeColor: "bg-purple-500/20 text-purple-600 border-purple-500/50 ring-1 ring-purple-500/20 dark:bg-purple-500/30 dark:text-purple-300 dark:border-purple-400/50",
   },
-  keyword: {
-    title: "Keywords",
+  tech_ai: {
+    title: "Tech & AI",
     color: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30 dark:hover:bg-amber-500/20",
     activeColor: "bg-amber-500/20 text-amber-600 border-amber-500/50 ring-1 ring-amber-500/20 dark:bg-amber-500/30 dark:text-amber-300 dark:border-amber-400/50",
+  },
+  business: {
+    title: "Business",
+    color: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30 dark:hover:bg-rose-500/20",
+    activeColor: "bg-rose-500/20 text-rose-600 border-rose-500/50 ring-1 ring-rose-500/20 dark:bg-rose-500/30 dark:text-rose-300 dark:border-rose-400/50",
+  },
+  lifestyle: {
+    title: "Lifestyle",
+    color: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/30 dark:hover:bg-teal-500/20",
+    activeColor: "bg-teal-500/20 text-teal-600 border-teal-500/50 ring-1 ring-teal-500/20 dark:bg-teal-500/30 dark:text-teal-300 dark:border-teal-400/50",
+  },
+  modifiers: {
+    title: "Modifiers",
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20",
+    activeColor: "bg-indigo-500/20 text-indigo-600 border-indigo-500/50 ring-1 ring-indigo-500/20 dark:bg-indigo-500/30 dark:text-indigo-300 dark:border-indigo-400/50",
   },
 };
 
@@ -151,7 +169,7 @@ export function OnboardingWizard() {
       <p className="text-sm text-muted-foreground mb-4">Tap chips to add patterns. Pick as many as you like.</p>
 
       <div className="space-y-3 mb-4 max-h-[280px] overflow-y-auto pr-1">
-        {(["structure", "pronounceable", "keyword"] as const).map((cat) => {
+        {(["structure", "pronounceable", "tech_ai", "business", "lifestyle", "modifiers"] as const).map((cat) => {
           const meta = CATEGORY_META[cat];
           const presets = PRESET_PATTERNS.filter((p) => p.category === cat);
           return (
