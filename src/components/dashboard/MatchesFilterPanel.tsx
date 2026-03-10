@@ -3,7 +3,7 @@ import { Filter, X, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Collapsible,
@@ -105,43 +105,43 @@ function ChipButton({
 }) {
   const colorMap = {
     default: active
-      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-      : "bg-muted/50 text-foreground border-border hover:bg-muted hover:border-muted-foreground/30",
+      ? "bg-primary/20 text-primary border-primary/50 shadow-sm ring-1 ring-primary/20"
+      : "bg-muted/60 text-foreground border-border/60 hover:bg-muted hover:border-muted-foreground/30",
     green: active
-      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30",
+      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/20"
+      : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/15",
     blue: active
-      ? "bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30",
+      ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20"
+      : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/15",
     amber: active
-      ? "bg-amber-500/15 text-amber-400 border-amber-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30",
+      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm ring-1 ring-amber-500/20"
+      : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/15",
     purple: active
-      ? "bg-purple-500/15 text-purple-400 border-purple-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/30",
+      ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 shadow-sm ring-1 ring-purple-500/20"
+      : "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/15",
     rose: active
-      ? "bg-rose-500/15 text-rose-400 border-rose-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30",
+      ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-sm ring-1 ring-rose-500/20"
+      : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/15",
     teal: active
-      ? "bg-teal-500/15 text-teal-400 border-teal-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/30",
+      ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/50 shadow-sm ring-1 ring-teal-500/20"
+      : "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20 hover:bg-teal-100 dark:hover:bg-teal-500/15",
     orange: active
-      ? "bg-orange-500/15 text-orange-400 border-orange-500/40 shadow-sm"
-      : "bg-muted/50 text-muted-foreground border-border hover:bg-orange-500/10 hover:text-orange-400 hover:border-orange-500/30",
+      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/50 shadow-sm ring-1 ring-orange-500/20"
+      : "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20 hover:bg-orange-100 dark:hover:bg-orange-500/15",
   };
 
   return (
     <button
       onClick={onClick}
       className={`
-        inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+        inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium
         border transition-all duration-150 cursor-pointer select-none
         ${colorMap[color]}
       `}
     >
       {label}
-      <span className={`text-xs font-semibold ${active ? 'opacity-90' : 'opacity-60'}`}>
-        {count}
+      <span className="font-bold">
+        {count.toLocaleString()}
       </span>
     </button>
   );
@@ -154,7 +154,7 @@ export function MatchesFilterPanel({
   onReset,
   activeFilterCount,
 }: MatchesFilterPanelProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Compute stats from ALL matches (not filtered)
   const stats = useMemo(() => {
@@ -413,12 +413,10 @@ export function MatchesFilterPanel({
               </div>
             </div>
 
-            {/* SLD Length */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                SLD Length
-              </h4>
+            {/* SLD Length + Quick Filters inline */}
+            <div className="flex flex-wrap items-end gap-6">
               <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">SLD Length</span>
                 <Input
                   type="number"
                   placeholder="Min"
@@ -429,7 +427,7 @@ export function MatchesFilterPanel({
                       minLength: e.target.value ? parseInt(e.target.value) : null,
                     })
                   }
-                  className="w-20 h-8 text-xs bg-background"
+                  className="w-16 h-8 text-xs bg-background"
                   min={1}
                   max={63}
                 />
@@ -444,55 +442,47 @@ export function MatchesFilterPanel({
                       maxLength: e.target.value ? parseInt(e.target.value) : null,
                     })
                   }
-                  className="w-20 h-8 text-xs bg-background"
+                  className="w-16 h-8 text-xs bg-background"
                   min={1}
                   max={63}
                 />
               </div>
-            </div>
 
-            {/* Toggles */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Quick Filters
-              </h4>
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="no-numbers"
-                    checked={filters.noNumbers}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, noNumbers: checked })
-                    }
-                  />
-                  <Label htmlFor="no-numbers" className="text-xs cursor-pointer">
-                    No Numbers
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="no-hyphens"
-                    checked={filters.noHyphens}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, noHyphens: checked })
-                    }
-                  />
-                  <Label htmlFor="no-hyphens" className="text-xs cursor-pointer">
-                    No Hyphens
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="hide-ended"
-                    checked={filters.hideEnded}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, hideEnded: checked })
-                    }
-                  />
-                  <Label htmlFor="hide-ended" className="text-xs cursor-pointer">
-                    Hide Ended
-                  </Label>
-                </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="no-numbers"
+                  checked={filters.noNumbers}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, noNumbers: !!checked })
+                  }
+                />
+                <Label htmlFor="no-numbers" className="text-xs cursor-pointer whitespace-nowrap">
+                  No Numbers
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="no-hyphens"
+                  checked={filters.noHyphens}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, noHyphens: !!checked })
+                  }
+                />
+                <Label htmlFor="no-hyphens" className="text-xs cursor-pointer whitespace-nowrap">
+                  No Hyphens
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="hide-ended"
+                  checked={filters.hideEnded}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, hideEnded: !!checked })
+                  }
+                />
+                <Label htmlFor="hide-ended" className="text-xs cursor-pointer whitespace-nowrap">
+                  Hide Ended
+                </Label>
               </div>
             </div>
 
