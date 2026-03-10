@@ -13,7 +13,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable";
   description: string;
-  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "finance" | "modifiers";
 }
 
 const PRESET_PATTERNS: PatternPreset[] = [
