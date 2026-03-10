@@ -80,7 +80,7 @@ interface PatternPreset {
   pattern: string;
   pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
   description: string;
-  category: "structure" | "pronounceable" | "keyword" | "numeric";
+  category: "structure" | "pronounceable" | "tech_ai" | "business" | "lifestyle" | "modifiers" | "numeric";
 }
 
 const PATTERN_PRESETS: PatternPreset[] = [
