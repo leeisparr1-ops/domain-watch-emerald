@@ -413,12 +413,10 @@ export function MatchesFilterPanel({
               </div>
             </div>
 
-            {/* SLD Length */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                SLD Length
-              </h4>
+            {/* SLD Length + Quick Filters inline */}
+            <div className="flex flex-wrap items-end gap-6">
               <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">SLD Length</span>
                 <Input
                   type="number"
                   placeholder="Min"
@@ -429,7 +427,7 @@ export function MatchesFilterPanel({
                       minLength: e.target.value ? parseInt(e.target.value) : null,
                     })
                   }
-                  className="w-20 h-8 text-xs bg-background"
+                  className="w-16 h-8 text-xs bg-background"
                   min={1}
                   max={63}
                 />
@@ -444,55 +442,47 @@ export function MatchesFilterPanel({
                       maxLength: e.target.value ? parseInt(e.target.value) : null,
                     })
                   }
-                  className="w-20 h-8 text-xs bg-background"
+                  className="w-16 h-8 text-xs bg-background"
                   min={1}
                   max={63}
                 />
               </div>
-            </div>
 
-            {/* Toggles */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Quick Filters
-              </h4>
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="no-numbers"
-                    checked={filters.noNumbers}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, noNumbers: checked })
-                    }
-                  />
-                  <Label htmlFor="no-numbers" className="text-xs cursor-pointer">
-                    No Numbers
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="no-hyphens"
-                    checked={filters.noHyphens}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, noHyphens: checked })
-                    }
-                  />
-                  <Label htmlFor="no-hyphens" className="text-xs cursor-pointer">
-                    No Hyphens
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="hide-ended"
-                    checked={filters.hideEnded}
-                    onCheckedChange={(checked) =>
-                      onFiltersChange({ ...filters, hideEnded: checked })
-                    }
-                  />
-                  <Label htmlFor="hide-ended" className="text-xs cursor-pointer">
-                    Hide Ended
-                  </Label>
-                </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="no-numbers"
+                  checked={filters.noNumbers}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, noNumbers: !!checked })
+                  }
+                />
+                <Label htmlFor="no-numbers" className="text-xs cursor-pointer whitespace-nowrap">
+                  No Numbers
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="no-hyphens"
+                  checked={filters.noHyphens}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, noHyphens: !!checked })
+                  }
+                />
+                <Label htmlFor="no-hyphens" className="text-xs cursor-pointer whitespace-nowrap">
+                  No Hyphens
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="hide-ended"
+                  checked={filters.hideEnded}
+                  onCheckedChange={(checked) =>
+                    onFiltersChange({ ...filters, hideEnded: !!checked })
+                  }
+                />
+                <Label htmlFor="hide-ended" className="text-xs cursor-pointer whitespace-nowrap">
+                  Hide Ended
+                </Label>
               </div>
             </div>
 
