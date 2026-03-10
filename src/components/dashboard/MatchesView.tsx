@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Loader2, Target, ChevronLeft, ChevronRight, Trash2, Bird, CheckSquare, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { DomainTable } from "./DomainTable";
+import {
+  MatchesFilterPanel,
+  applyMatchesFilters,
+  DEFAULT_MATCHES_FILTERS,
+  type MatchesFilters,
+} from "./MatchesFilterPanel";
 
 interface MatchDomain {
   auction_id: string;
@@ -95,6 +101,43 @@ export function MatchesView({
   const totalPages = Math.ceil(totalCount / perPage);
   const [selectedForDismiss, setSelectedForDismiss] = useState<Set<string>>(new Set());
   const [showDismissed, setShowDismissed] = useState(false);
+  const [matchFilters, setMatchFilters] = useState<MatchesFilters>({
+    ...DEFAULT_MATCHES_FILTERS,
+    hideEnded,
+  });
+
+  // Sync hideEnded between parent and local filter state
+  const handleFiltersChange = (newFilters: MatchesFilters) => {
+    if (newFilters.hideEnded !== matchFilters.hideEnded) {
+      onHideEndedChange(newFilters.hideEnded);
+    }
+    setMatchFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    setMatchFilters({ ...DEFAULT_MATCHES_FILTERS, hideEnded });
+  };
+
+  // Count active filters (excluding hideEnded which is always shown)
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (matchFilters.tlds.length > 0) count++;
+    if (matchFilters.sources.length > 0) count++;
+    if (matchFilters.patterns.length > 0) count++;
+    if (matchFilters.wordCounts.length > 0) count++;
+    if (matchFilters.priceRange !== "any") count++;
+    if (matchFilters.minLength !== null) count++;
+    if (matchFilters.maxLength !== null) count++;
+    if (matchFilters.noNumbers) count++;
+    if (matchFilters.noHyphens) count++;
+    return count;
+  }, [matchFilters]);
+
+  // Apply client-side filters
+  const filteredMatches = useMemo(
+    () => applyMatchesFilters(matches, matchFilters),
+    [matches, matchFilters]
+  );
 
   const toggleSelect = (domainName: string) => {
     setSelectedForDismiss(prev => {
@@ -138,7 +181,6 @@ export function MatchesView({
           )}
         </div>
 
-        {/* Show dismissed section even when no active matches */}
         {dismissedCount > 0 && onUndismiss && (
           <DismissedDomainsSection
             dismissedList={dismissedList}
@@ -152,7 +194,7 @@ export function MatchesView({
     );
   }
 
-  const matchesAsDomains: AuctionDomain[] = matches.map(match => ({
+  const matchesAsDomains: AuctionDomain[] = filteredMatches.map(match => ({
     id: match.auction_id,
     domain: match.domain_name,
     auctionEndTime: match.end_time || '',
@@ -167,35 +209,38 @@ export function MatchesView({
   }));
 
   const patternMap: Record<string, string> = {};
-  matches.forEach(match => {
+  filteredMatches.forEach(match => {
     patternMap[match.auction_id] = match.pattern_description;
   });
 
   return (
     <TooltipProvider>
       <div className="space-y-4">
+        {/* Smart Filters Panel */}
+        <MatchesFilterPanel
+          matches={matches}
+          filters={matchFilters}
+          onFiltersChange={handleFiltersChange}
+          onReset={handleResetFilters}
+          activeFilterCount={activeFilterCount}
+        />
+
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-muted-foreground">
-              Showing {Math.min((page - 1) * perPage + 1, totalCount)}-{Math.min((page - 1) * perPage + matches.length, totalCount)} of {totalCount} matches
+              Showing {filteredMatches.length} of {matches.length} matches
+              {filteredMatches.length !== matches.length && (
+                <span className="text-primary ml-1">
+                  (filtered)
+                </span>
+              )}
               {dismissedCount > 0 && (
                 <span className="ml-1 text-muted-foreground/60">
                   · {dismissedCount} dismissed
                 </span>
               )}
             </p>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={hideEnded}
-                onChange={(e) => onHideEndedChange(e.target.checked)}
-                className="rounded border-border"
-              />
-              <span className="text-muted-foreground">
-                {hideEnded ? "Hide ended" : "Show ended"}
-              </span>
-            </label>
           </div>
           <div className="flex items-center gap-2">
             {/* Bulk dismiss */}
@@ -224,19 +269,19 @@ export function MatchesView({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Dismiss all non-favorited?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will dismiss all {matches.filter(m => !isFavorite(m.domain_name)).length} non-favorited domains on this page. They won't appear in future matches.
+                      This will dismiss all {filteredMatches.filter(m => !isFavorite(m.domain_name)).length} non-favorited domains on this page. They won't appear in future matches.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
-                        const nonFav = matches.filter(m => !isFavorite(m.domain_name)).map(m => m.domain_name);
+                        const nonFav = filteredMatches.filter(m => !isFavorite(m.domain_name)).map(m => m.domain_name);
                         if (nonFav.length > 0) onDismissMany(nonFav);
                       }}
                       className="bg-orange-600 text-white hover:bg-orange-700"
                     >
-                      Dismiss {matches.filter(m => !isFavorite(m.domain_name)).length} domains
+                      Dismiss {filteredMatches.filter(m => !isFavorite(m.domain_name)).length} domains
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -275,22 +320,32 @@ export function MatchesView({
           </p>
         )}
 
-        <DomainTable
-          domains={matchesAsDomains}
-          onDomainClick={onDomainClick}
-          showPatternColumn={true}
-          patternDescriptions={patternMap}
-          onDismiss={onDismiss ? (domain) => {
-            onDismiss(domain);
-            setSelectedForDismiss(prev => {
-              const next = new Set(prev);
-              next.delete(domain);
-              return next;
-            });
-          } : undefined}
-          selectedDismiss={selectedForDismiss}
-          onToggleDismissSelect={onDismissMany ? toggleSelect : undefined}
-        />
+        {filteredMatches.length === 0 && matches.length > 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Target className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm mb-2">No matches found with current filters.</p>
+            <Button variant="outline" size="sm" onClick={handleResetFilters}>
+              Reset Filters
+            </Button>
+          </div>
+        ) : (
+          <DomainTable
+            domains={matchesAsDomains}
+            onDomainClick={onDomainClick}
+            showPatternColumn={true}
+            patternDescriptions={patternMap}
+            onDismiss={onDismiss ? (domain) => {
+              onDismiss(domain);
+              setSelectedForDismiss(prev => {
+                const next = new Set(prev);
+                next.delete(domain);
+                return next;
+              });
+            } : undefined}
+            selectedDismiss={selectedForDismiss}
+            onToggleDismissSelect={onDismissMany ? toggleSelect : undefined}
+          />
+        )}
 
         {/* Dismissed domains section */}
         {dismissedCount > 0 && onUndismiss && (
