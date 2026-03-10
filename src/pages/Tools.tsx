@@ -88,6 +88,14 @@ const Tools = () => {
               <TabsContent value="advisor">
                 <AIDomainAdvisor />
               </TabsContent>
+              <TabsContent value="gems">
+                <div className="flex justify-end mb-2">
+                  <Link to="/tools/hidden-gems" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                    Open full page <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+                <HiddenGemsFinder />
+              </TabsContent>
               <TabsContent value="compound">
                 <CompoundGenerator />
               </TabsContent>
