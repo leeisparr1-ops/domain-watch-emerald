@@ -59,6 +59,9 @@ interface BulkResult {
   seoVolume: number;
   seoVolumeLabel: string;
   seoDataSource: "dataforseo" | "ai" | "heuristic";
+  seoCpc: number | null;
+  seoTrend: "rising" | "falling" | "stable" | null;
+  seoCompetition: string | null;
   flipScore: number;
 }
 
@@ -179,6 +182,9 @@ export function BulkPronounceabilityChecker() {
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
         seoDataSource: seo.dataSource,
+        seoCpc: seo.cpcEstimate ?? null,
+        seoTrend: seo.trendDirection ?? null,
+        seoCompetition: seo.competitionLevel || null,
         flipScore,
       };
     });
@@ -238,7 +244,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "SEO Data Source", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "SEO Data Source", "CPC ($)", "Trend", "Competition", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => {
       const escapeCsv = (v: string | number) => {
         const s = String(v);
@@ -255,6 +261,9 @@ export function BulkPronounceabilityChecker() {
         r.seoVolume,
         escapeCsv(r.seoVolumeLabel),
         escapeCsv(r.seoDataSource === "dataforseo" ? "Google Ads" : r.seoDataSource === "ai" ? "AI" : "Heuristic"),
+        r.seoCpc != null ? r.seoCpc.toFixed(2) : "",
+        escapeCsv(r.seoTrend || ""),
+        escapeCsv(r.seoCompetition || ""),
         escapeCsv(r.valuationBand),
         r.valuationScore,
         r.syllables,
@@ -495,6 +504,12 @@ export function BulkPronounceabilityChecker() {
                         </TooltipContent>
                       </Tooltip>
                     </TableHead>
+                    <TableHead className="text-center">
+                      <span className="text-xs">CPC</span>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <span className="text-xs">Trend</span>
+                    </TableHead>
                     <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("valuation")}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -602,6 +617,26 @@ export function BulkPronounceabilityChecker() {
                           }`}>
                             {r.seoDataSource === "dataforseo" ? "📊 Google Ads" : r.seoDataSource === "ai" ? "🤖 AI" : "📐 Heuristic"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.seoCpc != null ? (
+                            <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">${r.seoCpc.toFixed(2)}</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.seoTrend ? (
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                              r.seoTrend === "rising" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                              r.seoTrend === "falling" ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800" :
+                              "bg-muted text-muted-foreground border-border"
+                            }`}>
+                              {r.seoTrend === "rising" ? "📈" : r.seoTrend === "falling" ? "📉" : "➡️"}
+                            </Badge>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}
