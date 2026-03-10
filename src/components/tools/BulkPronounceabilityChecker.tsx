@@ -59,6 +59,9 @@ interface BulkResult {
   seoVolume: number;
   seoVolumeLabel: string;
   seoDataSource: "dataforseo" | "ai" | "heuristic";
+  seoCpc: number | null;
+  seoTrend: "rising" | "falling" | "stable" | null;
+  seoCompetition: string | null;
   flipScore: number;
 }
 
