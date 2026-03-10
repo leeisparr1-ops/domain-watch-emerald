@@ -11,9 +11,10 @@ import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, ExternalLink, RefreshCw, X } from "lucide-react";
+import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, ExternalLink, RefreshCw, X, Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface GemResult {
   total_count: number;
