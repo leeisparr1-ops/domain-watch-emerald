@@ -81,6 +81,7 @@ const App = () => (
                 <Route path="/tools/bulk-checker" element={<ProtectedRoute><BulkCheckerPage /></ProtectedRoute>} />
                 <Route path="/tools/tld-compare" element={<ProtectedRoute><TldComparePage /></ProtectedRoute>} />
                 <Route path="/tools/valuation" element={<ValuationPage />} />
+                <Route path="/tools/hidden-gems" element={<ProtectedRoute><HiddenGemsPage /></ProtectedRoute>} />
                 <Route path="/value/:domain" element={<ValuationPage />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
