@@ -413,46 +413,50 @@ export function MatchesFilterPanel({
               </div>
             </div>
 
-            {/* SLD Length + Toggles row */}
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  SLD Length
-                </h4>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minLength ?? ""}
-                    onChange={(e) =>
-                      onFiltersChange({
-                        ...filters,
-                        minLength: e.target.value ? parseInt(e.target.value) : null,
-                      })
-                    }
-                    className="w-16 h-8 text-xs bg-background"
-                    min={1}
-                    max={63}
-                  />
-                  <span className="text-muted-foreground text-sm">–</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxLength ?? ""}
-                    onChange={(e) =>
-                      onFiltersChange({
-                        ...filters,
-                        maxLength: e.target.value ? parseInt(e.target.value) : null,
-                      })
-                    }
-                    className="w-16 h-8 text-xs bg-background"
-                    min={1}
-                    max={63}
-                  />
-                </div>
+            {/* SLD Length */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                SLD Length
+              </h4>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={filters.minLength ?? ""}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...filters,
+                      minLength: e.target.value ? parseInt(e.target.value) : null,
+                    })
+                  }
+                  className="w-20 h-8 text-xs bg-background"
+                  min={1}
+                  max={63}
+                />
+                <span className="text-muted-foreground text-sm">–</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={filters.maxLength ?? ""}
+                  onChange={(e) =>
+                    onFiltersChange({
+                      ...filters,
+                      maxLength: e.target.value ? parseInt(e.target.value) : null,
+                    })
+                  }
+                  className="w-20 h-8 text-xs bg-background"
+                  min={1}
+                  max={63}
+                />
               </div>
+            </div>
 
-              <div className="flex items-center gap-4">
+            {/* Toggles */}
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Quick Filters
+              </h4>
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Switch
                     id="no-numbers"
