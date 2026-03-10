@@ -154,7 +154,7 @@ export function MatchesFilterPanel({
   onReset,
   activeFilterCount,
 }: MatchesFilterPanelProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Compute stats from ALL matches (not filtered)
   const stats = useMemo(() => {
