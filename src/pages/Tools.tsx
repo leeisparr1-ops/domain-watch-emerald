@@ -49,7 +49,11 @@ const Tools = () => {
                   <span className="hidden sm:inline">AI Advisor</span>
                   <span className="sm:hidden">Advisor</span>
                 </TabsTrigger>
-                <TabsTrigger value="compound" className="flex items-center gap-1.5 text-xs md:text-sm">
+                <TabsTrigger value="gems" className="flex items-center gap-1.5 text-xs md:text-sm">
+                  <Diamond className="w-4 h-4" />
+                  <span className="hidden sm:inline">Hidden Gems</span>
+                  <span className="sm:hidden">Gems</span>
+                </TabsTrigger>
                   <Combine className="w-4 h-4" />
                   <span className="hidden sm:inline">Compound</span>
                   <span className="sm:hidden">Compound</span>
