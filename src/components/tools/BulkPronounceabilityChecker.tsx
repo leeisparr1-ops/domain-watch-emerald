@@ -244,7 +244,7 @@ export function BulkPronounceabilityChecker() {
 
   const handleExportCSV = () => {
     if (!results.length) return;
-    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "SEO Data Source", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
+    const headers = ["Domain", "Flip Score", "Pronounceability", "Grade", "Brandability", "Demand", "Demand Label", "Keyword Volume", "Keyword Volume Label", "SEO Data Source", "CPC ($)", "Trend", "Competition", "Algo Est. Value", "Val. Score", "Syllables", "TM Risk", "TM Summary"];
     const rows = results.map(r => {
       const escapeCsv = (v: string | number) => {
         const s = String(v);
@@ -261,6 +261,9 @@ export function BulkPronounceabilityChecker() {
         r.seoVolume,
         escapeCsv(r.seoVolumeLabel),
         escapeCsv(r.seoDataSource === "dataforseo" ? "Google Ads" : r.seoDataSource === "ai" ? "AI" : "Heuristic"),
+        r.seoCpc != null ? r.seoCpc.toFixed(2) : "",
+        escapeCsv(r.seoTrend || ""),
+        escapeCsv(r.seoCompetition || ""),
         escapeCsv(r.valuationBand),
         r.valuationScore,
         r.syllables,
