@@ -135,7 +135,7 @@ export function MatchesView({
 
   // Apply client-side filters
   const filteredMatches = useMemo(
-    () => applyMatchesFilters(matches, matchFilters),
+    () => applyMatchesFilters(matches as any[], matchFilters) as unknown as MatchDomain[],
     [matches, matchFilters]
   );
 

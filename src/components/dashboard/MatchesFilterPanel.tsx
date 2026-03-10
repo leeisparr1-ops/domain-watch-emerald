@@ -45,6 +45,7 @@ interface MatchDomain {
   tld?: string;
   inventory_source?: string;
   domain_age?: number;
+  [key: string]: any;
 }
 
 interface MatchesFilterPanelProps {
