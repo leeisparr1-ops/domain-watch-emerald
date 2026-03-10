@@ -320,7 +320,7 @@ export function HiddenGemsFinder() {
                         <TooltipContent>Auction End Time</TooltipContent>
                       </Tooltip>
                     </TableHead>
-                    <TableHead className="w-10" />
+                    <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
