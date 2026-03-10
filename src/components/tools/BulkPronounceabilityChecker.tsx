@@ -182,6 +182,9 @@ export function BulkPronounceabilityChecker() {
         seoVolume: seo.estimatedMonthlySearches,
         seoVolumeLabel: seo.volumeLabel,
         seoDataSource: seo.dataSource,
+        seoCpc: seo.cpcEstimate ?? null,
+        seoTrend: seo.trendDirection ?? null,
+        seoCompetition: seo.competitionLevel || null,
         flipScore,
       };
     });
