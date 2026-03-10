@@ -75,79 +75,40 @@ interface PatternDialogProps {
   maxPatterns?: number;
 }
 
-const PATTERN_PRESETS = [
-  { 
-    label: "Short pronounceable (CVCV)", 
-    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$",
-    pattern_type: "pronounceable" as const,
-    description: "4-letter pronounceable like rare, core, made"
-  },
-  { 
-    label: "CVVC pattern", 
-    pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$",
-    pattern_type: "pronounceable" as const,
-    description: "4-letter with double vowel like cool, boom"
-  },
-  { 
-    label: "3-letter domains", 
-    pattern: "^[a-z]{3}$",
-    pattern_type: "structure" as const,
-    description: "Any 3-letter domain (LLL format)"
-  },
-  { 
-    label: "4-letter domains", 
-    pattern: "^[a-z]{4}$",
-    pattern_type: "structure" as const,
-    description: "Any 4-letter domain (LLLL format)"
-  },
-  { 
-    label: "5-letter domains", 
-    pattern: "^[a-z]{5}$",
-    pattern_type: "structure" as const,
-    description: "Any 5-letter domain (LLLLL format)"
-  },
-  { 
-    label: "Numbers only", 
-    pattern: "^[0-9]+$",
-    pattern_type: "structure" as const,
-    description: "Numeric domains like 123, 8888"
-  },
-  { 
-    label: "Word + Number", 
-    pattern: "^[a-z]+[0-9]+$",
-    pattern_type: "structure" as const,
-    description: "Pattern like app2, cloud9"
-  },
-  { 
-    label: "Starts with 'ai'", 
-    pattern: "^ai",
-    pattern_type: "regex" as const,
-    description: "Domains starting with 'ai'"
-  },
-  { 
-    label: "Contains 'tech'", 
-    pattern: "tech",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'tech'"
-  },
-  { 
-    label: "Keyword + robotics", 
-    pattern: "robotics",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'robotics'"
-  },
-  { 
-    label: "Keyword + intel", 
-    pattern: "intel",
-    pattern_type: "regex" as const,
-    description: "Domains containing 'intel'"
-  },
-  { 
-    label: "Repeating letters", 
-    pattern: "([a-z])\\1",
-    pattern_type: "regex" as const,
-    description: "Has consecutive repeated letters"
-  },
+interface PatternPreset {
+  label: string;
+  pattern: string;
+  pattern_type: "regex" | "structure" | "pronounceable" | "length" | "words";
+  description: string;
+  category: "structure" | "pronounceable" | "keyword" | "numeric";
+}
+
+const PATTERN_PRESETS: PatternPreset[] = [
+  // Structure
+  { label: "3-Letter (LLL)", pattern: "^[a-z]{3}$", pattern_type: "structure", description: "Any 3-letter domain", category: "structure" },
+  { label: "4-Letter (LLLL)", pattern: "^[a-z]{4}$", pattern_type: "structure", description: "Any 4-letter domain", category: "structure" },
+  { label: "5-Letter (LLLLL)", pattern: "^[a-z]{5}$", pattern_type: "structure", description: "Any 5-letter domain", category: "structure" },
+  { label: "6-Letter", pattern: "^[a-z]{6}$", pattern_type: "structure", description: "Any 6-letter domain", category: "structure" },
+  { label: "Word + Number", pattern: "^[a-z]+[0-9]+$", pattern_type: "structure", description: "Pattern like app2, cloud9", category: "structure" },
+  { label: "Repeating Letters", pattern: "([a-z])\\1", pattern_type: "regex", description: "Has consecutive repeated letters", category: "structure" },
+  // Pronounceable
+  { label: "CVCV (4-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "4-letter like rare, core", category: "pronounceable" },
+  { label: "CVVC (4-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou]{2}[bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "4-letter like cool, boom", category: "pronounceable" },
+  { label: "CVCVC (5-char)", pattern: "^[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$", pattern_type: "pronounceable", description: "5-letter like vapor, lemon", category: "pronounceable" },
+  { label: "VCV (3-char)", pattern: "^[aeiou][bcdfghjklmnpqrstvwxyz][aeiou]$", pattern_type: "pronounceable", description: "3-letter like ace, ape", category: "pronounceable" },
+  // Keyword
+  { label: "Starts 'ai'", pattern: "^ai", pattern_type: "regex", description: "Starts with 'ai'", category: "keyword" },
+  { label: "Contains 'tech'", pattern: "tech", pattern_type: "regex", description: "Contains 'tech'", category: "keyword" },
+  { label: "Contains 'data'", pattern: "data", pattern_type: "regex", description: "Contains 'data'", category: "keyword" },
+  { label: "Contains 'cloud'", pattern: "cloud", pattern_type: "regex", description: "Contains 'cloud'", category: "keyword" },
+  { label: "Contains 'app'", pattern: "app", pattern_type: "regex", description: "Contains 'app'", category: "keyword" },
+  { label: "Contains 'crypto'", pattern: "crypto", pattern_type: "regex", description: "Contains 'crypto'", category: "keyword" },
+  { label: "Contains 'health'", pattern: "health", pattern_type: "regex", description: "Contains 'health'", category: "keyword" },
+  { label: "Contains 'pay'", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "keyword" },
+  // Numeric
+  { label: "Numbers Only", pattern: "^[0-9]+$", pattern_type: "structure", description: "Numeric like 123, 8888", category: "numeric" },
+  { label: "3-Digit", pattern: "^[0-9]{3}$", pattern_type: "structure", description: "3-digit numeric domains", category: "numeric" },
+  { label: "4-Digit", pattern: "^[0-9]{4}$", pattern_type: "structure", description: "4-digit numeric domains", category: "numeric" },
 ];
 
 const TLD_OPTIONS = [
