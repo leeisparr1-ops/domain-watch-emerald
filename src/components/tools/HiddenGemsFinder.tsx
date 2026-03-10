@@ -5,13 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, ExternalLink, RefreshCw, X, Heart } from "lucide-react";
+import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, RefreshCw, X, Heart, Users, BarChart3, Scale } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -34,6 +33,8 @@ interface GemResult {
   trademark_risk: string | null;
   deal_ratio: number;
   gem_score: number;
+  created_at: string;
+  has_comparable: boolean;
 }
 
 interface Filters {
@@ -80,6 +81,13 @@ function gemLabel(score: number): string {
   if (score >= 65) return "🔍 Good Value";
   if (score >= 50) return "📊 Potential";
   return "➡️ Average";
+}
+
+/** Check if domain was listed within the last 48 hours */
+function isNewListing(createdAt: string): boolean {
+  const created = new Date(createdAt).getTime();
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  return created > cutoff;
 }
 
 export function HiddenGemsFinder() {
@@ -310,11 +318,11 @@ export function HiddenGemsFinder() {
                         {filters.sortBy === "brandability" && <ArrowUpDown className="w-3 h-3" />}
                       </button>
                     </TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      <Tooltip>
-                        <TooltipTrigger className="flex items-center gap-1"><Mic className="w-3.5 h-3.5" /> Pron.</TooltipTrigger>
-                        <TooltipContent>Pronounceability Score</TooltipContent>
-                      </Tooltip>
+                    <TableHead className="hidden md:table-cell">
+                      <button onClick={() => toggleSort("traffic")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                        <Users className="w-3.5 h-3.5" /> Traffic
+                        {filters.sortBy === "traffic" && <ArrowUpDown className="w-3 h-3" />}
+                      </button>
                     </TableHead>
                     <TableHead className="hidden lg:table-cell">
                       <Tooltip>
@@ -326,145 +334,168 @@ export function HiddenGemsFinder() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((gem) => (
-                    <TableRow key={gem.id} className="group cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tools?tab=advisor&domain=${gem.domain_name}`)}>
-                      {/* Gem Score Cell */}
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-lg font-bold ${gemScoreColor(gem.gem_score)}`}>
-                                {gem.gem_score}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">/100</span>
+                  {data.map((gem) => {
+                    const isNew = gem.created_at && isNewListing(gem.created_at);
+                    return (
+                      <TableRow key={gem.id} className="group cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tools?tab=advisor&domain=${gem.domain_name}`)}>
+                        {/* Gem Score Cell */}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-lg font-bold ${gemScoreColor(gem.gem_score)}`}>
+                                  {gem.gem_score}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">/100</span>
+                              </div>
+                              <Progress value={gem.gem_score} className="h-1.5 mt-0.5" />
                             </div>
-                            <Progress value={gem.gem_score} className="h-1.5 mt-0.5" />
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${gemScoreBg(gem.gem_score)}`}>
+                              {gemLabel(gem.gem_score)}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${gemScoreBg(gem.gem_score)}`}>
-                            {gemLabel(gem.gem_score)}
+                        </TableCell>
+
+                        {/* Domain */}
+                        <TableCell>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-foreground">{gem.domain_name}</span>
+                              {isNew && (
+                                <Badge className="text-[9px] px-1 py-0 bg-blue-500/10 text-blue-600 border-blue-500/20 border" variant="outline">
+                                  NEW
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {gem.tld && <Badge variant="secondary" className="text-[10px] px-1 py-0">.{gem.tld}</Badge>}
+                              {gem.domain_age && gem.domain_age > 0 && (
+                                <span className="text-[10px] text-muted-foreground">{gem.domain_age}yr old</span>
+                              )}
+                              {gem.has_comparable && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Scale className="w-3 h-3 text-primary" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Market validated — similar TLD domains have sold for more</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {gem.trademark_risk && gem.trademark_risk !== "none" && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Shield className="w-3 h-3 text-amber-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>TM Risk: {gem.trademark_risk}</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Price */}
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">${Number(gem.price).toLocaleString()}</span>
+                            <div className="text-[10px] text-muted-foreground">
+                              Val: ${Number(gem.valuation).toLocaleString()}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Deal Ratio */}
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              Number(gem.deal_ratio) >= 3
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                : Number(gem.deal_ratio) >= 1.5
+                                  ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                  : "bg-muted text-muted-foreground"
+                            }
+                          >
+                            {Number(gem.deal_ratio).toFixed(1)}x
                           </Badge>
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* Domain */}
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-foreground">{gem.domain_name}</span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {gem.tld && <Badge variant="secondary" className="text-[10px] px-1 py-0">.{gem.tld}</Badge>}
-                            {gem.domain_age && gem.domain_age > 0 && (
-                              <span className="text-[10px] text-muted-foreground">{gem.domain_age}yr old</span>
-                            )}
-                            {gem.trademark_risk && gem.trademark_risk !== "none" && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Shield className="w-3 h-3 text-amber-500" />
-                                </TooltipTrigger>
-                                <TooltipContent>TM Risk: {gem.trademark_risk}</TooltipContent>
-                              </Tooltip>
-                            )}
+                        {/* Brandability */}
+                        <TableCell className="hidden md:table-cell">
+                          {gem.brandability_score != null ? (
+                            <span className={`font-medium ${gem.brandability_score >= 70 ? "text-emerald-500" : gem.brandability_score >= 50 ? "text-green-500" : "text-muted-foreground"}`}>
+                              {gem.brandability_score}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Traffic */}
+                        <TableCell className="hidden md:table-cell">
+                          {gem.traffic_count > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="font-medium text-foreground">
+                                  {gem.traffic_count >= 1000 ? `${(gem.traffic_count / 1000).toFixed(1)}K` : gem.traffic_count}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>{gem.traffic_count.toLocaleString()} monthly visitors</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* End Time */}
+                        <TableCell className="hidden lg:table-cell">
+                          {gem.end_time ? (
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(gem.end_time), { addSuffix: true })}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`h-7 w-7 transition-opacity ${favorites.has(gem.domain_name) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(gem.domain_name, gem.id);
+                                  }}
+                                >
+                                  <Heart className={`w-4 h-4 ${favorites.has(gem.domain_name) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{favorites.has(gem.domain_name) ? "Remove from Watchlist" : "Save to Watchlist"}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/tools?tab=advisor&domain=${gem.domain_name}`);
+                                  }}
+                                >
+                                  <Sparkles className="w-4 h-4 text-primary" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Deep Analyze</TooltipContent>
+                            </Tooltip>
                           </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Price */}
-                      <TableCell>
-                        <div>
-                          <span className="font-medium">${Number(gem.price).toLocaleString()}</span>
-                          <div className="text-[10px] text-muted-foreground">
-                            Val: ${Number(gem.valuation).toLocaleString()}
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Deal Ratio */}
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            Number(gem.deal_ratio) >= 3
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              : Number(gem.deal_ratio) >= 1.5
-                                ? "bg-green-500/10 text-green-600 border-green-500/20"
-                                : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {Number(gem.deal_ratio).toFixed(1)}x
-                        </Badge>
-                      </TableCell>
-
-                      {/* Brandability */}
-                      <TableCell className="hidden md:table-cell">
-                        {gem.brandability_score != null ? (
-                          <span className={`font-medium ${gem.brandability_score >= 70 ? "text-emerald-500" : gem.brandability_score >= 50 ? "text-green-500" : "text-muted-foreground"}`}>
-                            {gem.brandability_score}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-
-                      {/* Pronounceability */}
-                      <TableCell className="hidden lg:table-cell">
-                        {gem.pronounceability_score != null ? (
-                          <span className={`font-medium ${gem.pronounceability_score >= 70 ? "text-emerald-500" : gem.pronounceability_score >= 50 ? "text-green-500" : "text-muted-foreground"}`}>
-                            {gem.pronounceability_score}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-
-                      {/* End Time */}
-                      <TableCell className="hidden lg:table-cell">
-                        {gem.end_time ? (
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(gem.end_time), { addSuffix: true })}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-
-                      {/* Actions */}
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-7 w-7 transition-opacity ${favorites.has(gem.domain_name) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFavorite(gem.domain_name, gem.id);
-                                }}
-                              >
-                                <Heart className={`w-4 h-4 ${favorites.has(gem.domain_name) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{favorites.has(gem.domain_name) ? "Remove from Watchlist" : "Save to Watchlist"}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/tools?tab=advisor&domain=${gem.domain_name}`);
-                                }}
-                              >
-                                <Sparkles className="w-4 h-4 text-primary" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Deep Analyze</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -499,7 +530,7 @@ export function HiddenGemsFinder() {
             )}
 
             <p className="text-[10px] text-muted-foreground/60 mt-3 text-center">
-              Gem scores are algorithmic estimates based on valuation, brandability, pronounceability, domain age, and market signals. Not financial advice.
+              Gem scores combine valuation gap, brandability, pronounceability, traffic, domain age, and market signals. Not financial advice.
             </p>
           </>
         )}
