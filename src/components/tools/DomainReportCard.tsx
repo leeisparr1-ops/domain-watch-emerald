@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Search, Award, Mic, DollarSign, Shield, Globe2, Loader2,
   Clock, X, Share2, Copy, Check, ExternalLink, Flame,
-  BarChart3, Users, CalendarDays,
+  BarChart3, Users, CalendarDays, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { scoreBrandability, type BrandabilityResult } from "@/lib/brandability";
@@ -15,9 +15,10 @@ import { scorePronounceability, type PronounceabilityResult } from "@/lib/pronou
 import { checkTrademarkRisk, getTrademarkRiskDisplay, type TrademarkResult } from "@/lib/trademarkCheck";
 import { scoreKeywordDemand, type KeywordDemandResult } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
-import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
-import { estimateSEOVolume, type SEOVolumeResult } from "@/lib/seoVolume";
+import { quickValuation, type QuickValuationResult, splitIntoWords } from "@/lib/domainValuation";
+import { estimateSEOVolume, fetchKeywordVolumes, type SEOVolumeResult } from "@/lib/seoVolume";
 import { scoreDomainAge, type DomainAgeResult } from "@/lib/domainAge";
+import { SEOVolumeSparkline } from "@/components/tools/SEOVolumeSparkline";
 import { supabase } from "@/integrations/supabase/client";
 import { useDomainHistory, type DomainHistoryItem } from "@/hooks/useDomainHistory";
 import { toast } from "sonner";
