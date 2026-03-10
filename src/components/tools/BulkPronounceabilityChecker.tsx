@@ -618,6 +618,26 @@ export function BulkPronounceabilityChecker() {
                             {r.seoDataSource === "dataforseo" ? "📊 Google Ads" : r.seoDataSource === "ai" ? "🤖 AI" : "📐 Heuristic"}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-center">
+                          {r.seoCpc != null ? (
+                            <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">${r.seoCpc.toFixed(2)}</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.seoTrend ? (
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                              r.seoTrend === "rising" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                              r.seoTrend === "falling" ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800" :
+                              "bg-muted text-muted-foreground border-border"
+                            }`}>
+                              {r.seoTrend === "rising" ? "📈" : r.seoTrend === "falling" ? "📉" : "➡️"}
+                            </Badge>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {r.valuationBand}
                         </TableCell>
