@@ -50,6 +50,14 @@ const PRESET_PATTERNS: PatternPreset[] = [
   { label: "Life", pattern: "life", pattern_type: "regex", description: "Contains 'life'", category: "lifestyle" },
   { label: "Shop", pattern: "shop", pattern_type: "regex", description: "Contains 'shop'", category: "lifestyle" },
   { label: "Pay", pattern: "pay", pattern_type: "regex", description: "Contains 'pay'", category: "lifestyle" },
+  // Finance
+  { label: "Finance", pattern: "finance", pattern_type: "regex", description: "Contains 'finance'", category: "finance" },
+  { label: "Credit", pattern: "credit", pattern_type: "regex", description: "Contains 'credit'", category: "finance" },
+  { label: "Invest", pattern: "invest", pattern_type: "regex", description: "Contains 'invest'", category: "finance" },
+  { label: "Fund", pattern: "fund", pattern_type: "regex", description: "Contains 'fund'", category: "finance" },
+  { label: "Money", pattern: "money", pattern_type: "regex", description: "Contains 'money'", category: "finance" },
+  { label: "Bank", pattern: "bank", pattern_type: "regex", description: "Contains 'bank'", category: "finance" },
+  { label: "Trade", pattern: "trade", pattern_type: "regex", description: "Contains 'trade'", category: "finance" },
   // Modifiers
   { label: "My", pattern: "^my", pattern_type: "regex", description: "Starts with 'my'", category: "modifiers" },
   { label: "New", pattern: "^new", pattern_type: "regex", description: "Starts with 'new'", category: "modifiers" },
