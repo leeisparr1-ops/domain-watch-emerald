@@ -470,16 +470,21 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth: accept SYNC_SECRET header, service role key, or anon key
     const syncSecret = req.headers.get("x-sync-secret");
     const expectedSecret = Deno.env.get("SYNC_SECRET");
     const authHeader = req.headers.get("authorization") || "";
+    const apikeyHeader = req.headers.get("apikey") || "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+    
+    const token = authHeader.replace("Bearer ", "");
     const isSyncAuth = expectedSecret && syncSecret && syncSecret === expectedSecret;
-    const isServiceRole = serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
-    const isAnonKey = anonKey && authHeader === `Bearer ${anonKey}`;
+    const isServiceRole = serviceRoleKey && (token === serviceRoleKey || apikeyHeader === serviceRoleKey);
+    const isAnonKey = anonKey && (token === anonKey || apikeyHeader === anonKey);
 
     if (!isSyncAuth && !isServiceRole && !isAnonKey) {
+      console.log("Auth failed. Headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
