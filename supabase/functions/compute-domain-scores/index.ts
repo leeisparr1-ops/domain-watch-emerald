@@ -474,10 +474,12 @@ Deno.serve(async (req) => {
     const expectedSecret = Deno.env.get("SYNC_SECRET");
     const authHeader = req.headers.get("authorization") || "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
     const isSyncAuth = expectedSecret && syncSecret && syncSecret === expectedSecret;
     const isServiceRole = serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+    const isAnonKey = anonKey && authHeader === `Bearer ${anonKey}`;
 
-    if (!isSyncAuth && !isServiceRole) {
+    if (!isSyncAuth && !isServiceRole && !isAnonKey) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
