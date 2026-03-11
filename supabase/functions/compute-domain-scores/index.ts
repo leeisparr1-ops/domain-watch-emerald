@@ -486,8 +486,8 @@ Deno.serve(async (req) => {
 
     const body: ScoreRequest = await req.json();
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, svcKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
