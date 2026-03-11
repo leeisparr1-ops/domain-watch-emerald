@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Award, Sparkles, Globe2, List, BrainCircuit, ArrowRight } from "lucide-react";
+import { Award, Sparkles, Globe2, List, BrainCircuit, Diamond, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 const tools = [
@@ -16,6 +16,13 @@ const tools = [
     title: "AI Name Generator",
     description: "Generate investor-grade names with live availability checks and trademark screening.",
     badge: "AI",
+    featured: true,
+  },
+  {
+    icon: Diamond,
+    title: "Hidden Gems Finder",
+    description: "Discover undervalued domains scored by brandability, traffic, and flip potential from our 2.7M+ inventory.",
+    badge: "New",
     featured: true,
   },
   {
