@@ -1,5 +1,6 @@
-import { Heart, Target } from "lucide-react";
+import { Heart, Target, Diamond } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 interface ViewModeToggleProps {
   viewMode: "all" | "favorites" | "matches";
@@ -57,6 +58,15 @@ export function ViewModeToggle({ viewMode, onViewChange, favoritesCount, totalMa
             )}
           </button>
         </div>
+
+        <Link
+          to="/tools/hidden-gems"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Diamond className="w-4 h-4" />
+          <span className="hidden sm:inline">Hidden Gems</span>
+          <span className="sm:hidden">Gems</span>
+        </Link>
       </div>
     </div>
   );

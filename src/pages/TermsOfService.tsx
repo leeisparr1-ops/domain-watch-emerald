@@ -14,7 +14,7 @@ const TermsOfService = () => {
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16 max-w-4xl">
           <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
-          <p className="text-muted-foreground mb-8">Last updated: March 2, 2026</p>
+          <p className="text-muted-foreground mb-8">Last updated: March 11, 2026</p>
 
           <div className="prose prose-invert max-w-none space-y-8">
             <section>
@@ -32,7 +32,7 @@ const TermsOfService = () => {
               <ul className="list-disc pl-6 text-muted-foreground space-y-2 mt-4">
                 <li><strong>Pattern Monitoring:</strong> Set up rules to match expiring domains from auction and closeout inventories.</li>
                 <li><strong>AI Domain Advisor:</strong> AI-powered investment analysis including buy/sell verdicts, flip scores, valuations, and conversational follow-up.</li>
-                <li><strong>Domain Tools:</strong> Brandability Scorer, Valuation Estimator, Pronounceability Scorer, AI Name Generator, Bulk Checker, TLD Comparison, and Domain Report Card.</li>
+                <li><strong>Domain Tools:</strong> Brandability Scorer, Valuation Estimator, Pronounceability Scorer, AI Name Generator, Bulk Checker, TLD Comparison, Domain Report Card, and Hidden Gems Finder.</li>
                 <li><strong>Portfolio Tracker:</strong> Manage domain investments with purchase/sale tracking and P&L reporting.</li>
                 <li><strong>Alerts:</strong> Push and email notifications for pattern matches.</li>
               </ul>

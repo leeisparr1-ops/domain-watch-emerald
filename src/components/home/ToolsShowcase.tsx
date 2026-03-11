@@ -2,11 +2,11 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Award,
-  Mic,
   Sparkles,
   Globe2,
   List,
   BrainCircuit,
+  Diamond,
   ArrowRight,
 } from "lucide-react";
 
@@ -24,6 +24,13 @@ const tools = [
     description:
       "Generate investor-grade names tuned to 2026 trends, with live availability checks and trademark screening.",
     badge: "AI",
+  },
+  {
+    icon: Diamond,
+    title: "Hidden Gems Finder",
+    description:
+      "Discover undervalued domains scored by brandability, traffic, and flip potential from our 2.7M+ inventory.",
+    badge: "New",
   },
   {
     icon: Award,
