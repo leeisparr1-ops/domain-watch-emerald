@@ -237,7 +237,33 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
       console.log(`Extracted ${Object.keys(clampedKeywords).length} keywords from niches`);
     }
 
-    // Validate and normalize keyword_volumes from initial call
+    // Evergreen baseline: ensure core domain investment keywords are always present
+    const EVERGREEN_KEYWORDS: Record<string, number> = {
+      "insurance": 1.0, "loans": 1.0, "mortgage": 1.0, "lawyer": 1.0, "credit": 1.0,
+      "hosting": 1.1, "casino": 1.0, "health": 1.1, "fitness": 1.1, "crypto": 1.2,
+      "bitcoin": 1.1, "vpn": 1.1, "software": 1.1, "cloud": 1.2, "travel": 1.0,
+      "hotel": 1.0, "dating": 1.0, "jobs": 1.0, "home": 1.0, "car": 1.0,
+      "ai": 1.5, "app": 1.1, "game": 1.0, "food": 1.0, "news": 1.0,
+      "music": 1.0, "video": 1.0, "energy": 1.2, "solar": 1.2, "finance": 1.1,
+      "marketing": 1.1, "seo": 1.1, "saas": 1.3, "ecommerce": 1.1, "startup": 1.2,
+      "fintech": 1.2, "blockchain": 1.1, "biotech": 1.2, "cyber": 1.2,
+      "education": 1.0, "legal": 1.0, "invest": 1.1, "trade": 1.0, "shop": 1.0,
+      "web3": 1.1, "gaming": 1.1, "wellness": 1.1, "green": 1.2, "climate": 1.2,
+      "dental": 1.0, "medical": 1.0, "pet": 1.0, "beauty": 1.0, "fashion": 1.0,
+      "real estate": 1.0, "streaming": 1.1, "podcast": 1.1, "robot": 1.2,
+      "automation": 1.3, "data": 1.1, "analytics": 1.1, "security": 1.1,
+    };
+    let evergreenInjected = 0;
+    for (const [kw, baseHeat] of Object.entries(EVERGREEN_KEYWORDS)) {
+      if (!clampedKeywords[kw]) {
+        clampedKeywords[kw] = baseHeat;
+        evergreenInjected++;
+      }
+    }
+    if (evergreenInjected > 0) {
+      console.log(`Injected ${evergreenInjected} evergreen baseline keywords`);
+    }
+    console.log(`Total keywords after all injections: ${Object.keys(clampedKeywords).length}`);
     let keywordVolumes: Record<string, { volume: number; trend: string; cpc_estimate?: number }> = {};
 
     // Known reference volumes for sanity-checking AI output (SEMrush/Ahrefs calibrated)
