@@ -47,7 +47,7 @@ For each keyword, your heat multiplier should reflect REAL observed momentum, no
 IMPORTANT: Ground your analysis in REAL signals you know about. Reference specific Reddit threads, HN discussions, Google Trends data, news events, and social media buzz. Do NOT hallucinate trends — if you're unsure about a keyword's momentum, give it a conservative heat score (1.0-1.3).
 
 Return structured data with:
-1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. For each keyword, the heat score MUST reflect real observed momentum from Reddit, HN, Google Trends, news, or social media. Apply these thresholds:
+1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. CRITICAL: Always include broad umbrella/category keywords (e.g. "ai", "crypto", "health", "finance", "gaming", "energy", "green", "cloud", "saas", "web3") alongside specific sub-keywords. Users search for broad terms too — don't only list niche-specific jargon. For each keyword, the heat score MUST reflect real observed momentum from Reddit, HN, Google Trends, news, or social media. Apply these thresholds:
    - 1.0-1.3: Stable/evergreen keyword, no notable momentum
    - 1.3-1.6: Moderate uptick — mentioned in 1 signal source
    - 1.6-2.0: Strong growth — trending in 2+ signal sources
