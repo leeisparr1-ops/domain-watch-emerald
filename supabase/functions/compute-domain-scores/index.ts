@@ -477,9 +477,10 @@ function computeGemScore(
   const brandPts = brandabilityScore * 15 / 100;
 
   // ── TLD Premium (10%): .com is king for flipping
-  const tldScore = tld === "com" ? 100 : tld === "ai" ? 85 : tld === "io" ? 60
-    : ["co","app","dev"].includes(tld || "") ? 40
-    : ["net","org"].includes(tld || "") ? 30 : 5;
+  const normalizedTld = (tld || "").replace(/^\./, "").toLowerCase();
+  const tldScore = normalizedTld === "com" ? 100 : normalizedTld === "ai" ? 85 : normalizedTld === "io" ? 60
+    : ["co","app","dev"].includes(normalizedTld) ? 40
+    : ["net","org"].includes(normalizedTld) ? 30 : 5;
   const tldPts = tldScore * 10 / 100;
 
   // ── Short length (10%)
