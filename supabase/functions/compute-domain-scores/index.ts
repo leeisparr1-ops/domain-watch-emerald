@@ -544,13 +544,13 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    let domains: { domain_name: string; price: number; valuation: number | null; domain_age: number | null; bid_count: number; traffic_count: number; tld: string | null }[] = [];
+    let domains: { domain_name: string; price: number; valuation: number | null; domain_age: number | null; bid_count: number; traffic_count: number; tld: string | null; end_time: string | null }[] = [];
 
     if (body.mode === "batch" && body.domain_names?.length) {
       // Score specific domains — fetch their current data for gem score
       const { data } = await supabase
         .from("auctions")
-        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
+        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld, end_time")
         .in("domain_name", body.domain_names);
       domains = data || [];
     } else {
