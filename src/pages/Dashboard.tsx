@@ -722,6 +722,9 @@ export default function Dashboard() {
             totalMatchesCount={totalMatchesCount}
           />
 
+          {/* Trending Keywords Widget */}
+          {viewMode !== "matches" && <TrendingKeywords />}
+
           {/* Search and Actions Bar - Hidden in matches view */}
           {viewMode !== "matches" && (
             <SearchAndFilters
