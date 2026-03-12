@@ -158,12 +158,19 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
 
     let trendData;
     if (toolCall) {
+      console.log("AI returned tool call, parsing arguments...");
       trendData = JSON.parse(toolCall.function.arguments);
     } else {
       const content = data.choices?.[0]?.message?.content || "{}";
+      console.log("AI returned content (no tool call), length:", content.length, "preview:", content.substring(0, 200));
       const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
       trendData = JSON.parse(cleaned);
     }
+    
+    console.log("Parsed trendData keys:", Object.keys(trendData));
+    console.log("trending_keywords count:", trendData.trending_keywords ? Object.keys(trendData.trending_keywords).length : 0);
+    console.log("hot_niches count:", Array.isArray(trendData.hot_niches) ? trendData.hot_niches.length : 0);
+    console.log("market_signals count:", Array.isArray(trendData.market_signals) ? trendData.market_signals.length : 0);
 
     // Validate basic structure
     if (!trendData.trending_keywords || typeof trendData.trending_keywords !== "object") {
