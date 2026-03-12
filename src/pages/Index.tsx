@@ -28,6 +28,7 @@ const Index = () => {
           <CtaBanner />
         </main>
         <Footer />
+        <StickyMobileCTA />
       </div>
     </>
   );
