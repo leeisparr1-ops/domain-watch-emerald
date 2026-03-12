@@ -147,22 +147,28 @@ export function HiddenGemsFinder() {
               Hidden Gems Finder
             </CardTitle>
             <CardDescription className="mt-1">
-              AI-scored domains from our inventory — undervalued, brandable, and ready to flip.
+              Undervalued .com domains with real flip potential — EMDs, single words, and keyword combos.
               {totalCount > 0 && (
                 <span className="ml-1 font-medium text-foreground">{totalCount.toLocaleString()} gems found</span>
               )}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="gap-1.5"
+            <Select
+              value={filters.maxPrice.toString()}
+              onValueChange={v => { setFilters(p => ({ ...p, maxPrice: Number(v) })); setPage(0); }}
             >
-              <Filter className="w-3.5 h-3.5" />
-              Filters
-            </Button>
+              <SelectTrigger className="h-8 text-xs w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="100">≤ $100</SelectItem>
+                <SelectItem value="250">≤ $250</SelectItem>
+                <SelectItem value="500">≤ $500</SelectItem>
+                <SelectItem value="1000">≤ $1,000</SelectItem>
+                <SelectItem value="5000">≤ $5,000</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="icon"
@@ -174,104 +180,6 @@ export function HiddenGemsFinder() {
             </Button>
           </div>
         </div>
-
-        {/* Filters panel */}
-        {showFilters && (
-          <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border/60 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Filters</span>
-              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 text-xs gap-1">
-                <X className="w-3 h-3" /> Reset
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Max Price */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Max Price: ${filters.maxPrice}</label>
-                <Slider
-                  value={[filters.maxPrice]}
-                  onValueChange={([v]) => { setFilters(p => ({ ...p, maxPrice: v })); setPage(0); }}
-                  min={10}
-                  max={5000}
-                  step={10}
-                />
-              </div>
-
-              {/* Min Gem Score */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Min Gem Score: {filters.minGemScore}</label>
-                <Slider
-                  value={[filters.minGemScore]}
-                  onValueChange={([v]) => { setFilters(p => ({ ...p, minGemScore: v })); setPage(0); }}
-                  min={0}
-                  max={90}
-                  step={5}
-                />
-              </div>
-
-              {/* TLD */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">TLD</label>
-                <Select
-                  value={filters.tld || "all"}
-                  onValueChange={v => { setFilters(p => ({ ...p, tld: v === "all" ? null : v })); setPage(0); }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All TLDs</SelectItem>
-                    <SelectItem value="com">.com</SelectItem>
-                    <SelectItem value="net">.net</SelectItem>
-                    <SelectItem value="org">.org</SelectItem>
-                    <SelectItem value="io">.io</SelectItem>
-                    <SelectItem value="ai">.ai</SelectItem>
-                    <SelectItem value="co">.co</SelectItem>
-                    <SelectItem value="app">.app</SelectItem>
-                    <SelectItem value="dev">.dev</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Min Brandability */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Min Brandability: {filters.minBrandability}</label>
-                <Slider
-                  value={[filters.minBrandability]}
-                  onValueChange={([v]) => { setFilters(p => ({ ...p, minBrandability: v })); setPage(0); }}
-                  min={0}
-                  max={90}
-                  step={5}
-                />
-              </div>
-
-              {/* Min Pronounceability */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Min Pronounceability: {filters.minPronounceability}</label>
-                <Slider
-                  value={[filters.minPronounceability]}
-                  onValueChange={([v]) => { setFilters(p => ({ ...p, minPronounceability: v })); setPage(0); }}
-                  min={0}
-                  max={90}
-                  step={5}
-                />
-              </div>
-
-              {/* Max Length */}
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Max Name Length: {filters.maxLength} chars</label>
-                <Slider
-                  value={[filters.maxLength]}
-                  onValueChange={([v]) => { setFilters(p => ({ ...p, maxLength: v })); setPage(0); }}
-                  min={3}
-                  max={30}
-                  step={1}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </CardHeader>
 
       <CardContent>
