@@ -204,7 +204,7 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
         "longevity": ["longevity"],
       };
       for (const niche of trendData.hot_niches) {
-        const nicheHeat = typeof niche.heat === "number" ? Math.max(1.0, Math.min(2.5, 1.0 + (niche.heat / 100) * 1.5)) : 1.5;
+        const nicheHeat = typeof niche.heat === "number" ? Math.max(1.0, Math.min(2.0, 1.0 + (niche.heat / 100) * 1.0)) : 1.3;
         const nicheText = `${niche.niche || ""} ${niche.label || ""}`.toLowerCase();
         for (const [key, umbrellaTerms] of Object.entries(NICHE_UMBRELLA_MAP)) {
           if (nicheText.includes(key)) {
