@@ -20,41 +20,54 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const systemPrompt = `You are a domain aftermarket intelligence analyst with access to current search trend data (similar to Google Trends). Your job is to identify the CURRENT trending keywords, hot niches, and market signals in the domain name investment space.
+    const systemPrompt = `You are a domain aftermarket intelligence analyst. Your job is to identify CURRENT trending keywords, hot niches, and market signals in the domain name investment space.
 
-Focus on:
-1. Keywords that are driving high aftermarket sales RIGHT NOW
-2. Emerging industry niches with growing demand  
-3. New technology/business terms entering mainstream vocabulary
-4. Seasonal or event-driven keyword spikes
-5. Search volume momentum — keywords with RISING search interest (like Google Trends "Breakout" or "+250%")
-6. Cross-reference domain sales data with search interest to identify undervalued keyword segments
-7. ESTIMATED MONTHLY SEARCH VOLUMES for each keyword based on your knowledge of Google search data
+CRITICAL GROUNDING REQUIREMENTS — You MUST base your analysis on real-world signals, NOT speculation:
 
-Return data that a domain investment scoring engine can use to weight keyword demand. Weight keywords higher when both search volume AND domain sales are rising together.`;
+1. **Reddit signals**: Consider what's trending on r/domains, r/flipping, r/Entrepreneur, r/startups, r/technology, r/SaaS, r/cryptocurrency, r/investing. What topics are generating the most discussion and upvotes RIGHT NOW?
 
-    const userPrompt = `Generate a comprehensive trend report for the domain aftermarket as of March 2026.
+2. **Hacker News signals**: What topics dominate the front page? What Show HN posts are trending? What startup/tech terms are being discussed heavily? YC batch themes?
+
+3. **Google Trends / Search momentum**: Which keywords show "Breakout" or 250%+ growth in the last 90 days? What seasonal spikes are happening this quarter?
+
+4. **News & media cycle**: What major tech announcements, product launches, regulatory changes, or industry shifts are driving new keyword demand? (e.g. new AI model releases, policy changes, IPOs, acquisitions)
+
+5. **Social media / X (Twitter)**: What hashtags and topics are tech influencers, VCs, and startup founders discussing?
+
+6. **Domain aftermarket data**: Which TLDs and keyword categories are seeing the most sales activity and price increases on GoDaddy Auctions, Afternic, Sedo, and NameJet?
+
+Weight keywords higher when MULTIPLE signals converge (e.g., trending on Reddit AND rising on Google Trends AND seeing domain sales).
+
+For each keyword, your heat multiplier should reflect REAL observed momentum, not theoretical potential. A keyword at 2.0+ heat must have strong evidence from at least 2 independent signal sources.`;
+
+    const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const userPrompt = `Generate a comprehensive trend report for the domain aftermarket as of ${currentDate}.
+
+IMPORTANT: Ground your analysis in REAL signals you know about. Reference specific Reddit threads, HN discussions, Google Trends data, news events, and social media buzz. Do NOT hallucinate trends — if you're unsure about a keyword's momentum, give it a conservative heat score (1.0-1.3).
 
 Return structured data with:
-1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. Focus on NEW or ACCELERATING terms, not evergreen ones. Factor in:
-   - Google Trends-style search volume momentum (breakout terms get 2.0+)
-   - Domain aftermarket sale frequency and average prices
-   - Venture capital / startup funding trends driving keyword demand
-   - Social media buzz and news cycle momentum
-2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing (e.g. insurance, loans, crypto, health, etc.).
+1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. For each keyword, the heat score MUST reflect real observed momentum from Reddit, HN, Google Trends, news, or social media. Apply these thresholds:
+   - 1.0-1.3: Stable/evergreen keyword, no notable momentum
+   - 1.3-1.6: Moderate uptick — mentioned in 1 signal source
+   - 1.6-2.0: Strong growth — trending in 2+ signal sources
+   - 2.0-2.5: Breakout — viral across Reddit, HN, news, AND Google Trends
+
+2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing.
 
 CRITICAL ACCURACY REQUIREMENTS FOR VOLUME ESTIMATES:
 - Use EXACT Google Keyword Planner / SEMrush / Ahrefs-calibrated monthly search volumes
 - Reference points you MUST match closely: "insurance" ≈ 823,000/mo, "home" ≈ 550,000/mo, "casino" ≈ 550,000/mo, "ai" ≈ 450,000/mo, "crypto" ≈ 301,000/mo, "car" ≈ 450,000/mo, "app" ≈ 301,000/mo, "bitcoin" ≈ 368,000/mo, "travel" ≈ 368,000/mo
-- NO keyword should exceed 2,000,000 monthly searches unless it's a navigation query (like "facebook" or "youtube")
+- NO keyword should exceed 2,000,000 monthly searches unless it's a navigation query
 - Most industry keywords are in the 100,000-900,000 range
 - Niche/emerging keywords are typically 1,000-50,000
-- DO NOT inflate volumes by 10x-1000x — these numbers are shown to professional domain investors who will immediately spot inaccuracies
+- DO NOT inflate volumes — these numbers are shown to professional domain investors
 
-3. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect BOTH search interest growth AND domain sale activity.
-4. market_signals: Array of short strings describing key market movements (e.g. ".ai domains averaging $45k in Q1 2026", "search interest for 'agentic' up 340% YoY")
+3. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect REAL signals from Reddit/HN/news/Google Trends, not speculation. Include a brief "signal_source" note for each niche explaining WHY it's hot (e.g. "Trending on r/technology, 3 YC W26 startups in this space").
 
-Be specific and data-driven. Reference real market patterns. Include search volume trend indicators where relevant.`;
+4. market_signals: Array of short strings describing key market movements. Each signal MUST reference a real data point (e.g. ".ai domains averaging $45k in Q1 2026 per NameBio data", "search interest for 'agentic' up 340% on Google Trends YoY", "r/startups seeing 5x more posts about vertical SaaS").
+
+Be specific and data-driven. Every trend claim should be traceable to a real signal source.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
