@@ -47,11 +47,13 @@ For each keyword, your heat multiplier should reflect REAL observed momentum, no
 IMPORTANT: Ground your analysis in REAL signals you know about. Reference specific Reddit threads, HN discussions, Google Trends data, news events, and social media buzz. Do NOT hallucinate trends — if you're unsure about a keyword's momentum, give it a conservative heat score (1.0-1.3).
 
 Return structured data with:
-1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). Include 80-120 keywords across all major niches. CRITICAL: Always include broad umbrella/category keywords (e.g. "ai", "crypto", "health", "finance", "gaming", "energy", "green", "cloud", "saas", "web3") alongside specific sub-keywords. Users search for broad terms too — don't only list niche-specific jargon. For each keyword, the heat score MUST reflect real observed momentum from Reddit, HN, Google Trends, news, or social media. Apply these thresholds:
-   - 1.0-1.3: Stable/evergreen keyword, no notable momentum
-   - 1.3-1.6: Moderate uptick — mentioned in 1 signal source
-   - 1.6-2.0: Strong growth — trending in 2+ signal sources
-   - 2.0-2.5: Breakout — viral across Reddit, HN, news, AND Google Trends
+1. trending_keywords: Object mapping keyword → heat multiplier (1.0 = baseline, 2.5 = maximum heat). You MUST include AT LEAST 80 keywords, ideally 100-120. CRITICAL DISTRIBUTION REQUIREMENTS:
+   - At least 30 keywords at 1.0-1.3 (stable/evergreen like "insurance", "hotel", "crypto", "cloud")
+   - At least 20 keywords at 1.3-1.6 (moderate uptick — mentioned in 1 signal source)
+   - At least 15 keywords at 1.6-2.0 (strong growth — trending in 2+ signal sources)
+   - At most 10-15 keywords at 2.0-2.5 (breakout — viral across Reddit, HN, news, AND Google Trends)
+   ALWAYS include these broad umbrella categories at appropriate heat: "ai", "crypto", "health", "finance", "gaming", "energy", "green", "cloud", "saas", "web3", "insurance", "travel", "fitness", "dating", "casino", "vpn", "hosting", "solar", "bitcoin", "legal", "marketing", "ecommerce", "education".
+   Keywords must be single words or two-word phrases only. NO parenthetical annotations, NO punctuation, NO commentary in keyword names.
 
 2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing.
 
@@ -63,9 +65,9 @@ CRITICAL ACCURACY REQUIREMENTS FOR VOLUME ESTIMATES:
 - Niche/emerging keywords are typically 1,000-50,000
 - DO NOT inflate volumes — these numbers are shown to professional domain investors
 
-3. hot_niches: Array of { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect REAL signals from Reddit/HN/news/Google Trends, not speculation. Include a brief "signal_source" note for each niche explaining WHY it's hot (e.g. "Trending on r/technology, 3 YC W26 startups in this space").
+3. hot_niches: Array of 6-10 objects: { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect REAL signals from Reddit/HN/news/Google Trends, not speculation. Include a brief "signal_source" note for each niche explaining WHY it's hot. IMPORTANT: Distribute heat scores — not every niche is 80+. Include some at 30-60 range for balance.
 
-4. market_signals: Array of short strings describing key market movements. Each signal MUST reference a real data point (e.g. ".ai domains averaging $45k in Q1 2026 per NameBio data", "search interest for 'agentic' up 340% on Google Trends YoY", "r/startups seeing 5x more posts about vertical SaaS").
+4. market_signals: Array of 6-10 short strings describing key market movements. Each signal MUST reference a real data point (e.g. ".ai domains averaging $45k in Q1 2026 per NameBio data", "search interest for 'agentic' up 340% on Google Trends YoY").
 
 Be specific and data-driven. Every trend claim should be traceable to a real signal source.`;
 
