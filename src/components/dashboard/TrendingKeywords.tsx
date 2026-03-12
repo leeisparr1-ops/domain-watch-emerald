@@ -55,9 +55,11 @@ function getNicheHeatBorder(heat: number): string {
   return "border-border bg-muted/30";
 }
 
-function TrendIcon({ trend }: { trend?: string }) {
+function TrendIcon({ trend, heat }: { trend?: string; heat?: number }) {
   if (trend === "rising") return <ArrowUp className="w-3 h-3 text-green-500" />;
   if (trend === "falling") return <ArrowDown className="w-3 h-3 text-red-500" />;
+  // If no explicit trend but heat > 1.2, it's trending up
+  if (!trend && heat && heat > 1.2) return <ArrowUp className="w-3 h-3 text-green-500" />;
   return <Minus className="w-3 h-3 text-muted-foreground" />;
 }
 
@@ -147,7 +149,7 @@ export function TrendingKeywords() {
                       {heat >= 2.0 && <Flame className="w-3 h-3 text-red-500 shrink-0" />}
                       {heat >= 1.6 && heat < 2.0 && <TrendingUp className="w-3 h-3 text-orange-500 shrink-0" />}
                       <span className={getHeatColor(heat)}>{keyword}</span>
-                      {trend && <TrendIcon trend={trend} />}
+                      <TrendIcon trend={trend} heat={heat} />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[200px]">
