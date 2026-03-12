@@ -171,11 +171,17 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
       trendData.trending_keywords = {};
     }
 
-    // Clamp all multipliers to 1.0-2.5
+    // Clamp all multipliers to 1.0-2.5 and sanitize keyword names
     const clampedKeywords: Record<string, number> = {};
+    const KEYWORD_RE = /^[a-z0-9][a-z0-9 -]{0,30}[a-z0-9]$/;
     for (const [k, v] of Object.entries(trendData.trending_keywords)) {
       if (typeof v === "number") {
-        clampedKeywords[k.toLowerCase()] = Math.max(1.0, Math.min(2.5, v));
+        const clean = k.toLowerCase().replace(/[^a-z0-9 -]/g, "").trim();
+        if (clean.length >= 2 && KEYWORD_RE.test(clean)) {
+          clampedKeywords[clean] = Math.max(1.0, Math.min(2.5, v));
+        } else {
+          console.warn(`Dropped invalid keyword: "${k}" → "${clean}"`);
+        }
       }
     }
 
