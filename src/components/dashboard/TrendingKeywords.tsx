@@ -149,7 +149,7 @@ export function TrendingKeywords() {
                       {heat >= 2.0 && <Flame className="w-3 h-3 text-red-500 shrink-0" />}
                       {heat >= 1.6 && heat < 2.0 && <TrendingUp className="w-3 h-3 text-orange-500 shrink-0" />}
                       <span className={getHeatColor(heat)}>{keyword}</span>
-                      {trend && <TrendIcon trend={trend} />}
+                      <TrendIcon trend={trend} heat={heat} />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[200px]">
