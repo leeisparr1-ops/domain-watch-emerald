@@ -513,7 +513,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth: accept SYNC_SECRET header, service role key, or anon key
+    // Auth: accept SYNC_SECRET header, service role key, anon key, or internal calls
     const syncSecret = req.headers.get("x-sync-secret");
     const expectedSecret = Deno.env.get("SYNC_SECRET");
     const authHeader = req.headers.get("authorization") || "";
@@ -525,8 +525,10 @@ Deno.serve(async (req) => {
     const isSyncAuth = expectedSecret && syncSecret && syncSecret === expectedSecret;
     const isServiceRole = serviceRoleKey && (token === serviceRoleKey || apikeyHeader === serviceRoleKey);
     const isAnonKey = anonKey && (token === anonKey || apikeyHeader === anonKey);
+    // Accept internal Supabase infrastructure calls (sb-request-id present, no public auth)
+    const isInternalCall = !!req.headers.get("sb-request-id");
 
-    if (!isSyncAuth && !isServiceRole && !isAnonKey) {
+    if (!isSyncAuth && !isServiceRole && !isAnonKey && !isInternalCall) {
       console.log("Auth failed. Headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
