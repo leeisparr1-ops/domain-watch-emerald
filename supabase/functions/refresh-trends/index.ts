@@ -227,8 +227,9 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
         for (const kw of (niche.emerging_keywords || [])) {
           const words = String(kw).toLowerCase().split(/\s+/);
           for (const w of words) {
-            if (w.length >= 2 && !clampedKeywords[w]) {
-              clampedKeywords[w] = heat;
+            const clean = w.replace(/[^a-z0-9-]/g, "").trim();
+            if (clean.length >= 2 && !clampedKeywords[clean]) {
+              clampedKeywords[clean] = heat;
             }
           }
         }
