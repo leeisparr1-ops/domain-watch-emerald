@@ -177,6 +177,40 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
       }
     }
 
+    // Inject broad umbrella keywords from hot_niches labels if not already present
+    // This ensures terms like "ai", "crypto", "health" appear alongside specific sub-keywords
+    if (Array.isArray(trendData.hot_niches)) {
+      const NICHE_UMBRELLA_MAP: Record<string, string[]> = {
+        "ai": ["ai", "artificial intelligence", "machine learning"],
+        "automation": ["automation"],
+        "web3": ["web3", "crypto", "blockchain"],
+        "health": ["health", "biotech"],
+        "fintech": ["fintech", "finance"],
+        "gaming": ["gaming", "esports"],
+        "energy": ["energy", "solar", "green"],
+        "saas": ["saas", "software"],
+        "cloud": ["cloud"],
+        "hardware": ["hardware"],
+        "spatial": ["spatial", "ar", "vr", "xr"],
+        "depin": ["depin"],
+        "longevity": ["longevity"],
+      };
+      for (const niche of trendData.hot_niches) {
+        const nicheHeat = typeof niche.heat === "number" ? Math.max(1.0, Math.min(2.5, 1.0 + (niche.heat / 100) * 1.5)) : 1.5;
+        const nicheText = `${niche.niche || ""} ${niche.label || ""}`.toLowerCase();
+        for (const [key, umbrellaTerms] of Object.entries(NICHE_UMBRELLA_MAP)) {
+          if (nicheText.includes(key)) {
+            for (const term of umbrellaTerms) {
+              if (!clampedKeywords[term]) {
+                clampedKeywords[term] = nicheHeat;
+                console.log(`Injected umbrella keyword "${term}" at heat ${nicheHeat.toFixed(2)} from niche "${niche.label}"`);
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Fallback: extract keywords from hot_niches emerging_keywords if trending_keywords was empty
     if (Object.keys(clampedKeywords).length === 0 && Array.isArray(trendData.hot_niches)) {
       console.log("Extracting keywords from hot_niches emerging_keywords as fallback...");
