@@ -554,22 +554,56 @@ Deno.serve(async (req) => {
         .in("domain_name", body.domain_names);
       domains = data || [];
     } else {
-      // Audit mode: pick unscored or stale domains
-      const limit = body.limit || 500;
-      const { data, error } = await supabase
+      // Audit mode: prioritize active auctions first, then fill remaining slots with stale/unscored rows
+      const limit = Math.min(Math.max(body.limit || 500, 100), 2000);
+      const nowIso = new Date().toISOString();
+      const staleCutoffIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: activeData, error: activeError } = await supabase
         .from("auctions")
         .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
-        .or("scores_computed_at.is.null,scores_computed_at.lt." + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gt("end_time", nowIso)
+        .or(`scores_computed_at.is.null,scores_computed_at.lt.${staleCutoffIso}`)
+        .order("end_time", { ascending: true })
         .limit(limit);
-      
-      if (error) {
-        console.error("Error fetching domains:", error.message);
+
+      if (activeError) {
+        console.error("Error fetching active domains:", activeError.message);
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: activeError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      domains = data || [];
+
+      const remaining = Math.max(0, limit - (activeData?.length || 0));
+      let fallbackData: typeof activeData = [];
+
+      if (remaining > 0) {
+        const { data: staleData, error: staleError } = await supabase
+          .from("auctions")
+          .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
+          .or(`scores_computed_at.is.null,scores_computed_at.lt.${staleCutoffIso}`)
+          .order("updated_at", { ascending: false })
+          .limit(Math.max(remaining * 2, remaining));
+
+        if (staleError) {
+          console.error("Error fetching stale domains:", staleError.message);
+          return new Response(
+            JSON.stringify({ error: staleError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        fallbackData = staleData || [];
+      }
+
+      const unique = new Map<string, (typeof domains)[number]>();
+      for (const d of [...(activeData || []), ...(fallbackData || [])]) {
+        if (!unique.has(d.domain_name)) unique.set(d.domain_name, d);
+        if (unique.size >= limit) break;
+      }
+
+      domains = Array.from(unique.values());
     }
 
     if (domains.length === 0) {
