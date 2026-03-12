@@ -77,7 +77,7 @@ const Methodology = () => {
               <div className="grid sm:grid-cols-3 gap-4 mb-8">
                 <Card className="border-border">
                   <CardContent className="p-5 text-center">
-                    <p className="text-3xl font-bold gradient-text mb-1">3,300+</p>
+                    <p className="text-3xl font-bold gradient-text mb-1">3,375+</p>
                     <p className="text-sm text-muted-foreground">Verified Sales</p>
                   </CardContent>
                 </Card>
