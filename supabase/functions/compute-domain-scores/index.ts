@@ -408,6 +408,48 @@ function detectNiche(domainName: string): string {
 
 // ─── Gem score computation ───
 
+/** Classify domain word quality for flip potential */
+function classifyWordQuality(domain: string): { type: string; score: number } {
+  const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
+  if (!name || name.length === 0) return { type: "junk", score: 0 };
+
+  const coverage = dictionaryCoverage(name);
+  const words = splitIntoWords(name);
+  const realWords = words.filter(w => isKnownWord(w));
+  const hasPremium = words.some(w => PREMIUM_KEYWORDS.has(w));
+
+  // Single real dictionary word (EMD gold): "yoder", "accredited", "finstream"
+  if (coverage >= 0.95 && realWords.length === 1 && name.length >= 3 && name.length <= 12) {
+    if (hasPremium) return { type: "premium-emd", score: 100 };
+    return { type: "single-word", score: 95 };
+  }
+
+  // Two-word keyword combo: "forwardwealth", "shopfestival", "pinklemon"
+  if (realWords.length === 2 && coverage >= 0.85) {
+    if (hasPremium) return { type: "keyword-combo-premium", score: 95 };
+    if (realWords.every(w => w.length >= 3)) return { type: "keyword-combo", score: 85 };
+    return { type: "keyword-combo-weak", score: 70 };
+  }
+
+  // Strong single word but longer
+  if (coverage >= 0.95 && realWords.length === 1) {
+    return { type: "long-word", score: 75 };
+  }
+
+  // Three real words (still decent)
+  if (realWords.length === 3 && coverage >= 0.8) {
+    if (hasPremium) return { type: "three-word-premium", score: 65 };
+    return { type: "three-word", score: 50 };
+  }
+
+  // Partial keyword match
+  if (hasPremium && coverage >= 0.5) return { type: "partial-keyword", score: 55 };
+  if (coverage >= 0.7) return { type: "partial-word", score: 45 };
+  if (coverage >= 0.4) return { type: "low-coverage", score: 25 };
+
+  return { type: "junk", score: 5 };
+}
+
 function computeGemScore(
   domain: string,
   price: number,
@@ -424,35 +466,36 @@ function computeGemScore(
   const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
   const dealRatio = Math.min(10, valuation / price);
 
-  // Deal score (25%): undervalued domains
-  const dealPts = Math.min(100, dealRatio * 10) * 25 / 100;
+  // ── Word Quality / Flip Potential (25%) ── EMDs, single words, keyword+word
+  const wq = classifyWordQuality(domain);
+  const wordPts = wq.score * 25 / 100;
 
-  // Brandability (20%)
-  const brandPts = brandabilityScore * 20 / 100;
+  // ── Deal score (20%): undervalued domains
+  const dealPts = Math.min(100, dealRatio * 10) * 20 / 100;
 
-  // Pronounceability (10%)
-  const pronPts = pronounceabilityScore * 10 / 100;
+  // ── Brandability (15%)
+  const brandPts = brandabilityScore * 15 / 100;
 
-  // Domain age (10%): older = more established
-  const agePts = Math.min(100, (domainAge || 0) * 5) * 10 / 100;
+  // ── TLD Premium (10%): .com is king for flipping
+  const tldScore = tld === "com" ? 100 : tld === "ai" ? 85 : tld === "io" ? 60
+    : ["co","app","dev"].includes(tld || "") ? 40
+    : ["net","org"].includes(tld || "") ? 30 : 5;
+  const tldPts = tldScore * 10 / 100;
 
-  // Short length (10%)
+  // ── Short length (10%)
   const lenPts = Math.max(0, Math.min(100, (15 - name.length) * 8)) * 10 / 100;
 
-  // Low competition (10%): fewer bids = less noticed
-  const compPts = Math.max(0, Math.min(100, (10 - bidCount) * 10)) * 10 / 100;
-
-  // Traffic signal (10%): existing traffic is a strong gem signal
+  // ── Traffic signal (10%)
   const trafficPts = Math.min(100, trafficCount > 0 ? Math.min(100, Math.log10(trafficCount + 1) * 30) : 0) * 10 / 100;
 
-  // TLD premium (5%)
-  const tldScore = tld === "ai" ? 100 : tld === "com" ? 80 : tld === "io" ? 70
-    : ["co","app","dev"].includes(tld || "") ? 50
-    : ["net","org"].includes(tld || "") ? 35 : 10;
-  const tldPts = tldScore * 5 / 100;
+  // ── Low competition (5%): fewer bids = less noticed
+  const compPts = Math.max(0, Math.min(100, (10 - bidCount) * 10)) * 5 / 100;
+
+  // ── Domain age (5%)
+  const agePts = Math.min(100, (domainAge || 0) * 5) * 5 / 100;
 
   return Math.max(0, Math.min(100, Math.round(
-    dealPts + brandPts + pronPts + agePts + lenPts + compPts + trafficPts + tldPts
+    wordPts + dealPts + brandPts + tldPts + lenPts + trafficPts + compPts + agePts
   )));
 }
 
