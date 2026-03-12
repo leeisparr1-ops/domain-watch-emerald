@@ -91,7 +91,9 @@ export function TrendingKeywords() {
   if (loading || !enrichment) return null;
 
   // Build sorted keyword list by heat (descending), top 20
+  // Only show keywords that are actually trending (heat > 1.2), not evergreen baselines
   const keywords: TrendingKeyword[] = Object.entries(enrichment.keywords)
+    .filter(([, heat]) => heat > 1.2)
     .map(([keyword, heat]) => {
       const vol = enrichment.keywordVolumes[keyword];
       return {
