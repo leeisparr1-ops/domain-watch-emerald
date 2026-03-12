@@ -50,8 +50,8 @@ interface Filters {
 
 const DEFAULT_FILTERS: Filters = {
   maxPrice: 500,
-  minGemScore: 50,
-  tld: null,
+  minGemScore: 40,
+  tld: "com",
   minBrandability: 0,
   minPronounceability: 0,
   maxLength: 20,
