@@ -5,6 +5,7 @@ import { HowItWorksV2 } from "@/components/home/HowItWorksV2";
 import { ToolsShowcaseV2 } from "@/components/home/ToolsShowcaseV2";
 import { FeaturesV2 } from "@/components/home/FeaturesV2";
 import { CtaBanner } from "@/components/home/CtaBanner";
+import { StickyMobileCTA } from "@/components/home/StickyMobileCTA";
 import { Footer } from "@/components/layout/Footer";
 import { Helmet } from "react-helmet-async";
 
@@ -27,6 +28,7 @@ const Index = () => {
           <CtaBanner />
         </main>
         <Footer />
+        <StickyMobileCTA />
       </div>
     </>
   );
