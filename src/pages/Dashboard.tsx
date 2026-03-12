@@ -35,6 +35,7 @@ import { MatchesView } from "@/components/dashboard/MatchesView";
 import { PaginationControls } from "@/components/dashboard/PaginationControls";
 import { useDashboardKeyboardShortcuts } from "@/hooks/useDashboardKeyboardShortcuts";
 import { useDismissedDomains } from "@/hooks/useDismissedDomains";
+import { TrendingKeywords } from "@/components/dashboard/TrendingKeywords";
 
 interface AuctionDomain {
   id: string;
