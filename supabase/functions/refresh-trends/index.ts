@@ -395,7 +395,7 @@ Return structured data mapping each keyword to its volume estimate.`;
         hot_niches: trendData.hot_niches || [],
         market_signals: trendData.market_signals || [],
         generated_at: new Date().toISOString(),
-        model_used: "google/gemini-3-flash-preview",
+        model_used: "google/gemini-2.5-flash",
         updated_at: new Date().toISOString(),
       });
 
