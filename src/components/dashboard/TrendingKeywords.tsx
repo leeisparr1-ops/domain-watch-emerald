@@ -55,9 +55,11 @@ function getNicheHeatBorder(heat: number): string {
   return "border-border bg-muted/30";
 }
 
-function TrendIcon({ trend }: { trend?: string }) {
+function TrendIcon({ trend, heat }: { trend?: string; heat?: number }) {
   if (trend === "rising") return <ArrowUp className="w-3 h-3 text-green-500" />;
   if (trend === "falling") return <ArrowDown className="w-3 h-3 text-red-500" />;
+  // If no explicit trend but heat > 1.2, it's trending up
+  if (!trend && heat && heat > 1.2) return <ArrowUp className="w-3 h-3 text-green-500" />;
   return <Minus className="w-3 h-3 text-muted-foreground" />;
 }
 
