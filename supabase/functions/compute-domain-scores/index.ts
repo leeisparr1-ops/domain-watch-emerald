@@ -559,13 +559,14 @@ Deno.serve(async (req) => {
       const nowIso = new Date().toISOString();
       const staleCutoffIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+      const activeFetchLimit = Math.min(limit * 5, 10000);
       const { data: activeData, error: activeError } = await supabase
         .from("auctions")
-        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
+        .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld, end_time")
         .gt("end_time", nowIso)
         .or(`scores_computed_at.is.null,scores_computed_at.lt.${staleCutoffIso}`)
-        .order("end_time", { ascending: true })
-        .limit(limit);
+        .order("updated_at", { ascending: false })
+        .limit(activeFetchLimit);
 
       if (activeError) {
         console.error("Error fetching active domains:", activeError.message);
@@ -575,16 +576,25 @@ Deno.serve(async (req) => {
         );
       }
 
-      const remaining = Math.max(0, limit - (activeData?.length || 0));
+      const prioritizedActive = (activeData || []).sort((a, b) => {
+        const aDeal = a.price > 0 && a.valuation ? a.valuation / a.price : 0;
+        const bDeal = b.price > 0 && b.valuation ? b.valuation / b.price : 0;
+        const aUndervalued = aDeal > 1 ? 1 : 0;
+        const bUndervalued = bDeal > 1 ? 1 : 0;
+        if (aUndervalued !== bUndervalued) return bUndervalued - aUndervalued;
+        return bDeal - aDeal;
+      });
+
+      const remaining = Math.max(0, limit - prioritizedActive.length);
       let fallbackData: typeof activeData = [];
 
       if (remaining > 0) {
         const { data: staleData, error: staleError } = await supabase
           .from("auctions")
-          .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld")
+          .select("domain_name, price, valuation, domain_age, bid_count, traffic_count, tld, end_time")
           .or(`scores_computed_at.is.null,scores_computed_at.lt.${staleCutoffIso}`)
           .order("updated_at", { ascending: false })
-          .limit(Math.max(remaining * 2, remaining));
+          .limit(Math.max(remaining * 3, remaining));
 
         if (staleError) {
           console.error("Error fetching stale domains:", staleError.message);
@@ -598,12 +608,12 @@ Deno.serve(async (req) => {
       }
 
       const unique = new Map<string, (typeof domains)[number]>();
-      for (const d of [...(activeData || []), ...(fallbackData || [])]) {
+      for (const d of [...prioritizedActive, ...(fallbackData || [])]) {
         if (!unique.has(d.domain_name)) unique.set(d.domain_name, d);
         if (unique.size >= limit) break;
       }
 
-      domains = Array.from(unique.values());
+      domains = Array.from(unique.values()).slice(0, limit);
     }
 
     if (domains.length === 0) {
