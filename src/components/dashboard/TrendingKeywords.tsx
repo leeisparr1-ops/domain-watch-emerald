@@ -154,7 +154,6 @@ export function TrendingKeywords() {
               Updated {formatTimeAgo(enrichment.generatedAt)}
             </span>
           </div>
-          </div>
 
           <TooltipProvider delayDuration={200}>
             <div className="flex flex-wrap gap-1.5">
