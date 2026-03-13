@@ -18,6 +18,10 @@ async function fetchPerplexitySignals(apiKey: string): Promise<string | null> {
       query: "What are the most trending domain name keywords and niches in the domain aftermarket right now? Include trending topics from r/domains, r/flipping, NameBio recent sales, and domain investor forums. Focus on which keyword categories are seeing the most buyer interest and price increases in 2026.",
     },
     {
+      label: "Domain investor community buzz",
+      query: "What specific keywords, terms, and domain names are domain investors talking about and buying right now? Search NamePros forums, DNForum, domain investor Twitter/X accounts (@DomainInvesting, @domainnamewire, @DNJournal, @MorganLinton), domain investor Discord communities, and r/domainnames. Look for single words and short phrases that domain investors are calling 'trending', 'hot', 'breakout', or actively hand-registering. Include specific words being discussed as valuable generic domains. Also check recent GoDaddy Auctions, NameJet, and DropCatch trending searches and notable sales.",
+    },
+    {
       label: "Tech & startup trends",
       query: "What are the top trending technology keywords and startup niches right now based on Hacker News front page, Product Hunt launches, Y Combinator batch themes, and tech news? Focus on emerging categories that would make valuable domain names. Include specific terms that are surging in interest.",
     },
@@ -116,19 +120,21 @@ serve(async (req) => {
 
 CRITICAL GROUNDING REQUIREMENTS — You MUST base your analysis on real-world signals, NOT speculation:
 
-1. **Reddit signals**: Consider what's trending on r/domains, r/flipping, r/Entrepreneur, r/startups, r/technology, r/SaaS, r/cryptocurrency, r/investing. What topics are generating the most discussion and upvotes RIGHT NOW?
+1. **Domain investor community signals** (HIGHEST WEIGHT): What specific words and terms are domain investors actively discussing, buying, and hand-registering? Check NamePros forums, DNForum, domain investor Discord communities, X/Twitter domain investor accounts. If domain investors are buzzing about a specific word (e.g. a single generic word getting attention), it MUST appear in your keywords with appropriate heat. Community consensus among professional domainers is the strongest signal.
 
-2. **Hacker News signals**: What topics dominate the front page? What Show HN posts are trending? What startup/tech terms are being discussed heavily? YC batch themes?
+2. **Reddit signals**: Consider what's trending on r/domains, r/domainnames, r/flipping, r/Entrepreneur, r/startups, r/technology, r/SaaS, r/cryptocurrency, r/investing. What topics are generating the most discussion and upvotes RIGHT NOW?
 
-3. **Google Trends / Search momentum**: Which keywords show "Breakout" or 250%+ growth in the last 90 days? What seasonal spikes are happening this quarter?
+3. **Hacker News signals**: What topics dominate the front page? What Show HN posts are trending? What startup/tech terms are being discussed heavily? YC batch themes?
 
-4. **News & media cycle**: What major tech announcements, product launches, regulatory changes, or industry shifts are driving new keyword demand?
+4. **Google Trends / Search momentum**: Which keywords show "Breakout" or 250%+ growth in the last 90 days? What seasonal spikes are happening this quarter?
 
-5. **Social media / X (Twitter)**: What hashtags and topics are tech influencers, VCs, and startup founders discussing?
+5. **News & media cycle**: What major tech announcements, product launches, regulatory changes, or industry shifts are driving new keyword demand?
 
-6. **Domain aftermarket data**: Which TLDs and keyword categories are seeing the most sales activity and price increases on GoDaddy Auctions, Afternic, Sedo, and NameJet?
+6. **Social media / X (Twitter)**: What hashtags and topics are tech influencers, VCs, and startup founders discussing?
 
-Weight keywords higher when MULTIPLE signals converge (e.g., trending on Reddit AND rising on Google Trends AND seeing domain sales).
+7. **Domain aftermarket data**: Which TLDs and keyword categories are seeing the most sales activity and price increases on GoDaddy Auctions, Afternic, Sedo, NameJet, and DropCatch? What are the trending searches on these platforms?
+
+Weight keywords higher when MULTIPLE signals converge (e.g., trending in domain investor communities AND rising on Google Trends AND seeing domain sales). Domain investor community buzz should be treated as a STRONG signal even on its own — these are the people actually buying domains.
 
 For each keyword, your heat multiplier should reflect REAL observed momentum, not theoretical potential. A keyword at 2.0+ heat must have strong evidence from at least 2 independent signal sources.${groundingSection}`;
 
