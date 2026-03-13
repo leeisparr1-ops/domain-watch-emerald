@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,14 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Diamond, Filter, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp, Award, Mic, Shield, RefreshCw, X, Heart, Users, BarChart3, Scale } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Diamond, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp,
+  Award, Users, Scale, Shield, RefreshCw, Heart, SlidersHorizontal, ChevronDown, Flame, Info,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
+import { fetchTrendEnrichment, type TrendEnrichment } from "@/lib/trendEnrichment";
 
 interface GemResult {
   total_count: number;
@@ -44,6 +50,7 @@ interface Filters {
   minBrandability: number;
   minPronounceability: number;
   maxLength: number;
+  nicheFilter: string | null;
   sortBy: string;
   sortDir: string;
 }
@@ -55,9 +62,29 @@ const DEFAULT_FILTERS: Filters = {
   minBrandability: 0,
   minPronounceability: 0,
   maxLength: 20,
+  nicheFilter: null,
   sortBy: "gem_score",
   sortDir: "desc",
 };
+
+const NICHE_OPTIONS = [
+  { value: "all", label: "All Niches" },
+  { value: "ai_tech", label: "🤖 AI & Tech" },
+  { value: "fintech", label: "💰 Fintech" },
+  { value: "health", label: "🏥 Health" },
+  { value: "biotech", label: "🧬 Biotech" },
+  { value: "ecommerce", label: "🛒 E-Commerce" },
+  { value: "saas", label: "☁️ SaaS" },
+  { value: "security", label: "🔒 Security" },
+  { value: "crypto", label: "🪙 Crypto" },
+  { value: "gaming", label: "🎮 Gaming" },
+  { value: "real_estate", label: "🏠 Real Estate" },
+  { value: "energy", label: "⚡ Energy" },
+  { value: "travel", label: "✈️ Travel" },
+  { value: "pet", label: "🐾 Pets" },
+  { value: "beauty", label: "💄 Beauty" },
+  { value: "food", label: "🍕 Food" },
+];
 
 const PAGE_SIZE = 25;
 
@@ -83,11 +110,82 @@ function gemLabel(score: number): string {
   return "➡️ Average";
 }
 
-/** Check if domain was listed within the last 48 hours */
 function isNewListing(createdAt: string): boolean {
   const created = new Date(createdAt).getTime();
   const cutoff = Date.now() - 48 * 60 * 60 * 1000;
   return created > cutoff;
+}
+
+/** Build a human-readable breakdown of why a domain scored the way it did */
+function buildScoreBreakdown(gem: GemResult): { factor: string; value: string; strength: "strong" | "good" | "neutral" | "weak" }[] {
+  const factors: { factor: string; value: string; strength: "strong" | "good" | "neutral" | "weak" }[] = [];
+
+  // Deal ratio
+  const dr = Number(gem.deal_ratio);
+  if (dr >= 5) factors.push({ factor: "Deal Ratio", value: `${dr.toFixed(1)}x undervalued`, strength: "strong" });
+  else if (dr >= 2) factors.push({ factor: "Deal Ratio", value: `${dr.toFixed(1)}x undervalued`, strength: "good" });
+  else if (dr >= 1.2) factors.push({ factor: "Deal Ratio", value: `${dr.toFixed(1)}x undervalued`, strength: "neutral" });
+  else factors.push({ factor: "Deal Ratio", value: `${dr.toFixed(1)}x`, strength: "weak" });
+
+  // Brandability
+  const bs = gem.brandability_score ?? 0;
+  if (bs >= 75) factors.push({ factor: "Brandability", value: `${bs}/100`, strength: "strong" });
+  else if (bs >= 55) factors.push({ factor: "Brandability", value: `${bs}/100`, strength: "good" });
+  else if (bs >= 35) factors.push({ factor: "Brandability", value: `${bs}/100`, strength: "neutral" });
+  else factors.push({ factor: "Brandability", value: `${bs}/100`, strength: "weak" });
+
+  // Length
+  const name = gem.domain_name.split(".")[0];
+  if (name.length <= 5) factors.push({ factor: "Length", value: `${name.length} chars — premium short`, strength: "strong" });
+  else if (name.length <= 8) factors.push({ factor: "Length", value: `${name.length} chars — concise`, strength: "good" });
+  else if (name.length <= 12) factors.push({ factor: "Length", value: `${name.length} chars`, strength: "neutral" });
+  else factors.push({ factor: "Length", value: `${name.length} chars — long`, strength: "weak" });
+
+  // Traffic
+  if (gem.traffic_count > 100) factors.push({ factor: "Traffic", value: `${gem.traffic_count.toLocaleString()}/mo`, strength: "strong" });
+  else if (gem.traffic_count > 0) factors.push({ factor: "Traffic", value: `${gem.traffic_count}/mo`, strength: "good" });
+  else factors.push({ factor: "Traffic", value: "None detected", strength: "weak" });
+
+  // Domain age
+  if (gem.domain_age && gem.domain_age >= 10) factors.push({ factor: "Age", value: `${gem.domain_age} years — established`, strength: "strong" });
+  else if (gem.domain_age && gem.domain_age >= 3) factors.push({ factor: "Age", value: `${gem.domain_age} years`, strength: "good" });
+  else if (gem.domain_age && gem.domain_age > 0) factors.push({ factor: "Age", value: `${gem.domain_age} year(s)`, strength: "neutral" });
+
+  // Competition
+  if (gem.bid_count <= 1) factors.push({ factor: "Competition", value: `${gem.bid_count} bid(s) — low competition`, strength: "strong" });
+  else if (gem.bid_count <= 5) factors.push({ factor: "Competition", value: `${gem.bid_count} bids`, strength: "neutral" });
+  else factors.push({ factor: "Competition", value: `${gem.bid_count} bids — competitive`, strength: "weak" });
+
+  // Comparable sales
+  if (gem.has_comparable) factors.push({ factor: "Comparable Sales", value: "Market validated ✓", strength: "strong" });
+
+  return factors;
+}
+
+const strengthColors: Record<string, string> = {
+  strong: "text-emerald-500",
+  good: "text-green-500",
+  neutral: "text-muted-foreground",
+  weak: "text-amber-500",
+};
+
+const strengthIcons: Record<string, string> = {
+  strong: "●",
+  good: "●",
+  neutral: "○",
+  weak: "○",
+};
+
+/** Check if a domain name contains any trending keywords */
+function getTrendingMatch(domainName: string, enrichment: TrendEnrichment | null): string | null {
+  if (!enrichment) return null;
+  const name = domainName.split(".")[0].toLowerCase();
+  for (const [keyword, heat] of Object.entries(enrichment.keywords)) {
+    if (heat >= 1.5 && name.includes(keyword.toLowerCase())) {
+      return keyword;
+    }
+  }
+  return null;
 }
 
 export function HiddenGemsFinder() {
@@ -95,6 +193,13 @@ export function HiddenGemsFinder() {
   const { favorites, toggleFavorite } = useFavorites();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Fetch trend enrichment data for trending badges
+  const [trendData, setTrendData] = useState<TrendEnrichment | null>(null);
+  useEffect(() => {
+    fetchTrendEnrichment().then(setTrendData).catch(() => {});
+  }, []);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["hidden-gems", filters, page],
@@ -106,6 +211,7 @@ export function HiddenGemsFinder() {
         p_min_brandability: filters.minBrandability,
         p_min_pronounceability: filters.minPronounceability,
         p_max_length: filters.maxLength,
+        p_niche_filter: filters.nicheFilter,
         p_sort_by: filters.sortBy,
         p_sort_dir: filters.sortDir,
         p_offset: page * PAGE_SIZE,
@@ -122,6 +228,12 @@ export function HiddenGemsFinder() {
   const totalCount = data?.[0]?.total_count ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  // Count how many results have trending keywords
+  const trendingCount = useMemo(() => {
+    if (!data || !trendData) return 0;
+    return data.filter(g => getTrendingMatch(g.domain_name, trendData) !== null).length;
+  }, [data, trendData]);
+
   const toggleSort = useCallback((col: string) => {
     setFilters(prev => ({
       ...prev,
@@ -136,6 +248,8 @@ export function HiddenGemsFinder() {
     setPage(0);
   }, []);
 
+  const hasActiveAdvanced = filters.minBrandability > 0 || filters.minPronounceability > 0 || filters.maxLength < 20 || filters.nicheFilter !== null;
+
   return (
     <Card className="border-border/60">
       <CardHeader className="pb-4">
@@ -146,9 +260,14 @@ export function HiddenGemsFinder() {
               Hidden Gems Finder
             </CardTitle>
             <CardDescription className="mt-1">
-              Undervalued .com domains with real flip potential — EMDs, single words, and keyword combos.
+              Undervalued domains with real flip potential — EMDs, single words, and keyword combos.
               {totalCount > 0 && (
                 <span className="ml-1 font-medium text-foreground">{totalCount.toLocaleString()} gems found</span>
+              )}
+              {trendingCount > 0 && (
+                <span className="ml-1 text-orange-500 font-medium">
+                  · {trendingCount} trending
+                </span>
               )}
             </CardDescription>
           </div>
@@ -168,6 +287,23 @@ export function HiddenGemsFinder() {
                 <SelectItem value="5000">≤ $5,000</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={filters.tld || "com"}
+              onValueChange={v => { setFilters(p => ({ ...p, tld: v === "all" ? null : v })); setPage(0); }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All TLDs</SelectItem>
+                <SelectItem value="com">.com</SelectItem>
+                <SelectItem value="ai">.ai</SelectItem>
+                <SelectItem value="io">.io</SelectItem>
+                <SelectItem value="net">.net</SelectItem>
+                <SelectItem value="org">.org</SelectItem>
+                <SelectItem value="co">.co</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="icon"
@@ -179,6 +315,84 @@ export function HiddenGemsFinder() {
             </Button>
           </div>
         </div>
+
+        {/* Advanced Filters */}
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 px-2 mt-2 text-xs text-muted-foreground gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Advanced Filters
+              {hasActiveAdvanced && <Badge variant="secondary" className="h-4 px-1 text-[9px]">Active</Badge>}
+              <ChevronDown className={`w-3 h-3 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Niche Filter */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Niche</label>
+                <Select
+                  value={filters.nicheFilter || "all"}
+                  onValueChange={v => { setFilters(p => ({ ...p, nicheFilter: v === "all" ? null : v })); setPage(0); }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NICHE_OPTIONS.map(n => (
+                      <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Min Brandability */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">
+                  Min Brandability: {filters.minBrandability}
+                </label>
+                <Slider
+                  value={[filters.minBrandability]}
+                  onValueChange={([v]) => { setFilters(p => ({ ...p, minBrandability: v })); setPage(0); }}
+                  min={0} max={80} step={5}
+                  className="py-2"
+                />
+              </div>
+
+              {/* Min Pronounceability */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">
+                  Min Pronounceability: {filters.minPronounceability}
+                </label>
+                <Slider
+                  value={[filters.minPronounceability]}
+                  onValueChange={([v]) => { setFilters(p => ({ ...p, minPronounceability: v })); setPage(0); }}
+                  min={0} max={80} step={5}
+                  className="py-2"
+                />
+              </div>
+
+              {/* Max Length */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">
+                  Max Length: {filters.maxLength} chars
+                </label>
+                <Slider
+                  value={[filters.maxLength]}
+                  onValueChange={([v]) => { setFilters(p => ({ ...p, maxLength: v })); setPage(0); }}
+                  min={3} max={20} step={1}
+                  className="py-2"
+                />
+              </div>
+            </div>
+
+            {hasActiveAdvanced && (
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-6 text-[10px] text-muted-foreground">
+                Reset all filters
+              </Button>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </CardHeader>
 
       <CardContent>
@@ -193,6 +407,11 @@ export function HiddenGemsFinder() {
             <Diamond className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p className="font-medium">No gems found matching your filters</p>
             <p className="text-sm mt-1">Try lowering the minimum gem score or increasing the max price</p>
+            {hasActiveAdvanced && (
+              <Button variant="outline" size="sm" onClick={resetFilters} className="mt-3">
+                Reset Filters
+              </Button>
+            )}
           </div>
         ) : (
           <>
@@ -243,24 +462,64 @@ export function HiddenGemsFinder() {
                 <TableBody>
                   {data.map((gem) => {
                     const isNew = gem.created_at && isNewListing(gem.created_at);
+                    const trendMatch = getTrendingMatch(gem.domain_name, trendData);
+                    const breakdown = buildScoreBreakdown(gem);
                     return (
                       <TableRow key={gem.id} className="group cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tools?tab=advisor&domain=${gem.domain_name}`)}>
-                        {/* Gem Score Cell */}
+                        {/* Gem Score Cell with breakdown popover */}
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`text-lg font-bold ${gemScoreColor(gem.gem_score)}`}>
-                                  {gem.gem_score}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">/100</span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                className="flex items-center gap-2 text-left"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="w-16">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-lg font-bold ${gemScoreColor(gem.gem_score)}`}>
+                                      {gem.gem_score}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">/100</span>
+                                  </div>
+                                  <Progress value={gem.gem_score} className="h-1.5 mt-0.5" />
+                                </div>
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${gemScoreBg(gem.gem_score)}`}>
+                                    {gemLabel(gem.gem_score)}
+                                  </Badge>
+                                  <span className="text-[9px] text-muted-foreground/60 flex items-center gap-0.5 group-hover:text-muted-foreground transition-colors">
+                                    <Info className="w-2.5 h-2.5" /> Why?
+                                  </span>
+                                </div>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3" side="right" align="start">
+                              <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                                <Diamond className="w-3.5 h-3.5 text-primary" />
+                                Score Breakdown
+                              </p>
+                              <div className="space-y-1.5">
+                                {breakdown.map((f, i) => (
+                                  <div key={i} className="flex items-center justify-between text-[11px]">
+                                    <span className="text-muted-foreground flex items-center gap-1">
+                                      <span className={strengthColors[f.strength]}>{strengthIcons[f.strength]}</span>
+                                      {f.factor}
+                                    </span>
+                                    <span className={`font-medium ${strengthColors[f.strength]}`}>{f.value}</span>
+                                  </div>
+                                ))}
+                                {trendMatch && (
+                                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
+                                    <span className="text-orange-500 flex items-center gap-1">
+                                      <Flame className="w-3 h-3" /> Trending
+                                    </span>
+                                    <span className="font-medium text-orange-500">"{trendMatch}" is hot</span>
+                                  </div>
+                                )}
                               </div>
-                              <Progress value={gem.gem_score} className="h-1.5 mt-0.5" />
-                            </div>
-                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${gemScoreBg(gem.gem_score)}`}>
-                              {gemLabel(gem.gem_score)}
-                            </Badge>
-                          </div>
+                              <p className="text-[9px] text-muted-foreground/60 mt-2">Click row for full AI analysis</p>
+                            </PopoverContent>
+                          </Popover>
                         </TableCell>
 
                         {/* Domain */}
@@ -272,6 +531,14 @@ export function HiddenGemsFinder() {
                                 <Badge className="text-[9px] px-1 py-0 bg-blue-500/10 text-blue-600 border-blue-500/20 border" variant="outline">
                                   NEW
                                 </Badge>
+                              )}
+                              {trendMatch && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Flame className="w-3.5 h-3.5 text-orange-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Contains trending keyword: "{trendMatch}"</TooltipContent>
+                                </Tooltip>
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
