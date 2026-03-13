@@ -18,6 +18,10 @@ async function fetchPerplexitySignals(apiKey: string): Promise<string | null> {
       query: "What are the most trending domain name keywords and niches in the domain aftermarket right now? Include trending topics from r/domains, r/flipping, NameBio recent sales, and domain investor forums. Focus on which keyword categories are seeing the most buyer interest and price increases in 2026.",
     },
     {
+      label: "Domain investor community buzz",
+      query: "What specific keywords, terms, and domain names are domain investors talking about and buying right now? Search NamePros forums, DNForum, domain investor Twitter/X accounts (@DomainInvesting, @domainnamewire, @DNJournal, @MorganLinton), domain investor Discord communities, and r/domainnames. Look for single words and short phrases that domain investors are calling 'trending', 'hot', 'breakout', or actively hand-registering. Include specific words being discussed as valuable generic domains. Also check recent GoDaddy Auctions, NameJet, and DropCatch trending searches and notable sales.",
+    },
+    {
       label: "Tech & startup trends",
       query: "What are the top trending technology keywords and startup niches right now based on Hacker News front page, Product Hunt launches, Y Combinator batch themes, and tech news? Focus on emerging categories that would make valuable domain names. Include specific terms that are surging in interest.",
     },
