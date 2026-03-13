@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { signInWithGooglePopup } from "@/lib/googleOAuthPopup";
+import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
