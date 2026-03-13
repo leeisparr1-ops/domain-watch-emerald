@@ -240,7 +240,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSh
             className="w-full mt-3 gap-2 text-primary border-primary/30 hover:bg-primary/10"
             onClick={() => {
               onOpenChange(false);
-              navigate(`/tools?domain=${encodeURIComponent(domain.domain)}`);
+              setTimeout(() => navigate(`/tools?tab=advisor&domain=${encodeURIComponent(domain.domain)}`), 150);
             }}
           >
             <Sparkles className="w-4 h-4" />
