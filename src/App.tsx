@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -87,6 +88,7 @@ const App = () => (
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/methodology" element={<Methodology />} />
                 <Route path="/report/:reportId" element={<SharedReport />} />
+                <Route path="/blog" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
