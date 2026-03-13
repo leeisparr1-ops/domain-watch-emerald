@@ -155,6 +155,7 @@ Return structured data with:
    - At most 10-15 keywords at 2.0-2.5 (breakout — viral across Reddit, HN, news, AND Google Trends)
    ALWAYS include these broad umbrella categories at appropriate heat: "ai", "crypto", "health", "finance", "gaming", "energy", "green", "cloud", "saas", "web3", "insurance", "travel", "fitness", "dating", "casino", "vpn", "hosting", "solar", "bitcoin", "legal", "marketing", "ecommerce", "education".
    Keywords must be single words or two-word phrases only. NO parenthetical annotations, NO punctuation, NO commentary in keyword names.
+   CRITICAL FOR DOMAIN INVESTING: When domain investors discuss a term (e.g. "claw", "mesh", "pulse"), include the GENERIC SINGLE WORD as a keyword, not just compound project names. Domain investors care about owning "claw.com" not "openclaw.com". Always decompose trending compound terms into their root generic words and include those separately.
 
 2. keyword_volumes: Object mapping keyword → { volume: estimated monthly Google searches (integer), trend: "rising"|"falling"|"stable", cpc_estimate: estimated CPC in USD (number) }. Include ALL keywords from trending_keywords PLUS the top 100 highest-volume evergreen keywords relevant to domain investing.
 
