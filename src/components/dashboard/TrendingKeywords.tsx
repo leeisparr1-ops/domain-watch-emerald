@@ -148,10 +148,14 @@ export function TrendingKeywords() {
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-1 mb-3 ml-[22px]">
+          <div className="flex items-center gap-2 mb-3 ml-[22px]">
             <Clock className="w-3 h-3 text-muted-foreground" />
             <span className="text-[10px] text-muted-foreground">
               Updated {formatTimeAgo(enrichment.generatedAt)}
+            </span>
+            <span className="text-[10px] text-muted-foreground/60">·</span>
+            <span className="text-[10px] text-muted-foreground">
+              Powered by <a href="https://www.perplexity.ai" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">Perplexity</a>
             </span>
           </div>
 
