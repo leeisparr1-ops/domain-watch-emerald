@@ -52,8 +52,21 @@ export const Footer = forwardRef<HTMLElement>(function Footer(_, ref) {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} ExpiredHawk. All rights reserved.
+        <div className="mt-12 pt-8 border-t border-border space-y-3">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
+            <span>Market intelligence powered by</span>
+            <a href="https://www.perplexity.ai" target="_blank" rel="noopener noreferrer" className="font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Perplexity
+            </a>
+            <span className="hidden sm:inline">·</span>
+            <span>SEO data via</span>
+            <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer" className="font-medium text-muted-foreground hover:text-foreground transition-colors">
+              DataForSEO
+            </a>
+          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} ExpiredHawk. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
