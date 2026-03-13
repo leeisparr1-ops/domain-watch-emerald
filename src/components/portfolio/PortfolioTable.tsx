@@ -74,6 +74,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
       sale_date: d.sale_date,
       purchase_price: d.purchase_price,
       renewal_cost_yearly: d.renewal_cost_yearly,
+      notes: d.notes,
+      tags: d.tags,
     });
   };
 
