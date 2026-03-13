@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, Flame, ArrowUp, ArrowDown, Minus, Sparkles, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { TrendingUp, Flame, ArrowUp, ArrowDown, Minus, Sparkles, ChevronDown, ChevronUp, Zap, Globe, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchTrendEnrichment, type TrendEnrichment } from "@/lib/trendEnrichment";
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 interface TrendingKeyword {
   keyword: string;
