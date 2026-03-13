@@ -167,6 +167,15 @@ CRITICAL ACCURACY REQUIREMENTS FOR VOLUME ESTIMATES:
 Be specific and data-driven. Every trend claim should be traceable to a real signal source.`;
 
     // ── Step 3: Call Gemini with grounded prompt ──
+    // Use JSON mode instead of tool calls — more reliable for large structured output
+    const jsonUserPrompt = userPrompt + `\n\nRespond with ONLY valid JSON (no markdown fences). The JSON must have these exact keys:
+{
+  "trending_keywords": { "keyword": heat_multiplier, ... },
+  "keyword_volumes": { "keyword": { "volume": number, "trend": "rising"|"falling"|"stable", "cpc_estimate": number }, ... },
+  "hot_niches": [ { "niche": "string", "label": "string", "heat": number, "emerging_keywords": ["string"], "declining_keywords": ["string"] } ],
+  "market_signals": [ "string" ]
+}`;
+
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -176,100 +185,12 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
+            { role: "user", content: jsonUserPrompt },
           ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "return_trend_report",
-                description:
-                  "Return structured domain market trend data with keyword volume estimates",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    trending_keywords: {
-                      type: "object",
-                      description:
-                        "Map of keyword → heat multiplier (1.0-2.5)",
-                      additionalProperties: { type: "number" },
-                    },
-                    keyword_volumes: {
-                      type: "object",
-                      description:
-                        "Map of keyword → {volume, trend, cpc_estimate}",
-                      additionalProperties: {
-                        type: "object",
-                        properties: {
-                          volume: {
-                            type: "integer",
-                            description: "Estimated monthly Google searches",
-                          },
-                          trend: {
-                            type: "string",
-                            enum: ["rising", "falling", "stable"],
-                          },
-                          cpc_estimate: {
-                            type: "number",
-                            description: "Estimated CPC in USD",
-                          },
-                        },
-                        required: ["volume", "trend"],
-                        additionalProperties: false,
-                      },
-                    },
-                    hot_niches: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          niche: { type: "string" },
-                          label: { type: "string" },
-                          heat: {
-                            type: "number",
-                            description: "1-100",
-                          },
-                          emerging_keywords: {
-                            type: "array",
-                            items: { type: "string" },
-                          },
-                          declining_keywords: {
-                            type: "array",
-                            items: { type: "string" },
-                          },
-                        },
-                        required: [
-                          "niche",
-                          "label",
-                          "heat",
-                          "emerging_keywords",
-                        ],
-                        additionalProperties: false,
-                      },
-                    },
-                    market_signals: {
-                      type: "array",
-                      items: { type: "string" },
-                    },
-                  },
-                  required: [
-                    "trending_keywords",
-                    "keyword_volumes",
-                    "hot_niches",
-                    "market_signals",
-                  ],
-                  additionalProperties: false,
-                },
-              },
-            },
-          ],
-          tool_choice: {
-            type: "function",
-            function: { name: "return_trend_report" },
-          },
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -281,26 +202,13 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-
-    let trendData;
-    if (toolCall) {
-      console.log("AI returned tool call, parsing arguments...");
-      trendData = JSON.parse(toolCall.function.arguments);
-    } else {
-      const content = data.choices?.[0]?.message?.content || "{}";
-      console.log(
-        "AI returned content (no tool call), length:",
-        content.length,
-        "preview:",
-        content.substring(0, 200)
-      );
-      const cleaned = content
-        .replace(/```json?\n?/g, "")
-        .replace(/```/g, "")
-        .trim();
-      trendData = JSON.parse(cleaned);
-    }
+    const content = data.choices?.[0]?.message?.content || "{}";
+    console.log("AI returned JSON content, length:", content.length);
+    const cleaned = content
+      .replace(/```json?\n?/g, "")
+      .replace(/```/g, "")
+      .trim();
+    const trendData = JSON.parse(cleaned);
 
     console.log("Parsed trendData keys:", Object.keys(trendData));
     console.log(
