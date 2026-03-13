@@ -126,7 +126,7 @@ export function TrendingKeywords() {
 
   const displayKeywords = expanded ? keywords : keywords.slice(0, 10);
   const displayNiches = nichesExpanded ? niches : niches.slice(0, 4);
-  const staleLabel = enrichment.stale ? " (data may be stale)" : "";
+  
 
   return (
     <div className="mb-6 animate-in fade-in duration-500 delay-100 space-y-4">
