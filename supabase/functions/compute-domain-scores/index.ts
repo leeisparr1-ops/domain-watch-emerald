@@ -450,6 +450,46 @@ function classifyWordQuality(domain: string): { type: string; score: number } {
   return { type: "junk", score: 5 };
 }
 
+// ─── Trend data types ───
+interface TrendData {
+  keywords: Record<string, number>;  // keyword → heat multiplier (1.0-2.5)
+  hotNiches: { niche: string; label: string; heat: number }[];
+}
+
+function computeTrendBoost(
+  domainWords: string[],
+  nicheKey: string,
+  trend: TrendData | null,
+): number {
+  if (!trend) return 0;
+  let boost = 0;
+
+  // 1. Keyword heat: best match among domain words
+  let bestHeat = 0;
+  for (const word of domainWords) {
+    const heat = trend.keywords[word];
+    if (heat && heat > bestHeat) bestHeat = heat;
+  }
+  if (bestHeat >= 2.0) boost += 8;
+  else if (bestHeat >= 1.5) boost += 5;
+  else if (bestHeat >= 1.2) boost += 2;
+
+  // 2. Hot niche alignment
+  if (nicheKey !== "general") {
+    const nicheMatch = trend.hotNiches.find(n =>
+      n.niche.toLowerCase().replace(/[\s/]/g, "_") === nicheKey ||
+      n.label.toLowerCase().includes(nicheKey.replace(/_/g, " "))
+    );
+    if (nicheMatch) {
+      if (nicheMatch.heat >= 80) boost += 4;
+      else if (nicheMatch.heat >= 60) boost += 2;
+    }
+  }
+
+  // Cap the trend boost at 8 points on the 0-100 gem scale
+  return Math.min(8, boost);
+}
+
 function computeGemScore(
   domain: string,
   price: number,
@@ -460,11 +500,14 @@ function computeGemScore(
   bidCount: number,
   trafficCount: number,
   tld: string | null,
+  trendData: TrendData | null,
 ): number {
   if (!valuation || valuation <= price || price <= 0) return 0;
 
   const name = domain.split(".")[0].toLowerCase().replace(/[^a-z]/g, "");
   const dealRatio = Math.min(10, valuation / price);
+  const words = splitIntoWords(name);
+  const nicheKey = detectNiche(domain);
 
   // ── Word Quality / Flip Potential (25%) ── EMDs, single words, keyword+word
   const wq = classifyWordQuality(domain);
@@ -495,9 +538,11 @@ function computeGemScore(
   // ── Domain age (5%)
   const agePts = Math.min(100, (domainAge || 0) * 5) * 5 / 100;
 
-  return Math.max(0, Math.min(100, Math.round(
-    wordPts + dealPts + brandPts + tldPts + lenPts + trafficPts + compPts + agePts
-  )));
+  // ── Trend boost (additive, up to +8 points)
+  const trendBoost = computeTrendBoost(words, nicheKey, trendData);
+
+  const baseScore = wordPts + dealPts + brandPts + tldPts + lenPts + trafficPts + compPts + agePts;
+  return Math.max(0, Math.min(100, Math.round(baseScore + trendBoost)));
 }
 
 // ─── Main handler ───
