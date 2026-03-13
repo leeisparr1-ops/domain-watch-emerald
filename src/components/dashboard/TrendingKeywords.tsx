@@ -133,17 +133,27 @@ export function TrendingKeywords() {
       {/* Trending Keywords */}
       {keywords.length > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">Trending Keywords</h3>
             </div>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              AI-Powered
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+              <Globe className="w-2.5 h-2.5" />
+              Live Web Data
             </Badge>
             {enrichment.stale && (
-              <span className="text-[10px] text-muted-foreground">{staleLabel}</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-500 border-amber-500/30">
+                Stale
+              </Badge>
             )}
+          </div>
+          <div className="flex items-center gap-1 mb-3 ml-[22px]">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">
+              Updated {formatTimeAgo(enrichment.generatedAt)}
+            </span>
+          </div>
           </div>
 
           <TooltipProvider delayDuration={200}>
