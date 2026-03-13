@@ -179,12 +179,23 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
                 <td className="px-4 py-3 text-right font-mono">
                   {isEditing ? (
-                    <Input
-                      type="number"
-                      className="h-8 w-24 text-right"
-                      value={editForm.sale_price ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, sale_price: parseFloat(e.target.value) || null })}
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        className="h-8 w-24 text-right"
+                        value={editForm.sale_price ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, sale_price: parseFloat(e.target.value) || null })}
+                        placeholder="Sale $"
+                      />
+                      {(editForm.status === "sold" || d.status === "sold") && (
+                        <Input
+                          type="date"
+                          className="h-7 w-28 text-xs"
+                          value={editForm.sale_date ?? ""}
+                          onChange={(e) => setEditForm({ ...editForm, sale_date: e.target.value || null })}
+                        />
+                      )}
+                    </div>
                   ) : (
                     fmt(d.sale_price)
                   )}
@@ -248,11 +259,20 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {(d.tags ?? []).map((t) => (
-                      <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
-                    ))}
-                  </div>
+                  {isEditing ? (
+                    <Input
+                      className="h-8 w-32 text-xs"
+                      placeholder="ai, tech, brandable"
+                      value={(editForm.tags ?? d.tags ?? []).join(", ")}
+                      onChange={(e) => setEditForm({ ...editForm, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(d.tags ?? []).map((t) => (
+                        <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
