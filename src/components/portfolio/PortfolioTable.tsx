@@ -125,15 +125,38 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             return (
               <tr key={d.id} className="border-t border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
-                    className="font-medium text-foreground hover:text-primary flex items-center gap-1"
-                  >
-                    {d.domain_name}
-                    <ExternalLink className="w-3 h-3 opacity-50" />
-                  </Link>
-                  {d.purchase_source && (
-                    <span className="text-xs text-muted-foreground">{d.purchase_source}</span>
+                  <div className="flex items-center gap-1">
+                    <Link
+                      to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
+                      className="font-medium text-foreground hover:text-primary flex items-center gap-1"
+                    >
+                      {d.domain_name}
+                      <ExternalLink className="w-3 h-3 opacity-50" />
+                    </Link>
+                    {d.notes && !isEditing && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <StickyNote className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[200px]">
+                            <p className="text-xs">{d.notes}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <Input
+                      className="h-7 mt-1 text-xs"
+                      placeholder="Notes..."
+                      value={editForm.notes ?? d.notes ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value || null })}
+                    />
+                  ) : (
+                    d.purchase_source && (
+                      <span className="text-xs text-muted-foreground">{d.purchase_source}</span>
+                    )
                   )}
                 </td>
                 <td className="px-4 py-3">
