@@ -1,26 +1,45 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Briefcase, Filter, Search } from "lucide-react";
+import { Briefcase, Filter, Search, RefreshCw } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioTable } from "@/components/portfolio/PortfolioTable";
 import { AddDomainDialog } from "@/components/portfolio/AddDomainDialog";
 import { BulkImportDialog } from "@/components/portfolio/BulkImportDialog";
+import { toast } from "sonner";
 
 export default function Portfolio() {
   const { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains } = usePortfolio();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [refreshingAll, setRefreshingAll] = useState(false);
 
   const filtered = domains.filter((d) => {
     const matchesSearch = d.domain_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || d.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleRefreshAll = async () => {
+    const holding = domains.filter((d) => d.status !== "sold");
+    if (holding.length === 0) return;
+    setRefreshingAll(true);
+    toast.info(`Refreshing valuations for ${holding.length} domains...`);
+    let done = 0;
+    for (const d of holding) {
+      try {
+        await refreshValuation(d);
+        done++;
+      } catch { /* continue */ }
+    }
+    toast.success(`${done} valuation${done !== 1 ? "s" : ""} refreshed`);
+    setRefreshingAll(false);
+  };
 
   return (
     <>
@@ -44,7 +63,19 @@ export default function Portfolio() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {domains.filter((d) => d.status !== "sold").length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleRefreshAll}
+                  disabled={refreshingAll}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingAll ? "animate-spin" : ""}`} />
+                  {refreshingAll ? "Refreshing..." : "Refresh All Valuations"}
+                </Button>
+              )}
               <BulkImportDialog onBulkAdd={bulkAddDomains} />
               <AddDomainDialog onAdd={addDomain} />
             </div>
