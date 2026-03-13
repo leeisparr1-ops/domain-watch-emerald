@@ -67,7 +67,7 @@ serve(async (req: Request): Promise<Response> => {
     try {
       const { data: trendData } = await supabase
         .from("trending_market_data")
-        .select("hot_niches, market_signals, generated_at")
+        .select("hot_niches, market_signals, generated_at, trending_keywords")
         .eq("id", "latest")
         .maybeSingle();
 
