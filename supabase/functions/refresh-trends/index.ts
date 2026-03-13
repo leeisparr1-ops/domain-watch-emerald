@@ -120,19 +120,21 @@ serve(async (req) => {
 
 CRITICAL GROUNDING REQUIREMENTS — You MUST base your analysis on real-world signals, NOT speculation:
 
-1. **Reddit signals**: Consider what's trending on r/domains, r/flipping, r/Entrepreneur, r/startups, r/technology, r/SaaS, r/cryptocurrency, r/investing. What topics are generating the most discussion and upvotes RIGHT NOW?
+1. **Domain investor community signals** (HIGHEST WEIGHT): What specific words and terms are domain investors actively discussing, buying, and hand-registering? Check NamePros forums, DNForum, domain investor Discord communities, X/Twitter domain investor accounts. If domain investors are buzzing about a specific word (e.g. a single generic word getting attention), it MUST appear in your keywords with appropriate heat. Community consensus among professional domainers is the strongest signal.
 
-2. **Hacker News signals**: What topics dominate the front page? What Show HN posts are trending? What startup/tech terms are being discussed heavily? YC batch themes?
+2. **Reddit signals**: Consider what's trending on r/domains, r/domainnames, r/flipping, r/Entrepreneur, r/startups, r/technology, r/SaaS, r/cryptocurrency, r/investing. What topics are generating the most discussion and upvotes RIGHT NOW?
 
-3. **Google Trends / Search momentum**: Which keywords show "Breakout" or 250%+ growth in the last 90 days? What seasonal spikes are happening this quarter?
+3. **Hacker News signals**: What topics dominate the front page? What Show HN posts are trending? What startup/tech terms are being discussed heavily? YC batch themes?
 
-4. **News & media cycle**: What major tech announcements, product launches, regulatory changes, or industry shifts are driving new keyword demand?
+4. **Google Trends / Search momentum**: Which keywords show "Breakout" or 250%+ growth in the last 90 days? What seasonal spikes are happening this quarter?
 
-5. **Social media / X (Twitter)**: What hashtags and topics are tech influencers, VCs, and startup founders discussing?
+5. **News & media cycle**: What major tech announcements, product launches, regulatory changes, or industry shifts are driving new keyword demand?
 
-6. **Domain aftermarket data**: Which TLDs and keyword categories are seeing the most sales activity and price increases on GoDaddy Auctions, Afternic, Sedo, and NameJet?
+6. **Social media / X (Twitter)**: What hashtags and topics are tech influencers, VCs, and startup founders discussing?
 
-Weight keywords higher when MULTIPLE signals converge (e.g., trending on Reddit AND rising on Google Trends AND seeing domain sales).
+7. **Domain aftermarket data**: Which TLDs and keyword categories are seeing the most sales activity and price increases on GoDaddy Auctions, Afternic, Sedo, NameJet, and DropCatch? What are the trending searches on these platforms?
+
+Weight keywords higher when MULTIPLE signals converge (e.g., trending in domain investor communities AND rising on Google Trends AND seeing domain sales). Domain investor community buzz should be treated as a STRONG signal even on its own — these are the people actually buying domains.
 
 For each keyword, your heat multiplier should reflect REAL observed momentum, not theoretical potential. A keyword at 2.0+ heat must have strong evidence from at least 2 independent signal sources.${groundingSection}`;
 
