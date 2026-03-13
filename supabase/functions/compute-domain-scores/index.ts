@@ -670,6 +670,31 @@ Deno.serve(async (req) => {
 
     console.log(`Scoring ${domains.length} domains (mode: ${body.mode})`);
 
+    // Fetch trend enrichment data once for the entire batch
+    let trendData: TrendData | null = null;
+    try {
+      const { data: trendRow } = await supabase
+        .from("trending_market_data")
+        .select("trending_keywords, hot_niches, generated_at")
+        .eq("id", "latest")
+        .maybeSingle();
+      if (trendRow) {
+        const ageMs = Date.now() - new Date(trendRow.generated_at as string).getTime();
+        const isStale = ageMs > 48 * 60 * 60 * 1000; // >48h = skip trend data
+        if (!isStale) {
+          trendData = {
+            keywords: (trendRow.trending_keywords as Record<string, number>) || {},
+            hotNiches: (trendRow.hot_niches as TrendData["hotNiches"]) || [],
+          };
+          console.log(`Trend data loaded: ${Object.keys(trendData.keywords).length} keywords, ${trendData.hotNiches.length} niches`);
+        } else {
+          console.log("Trend data too stale (>48h), skipping trend boost");
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch trend data, proceeding without:", e);
+    }
+
     // Compute scores and update in batches
     const BATCH_SIZE = 100;
     let scored = 0;
@@ -686,6 +711,7 @@ Deno.serve(async (req) => {
         const gem = computeGemScore(
           d.domain_name, d.price, d.valuation,
           brand, pron, d.domain_age, d.bid_count, d.traffic_count, d.tld,
+          trendData,
         );
         return {
           domain_name: d.domain_name,
