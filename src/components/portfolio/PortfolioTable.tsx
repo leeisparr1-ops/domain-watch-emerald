@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
       sale_date: d.sale_date,
       purchase_price: d.purchase_price,
       renewal_cost_yearly: d.renewal_cost_yearly,
+      notes: d.notes,
+      tags: d.tags,
     });
   };
 
@@ -123,15 +125,38 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             return (
               <tr key={d.id} className="border-t border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
-                    className="font-medium text-foreground hover:text-primary flex items-center gap-1"
-                  >
-                    {d.domain_name}
-                    <ExternalLink className="w-3 h-3 opacity-50" />
-                  </Link>
-                  {d.purchase_source && (
-                    <span className="text-xs text-muted-foreground">{d.purchase_source}</span>
+                  <div className="flex items-center gap-1">
+                    <Link
+                      to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
+                      className="font-medium text-foreground hover:text-primary flex items-center gap-1"
+                    >
+                      {d.domain_name}
+                      <ExternalLink className="w-3 h-3 opacity-50" />
+                    </Link>
+                    {d.notes && !isEditing && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <StickyNote className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[200px]">
+                            <p className="text-xs">{d.notes}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <Input
+                      className="h-7 mt-1 text-xs"
+                      placeholder="Notes..."
+                      value={editForm.notes ?? d.notes ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value || null })}
+                    />
+                  ) : (
+                    d.purchase_source && (
+                      <span className="text-xs text-muted-foreground">{d.purchase_source}</span>
+                    )
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -177,12 +202,23 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
                 <td className="px-4 py-3 text-right font-mono">
                   {isEditing ? (
-                    <Input
-                      type="number"
-                      className="h-8 w-24 text-right"
-                      value={editForm.sale_price ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, sale_price: parseFloat(e.target.value) || null })}
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        className="h-8 w-24 text-right"
+                        value={editForm.sale_price ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, sale_price: parseFloat(e.target.value) || null })}
+                        placeholder="Sale $"
+                      />
+                      {(editForm.status === "sold" || d.status === "sold") && (
+                        <Input
+                          type="date"
+                          className="h-7 w-28 text-xs"
+                          value={editForm.sale_date ?? ""}
+                          onChange={(e) => setEditForm({ ...editForm, sale_date: e.target.value || null })}
+                        />
+                      )}
+                    </div>
                   ) : (
                     fmt(d.sale_price)
                   )}
@@ -246,11 +282,20 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {(d.tags ?? []).map((t) => (
-                      <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
-                    ))}
-                  </div>
+                  {isEditing ? (
+                    <Input
+                      className="h-8 w-32 text-xs"
+                      placeholder="ai, tech, brandable"
+                      value={(editForm.tags ?? d.tags ?? []).join(", ")}
+                      onChange={(e) => setEditForm({ ...editForm, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(d.tags ?? []).map((t) => (
+                        <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">

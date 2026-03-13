@@ -67,7 +67,7 @@ serve(async (req: Request): Promise<Response> => {
     try {
       const { data: trendData } = await supabase
         .from("trending_market_data")
-        .select("hot_niches, market_signals, generated_at")
+        .select("hot_niches, market_signals, generated_at, trending_keywords")
         .eq("id", "latest")
         .maybeSingle();
 
@@ -112,18 +112,52 @@ serve(async (req: Request): Promise<Response> => {
                 </table>
               </div>`;
 
-            // Top market signal as a tip
-            if (signals.length > 0) {
-              trendingSection += `
-                <p style="margin:12px 0 0 0;padding:10px 14px;background-color:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px;font-size:13px;color:#15803d;">
-                  <strong>Market Signal:</strong> ${signals[0]}
-                </p>`;
+            trendingText = `\n\nTrending Niches:\n${topNiches.map((n: any) => `- ${n.label} (Heat: ${n.heat}/100)${n.emerging_keywords?.length ? ` — ${n.emerging_keywords.slice(0, 3).join(", ")}` : ""}`).join("\n")}`;
+          }
+
+          // Trending keywords section
+          const trendingKws = (trendData.trending_keywords as Record<string, any>) || {};
+          const kwEntries = Object.entries(trendingKws)
+            .filter(([_, v]: [string, any]) => v.heat > 1.2)
+            .sort(([, a]: [string, any], [, b]: [string, any]) => b.heat - a.heat)
+            .slice(0, 8);
+
+          if (kwEntries.length >= 3) {
+            const kwPills = kwEntries.map(([kw, data]: [string, any]) => {
+              const bgColor = data.heat >= 2.0 ? "#fef2f2" : data.heat >= 1.6 ? "#fff7ed" : "#fefce8";
+              const textColor = data.heat >= 2.0 ? "#dc2626" : data.heat >= 1.6 ? "#ea580c" : "#ca8a04";
+              const heatLabel = data.heat >= 2.0 ? "Breakout" : data.heat >= 1.6 ? "Hot" : "Rising";
+              return `<td style="padding:4px;">
+                <div style="display:inline-block;padding:6px 12px;border-radius:20px;background-color:${bgColor};border:1px solid ${textColor}20;font-size:13px;">
+                  <span style="color:#1f2937;font-weight:600;">${kw}</span>
+                  <span style="color:${textColor};font-size:11px;margin-left:4px;">${heatLabel} ${data.heat.toFixed(1)}x</span>
+                </div>
+              </td>`;
+            });
+
+            // Wrap pills into rows of 2
+            let kwRows = "";
+            for (let i = 0; i < kwPills.length; i += 2) {
+              kwRows += `<tr>${kwPills[i]}${kwPills[i + 1] || "<td></td>"}</tr>`;
             }
 
-            trendingText = `\n\nTrending Niches:\n${topNiches.map((n: any) => `- ${n.label} (Heat: ${n.heat}/100)${n.emerging_keywords?.length ? ` — ${n.emerging_keywords.slice(0, 3).join(", ")}` : ""}`).join("\n")}`;
-            if (signals.length > 0) {
-              trendingText += `\n\nMarket Signal: ${signals[0]}`;
-            }
+            trendingSection += `
+              <div style="margin:20px 0 0 0;">
+                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Keywords</h3>
+                <p style="color:#6b7280;font-size:13px;margin:0 0 12px 0;">Keywords with high heat scores from investor communities and search data.</p>
+                <table role="presentation" cellpadding="0" cellspacing="0">${kwRows}</table>
+              </div>`;
+
+            trendingText += `\n\nTrending Keywords:\n${kwEntries.map(([kw, data]: [string, any]) => `- ${kw} (${data.heat.toFixed(1)}x heat)`).join("\n")}`;
+          }
+
+          // Top market signal as a tip
+          if (signals.length > 0) {
+            trendingSection += `
+              <p style="margin:12px 0 0 0;padding:10px 14px;background-color:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px;font-size:13px;color:#15803d;">
+                <strong>Market Signal:</strong> ${signals[0]}
+              </p>`;
+            trendingText += `\n\nMarket Signal: ${signals[0]}`;
           }
         }
       }
