@@ -176,7 +176,7 @@ Be specific and data-driven. Every trend claim should be traceable to a real sig
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
