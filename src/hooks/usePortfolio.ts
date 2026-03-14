@@ -14,6 +14,7 @@ export interface PortfolioDomain {
   purchase_price: number;
   purchase_date: string | null;
   purchase_source: string | null;
+  list_price: number | null;
   sale_price: number | null;
   sale_date: string | null;
   renewal_cost_yearly: number;
@@ -97,6 +98,7 @@ export function usePortfolio() {
         next_renewal_date: input.next_renewal_date ?? null,
         sale_price: input.sale_price ?? null,
         sale_date: input.sale_date ?? null,
+        list_price: input.list_price ?? null,
         auto_valuation: autoVal,
         valuation_updated_at: autoVal ? new Date().toISOString() : null,
       });

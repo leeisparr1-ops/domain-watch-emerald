@@ -394,6 +394,7 @@ export type Database = {
           created_at: string
           domain_name: string
           id: string
+          list_price: number | null
           next_renewal_date: string | null
           notes: string | null
           purchase_date: string | null
@@ -414,6 +415,7 @@ export type Database = {
           created_at?: string
           domain_name: string
           id?: string
+          list_price?: number | null
           next_renewal_date?: string | null
           notes?: string | null
           purchase_date?: string | null
@@ -434,6 +436,7 @@ export type Database = {
           created_at?: string
           domain_name?: string
           id?: string
+          list_price?: number | null
           next_renewal_date?: string | null
           notes?: string | null
           purchase_date?: string | null

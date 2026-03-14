@@ -24,6 +24,7 @@ export function AddDomainDialog({ onAdd }: Props) {
     purchase_date: "",
     purchase_source: "",
     status: "holding",
+    list_price: "",
     renewal_cost_yearly: "",
     next_renewal_date: "",
     notes: "",
@@ -40,13 +41,14 @@ export function AddDomainDialog({ onAdd }: Props) {
       purchase_date: form.purchase_date || null,
       purchase_source: form.purchase_source || null,
       status: form.status,
+      list_price: parseFloat(form.list_price) || null,
       renewal_cost_yearly: parseFloat(form.renewal_cost_yearly) || 0,
       next_renewal_date: form.next_renewal_date || null,
       notes: form.notes || null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()) : [],
     });
     setSaving(false);
-    setForm({ domain_name: "", purchase_price: "", purchase_date: "", purchase_source: "", status: "holding", renewal_cost_yearly: "", next_renewal_date: "", notes: "", tags: "" });
+    setForm({ domain_name: "", purchase_price: "", purchase_date: "", purchase_source: "", status: "holding", list_price: "", renewal_cost_yearly: "", next_renewal_date: "", notes: "", tags: "" });
     setOpen(false);
   };
 
@@ -91,6 +93,10 @@ export function AddDomainDialog({ onAdd }: Props) {
                   <SelectItem value="sold">Sold</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>List / Asking Price ($)</Label>
+              <Input type="number" step="0.01" placeholder="0" value={form.list_price} onChange={(e) => setForm({ ...form, list_price: e.target.value })} />
             </div>
             <div>
               <Label>Yearly Renewal ($)</Label>

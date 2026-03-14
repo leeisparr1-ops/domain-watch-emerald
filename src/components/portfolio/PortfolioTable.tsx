@@ -70,6 +70,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
     setEditingId(d.id);
     setEditForm({
       status: d.status,
+      list_price: d.list_price,
       sale_price: d.sale_price,
       sale_date: d.sale_date,
       purchase_price: d.purchase_price,
@@ -106,6 +107,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             <th className="px-4 py-3 font-medium">Domain</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium text-right">Cost</th>
+            <th className="px-4 py-3 font-medium text-right">List Price</th>
             <th className="px-4 py-3 font-medium text-right">Current Value</th>
             <th className="px-4 py-3 font-medium text-right">P&L</th>
             <th className="px-4 py-3 font-medium text-right">Sale Price</th>
@@ -185,6 +187,19 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                     />
                   ) : (
                     fmt(Number(d.purchase_price))
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      className="h-8 w-24 text-right"
+                      value={editForm.list_price ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, list_price: parseFloat(e.target.value) || null })}
+                      placeholder="List $"
+                    />
+                  ) : (
+                    fmt(d.list_price)
                   )}
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
