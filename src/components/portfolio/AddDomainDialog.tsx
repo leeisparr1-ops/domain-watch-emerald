@@ -95,6 +95,10 @@ export function AddDomainDialog({ onAdd }: Props) {
               </Select>
             </div>
             <div>
+              <Label>List / Asking Price ($)</Label>
+              <Input type="number" step="0.01" placeholder="0" value={form.list_price} onChange={(e) => setForm({ ...form, list_price: e.target.value })} />
+            </div>
+            <div>
               <Label>Yearly Renewal ($)</Label>
               <Input type="number" step="0.01" placeholder="10" value={form.renewal_cost_yearly} onChange={(e) => setForm({ ...form, renewal_cost_yearly: e.target.value })} />
             </div>

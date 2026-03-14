@@ -190,6 +190,19 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                   )}
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      className="h-8 w-24 text-right"
+                      value={editForm.list_price ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, list_price: parseFloat(e.target.value) || null })}
+                      placeholder="List $"
+                    />
+                  ) : (
+                    fmt(d.list_price)
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right font-mono">
                   {d.status === "sold" ? "-" : fmt(d.auto_valuation)}
                   {(() => {
                     const roiWarn = renewalRoiWarning(d);

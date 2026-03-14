@@ -14,6 +14,7 @@ export interface PortfolioDomain {
   purchase_price: number;
   purchase_date: string | null;
   purchase_source: string | null;
+  list_price: number | null;
   sale_price: number | null;
   sale_date: string | null;
   renewal_cost_yearly: number;
