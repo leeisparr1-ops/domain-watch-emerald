@@ -138,6 +138,20 @@ export function usePortfolio() {
     await fetchDomains();
   };
 
+  const deleteDomains = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { error } = await (supabase as any)
+      .from("portfolio_domains")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast.error("Failed to delete selected domains");
+      return;
+    }
+    toast.success(`${ids.length} domain${ids.length !== 1 ? "s" : ""} removed from portfolio`);
+    await fetchDomains();
+  };
+
   const refreshValuation = async (domain: PortfolioDomain) => {
     try {
       // Use enriched valuation with trend data for best accuracy
