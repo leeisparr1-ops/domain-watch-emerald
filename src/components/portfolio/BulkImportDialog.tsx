@@ -21,28 +21,90 @@ interface Props {
   onBulkAdd: (rows: ParsedRow[]) => Promise<{ added: number; errors: number }>;
 }
 
-// Properly split CSV rows handling quoted fields (e.g. "Buy It Now" or "$1,234")
+// Properly split CSV rows handling quoted fields and escaped quotes
 function splitCSVRow(line: string): string[] {
   const result: string[] = [];
-  let current = '';
+  let current = "";
   let inQuotes = false;
+
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (!inQuotes && (ch === ',' || ch === '\t' || ch === ';' || ch === '|')) {
-      result.push(current.trim());
-      current = '';
+
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
       continue;
     }
+
+    if (!inQuotes && (ch === "," || ch === "\t" || ch === ";" || ch === "|")) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+
     current += ch;
   }
+
   result.push(current.trim());
   return result;
 }
 
-function parseNumericValue(val: string): number {
-  const cleaned = val.replace(/[$,\s]/g, '');
-  return parseFloat(cleaned) || 0;
+function normalizeColumnName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s_]+/g, " ")
+    .trim();
+}
+
+function findColumnIndex(headers: string[], aliases: string[], exclude: string[] = []): number {
+  const normalizedAliases = aliases.map(normalizeColumnName);
+  const normalizedExclude = exclude.map(normalizeColumnName);
+
+  const isExcluded = (h: string) => normalizedExclude.some((e) => h.includes(e));
+
+  for (const alias of normalizedAliases) {
+    const idx = headers.findIndex((h) => h === alias && !isExcluded(h));
+    if (idx !== -1) return idx;
+  }
+
+  for (const alias of normalizedAliases) {
+    const idx = headers.findIndex((h) => h.startsWith(alias) && !isExcluded(h));
+    if (idx !== -1) return idx;
+  }
+
+  for (const alias of normalizedAliases) {
+    const idx = headers.findIndex((h) => h.includes(alias) && !isExcluded(h));
+    if (idx !== -1) return idx;
+  }
+
+  return -1;
+}
+
+function parseNumericValue(value: string | number | null | undefined): number {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return value;
+
+  let cleaned = value.toString().replace(/\s/g, "").replace(/[$£€]/g, "");
+
+  const lastDot = cleaned.lastIndexOf(".");
+  const lastComma = cleaned.lastIndexOf(",");
+
+  if (lastDot !== -1 || lastComma !== -1) {
+    if (lastDot > lastComma) {
+      cleaned = cleaned.replace(/,/g, "");
+    } else if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    }
+  }
+
+  const parsed = parseFloat(cleaned);
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function parseCSV(text: string): ParsedRow[] {
@@ -50,23 +112,35 @@ function parseCSV(text: string): ParsedRow[] {
   if (lines.length === 0) return [];
 
   // Detect if first line is a header
-  const firstLine = lines[0].toLowerCase();
-  const hasHeader = firstLine.includes("domain") || firstLine.includes("name") || firstLine.includes("price");
+  const firstLine = lines[0];
+  const firstLineNormalized = firstLine.toLowerCase();
+  const hasHeader = firstLineNormalized.includes("domain") || firstLineNormalized.includes("name") || firstLineNormalized.includes("price") || firstLineNormalized.includes("buy now");
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   // Detect column mapping from header
   let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
   if (hasHeader) {
-    const headers = splitCSVRow(firstLine).map((h) => h.trim().replace(/"/g, "").toLowerCase());
-    headers.forEach((h, i) => {
-      if (/domain|name/i.test(h)) colMap.domain = i;
-      else if (/buy.?it.?now|price|cost|paid|amount/i.test(h) && !/renewal/i.test(h)) colMap.price = i;
-      else if (/date|purchased|acquired/i.test(h)) colMap.date = i;
-      else if (/source|registrar|platform/i.test(h)) colMap.source = i;
-      else if (/status/i.test(h)) colMap.status = i;
-      else if (/renewal/i.test(h)) colMap.renewal = i;
-      else if (/tag/i.test(h)) colMap.tags = i;
-    });
+    const headers = splitCSVRow(firstLine).map((h) => normalizeColumnName(h.replace(/"/g, "")));
+
+    const domainIdx = findColumnIndex(headers, ["domain", "domain name", "name"]);
+    const priceIdx = findColumnIndex(
+      headers,
+      ["buy now price", "buy it now price", "bin price", "ask price", "listing price", "price", "cost", "paid", "amount", "value"],
+      ["floor price", "min offer", "reserve"]
+    );
+    const dateIdx = findColumnIndex(headers, ["date", "date added", "purchased", "acquired"]);
+    const sourceIdx = findColumnIndex(headers, ["source", "registrar", "platform", "venue"]);
+    const statusIdx = findColumnIndex(headers, ["status", "listing status"]);
+    const renewalIdx = findColumnIndex(headers, ["renewal", "renewal cost"]);
+    const tagsIdx = findColumnIndex(headers, ["tag", "tags"]);
+
+    if (domainIdx >= 0) colMap.domain = domainIdx;
+    colMap.price = priceIdx;
+    colMap.date = dateIdx;
+    colMap.source = sourceIdx;
+    colMap.status = statusIdx;
+    colMap.renewal = renewalIdx;
+    colMap.tags = tagsIdx;
   }
 
   return dataLines
