@@ -438,7 +438,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                         >
                           <RefreshCw className={`w-3.5 h-3.5 ${refreshingId === d.id ? "animate-spin" : ""}`} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(d.id)} title="Remove">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleSingleDelete(d.id)} title="Remove">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </>
