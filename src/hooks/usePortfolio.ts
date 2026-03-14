@@ -155,7 +155,7 @@ export function usePortfolio() {
   };
 
   const bulkAddDomains = async (
-    rows: Array<{ domain_name: string; purchase_price?: number; purchase_date?: string; purchase_source?: string; status?: string; renewal_cost_yearly?: number; tags?: string[] }>
+    rows: Array<{ domain_name: string; purchase_price?: number; list_price?: number; purchase_date?: string; purchase_source?: string; status?: string; renewal_cost_yearly?: number; tags?: string[] }>
   ) => {
     if (!user || rows.length === 0) return { added: 0, errors: 0 };
 
@@ -173,6 +173,7 @@ export function usePortfolio() {
         domain_name: domainName,
         tld,
         purchase_price: r.purchase_price ?? 0,
+        list_price: r.list_price ?? null,
         purchase_date: r.purchase_date || null,
         purchase_source: r.purchase_source || null,
         status: r.status || "holding",
