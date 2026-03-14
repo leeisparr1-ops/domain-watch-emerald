@@ -33,10 +33,10 @@ function parseCSV(text: string): ParsedRow[] {
   // Detect column mapping from header
   let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
   if (hasHeader) {
-    const headers = firstLine.split(/[,\t;|]/).map((h) => h.trim().replace(/"/g, ""));
+    const headers = splitCSVRow(firstLine).map((h) => h.trim().replace(/"/g, "").toLowerCase());
     headers.forEach((h, i) => {
       if (/domain|name/i.test(h)) colMap.domain = i;
-      else if (/price|cost|paid/i.test(h) && !/renewal/i.test(h)) colMap.price = i;
+      else if (/buy.?it.?now|price|cost|paid|amount/i.test(h) && !/renewal/i.test(h)) colMap.price = i;
       else if (/date|purchased|acquired/i.test(h)) colMap.date = i;
       else if (/source|registrar|platform/i.test(h)) colMap.source = i;
       else if (/status/i.test(h)) colMap.status = i;
