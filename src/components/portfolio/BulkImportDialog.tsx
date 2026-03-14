@@ -71,16 +71,16 @@ function parseCSV(text: string): ParsedRow[] {
 
   return dataLines
     .map((line) => {
-      const cols = line.split(/[,\t;|]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+      const cols = splitCSVRow(line);
       const domain = cols[colMap.domain]?.trim().toLowerCase();
       if (!domain || !domain.includes(".")) return null;
 
       const row: ParsedRow = { domain_name: domain };
-      if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseFloat(cols[colMap.price]) || 0;
+      if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseNumericValue(cols[colMap.price]);
       if (colMap.date >= 0 && cols[colMap.date]) row.purchase_date = cols[colMap.date];
       if (colMap.source >= 0 && cols[colMap.source]) row.purchase_source = cols[colMap.source];
       if (colMap.status >= 0 && cols[colMap.status]) row.status = cols[colMap.status].toLowerCase();
-      if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseFloat(cols[colMap.renewal]) || 0;
+      if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseNumericValue(cols[colMap.renewal]);
       if (colMap.tags >= 0 && cols[colMap.tags]) row.tags = cols[colMap.tags].split(/[,;]/).map((t) => t.trim()).filter(Boolean);
       return row;
     })
