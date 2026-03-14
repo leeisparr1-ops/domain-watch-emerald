@@ -280,7 +280,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
 
           <TabsContent value="paste" className="space-y-3 mt-3">
             <Textarea
-              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,price,source\nexample.com,50,GoDaddy\ntest.io,120,Namecheap`}
+              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,Namecheap`}
               rows={8}
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setParsed([]); setResult(null); }}
@@ -298,7 +298,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
             >
               <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">Click to upload CSV or TXT file</p>
-              <p className="text-xs text-muted-foreground mt-1">Supports: domain, buy now price/price, date, source, status, renewal, tags columns</p>
+              <p className="text-xs text-muted-foreground mt-1">Supports: domain, buy now/list price, purchase price (optional), date, source, status, renewal, tags columns</p>
             </div>
             <input ref={fileRef} type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={handleFileUpload} />
           </TabsContent>
@@ -311,7 +311,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
               <Badge variant="secondary" className="gap-1">
                 {parsed.length} domain{parsed.length !== 1 ? "s" : ""} detected
               </Badge>
-              {parsed.some((r) => r.purchase_price) && (
+              {parsed.some((r) => r.list_price != null || r.purchase_price != null) && (
                 <Badge variant="outline" className="text-xs">With pricing data</Badge>
               )}
             </div>
@@ -321,7 +321,8 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-muted-foreground">
                     <th className="px-3 py-1.5 font-medium">Domain</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Price</th>
+                    <th className="px-3 py-1.5 font-medium text-right">List Price</th>
+                    <th className="px-3 py-1.5 font-medium text-right">Cost</th>
                     <th className="px-3 py-1.5 font-medium">Source</th>
                     <th className="px-3 py-1.5 font-medium">Status</th>
                   </tr>
@@ -330,7 +331,8 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
                   {parsed.slice(0, 50).map((r, i) => (
                     <tr key={i} className="border-t border-border/50">
                       <td className="px-3 py-1.5 font-mono">{r.domain_name}</td>
-                      <td className="px-3 py-1.5 text-right">{r.purchase_price != null ? `$${r.purchase_price}` : "-"}</td>
+                      <td className="px-3 py-1.5 text-right">{r.list_price != null ? `$${r.list_price}` : "-"}</td>
+                      <td className="px-3 py-1.5 text-right">{r.purchase_price != null ? `$${r.purchase_price}` : "$0"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{r.purchase_source ?? "-"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{r.status ?? "holding"}</td>
                     </tr>
