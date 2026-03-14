@@ -10,6 +10,7 @@ import { useBackClose } from "@/hooks/useBackClose";
 interface ParsedRow {
   domain_name: string;
   purchase_price?: number;
+  list_price?: number;
   purchase_date?: string;
   purchase_source?: string;
   status?: string;
@@ -118,7 +119,7 @@ function parseCSV(text: string): ParsedRow[] {
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   // Detect column mapping from header
-  let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
+  let colMap = { domain: 0, listPrice: -1, purchasePrice: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
   let detectedSource: string | null = null;
   if (hasHeader) {
     const headers = splitCSVRow(firstLine).map((h) => normalizeColumnName(h.replace(/"/g, "")));
@@ -148,10 +149,15 @@ function parseCSV(text: string): ParsedRow[] {
     }
 
     const domainIdx = findColumnIndex(headers, ["domain", "domain name", "name"]);
-    const priceIdx = findColumnIndex(
+    const listPriceIdx = findColumnIndex(
       headers,
-      ["buy now price", "buy it now price", "bin price", "ask price", "listing price", "price", "cost", "paid", "amount", "value"],
-      ["floor price", "min offer", "reserve"]
+      ["buy now price", "buy it now price", "bin price", "ask price", "listing price", "list price", "for sale price", "price", "amount", "value"],
+      ["floor price", "min offer", "reserve", "purchase", "acquisition", "paid", "cost"]
+    );
+    const purchasePriceIdx = findColumnIndex(
+      headers,
+      ["purchase price", "acquisition price", "price paid", "cost paid", "paid price", "registration cost", "reg cost"],
+      ["buy now", "buy it now", "bin", "ask", "listing", "floor price", "min offer", "reserve"]
     );
     const dateIdx = findColumnIndex(headers, ["date", "date added", "purchased", "acquired"]);
     const sourceIdx = findColumnIndex(headers, ["source", "registrar", "platform", "venue"]);
@@ -160,7 +166,8 @@ function parseCSV(text: string): ParsedRow[] {
     const tagsIdx = findColumnIndex(headers, ["tag", "tags"]);
 
     if (domainIdx >= 0) colMap.domain = domainIdx;
-    colMap.price = priceIdx;
+    colMap.listPrice = listPriceIdx;
+    colMap.purchasePrice = purchasePriceIdx;
     colMap.date = dateIdx;
     colMap.source = sourceIdx;
     colMap.status = statusIdx;
@@ -175,7 +182,8 @@ function parseCSV(text: string): ParsedRow[] {
       if (!domain || !domain.includes(".")) return null;
 
       const row: ParsedRow = { domain_name: domain };
-      if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseNumericValue(cols[colMap.price]);
+      if (colMap.purchasePrice >= 0 && cols[colMap.purchasePrice]) row.purchase_price = parseNumericValue(cols[colMap.purchasePrice]);
+      if (colMap.listPrice >= 0 && cols[colMap.listPrice]) row.list_price = parseNumericValue(cols[colMap.listPrice]);
       if (colMap.date >= 0 && cols[colMap.date]) row.purchase_date = cols[colMap.date];
       row.purchase_source = (colMap.source >= 0 && cols[colMap.source]) ? cols[colMap.source] : detectedSource ?? undefined;
       if (colMap.status >= 0 && cols[colMap.status]) row.status = cols[colMap.status].toLowerCase();
@@ -272,7 +280,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
 
           <TabsContent value="paste" className="space-y-3 mt-3">
             <Textarea
-              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,price,source\nexample.com,50,GoDaddy\ntest.io,120,Namecheap`}
+              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,Namecheap`}
               rows={8}
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setParsed([]); setResult(null); }}
@@ -290,7 +298,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
             >
               <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">Click to upload CSV or TXT file</p>
-              <p className="text-xs text-muted-foreground mt-1">Supports: domain, buy now price/price, date, source, status, renewal, tags columns</p>
+              <p className="text-xs text-muted-foreground mt-1">Supports: domain, buy now/list price, purchase price (optional), date, source, status, renewal, tags columns</p>
             </div>
             <input ref={fileRef} type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={handleFileUpload} />
           </TabsContent>
@@ -303,7 +311,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
               <Badge variant="secondary" className="gap-1">
                 {parsed.length} domain{parsed.length !== 1 ? "s" : ""} detected
               </Badge>
-              {parsed.some((r) => r.purchase_price) && (
+              {parsed.some((r) => r.list_price != null || r.purchase_price != null) && (
                 <Badge variant="outline" className="text-xs">With pricing data</Badge>
               )}
             </div>
@@ -313,7 +321,8 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-muted-foreground">
                     <th className="px-3 py-1.5 font-medium">Domain</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Price</th>
+                    <th className="px-3 py-1.5 font-medium text-right">List Price</th>
+                    <th className="px-3 py-1.5 font-medium text-right">Cost</th>
                     <th className="px-3 py-1.5 font-medium">Source</th>
                     <th className="px-3 py-1.5 font-medium">Status</th>
                   </tr>
@@ -322,7 +331,8 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
                   {parsed.slice(0, 50).map((r, i) => (
                     <tr key={i} className="border-t border-border/50">
                       <td className="px-3 py-1.5 font-mono">{r.domain_name}</td>
-                      <td className="px-3 py-1.5 text-right">{r.purchase_price != null ? `$${r.purchase_price}` : "-"}</td>
+                      <td className="px-3 py-1.5 text-right">{r.list_price != null ? `$${r.list_price}` : "-"}</td>
+                      <td className="px-3 py-1.5 text-right">{r.purchase_price != null ? `$${r.purchase_price}` : "$0"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{r.purchase_source ?? "-"}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{r.status ?? "holding"}</td>
                     </tr>

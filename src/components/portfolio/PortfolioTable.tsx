@@ -58,10 +58,11 @@ interface Props {
   domains: PortfolioDomain[];
   onUpdate: (id: string, updates: Partial<PortfolioDomain>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onDeleteBulk: (ids: string[]) => Promise<void>;
   onRefreshValuation: (domain: PortfolioDomain) => Promise<void>;
 }
 
-export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation }: Props) {
+export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<PortfolioDomain>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -102,12 +103,13 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
     if (selected.size === 0) return;
     setDeleting(true);
     const ids = Array.from(selected);
-    for (const id of ids) {
-      try { await onDelete(id as string); } catch { /* continue */ }
+    try {
+      await onDeleteBulk(ids);
+      setSelected(new Set());
+      setConfirmBulkDelete(false);
+    } finally {
+      setDeleting(false);
     }
-    setSelected(new Set());
-    setDeleting(false);
-    setConfirmBulkDelete(false);
   };
 
   const handleSingleDelete = async (id: string) => {

@@ -138,6 +138,20 @@ export function usePortfolio() {
     await fetchDomains();
   };
 
+  const deleteDomains = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { error } = await (supabase as any)
+      .from("portfolio_domains")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast.error("Failed to delete selected domains");
+      return;
+    }
+    toast.success(`${ids.length} domain${ids.length !== 1 ? "s" : ""} removed from portfolio`);
+    await fetchDomains();
+  };
+
   const refreshValuation = async (domain: PortfolioDomain) => {
     try {
       // Use enriched valuation with trend data for best accuracy
@@ -155,7 +169,7 @@ export function usePortfolio() {
   };
 
   const bulkAddDomains = async (
-    rows: Array<{ domain_name: string; purchase_price?: number; purchase_date?: string; purchase_source?: string; status?: string; renewal_cost_yearly?: number; tags?: string[] }>
+    rows: Array<{ domain_name: string; purchase_price?: number; list_price?: number; purchase_date?: string; purchase_source?: string; status?: string; renewal_cost_yearly?: number; tags?: string[] }>
   ) => {
     if (!user || rows.length === 0) return { added: 0, errors: 0 };
 
@@ -173,6 +187,7 @@ export function usePortfolio() {
         domain_name: domainName,
         tld,
         purchase_price: r.purchase_price ?? 0,
+        list_price: r.list_price ?? null,
         purchase_date: r.purchase_date || null,
         purchase_source: r.purchase_source || null,
         status: r.status || "holding",
@@ -236,5 +251,5 @@ export function usePortfolio() {
     };
   })();
 
-  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains, refetch: fetchDomains };
+  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, refetch: fetchDomains };
 }
