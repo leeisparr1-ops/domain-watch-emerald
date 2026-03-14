@@ -119,8 +119,33 @@ function parseCSV(text: string): ParsedRow[] {
 
   // Detect column mapping from header
   let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
+  let detectedSource: string | null = null;
   if (hasHeader) {
     const headers = splitCSVRow(firstLine).map((h) => normalizeColumnName(h.replace(/"/g, "")));
+    const headerJoined = headers.join(" ");
+
+    // Auto-detect marketplace from CSV header fingerprint
+    if (headerJoined.includes("sale lander") || headerJoined.includes("godaddy ns") || headerJoined.includes("fast transfer")) {
+      detectedSource = "Afternic";
+    } else if (headerJoined.includes("atom") || headerJoined.includes("atom.com")) {
+      detectedSource = "Atom";
+    } else if (headerJoined.includes("dan.com") || headerJoined.includes("dan marketplace")) {
+      detectedSource = "Dan.com";
+    } else if (headerJoined.includes("sedo")) {
+      detectedSource = "Sedo";
+    } else if (headerJoined.includes("squadhelp")) {
+      detectedSource = "Squadhelp";
+    } else if (headerJoined.includes("unstoppable") || headerJoined.includes("ud ")) {
+      detectedSource = "Unstoppable Domains";
+    } else if (headerJoined.includes("spaceship")) {
+      detectedSource = "Spaceship";
+    } else if (headerJoined.includes("dynadot")) {
+      detectedSource = "Dynadot";
+    } else if (headerJoined.includes("namecheap")) {
+      detectedSource = "Namecheap";
+    } else if (headerJoined.includes("epik")) {
+      detectedSource = "Epik";
+    }
 
     const domainIdx = findColumnIndex(headers, ["domain", "domain name", "name"]);
     const priceIdx = findColumnIndex(
