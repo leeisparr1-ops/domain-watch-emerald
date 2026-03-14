@@ -133,11 +133,35 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr className="text-left text-muted-foreground">
-            <th className="px-4 py-3 font-medium">Domain</th>
+    <div className="space-y-2">
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-1">
+          <span className="text-sm text-muted-foreground">{selected.size} selected</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDeleteSelected}
+            disabled={deleting}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {deleting ? "Deleting..." : `Delete ${selected.size}`}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr className="text-left text-muted-foreground">
+              <th className="px-3 py-3 w-10">
+                <button onClick={toggleAll} className="text-muted-foreground hover:text-foreground transition-colors">
+                  {allSelected ? <CheckSquare className="w-4 h-4" /> : someSelected ? <MinusSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                </button>
+              </th>
+              <th className="px-4 py-3 font-medium">Domain</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium text-right">Cost</th>
             <th className="px-4 py-3 font-medium text-right">List Price</th>
