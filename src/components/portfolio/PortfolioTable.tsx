@@ -67,9 +67,18 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  const allSelected = domains.length > 0 && selected.size === domains.length;
-  const someSelected = selected.size > 0 && !allSelected;
+  // Clean up selected IDs that no longer exist in domains
+  const domainIds = new Set(domains.map((d) => d.id));
+  const validSelected = new Set([...selected].filter((id) => domainIds.has(id)));
+  if (validSelected.size !== selected.size) {
+    // Defer state update to avoid setting state during render
+    setTimeout(() => setSelected(validSelected), 0);
+  }
+
+  const allSelected = domains.length > 0 && validSelected.size === domains.length;
+  const someSelected = validSelected.size > 0 && !allSelected;
 
   const toggleAll = () => {
     if (allSelected) {
@@ -89,14 +98,24 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   };
 
   const handleDeleteSelected = async () => {
-    if (selected.size === 0) return;
+    if (validSelected.size === 0) return;
     setDeleting(true);
-    const ids = Array.from(selected);
+    const ids = Array.from(validSelected);
     for (const id of ids) {
       try { await onDelete(id); } catch { /* continue */ }
     }
     setSelected(new Set());
     setDeleting(false);
+    setConfirmBulkDelete(false);
+  };
+
+  const handleSingleDelete = async (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    await onDelete(id);
   };
 
   const startEdit = (d: PortfolioDomain) => {
