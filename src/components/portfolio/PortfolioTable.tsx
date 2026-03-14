@@ -107,6 +107,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             <th className="px-4 py-3 font-medium">Domain</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium text-right">Cost</th>
+            <th className="px-4 py-3 font-medium text-right">List Price</th>
             <th className="px-4 py-3 font-medium text-right">Current Value</th>
             <th className="px-4 py-3 font-medium text-right">P&L</th>
             <th className="px-4 py-3 font-medium text-right">Sale Price</th>
