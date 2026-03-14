@@ -153,22 +153,41 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
 
   return (
     <div className="space-y-2">
-      {selected.size > 0 && (
+      {validSelected.size > 0 && (
         <div className="flex items-center gap-3 px-1">
-          <span className="text-sm text-muted-foreground">{selected.size} selected</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleDeleteSelected}
-            disabled={deleting}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {deleting ? "Deleting..." : `Delete ${selected.size}`}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-            Clear
-          </Button>
+          <span className="text-sm text-muted-foreground">{validSelected.size} selected</span>
+          {confirmBulkDelete ? (
+            <>
+              <span className="text-sm font-medium text-destructive">Delete {validSelected.size} domain{validSelected.size !== 1 ? "s" : ""}?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Confirm"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(false)} disabled={deleting}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setConfirmBulkDelete(true)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete {validSelected.size}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </>
+          )}
         </div>
       )}
       <div className="overflow-x-auto rounded-xl border border-border">
@@ -181,17 +200,17 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 </button>
               </th>
               <th className="px-4 py-3 font-medium">Domain</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium text-right">Cost</th>
-            <th className="px-4 py-3 font-medium text-right">List Price</th>
-            <th className="px-4 py-3 font-medium text-right">Current Value</th>
-            <th className="px-4 py-3 font-medium text-right">P&L</th>
-            <th className="px-4 py-3 font-medium text-right">Sale Price</th>
-            <th className="px-4 py-3 font-medium text-right">Renewal</th>
-            <th className="px-4 py-3 font-medium">Tags</th>
-            <th className="px-4 py-3 font-medium text-right">Actions</th>
-          </tr>
-        </thead>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium text-right">Cost</th>
+              <th className="px-4 py-3 font-medium text-right">List Price</th>
+              <th className="px-4 py-3 font-medium text-right">Current Value</th>
+              <th className="px-4 py-3 font-medium text-right">P&L</th>
+              <th className="px-4 py-3 font-medium text-right">Sale Price</th>
+              <th className="px-4 py-3 font-medium text-right">Renewal</th>
+              <th className="px-4 py-3 font-medium">Tags</th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
+            </tr>
+          </thead>
         <tbody>
           {domains.map((d) => {
             const isEditing = editingId === d.id;
