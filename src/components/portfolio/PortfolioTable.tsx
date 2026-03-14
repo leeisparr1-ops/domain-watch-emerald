@@ -78,8 +78,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
     });
   }, [domains]);
 
-  const allSelected = domains.length > 0 && validSelected.size === domains.length;
-  const someSelected = validSelected.size > 0 && !allSelected;
+  const allSelected = domains.length > 0 && selected.size === domains.length;
+  const someSelected = selected.size > 0 && !allSelected;
 
   const toggleAll = () => {
     if (allSelected) {
