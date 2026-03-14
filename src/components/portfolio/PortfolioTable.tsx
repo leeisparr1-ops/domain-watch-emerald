@@ -103,12 +103,13 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
     if (selected.size === 0) return;
     setDeleting(true);
     const ids = Array.from(selected);
-    for (const id of ids) {
-      try { await onDelete(id as string); } catch { /* continue */ }
+    try {
+      await onDeleteBulk(ids);
+      setSelected(new Set());
+      setConfirmBulkDelete(false);
+    } finally {
+      setDeleting(false);
     }
-    setSelected(new Set());
-    setDeleting(false);
-    setConfirmBulkDelete(false);
   };
 
   const handleSingleDelete = async (id: string) => {
