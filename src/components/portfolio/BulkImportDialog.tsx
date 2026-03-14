@@ -21,6 +21,30 @@ interface Props {
   onBulkAdd: (rows: ParsedRow[]) => Promise<{ added: number; errors: number }>;
 }
 
+// Properly split CSV rows handling quoted fields (e.g. "Buy It Now" or "$1,234")
+function splitCSVRow(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (!inQuotes && (ch === ',' || ch === '\t' || ch === ';' || ch === '|')) {
+      result.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseNumericValue(val: string): number {
+  const cleaned = val.replace(/[$,\s]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
 function parseCSV(text: string): ParsedRow[] {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim());
   if (lines.length === 0) return [];
@@ -33,10 +57,10 @@ function parseCSV(text: string): ParsedRow[] {
   // Detect column mapping from header
   let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
   if (hasHeader) {
-    const headers = firstLine.split(/[,\t;|]/).map((h) => h.trim().replace(/"/g, ""));
+    const headers = splitCSVRow(firstLine).map((h) => h.trim().replace(/"/g, "").toLowerCase());
     headers.forEach((h, i) => {
       if (/domain|name/i.test(h)) colMap.domain = i;
-      else if (/price|cost|paid/i.test(h) && !/renewal/i.test(h)) colMap.price = i;
+      else if (/buy.?it.?now|price|cost|paid|amount/i.test(h) && !/renewal/i.test(h)) colMap.price = i;
       else if (/date|purchased|acquired/i.test(h)) colMap.date = i;
       else if (/source|registrar|platform/i.test(h)) colMap.source = i;
       else if (/status/i.test(h)) colMap.status = i;
@@ -47,16 +71,16 @@ function parseCSV(text: string): ParsedRow[] {
 
   return dataLines
     .map((line) => {
-      const cols = line.split(/[,\t;|]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+      const cols = splitCSVRow(line);
       const domain = cols[colMap.domain]?.trim().toLowerCase();
       if (!domain || !domain.includes(".")) return null;
 
       const row: ParsedRow = { domain_name: domain };
-      if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseFloat(cols[colMap.price]) || 0;
+      if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseNumericValue(cols[colMap.price]);
       if (colMap.date >= 0 && cols[colMap.date]) row.purchase_date = cols[colMap.date];
       if (colMap.source >= 0 && cols[colMap.source]) row.purchase_source = cols[colMap.source];
       if (colMap.status >= 0 && cols[colMap.status]) row.status = cols[colMap.status].toLowerCase();
-      if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseFloat(cols[colMap.renewal]) || 0;
+      if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseNumericValue(cols[colMap.renewal]);
       if (colMap.tags >= 0 && cols[colMap.tags]) row.tags = cols[colMap.tags].split(/[,;]/).map((t) => t.trim()).filter(Boolean);
       return row;
     })
