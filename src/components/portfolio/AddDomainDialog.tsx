@@ -24,6 +24,7 @@ export function AddDomainDialog({ onAdd }: Props) {
     purchase_date: "",
     purchase_source: "",
     status: "holding",
+    list_price: "",
     renewal_cost_yearly: "",
     next_renewal_date: "",
     notes: "",
