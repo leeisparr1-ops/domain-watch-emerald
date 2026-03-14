@@ -177,7 +177,7 @@ function parseCSV(text: string): ParsedRow[] {
       const row: ParsedRow = { domain_name: domain };
       if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseNumericValue(cols[colMap.price]);
       if (colMap.date >= 0 && cols[colMap.date]) row.purchase_date = cols[colMap.date];
-      if (colMap.source >= 0 && cols[colMap.source]) row.purchase_source = cols[colMap.source];
+      row.purchase_source = (colMap.source >= 0 && cols[colMap.source]) ? cols[colMap.source] : detectedSource ?? undefined;
       if (colMap.status >= 0 && cols[colMap.status]) row.status = cols[colMap.status].toLowerCase();
       if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseNumericValue(cols[colMap.renewal]);
       if (colMap.tags >= 0 && cols[colMap.tags]) row.tags = cols[colMap.tags].split(/[,;]/).map((t) => t.trim()).filter(Boolean);
