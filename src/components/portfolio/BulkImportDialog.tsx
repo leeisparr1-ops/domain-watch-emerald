@@ -119,8 +119,33 @@ function parseCSV(text: string): ParsedRow[] {
 
   // Detect column mapping from header
   let colMap = { domain: 0, price: -1, date: -1, source: -1, status: -1, renewal: -1, tags: -1 };
+  let detectedSource: string | null = null;
   if (hasHeader) {
     const headers = splitCSVRow(firstLine).map((h) => normalizeColumnName(h.replace(/"/g, "")));
+    const headerJoined = headers.join(" ");
+
+    // Auto-detect marketplace from CSV header fingerprint
+    if (headerJoined.includes("sale lander") || headerJoined.includes("godaddy ns") || headerJoined.includes("fast transfer")) {
+      detectedSource = "Afternic";
+    } else if (headerJoined.includes("atom") || headerJoined.includes("atom.com")) {
+      detectedSource = "Atom";
+    } else if (headerJoined.includes("dan.com") || headerJoined.includes("dan marketplace")) {
+      detectedSource = "Dan.com";
+    } else if (headerJoined.includes("sedo")) {
+      detectedSource = "Sedo";
+    } else if (headerJoined.includes("squadhelp")) {
+      detectedSource = "Squadhelp";
+    } else if (headerJoined.includes("unstoppable") || headerJoined.includes("ud ")) {
+      detectedSource = "Unstoppable Domains";
+    } else if (headerJoined.includes("spaceship")) {
+      detectedSource = "Spaceship";
+    } else if (headerJoined.includes("dynadot")) {
+      detectedSource = "Dynadot";
+    } else if (headerJoined.includes("namecheap")) {
+      detectedSource = "Namecheap";
+    } else if (headerJoined.includes("epik")) {
+      detectedSource = "Epik";
+    }
 
     const domainIdx = findColumnIndex(headers, ["domain", "domain name", "name"]);
     const priceIdx = findColumnIndex(
@@ -152,7 +177,7 @@ function parseCSV(text: string): ParsedRow[] {
       const row: ParsedRow = { domain_name: domain };
       if (colMap.price >= 0 && cols[colMap.price]) row.purchase_price = parseNumericValue(cols[colMap.price]);
       if (colMap.date >= 0 && cols[colMap.date]) row.purchase_date = cols[colMap.date];
-      if (colMap.source >= 0 && cols[colMap.source]) row.purchase_source = cols[colMap.source];
+      row.purchase_source = (colMap.source >= 0 && cols[colMap.source]) ? cols[colMap.source] : detectedSource ?? undefined;
       if (colMap.status >= 0 && cols[colMap.status]) row.status = cols[colMap.status].toLowerCase();
       if (colMap.renewal >= 0 && cols[colMap.renewal]) row.renewal_cost_yearly = parseNumericValue(cols[colMap.renewal]);
       if (colMap.tags >= 0 && cols[colMap.tags]) row.tags = cols[colMap.tags].split(/[,;]/).map((t) => t.trim()).filter(Boolean);
