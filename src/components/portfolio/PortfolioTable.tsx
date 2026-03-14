@@ -70,6 +70,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
     setEditingId(d.id);
     setEditForm({
       status: d.status,
+      list_price: d.list_price,
       sale_price: d.sale_price,
       sale_date: d.sale_date,
       purchase_price: d.purchase_price,
