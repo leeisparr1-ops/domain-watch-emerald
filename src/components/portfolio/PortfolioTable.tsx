@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,16 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  // Clean up selected IDs that no longer exist in domains
+  useEffect(() => {
+    const domainIds = new Set(domains.map((d) => d.id));
+    setSelected((prev) => {
+      const cleaned = new Set([...prev].filter((id) => domainIds.has(id)));
+      return cleaned.size !== prev.size ? cleaned : prev;
+    });
+  }, [domains]);
 
   const allSelected = domains.length > 0 && selected.size === domains.length;
   const someSelected = selected.size > 0 && !allSelected;
@@ -93,10 +103,20 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
     setDeleting(true);
     const ids = Array.from(selected);
     for (const id of ids) {
-      try { await onDelete(id); } catch { /* continue */ }
+      try { await onDelete(id as string); } catch { /* continue */ }
     }
     setSelected(new Set());
     setDeleting(false);
+    setConfirmBulkDelete(false);
+  };
+
+  const handleSingleDelete = async (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    await onDelete(id);
   };
 
   const startEdit = (d: PortfolioDomain) => {
@@ -137,19 +157,38 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-1">
           <span className="text-sm text-muted-foreground">{selected.size} selected</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleDeleteSelected}
-            disabled={deleting}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {deleting ? "Deleting..." : `Delete ${selected.size}`}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-            Clear
-          </Button>
+          {confirmBulkDelete ? (
+            <>
+              <span className="text-sm font-medium text-destructive">Delete {selected.size} domain{selected.size !== 1 ? "s" : ""}?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Confirm"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(false)} disabled={deleting}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setConfirmBulkDelete(true)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete {selected.size}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </>
+          )}
         </div>
       )}
       <div className="overflow-x-auto rounded-xl border border-border">
@@ -162,17 +201,17 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 </button>
               </th>
               <th className="px-4 py-3 font-medium">Domain</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium text-right">Cost</th>
-            <th className="px-4 py-3 font-medium text-right">List Price</th>
-            <th className="px-4 py-3 font-medium text-right">Current Value</th>
-            <th className="px-4 py-3 font-medium text-right">P&L</th>
-            <th className="px-4 py-3 font-medium text-right">Sale Price</th>
-            <th className="px-4 py-3 font-medium text-right">Renewal</th>
-            <th className="px-4 py-3 font-medium">Tags</th>
-            <th className="px-4 py-3 font-medium text-right">Actions</th>
-          </tr>
-        </thead>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium text-right">Cost</th>
+              <th className="px-4 py-3 font-medium text-right">List Price</th>
+              <th className="px-4 py-3 font-medium text-right">Current Value</th>
+              <th className="px-4 py-3 font-medium text-right">P&L</th>
+              <th className="px-4 py-3 font-medium text-right">Sale Price</th>
+              <th className="px-4 py-3 font-medium text-right">Renewal</th>
+              <th className="px-4 py-3 font-medium">Tags</th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
+            </tr>
+          </thead>
         <tbody>
           {domains.map((d) => {
             const isEditing = editingId === d.id;
@@ -400,7 +439,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                         >
                           <RefreshCw className={`w-3.5 h-3.5 ${refreshingId === d.id ? "animate-spin" : ""}`} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(d.id)} title="Remove">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleSingleDelete(d.id)} title="Remove">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </>
