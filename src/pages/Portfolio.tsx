@@ -14,7 +14,7 @@ import { BulkImportDialog } from "@/components/portfolio/BulkImportDialog";
 import { toast } from "sonner";
 
 export default function Portfolio() {
-  const { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains } = usePortfolio();
+  const { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains } = usePortfolio();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshingAll, setRefreshingAll] = useState(false);
