@@ -1,0 +1,1 @@
+ALTER TABLE public.portfolio_domains ADD COLUMN list_price numeric NULL DEFAULT NULL;
