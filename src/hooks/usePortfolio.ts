@@ -251,5 +251,5 @@ export function usePortfolio() {
     };
   })();
 
-  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, refreshValuation, bulkAddDomains, refetch: fetchDomains };
+  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, refetch: fetchDomains };
 }
