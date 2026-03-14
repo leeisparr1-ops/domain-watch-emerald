@@ -65,6 +65,39 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<PortfolioDomain>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const allSelected = domains.length > 0 && selected.size === domains.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(domains.map((d) => d.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    for (const id of ids) {
+      try { await onDelete(id); } catch { /* continue */ }
+    }
+    setSelected(new Set());
+    setDeleting(false);
+  };
 
   const startEdit = (d: PortfolioDomain) => {
     setEditingId(d.id);
