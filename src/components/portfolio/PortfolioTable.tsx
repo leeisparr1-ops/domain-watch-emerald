@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,39 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<PortfolioDomain>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const allSelected = domains.length > 0 && selected.size === domains.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(domains.map((d) => d.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    for (const id of ids) {
+      try { await onDelete(id); } catch { /* continue */ }
+    }
+    setSelected(new Set());
+    setDeleting(false);
+  };
 
   const startEdit = (d: PortfolioDomain) => {
     setEditingId(d.id);
@@ -100,11 +133,35 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr className="text-left text-muted-foreground">
-            <th className="px-4 py-3 font-medium">Domain</th>
+    <div className="space-y-2">
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-1">
+          <span className="text-sm text-muted-foreground">{selected.size} selected</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDeleteSelected}
+            disabled={deleting}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {deleting ? "Deleting..." : `Delete ${selected.size}`}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr className="text-left text-muted-foreground">
+              <th className="px-3 py-3 w-10">
+                <button onClick={toggleAll} className="text-muted-foreground hover:text-foreground transition-colors">
+                  {allSelected ? <CheckSquare className="w-4 h-4" /> : someSelected ? <MinusSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                </button>
+              </th>
+              <th className="px-4 py-3 font-medium">Domain</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium text-right">Cost</th>
             <th className="px-4 py-3 font-medium text-right">List Price</th>
@@ -125,7 +182,12 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             const status = STATUS_MAP[d.status] ?? STATUS_MAP.holding;
 
             return (
-              <tr key={d.id} className="border-t border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={d.id} className={`border-t border-border/50 transition-colors ${selected.has(d.id) ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                <td className="px-3 py-3">
+                  <button onClick={() => toggleOne(d.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    {selected.has(d.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <Link
@@ -349,7 +411,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             );
           })}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
