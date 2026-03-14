@@ -154,12 +154,12 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
 
   return (
     <div className="space-y-2">
-      {validSelected.size > 0 && (
+      {selected.size > 0 && (
         <div className="flex items-center gap-3 px-1">
-          <span className="text-sm text-muted-foreground">{validSelected.size} selected</span>
+          <span className="text-sm text-muted-foreground">{selected.size} selected</span>
           {confirmBulkDelete ? (
             <>
-              <span className="text-sm font-medium text-destructive">Delete {validSelected.size} domain{validSelected.size !== 1 ? "s" : ""}?</span>
+              <span className="text-sm font-medium text-destructive">Delete {selected.size} domain{selected.size !== 1 ? "s" : ""}?</span>
               <Button
                 variant="destructive"
                 size="sm"
@@ -182,7 +182,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
                 onClick={() => setConfirmBulkDelete(true)}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete {validSelected.size}
+                Delete {selected.size}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                 Clear
