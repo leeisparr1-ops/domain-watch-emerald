@@ -265,7 +265,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
             >
               <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">Click to upload CSV or TXT file</p>
-              <p className="text-xs text-muted-foreground mt-1">Supports: domain, price, date, source, status, renewal, tags columns</p>
+              <p className="text-xs text-muted-foreground mt-1">Supports: domain, buy now price/price, date, source, status, renewal, tags columns</p>
             </div>
             <input ref={fileRef} type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={handleFileUpload} />
           </TabsContent>
