@@ -70,12 +70,13 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // Clean up selected IDs that no longer exist in domains
-  const domainIds = new Set(domains.map((d) => d.id));
-  const validSelected = new Set([...selected].filter((id) => domainIds.has(id)));
-  if (validSelected.size !== selected.size) {
-    // Defer state update to avoid setting state during render
-    setTimeout(() => setSelected(validSelected), 0);
-  }
+  useEffect(() => {
+    const domainIds = new Set(domains.map((d) => d.id));
+    setSelected((prev) => {
+      const cleaned = new Set([...prev].filter((id) => domainIds.has(id)));
+      return cleaned.size !== prev.size ? cleaned : prev;
+    });
+  }, [domains]);
 
   const allSelected = domains.length > 0 && validSelected.size === domains.length;
   const someSelected = validSelected.size > 0 && !allSelected;
