@@ -58,10 +58,11 @@ interface Props {
   domains: PortfolioDomain[];
   onUpdate: (id: string, updates: Partial<PortfolioDomain>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onDeleteBulk: (ids: string[]) => Promise<void>;
   onRefreshValuation: (domain: PortfolioDomain) => Promise<void>;
 }
 
-export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation }: Props) {
+export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<PortfolioDomain>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
