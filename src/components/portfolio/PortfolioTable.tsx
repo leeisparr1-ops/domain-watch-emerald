@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
