@@ -182,7 +182,12 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             const status = STATUS_MAP[d.status] ?? STATUS_MAP.holding;
 
             return (
-              <tr key={d.id} className="border-t border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={d.id} className={`border-t border-border/50 transition-colors ${selected.has(d.id) ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                <td className="px-3 py-3">
+                  <button onClick={() => toggleOne(d.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    {selected.has(d.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <Link
