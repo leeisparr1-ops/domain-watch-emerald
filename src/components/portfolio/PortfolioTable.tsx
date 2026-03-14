@@ -411,7 +411,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onRefreshValuation
             );
           })}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
