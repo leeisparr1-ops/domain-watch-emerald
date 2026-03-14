@@ -21,6 +21,30 @@ interface Props {
   onBulkAdd: (rows: ParsedRow[]) => Promise<{ added: number; errors: number }>;
 }
 
+// Properly split CSV rows handling quoted fields (e.g. "Buy It Now" or "$1,234")
+function splitCSVRow(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (!inQuotes && (ch === ',' || ch === '\t' || ch === ';' || ch === '|')) {
+      result.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseNumericValue(val: string): number {
+  const cleaned = val.replace(/[$,\s]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
 function parseCSV(text: string): ParsedRow[] {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim());
   if (lines.length === 0) return [];
