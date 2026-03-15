@@ -299,7 +299,7 @@ const Drops = () => {
                   <div>
                     <p className="font-medium text-foreground">Upload Expiring Domains CSV</p>
                     <p className="text-sm text-muted-foreground">
-                      CSV with domain names — we'll filter .com and AI-evaluate each one
+                      CSV with domain names — quality pre-screen + AI evaluation on every .com
                     </p>
                   </div>
                   <Button onClick={() => fileRef.current?.click()} size="lg">
