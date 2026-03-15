@@ -60,6 +60,7 @@ const Drops = () => {
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Fetch results for a scan (used during polling and on mount)
   const fetchResults = useCallback(async (scanId: string) => {
