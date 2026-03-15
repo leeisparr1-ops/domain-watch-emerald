@@ -104,12 +104,9 @@ const Drops = () => {
     }, 5000);
   }, [fetchResults]);
 
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (!file.name.endsWith(".csv") && !file.name.endsWith(".txt")) {
-      toast.error("Please upload a CSV or TXT file");
+  const handleStartSharedScan = useCallback(async () => {
+    if (!user) {
+      toast.error("Please sign in to run the scan");
       return;
     }
 
@@ -117,39 +114,30 @@ const Drops = () => {
     setResults([]);
 
     try {
-      const csvText = await file.text();
-      const lines = csvText.trim().split("\n");
-      if (lines.length < 2) {
-        toast.error("File appears empty");
-        setScanning(false);
-        return;
-      }
-
-      // Create scan record
       const { data: scan, error: scanErr } = await supabase
         .from("drop_scans")
-        .insert({ user_id: user.id, filename: file.name, total_domains: lines.length - 1 })
+        .insert({ user_id: user.id, filename: "daily-drops.csv", total_domains: 0 })
         .select()
         .single();
 
       if (scanErr || !scan) throw new Error(scanErr?.message || "Failed to create scan");
       setCurrentScan(scan as Scan);
 
+      const csvUrl = `${window.location.origin}${SHARED_DROP_CSV_PATH}`;
+
       // Fire off evaluation — backend will self-chain, no browser connection needed
       supabase.functions.invoke("evaluate-drops", {
-        body: { csvText, scanId: scan.id },
+        body: { scanId: scan.id, csvUrl },
       }).catch(err => console.error("Eval invoke error:", err));
 
-      toast.success(`Queued ${lines.length - 1} domains for processing...`);
+      toast.success("Shared drop list scan started.");
 
       // Start polling for progress + live results
       startPolling(scan.id);
     } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+      toast.error(err.message || "Failed to start shared scan");
       setScanning(false);
     }
-
-    if (fileRef.current) fileRef.current.value = "";
   }, [user, startPolling]);
 
   const handleCancel = useCallback(async () => {
