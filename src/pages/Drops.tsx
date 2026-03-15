@@ -256,7 +256,8 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a CSV of expiring domains and let AI evaluate every single one automatically.
+              Upload a CSV of expiring domains. Our quality engine pre-screens every domain, 
+              then AI deep-evaluates the best candidates for investment potential.
             </p>
           </div>
 
