@@ -475,6 +475,35 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                     />
                   </td>
 
+                  {/* Expires */}
+                  <td className="px-4 py-3 text-center">
+                    {(() => {
+                      const expiry = getExpiryDate(d);
+                      if (d.status === "sold") return <span className="text-muted-foreground text-xs">-</span>;
+                      if (!expiry) return <span className="text-muted-foreground/40 text-xs">-</span>;
+                      const daysLeft = differenceInDays(parseISO(expiry), new Date());
+                      const colorClass = daysLeft < 0
+                        ? "text-destructive font-semibold"
+                        : daysLeft <= 7
+                        ? "text-destructive"
+                        : daysLeft <= 30
+                        ? "text-yellow-500"
+                        : "text-muted-foreground";
+                      return (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`text-xs font-mono ${colorClass}`}>
+                            {formatExpiryDate(expiry)}
+                          </span>
+                          {daysLeft <= 30 && (
+                            <span className={`text-[10px] ${colorClass}`}>
+                              {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
+
                   {/* Renewal - with live TLD pricing */}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
