@@ -727,11 +727,11 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { scanId, csvText } = body;
+    const { scanId, csvText, csvUrl } = body;
     if (!scanId) throw new Error("Missing scanId");
 
     // ─── INITIAL CALL: Parse CSV, extract .com domains, store for chunked pre-screening ───
-    if (csvText) {
+    if (csvText || csvUrl) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) throw new Error("Missing authorization");
 
@@ -742,8 +742,38 @@ serve(async (req) => {
       const { data: { user }, error: authErr } = await userClient.auth.getUser();
       if (authErr || !user) throw new Error("Unauthorized");
 
+      let initialCsvText = csvText as string | undefined;
+
+      if (!initialCsvText && csvUrl) {
+        let parsedCsvUrl: URL;
+        try {
+          parsedCsvUrl = new URL(csvUrl);
+        } catch {
+          throw new Error("Invalid shared CSV URL");
+        }
+
+        if (!["http:", "https:"].includes(parsedCsvUrl.protocol)) {
+          throw new Error("Shared CSV URL must use http or https");
+        }
+
+        if (!parsedCsvUrl.pathname.endsWith("/store/daily-drops.csv")) {
+          throw new Error("Shared CSV URL must point to /store/daily-drops.csv");
+        }
+
+        const csvResponse = await fetch(parsedCsvUrl.toString());
+        if (!csvResponse.ok) {
+          throw new Error(`Failed to fetch shared CSV (${csvResponse.status})`);
+        }
+
+        initialCsvText = await csvResponse.text();
+      }
+
+      if (!initialCsvText || !initialCsvText.trim()) {
+        throw new Error("CSV source is empty");
+      }
+
       // Parse CSV — extract .com domains only (lightweight, no scoring yet)
-      const lines = csvText.trim().split("\n");
+      const lines = initialCsvText.trim().split("\n");
       const header = lines[0].toLowerCase();
       const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
       let domainCol = cols.findIndex((c: string) =>
