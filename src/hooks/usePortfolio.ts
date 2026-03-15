@@ -51,7 +51,7 @@ export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_val
 export interface PortfolioStats {
   totalDomains: number;
   totalInvested: number;
-  totalCurrentValue: number;
+  totalListingsPrice: number;
   totalRenewalCosts: number;
   totalSold: number;
   totalSaleRevenue: number;
