@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PortfolioDomain } from "@/hooks/usePortfolio";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, format, addYears, isPast } from "date-fns";
 import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
+
+/** Compute the next renewal/expiry date from purchase_date or next_renewal_date */
+function getExpiryDate(d: PortfolioDomain): string | null {
+  // If explicitly set, use it
+  if (d.next_renewal_date) return d.next_renewal_date;
+  // Otherwise derive from purchase_date
+  if (!d.purchase_date) return null;
+  try {
+    let date = parseISO(d.purchase_date);
+    while (isPast(date)) {
+      date = addYears(date, 1);
+    }
+    return format(date, "yyyy-MM-dd");
+  } catch {
+    return null;
+  }
+}
+
+function formatExpiryDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    return format(parseISO(dateStr), "MMM d, yyyy");
+  } catch {
+    return "-";
+  }
+}
 
 function renewalWarning(d: PortfolioDomain) {
   if (!d.next_renewal_date || d.status === "sold") return null;
@@ -324,6 +350,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               <th className="px-4 py-3 font-medium text-right">Current Value</th>
               <th className="px-4 py-3 font-medium text-right">P&L</th>
               <th className="px-4 py-3 font-medium text-right">Sale Price</th>
+              <th className="px-4 py-3 font-medium text-center">Expires</th>
               <th className="px-4 py-3 font-medium text-right">Renewal</th>
               <th className="px-3 py-3 font-medium text-center">Held</th>
               <th className="px-4 py-3 font-medium">Tags</th>
@@ -446,6 +473,35 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                       allowNull
                       placeholder="Sale $"
                     />
+                  </td>
+
+                  {/* Expires */}
+                  <td className="px-4 py-3 text-center">
+                    {(() => {
+                      const expiry = getExpiryDate(d);
+                      if (d.status === "sold") return <span className="text-muted-foreground text-xs">-</span>;
+                      if (!expiry) return <span className="text-muted-foreground/40 text-xs">-</span>;
+                      const daysLeft = differenceInDays(parseISO(expiry), new Date());
+                      const colorClass = daysLeft < 0
+                        ? "text-destructive font-semibold"
+                        : daysLeft <= 7
+                        ? "text-destructive"
+                        : daysLeft <= 30
+                        ? "text-yellow-500"
+                        : "text-muted-foreground";
+                      return (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`text-xs font-mono ${colorClass}`}>
+                            {formatExpiryDate(expiry)}
+                          </span>
+                          {daysLeft <= 30 && (
+                            <span className={`text-[10px] ${colorClass}`}>
+                              {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Renewal - with live TLD pricing */}
