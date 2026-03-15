@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { quickValuation, quickValuationEnriched } from "@/lib/domainValuation";
 import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
+import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
 
 export interface PortfolioDomain {
   id: string;
