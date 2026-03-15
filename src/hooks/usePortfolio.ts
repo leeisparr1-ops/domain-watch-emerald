@@ -265,7 +265,7 @@ export function usePortfolio() {
     const sold = domains.filter((d) => d.status === "sold");
 
     const totalInvested = domains.reduce((s, d) => s + Number(d.purchase_price), 0);
-    const totalCurrentValue = holding.reduce((s, d) => s + (Number(d.auto_valuation) || 0), 0);
+    const totalListingsPrice = holding.reduce((s, d) => s + (Number(d.list_price) || 0), 0);
     const totalRenewalCosts = holding.reduce((s, d) => s + Number(d.renewal_cost_yearly), 0);
     const totalSaleRevenue = sold.reduce((s, d) => s + (Number(d.sale_price) || 0), 0);
     const soldCostBasis = sold.reduce((s, d) => s + Number(d.purchase_price), 0);
