@@ -255,7 +255,7 @@ const Drops = () => {
     ? Math.round((currentScan.evaluated_domains / currentScan.filtered_domains) * 100)
     : 0;
 
-  const isProcessing = scanning || (currentScan && ["processing", "evaluating"].includes(currentScan.status));
+  const isProcessing = scanning || (currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status));
 
   return (
     <>
