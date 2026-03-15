@@ -178,7 +178,7 @@ const Drops = () => {
       .from("drop_scans")
       .select("*")
       .eq("user_id", user.id)
-      .in("status", ["processing", "evaluating"])
+      .in("status", ["processing", "evaluating", "pre-screening"])
       .order("created_at", { ascending: false })
       .limit(1);
 
