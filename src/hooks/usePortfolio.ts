@@ -186,15 +186,25 @@ export function usePortfolio() {
 
   const refreshValuation = async (domain: PortfolioDomain) => {
     try {
-      // Use enriched valuation with trend data for best accuracy
-      const enrichedResult = await quickValuationEnriched(domain.domain_name);
-      // Try comp anchoring for more accurate valuation
+      // Fetch valuation and RDAP expiry in parallel
+      const [enrichedResult, rdap] = await Promise.all([
+        quickValuationEnriched(domain.domain_name),
+        fetchRdapExpiry(domain.domain_name),
+      ]);
       const anchored = await anchorWithComps(domain.domain_name, enrichedResult);
       const autoVal = Math.round((anchored.valueMin + anchored.valueMax) / 2);
-      await updateDomain(domain.id, {
+      
+      const updates: Partial<PortfolioDomain> = {
         auto_valuation: autoVal,
         valuation_updated_at: new Date().toISOString(),
-      });
+      };
+      
+      // Update expiry if RDAP returned a real date
+      if (rdap.expirationDate) {
+        updates.next_renewal_date = rdap.expirationDate;
+      }
+      
+      await updateDomain(domain.id, updates);
     } catch {
       toast.error("Valuation refresh failed");
     }
