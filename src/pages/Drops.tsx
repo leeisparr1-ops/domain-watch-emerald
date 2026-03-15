@@ -36,7 +36,7 @@ interface Scan {
   created_at: string;
 }
 
-type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "domain_name";
+type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name";
 
 const categoryColors: Record<string, string> = {
   premium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
