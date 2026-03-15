@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
