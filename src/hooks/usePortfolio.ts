@@ -96,7 +96,7 @@ export function usePortfolio() {
         tags: input.tags ?? [],
         notes: input.notes ?? null,
         renewal_cost_yearly: input.renewal_cost_yearly ?? getTldRenewalRange(domainName)?.typical ?? 0,
-        next_renewal_date: input.next_renewal_date ?? null,
+        next_renewal_date: input.next_renewal_date ?? deriveNextRenewal(input.purchase_date ?? null),
         sale_price: input.sale_price ?? null,
         sale_date: input.sale_date ?? null,
         list_price: input.list_price ?? null,
