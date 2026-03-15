@@ -730,7 +730,7 @@ serve(async (req) => {
     const { scanId, csvText } = body;
     if (!scanId) throw new Error("Missing scanId");
 
-    // ─── INITIAL CALL: Parse CSV, pre-screen with full intelligence ───
+    // ─── INITIAL CALL: Parse CSV, extract .com domains, store for chunked pre-screening ───
     if (csvText) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) throw new Error("Missing authorization");
@@ -742,10 +742,7 @@ serve(async (req) => {
       const { data: { user }, error: authErr } = await userClient.auth.getUser();
       if (authErr || !user) throw new Error("Unauthorized");
 
-      // Load comparable sale keywords from DB for scoring boost
-      const comparableKeywords = await loadComparableKeywords(adminClient);
-
-      // Parse CSV
+      // Parse CSV — extract .com domains only (lightweight, no scoring yet)
       const lines = csvText.trim().split("\n");
       const header = lines[0].toLowerCase();
       const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
@@ -755,57 +752,29 @@ serve(async (req) => {
       if (domainCol === -1) domainCol = 0;
 
       const totalParsed = lines.length - 1;
-      const scoredDomains: { domain: string; score: number }[] = [];
-      let comCount = 0;
+      const comDomains: string[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
-
-        comCount++;
-        const sld = domain.replace(/\.com$/, "");
-
-        // Hard gate: reject hyphens/numbers unless contains high-value keyword
-        const hasHyphen = sld.includes("-");
-        const hasNumber = /\d/.test(sld);
-        if (hasHyphen || hasNumber) {
-          const cleanSld = sld.replace(/[-0-9]/g, "");
-          const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
-          if (!hasHighValue) continue;
-        }
-
-        // Full heuristic pre-screen with comparable sales boost
-        const quality = quickQualityScore(sld, comparableKeywords);
-        if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality });
-        }
+        comDomains.push(domain);
       }
 
-      // Sort by heuristic score descending — best domains first
-      scoredDomains.sort((a, b) => b.score - a.score);
+      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
 
-      const domains = [...new Set(scoredDomains.map(d => d.domain))];
-      
-      // Identify premium tier count for tiered AI evaluation
-      const premiumCount = scoredDomains.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).length;
-
-      console.log(`Pre-screen: ${totalParsed} total → ${comCount} .com → ${domains.length} qualified → ${premiumCount} premium tier (threshold: ${QUALITY_THRESHOLD}/${PREMIUM_TIER_THRESHOLD})`);
-
-      // Store with premium delimiter: premium domains first, then standard, separated by "---TIER---"
-      const premiumDomains = scoredDomains.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-      const standardDomains = scoredDomains.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-      const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
+      // Store raw .com domains with "---RAW---" marker for pre-screening phase
+      const csvData = "---RAW---\n" + comDomains.join("\n");
 
       await adminClient.from("drop_scans").update({
         total_domains: totalParsed,
-        filtered_domains: domains.length,
-        status: "evaluating",
+        filtered_domains: 0,
+        status: "pre-screening",
         csv_data: csvData,
         resume_from: 0,
       }).eq("id", scanId);
 
-      // Self-invoke to start processing
+      // Self-invoke to start chunked pre-screening
       const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
       fetch(selfUrl, {
         method: "POST",
@@ -818,8 +787,7 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true, queued: true,
-        total: totalParsed, comDomains: comCount,
-        qualified: domains.length, premiumTier: premiumCount,
+        total: totalParsed, comDomains: comDomains.length,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
