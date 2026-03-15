@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark, RotateCcw } from "lucide-react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Save, Bookmark, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
