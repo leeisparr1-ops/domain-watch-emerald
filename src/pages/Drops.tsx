@@ -23,6 +23,7 @@ interface ScanResult {
   estimated_value: number;
   brandability: number;
   keyword_strength: number;
+  length_score: number;
 }
 
 interface Scan {
@@ -35,7 +36,7 @@ interface Scan {
   created_at: string;
 }
 
-type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "domain_name";
+type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name";
 
 const categoryColors: Record<string, string> = {
   premium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -217,9 +218,9 @@ const Drops = () => {
 
   const exportCsv = () => {
     if (!filteredResults.length) return;
-    const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Summary\n";
+    const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
     const rows = filteredResults.map(r =>
-      `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},"${r.ai_summary}"`
+      `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -255,7 +256,8 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a CSV of expiring domains and let AI evaluate every single one automatically.
+              Upload a CSV of expiring domains. Our quality engine pre-screens every domain, 
+              then AI deep-evaluates the best candidates for investment potential.
             </p>
           </div>
 
@@ -275,11 +277,16 @@ const Drops = () => {
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
                   <div>
                     <p className="font-medium text-foreground">
-                      Evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} .com domains...
+                      AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
                     </p>
+                    {currentScan && currentScan.total_domains > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {currentScan.total_domains.toLocaleString()} total → {currentScan.filtered_domains.toLocaleString()} passed quality pre-screen
+                      </p>
+                    )}
                   </div>
                   <Progress value={progress} className="max-w-sm mx-auto" />
                   <p className="text-xs text-muted-foreground">
@@ -292,7 +299,7 @@ const Drops = () => {
                   <div>
                     <p className="font-medium text-foreground">Upload Expiring Domains CSV</p>
                     <p className="text-sm text-muted-foreground">
-                      CSV with domain names — we'll filter .com and AI-evaluate each one
+                      CSV with domain names — quality pre-screen + AI evaluation on every .com
                     </p>
                   </div>
                   <Button onClick={() => fileRef.current?.click()} size="lg">

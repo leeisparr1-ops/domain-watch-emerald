@@ -1,0 +1,1 @@
+ALTER TABLE public.drop_scan_results ADD COLUMN IF NOT EXISTS length_score integer DEFAULT 0;
