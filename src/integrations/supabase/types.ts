@@ -250,10 +250,12 @@ export type Database = {
       drop_scans: {
         Row: {
           created_at: string
+          csv_data: string | null
           evaluated_domains: number
           filename: string
           filtered_domains: number
           id: string
+          resume_from: number
           status: string
           total_domains: number
           updated_at: string
@@ -261,10 +263,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          csv_data?: string | null
           evaluated_domains?: number
           filename?: string
           filtered_domains?: number
           id?: string
+          resume_from?: number
           status?: string
           total_domains?: number
           updated_at?: string
@@ -272,10 +276,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          csv_data?: string | null
           evaluated_domains?: number
           filename?: string
           filtered_domains?: number
           id?: string
+          resume_from?: number
           status?: string
           total_domains?: number
           updated_at?: string
