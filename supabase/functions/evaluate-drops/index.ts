@@ -50,9 +50,22 @@ serve(async (req) => {
       for (let i = 1; i < lines.length; i++) {
         const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
-        if (domain && domain.endsWith(".com") && domain.length > 4) {
-          allDomains.push(domain);
-        }
+        if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
+
+        const sld = domain.replace(/\.com$/, ""); // second-level domain
+
+        // Smart pre-filter: skip junk domains to massively reduce AI calls
+        const hasHyphen = sld.includes("-");
+        const hasNumber = /\d/.test(sld);
+        const tooLong = sld.length > 12;
+
+        // Allow through if it passes all filters, OR contains high-value keywords
+        const highValuePattern = /intel|smart|tech|data|cloud|ai|app|web|net|pay|fin|health|med|crypto|dev|hub|lab|bot|gen|code|logic|mind|core|sync|flow|link|base|stack|bit|zen|nova|vox|plex/;
+        const hasHighValueKeyword = highValuePattern.test(sld);
+
+        if ((hasHyphen || hasNumber || tooLong) && !hasHighValueKeyword) continue;
+
+        allDomains.push(domain);
       }
       const domains = [...new Set(allDomains)];
 
