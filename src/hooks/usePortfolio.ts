@@ -95,7 +95,7 @@ export function usePortfolio() {
         status: input.status ?? "holding",
         tags: input.tags ?? [],
         notes: input.notes ?? null,
-        renewal_cost_yearly: input.renewal_cost_yearly ?? 0,
+        renewal_cost_yearly: input.renewal_cost_yearly ?? getTldRenewalRange(domainName)?.typical ?? 0,
         next_renewal_date: input.next_renewal_date ?? null,
         sale_price: input.sale_price ?? null,
         sale_date: input.sale_date ?? null,
