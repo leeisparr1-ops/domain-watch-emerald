@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { PortfolioDomain } from "@/hooks/usePortfolio";
 import { differenceInDays, parseISO, format, addYears, isPast } from "date-fns";
 import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
+import { toast } from "sonner";
 
 /** Compute the next renewal/expiry date from purchase_date or next_renewal_date */
 function getExpiryDate(d: PortfolioDomain): string | null {
-  // If explicitly set, use it
   if (d.next_renewal_date) return d.next_renewal_date;
-  // Otherwise derive from purchase_date
   if (!d.purchase_date) return null;
   try {
     let date = parseISO(d.purchase_date);
@@ -81,7 +80,6 @@ function pnl(current: number | null, cost: number) {
 }
 
 function getDomainLength(domain: string): number {
-  // SLD length only (before the first dot)
   const sld = domain.split(".")[0];
   return sld.length;
 }
@@ -104,10 +102,17 @@ function formatDaysHeld(days: number | null): string {
   return months > 0 ? `${years}y ${months}mo` : `${years}y`;
 }
 
-// Get live renewal price for a TLD
 function getLiveRenewal(domain: string): number {
   const range = getTldRenewalRange(domain);
-  return range?.typical ?? 13; // fallback to .com typical
+  return range?.typical ?? 13;
+}
+
+// CSV escape helper
+function csvEscape(val: string): string {
+  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
 }
 
 // -- Inline editable cell component --
@@ -241,6 +246,34 @@ function InlineTextCell({ value, onSave, placeholder = "..." }: InlineTextCellPr
   );
 }
 
+// -- Sorting --
+type SortKey = "domain" | "length" | "status" | "cost" | "list_price" | "value" | "pnl" | "sale_price" | "expires" | "renewal" | "held" | "tags";
+type SortDir = "asc" | "desc";
+
+function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, className = "" }: {
+  label: string;
+  sortKey: SortKey;
+  currentSort: SortKey | null;
+  currentDir: SortDir;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
+  const active = currentSort === sortKey;
+  return (
+    <button
+      onClick={() => onSort(sortKey)}
+      className={`flex items-center gap-1 font-medium hover:text-foreground transition-colors ${active ? "text-foreground" : ""} ${className}`}
+    >
+      {label}
+      {active ? (
+        currentDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+      ) : (
+        <ArrowUpDown className="w-3 h-3 opacity-40" />
+      )}
+    </button>
+  );
+}
+
 interface Props {
   domains: PortfolioDomain[];
   onUpdate: (id: string, updates: Partial<PortfolioDomain>) => Promise<void>;
@@ -254,6 +287,75 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [refreshingBulk, setRefreshingBulk] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  // Sort domains
+  const sortedDomains = useMemo(() => {
+    if (!sortKey) return domains;
+    const sorted = [...domains].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "domain":
+          cmp = a.domain_name.localeCompare(b.domain_name);
+          break;
+        case "length":
+          cmp = getDomainLength(a.domain_name) - getDomainLength(b.domain_name);
+          break;
+        case "status":
+          cmp = a.status.localeCompare(b.status);
+          break;
+        case "cost":
+          cmp = Number(a.purchase_price) - Number(b.purchase_price);
+          break;
+        case "list_price":
+          cmp = (a.list_price ?? 0) - (b.list_price ?? 0);
+          break;
+        case "value":
+          cmp = (a.auto_valuation ?? 0) - (b.auto_valuation ?? 0);
+          break;
+        case "pnl": {
+          const pnlA = (a.status === "sold" ? (a.sale_price ?? 0) : (a.auto_valuation ?? 0)) - Number(a.purchase_price);
+          const pnlB = (b.status === "sold" ? (b.sale_price ?? 0) : (b.auto_valuation ?? 0)) - Number(b.purchase_price);
+          cmp = pnlA - pnlB;
+          break;
+        }
+        case "sale_price":
+          cmp = (a.sale_price ?? 0) - (b.sale_price ?? 0);
+          break;
+        case "expires": {
+          const ea = getExpiryDate(a) ?? "9999-12-31";
+          const eb = getExpiryDate(b) ?? "9999-12-31";
+          cmp = ea.localeCompare(eb);
+          break;
+        }
+        case "renewal":
+          cmp = (Number(a.renewal_cost_yearly) || getLiveRenewal(a.domain_name)) - (Number(b.renewal_cost_yearly) || getLiveRenewal(b.domain_name));
+          break;
+        case "held": {
+          const da = getDaysHeld(a.purchase_date) ?? -1;
+          const db = getDaysHeld(b.purchase_date) ?? -1;
+          cmp = da - db;
+          break;
+        }
+        case "tags":
+          cmp = (a.tags ?? []).join(",").localeCompare((b.tags ?? []).join(","));
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [domains, sortKey, sortDir]);
 
   useEffect(() => {
     const domainIds = new Set(domains.map((d) => d.id));
@@ -298,6 +400,64 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
     setRefreshingId(null);
   };
 
+  const handleBulkRefreshRenewals = async () => {
+    const selectedDomains = domains.filter((d) => selected.has(d.id) && d.status !== "sold");
+    if (selectedDomains.length === 0) return;
+    setRefreshingBulk(true);
+    toast.info(`Refreshing expiry dates for ${selectedDomains.length} domains...`);
+    let done = 0;
+    for (const d of selectedDomains) {
+      try {
+        await onRefreshValuation(d);
+        done++;
+      } catch { /* continue */ }
+    }
+    toast.success(`${done} expiry date${done !== 1 ? "s" : ""} refreshed`);
+    setRefreshingBulk(false);
+  };
+
+  const handleExportCSV = () => {
+    const exportDomains = selected.size > 0
+      ? domains.filter((d) => selected.has(d.id))
+      : domains;
+
+    const headers = ["Domain", "TLD", "Length", "Status", "Purchase Price", "List Price", "Valuation", "P&L", "Sale Price", "Expires", "Renewal Cost", "Days Held", "Tags", "Notes", "Purchase Date", "Purchase Source"];
+    const rows = exportDomains.map((d) => {
+      const p = d.status === "sold"
+        ? (d.sale_price ?? 0) - Number(d.purchase_price)
+        : (d.auto_valuation ?? 0) - Number(d.purchase_price);
+      const expiry = getExpiryDate(d);
+      return [
+        d.domain_name,
+        d.tld ?? "",
+        String(getDomainLength(d.domain_name)),
+        d.status,
+        String(Number(d.purchase_price)),
+        d.list_price != null ? String(d.list_price) : "",
+        d.auto_valuation != null ? String(d.auto_valuation) : "",
+        String(p),
+        d.sale_price != null ? String(d.sale_price) : "",
+        expiry ?? "",
+        String(Number(d.renewal_cost_yearly) || getLiveRenewal(d.domain_name)),
+        String(getDaysHeld(d.purchase_date) ?? ""),
+        (d.tags ?? []).join("; "),
+        d.notes ?? "",
+        d.purchase_date ?? "",
+        d.purchase_source ?? "",
+      ].map(csvEscape);
+    });
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `portfolio-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${exportDomains.length} domains to CSV`);
+  };
+
   const updateField = useCallback((id: string, field: string, value: any) => {
     return onUpdate(id, { [field]: value });
   }, [onUpdate]);
@@ -313,7 +473,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
   return (
     <div className="space-y-2">
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 px-1">
+        <div className="flex items-center gap-2 px-1 flex-wrap">
           <span className="text-sm text-muted-foreground">{selected.size} selected</span>
           {confirmBulkDelete ? (
             <>
@@ -327,6 +487,19 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
             <>
               <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setConfirmBulkDelete(true)}>
                 <Trash2 className="w-3.5 h-3.5" />Delete {selected.size}
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportCSV}>
+                <Download className="w-3.5 h-3.5" />Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleBulkRefreshRenewals}
+                disabled={refreshingBulk}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshingBulk ? "animate-spin" : ""}`} />
+                {refreshingBulk ? "Refreshing..." : "Refresh Renewals"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
             </>
@@ -342,23 +515,23 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                   {allSelected ? <CheckSquare className="w-4 h-4" /> : someSelected ? <MinusSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                 </button>
               </th>
-              <th className="px-4 py-3 font-medium">Domain</th>
-              <th className="px-3 py-3 font-medium text-center">Len</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right">Cost</th>
-              <th className="px-4 py-3 font-medium text-right">List Price</th>
-              <th className="px-4 py-3 font-medium text-right">Current Value</th>
-              <th className="px-4 py-3 font-medium text-right">P&L</th>
-              <th className="px-4 py-3 font-medium text-right">Sale Price</th>
-              <th className="px-4 py-3 font-medium text-center">Expires</th>
-              <th className="px-4 py-3 font-medium text-right">Renewal</th>
-              <th className="px-3 py-3 font-medium text-center">Held</th>
-              <th className="px-4 py-3 font-medium">Tags</th>
+              <th className="px-4 py-3"><SortableHeader label="Domain" sortKey="domain" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
+              <th className="px-3 py-3 text-center"><SortableHeader label="Len" sortKey="length" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-center" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
+              <th className="px-4 py-3"><SortableHeader label="Cost" sortKey="cost" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-4 py-3"><SortableHeader label="List Price" sortKey="list_price" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Current Value" sortKey="value" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-4 py-3"><SortableHeader label="P&L" sortKey="pnl" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Sale Price" sortKey="sale_price" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Expires" sortKey="expires" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-center" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Renewal" sortKey="renewal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
+              <th className="px-3 py-3"><SortableHeader label="Held" sortKey="held" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-center" /></th>
+              <th className="px-4 py-3"><SortableHeader label="Tags" sortKey="tags" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {domains.map((d) => {
+            {sortedDomains.map((d) => {
               const p = d.status === "sold"
                 ? pnl(d.sale_price, Number(d.purchase_price))
                 : pnl(d.auto_valuation, Number(d.purchase_price));
