@@ -271,6 +271,7 @@ export function usePortfolio() {
     const soldCostBasis = sold.reduce((s, d) => s + Number(d.purchase_price), 0);
     const realizedPnL = totalSaleRevenue - soldCostBasis;
     const holdingCostBasis = holding.reduce((s, d) => s + Number(d.purchase_price), 0);
+    const totalCurrentValue = holding.reduce((s, d) => s + (Number(d.auto_valuation) || 0), 0);
     const unrealizedPnL = totalCurrentValue - holdingCostBasis;
     const expiringSoon = holding.filter((d) => {
       if (!d.next_renewal_date) return false;
