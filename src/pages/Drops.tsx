@@ -150,6 +150,25 @@ const Drops = () => {
     if (fileRef.current) fileRef.current.value = "";
   }, [user, startPolling]);
 
+  const handleCancel = useCallback(async () => {
+    if (!currentScan) return;
+    setCancelling(true);
+    try {
+      await supabase
+        .from("drop_scans")
+        .update({ status: "complete" })
+        .eq("id", currentScan.id);
+      if (pollRef.current) clearInterval(pollRef.current);
+      setScanning(false);
+      setCurrentScan(prev => prev ? { ...prev, status: "complete" } : prev);
+      toast.success("Scan cancelled. Results so far are preserved.");
+    } catch {
+      toast.error("Failed to cancel scan");
+    } finally {
+      setCancelling(false);
+    }
+  }, [currentScan]);
+
   // On mount: check for any in-progress or completed scan
   const loadLatestScan = useCallback(async () => {
     if (!user) return;
