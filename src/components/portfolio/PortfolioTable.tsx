@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Trash2, RefreshCw, ExternalLink, Edit2, Check, X, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,167 @@ function pnl(current: number | null, cost: number) {
   };
 }
 
+function getDomainLength(domain: string): number {
+  // SLD length only (before the first dot)
+  const sld = domain.split(".")[0];
+  return sld.length;
+}
+
+function getDaysHeld(purchaseDate: string | null): number | null {
+  if (!purchaseDate) return null;
+  try {
+    return differenceInDays(new Date(), parseISO(purchaseDate));
+  } catch {
+    return null;
+  }
+}
+
+function formatDaysHeld(days: number | null): string {
+  if (days == null) return "-";
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${Math.round(days / 30)}mo`;
+  const years = Math.floor(days / 365);
+  const months = Math.round((days % 365) / 30);
+  return months > 0 ? `${years}y ${months}mo` : `${years}y`;
+}
+
+// Get live renewal price for a TLD
+function getLiveRenewal(domain: string): number {
+  const range = getTldRenewalRange(domain);
+  return range?.typical ?? 13; // fallback to .com typical
+}
+
+// -- Inline editable cell component --
+interface InlineCellProps {
+  value: number | null;
+  onSave: (val: number | null) => Promise<void>;
+  placeholder?: string;
+  allowNull?: boolean;
+  prefix?: string;
+  className?: string;
+  subtext?: React.ReactNode;
+}
+
+function InlineEditCell({ value, onSave, placeholder = "0", allowNull = false, prefix = "$", className = "", subtext }: InlineCellProps) {
+  const [editing, setEditing] = useState(false);
+  const [localVal, setLocalVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setLocalVal(value != null ? String(value) : "");
+    setEditing(true);
+  };
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    const parsed = parseFloat(localVal);
+    const newVal = isNaN(parsed) ? (allowNull ? null : 0) : parsed;
+    if (newVal !== value) {
+      await onSave(newVal);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        type="number"
+        className="h-7 w-24 text-right text-sm font-mono"
+        value={localVal}
+        onChange={(e) => setLocalVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={startEdit}
+      className={`text-right font-mono cursor-pointer hover:bg-muted/50 rounded px-1.5 py-0.5 -mx-1.5 transition-colors w-full text-sm ${className}`}
+      title="Click to edit"
+    >
+      <span>{value != null ? `${prefix}${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "-"}</span>
+      {subtext}
+    </button>
+  );
+}
+
+// -- Inline text cell --
+interface InlineTextCellProps {
+  value: string | null;
+  onSave: (val: string | null) => Promise<void>;
+  placeholder?: string;
+}
+
+function InlineTextCell({ value, onSave, placeholder = "..." }: InlineTextCellProps) {
+  const [editing, setEditing] = useState(false);
+  const [localVal, setLocalVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setLocalVal(value ?? "");
+    setEditing(true);
+  };
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    const newVal = localVal.trim() || null;
+    if (newVal !== value) {
+      await onSave(newVal);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        className="h-7 w-32 text-xs"
+        value={localVal}
+        onChange={(e) => setLocalVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={startEdit}
+      className="cursor-pointer hover:bg-muted/50 rounded px-1.5 py-0.5 -mx-1.5 transition-colors text-xs text-left w-full"
+      title="Click to edit"
+    >
+      {value || <span className="text-muted-foreground/40">{placeholder}</span>}
+    </button>
+  );
+}
+
 interface Props {
   domains: PortfolioDomain[];
   onUpdate: (id: string, updates: Partial<PortfolioDomain>) => Promise<void>;
@@ -63,14 +224,11 @@ interface Props {
 }
 
 export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation }: Props) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<PortfolioDomain>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  // Clean up selected IDs that no longer exist in domains
   useEffect(() => {
     const domainIds = new Set(domains.map((d) => d.id));
     setSelected((prev) => {
@@ -83,11 +241,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
   const someSelected = selected.size > 0 && !allSelected;
 
   const toggleAll = () => {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(domains.map((d) => d.id)));
-    }
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(domains.map((d) => d.id)));
   };
 
   const toggleOne = (id: string) => {
@@ -102,9 +257,8 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     setDeleting(true);
-    const ids = Array.from(selected);
     try {
-      await onDeleteBulk(ids);
+      await onDeleteBulk(Array.from(selected));
       setSelected(new Set());
       setConfirmBulkDelete(false);
     } finally {
@@ -112,39 +266,15 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
     }
   };
 
-  const handleSingleDelete = async (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    await onDelete(id);
-  };
-
-  const startEdit = (d: PortfolioDomain) => {
-    setEditingId(d.id);
-    setEditForm({
-      status: d.status,
-      list_price: d.list_price,
-      sale_price: d.sale_price,
-      sale_date: d.sale_date,
-      purchase_price: d.purchase_price,
-      renewal_cost_yearly: d.renewal_cost_yearly,
-      notes: d.notes,
-      tags: d.tags,
-    });
-  };
-
-  const saveEdit = async (id: string) => {
-    await onUpdate(id, editForm);
-    setEditingId(null);
-  };
-
   const handleRefresh = async (d: PortfolioDomain) => {
     setRefreshingId(d.id);
     await onRefreshValuation(d);
     setRefreshingId(null);
   };
+
+  const updateField = useCallback((id: string, field: string, value: any) => {
+    return onUpdate(id, { [field]: value });
+  }, [onUpdate]);
 
   if (domains.length === 0) {
     return (
@@ -162,33 +292,17 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
           {confirmBulkDelete ? (
             <>
               <span className="text-sm font-medium text-destructive">Delete {selected.size} domain{selected.size !== 1 ? "s" : ""}?</span>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="gap-1.5"
-                onClick={handleDeleteSelected}
-                disabled={deleting}
-              >
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={handleDeleteSelected} disabled={deleting}>
                 {deleting ? "Deleting..." : "Confirm"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(false)} disabled={deleting}>
-                Cancel
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(false)} disabled={deleting}>Cancel</Button>
             </>
           ) : (
             <>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setConfirmBulkDelete(true)}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete {selected.size}
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setConfirmBulkDelete(true)}>
+                <Trash2 className="w-3.5 h-3.5" />Delete {selected.size}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-                Clear
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
             </>
           )}
         </div>
@@ -203,6 +317,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                 </button>
               </th>
               <th className="px-4 py-3 font-medium">Domain</th>
+              <th className="px-3 py-3 font-medium text-center">Len</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium text-right">Cost</th>
               <th className="px-4 py-3 font-medium text-right">List Price</th>
@@ -210,64 +325,74 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               <th className="px-4 py-3 font-medium text-right">P&L</th>
               <th className="px-4 py-3 font-medium text-right">Sale Price</th>
               <th className="px-4 py-3 font-medium text-right">Renewal</th>
+              <th className="px-3 py-3 font-medium text-center">Held</th>
               <th className="px-4 py-3 font-medium">Tags</th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
-        <tbody>
-          {domains.map((d) => {
-            const isEditing = editingId === d.id;
-            const p = d.status === "sold"
-              ? pnl(d.sale_price, Number(d.purchase_price))
-              : pnl(d.auto_valuation, Number(d.purchase_price));
-            const status = STATUS_MAP[d.status] ?? STATUS_MAP.holding;
+          <tbody>
+            {domains.map((d) => {
+              const p = d.status === "sold"
+                ? pnl(d.sale_price, Number(d.purchase_price))
+                : pnl(d.auto_valuation, Number(d.purchase_price));
+              const status = STATUS_MAP[d.status] ?? STATUS_MAP.holding;
+              const domainLen = getDomainLength(d.domain_name);
+              const daysHeld = getDaysHeld(d.purchase_date);
+              const liveRenewal = getLiveRenewal(d.domain_name);
+              const displayRenewal = Number(d.renewal_cost_yearly) || liveRenewal;
 
-            return (
-              <tr key={d.id} className={`border-t border-border/50 transition-colors ${selected.has(d.id) ? "bg-primary/5" : "hover:bg-muted/20"}`}>
-                <td className="px-3 py-3">
-                  <button onClick={() => toggleOne(d.id)} className="text-muted-foreground hover:text-foreground transition-colors">
-                    {selected.has(d.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <Link
-                      to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
-                      className="font-medium text-foreground hover:text-primary flex items-center gap-1"
-                    >
-                      {d.domain_name}
-                      <ExternalLink className="w-3 h-3 opacity-50" />
-                    </Link>
-                    {d.notes && !isEditing && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <StickyNote className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-[200px]">
-                            <p className="text-xs">{d.notes}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                  {isEditing ? (
-                    <Input
-                      className="h-7 mt-1 text-xs"
-                      placeholder="Notes..."
-                      value={editForm.notes ?? d.notes ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value || null })}
+              return (
+                <tr key={d.id} className={`border-t border-border/50 transition-colors ${selected.has(d.id) ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                  {/* Checkbox */}
+                  <td className="px-3 py-3">
+                    <button onClick={() => toggleOne(d.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {selected.has(d.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </td>
+
+                  {/* Domain */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to={`/tools?domain=${encodeURIComponent(d.domain_name)}`}
+                        className="font-medium text-foreground hover:text-primary flex items-center gap-1"
+                      >
+                        {d.domain_name}
+                        <ExternalLink className="w-3 h-3 opacity-50" />
+                      </Link>
+                      {d.notes && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <StickyNote className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[200px]">
+                              <p className="text-xs">{d.notes}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                    <InlineTextCell
+                      value={d.notes}
+                      onSave={(val) => updateField(d.id, "notes", val)}
+                      placeholder="Add notes..."
                     />
-                  ) : (
-                    d.purchase_source && (
-                      <span className="text-xs text-muted-foreground">{d.purchase_source}</span>
-                    )
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {isEditing ? (
-                    <Select value={editForm.status ?? d.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                      <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                  </td>
+
+                  {/* Length */}
+                  <td className="px-3 py-3 text-center">
+                    <span className={`font-mono text-xs ${domainLen <= 5 ? "text-green-500 font-semibold" : domainLen <= 8 ? "text-foreground" : "text-muted-foreground"}`}>
+                      {domainLen}
+                    </span>
+                  </td>
+
+                  {/* Status - inline select */}
+                  <td className="px-4 py-3">
+                    <Select value={d.status} onValueChange={(v) => updateField(d.id, "status", v)}>
+                      <SelectTrigger className="h-7 w-[100px] border-0 bg-transparent px-0 hover:bg-muted/50">
+                        <Badge variant={status.variant} className="cursor-pointer">{status.label}</Badge>
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="holding">Holding</SelectItem>
                         <SelectItem value="listed">Listed</SelectItem>
@@ -276,103 +401,68 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                         <SelectItem value="sold">Sold</SelectItem>
                       </SelectContent>
                     </Select>
-                  ) : (
-                    <Badge variant={status.variant}>{status.label}</Badge>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      className="h-8 w-24 text-right"
-                      value={editForm.purchase_price ?? d.purchase_price}
-                      onChange={(e) => setEditForm({ ...editForm, purchase_price: parseFloat(e.target.value) || 0 })}
+                  </td>
+
+                  {/* Cost - inline edit */}
+                  <td className="px-4 py-3 text-right">
+                    <InlineEditCell
+                      value={Number(d.purchase_price)}
+                      onSave={(val) => updateField(d.id, "purchase_price", val ?? 0)}
                     />
-                  ) : (
-                    fmt(Number(d.purchase_price))
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      className="h-8 w-24 text-right"
-                      value={editForm.list_price ?? ""}
-                      onChange={(e) => setEditForm({ ...editForm, list_price: parseFloat(e.target.value) || null })}
-                      placeholder="List $"
+                  </td>
+
+                  {/* List Price - inline edit */}
+                  <td className="px-4 py-3 text-right">
+                    <InlineEditCell
+                      value={d.list_price}
+                      onSave={(val) => updateField(d.id, "list_price", val)}
+                      allowNull
+                      placeholder="Set price"
                     />
-                  ) : (
-                    fmt(d.list_price)
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {d.status === "sold" ? "-" : fmt(d.auto_valuation)}
-                  {(() => {
-                    const roiWarn = renewalRoiWarning(d);
-                    if (!roiWarn) return null;
-                    return (
-                      <p className={`text-[10px] mt-0.5 font-medium ${roiWarn.color}`}>
-                        {roiWarn.label}
-                      </p>
-                    );
-                  })()}
-                </td>
-                <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {isEditing ? (
-                    <div className="space-y-1">
-                      <Input
-                        type="number"
-                        className="h-8 w-24 text-right"
-                        value={editForm.sale_price ?? ""}
-                        onChange={(e) => setEditForm({ ...editForm, sale_price: parseFloat(e.target.value) || null })}
-                        placeholder="Sale $"
-                      />
-                      {(editForm.status === "sold" || d.status === "sold") && (
-                        <Input
-                          type="date"
-                          className="h-7 w-28 text-xs"
-                          value={editForm.sale_date ?? ""}
-                          onChange={(e) => setEditForm({ ...editForm, sale_date: e.target.value || null })}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    fmt(d.sale_price)
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                  {isEditing ? (
-                    <div className="space-y-1">
-                      <Input
-                        type="number"
-                        className="h-8 w-24 text-right ml-auto"
-                        value={editForm.renewal_cost_yearly ?? d.renewal_cost_yearly ?? 0}
-                        onChange={(e) => setEditForm({ ...editForm, renewal_cost_yearly: parseFloat(e.target.value) || 0 })}
-                      />
-                      {(() => {
-                        const range = getTldRenewalRange(d.domain_name);
-                        if (!range) return null;
-                        return (
-                          <p className="text-[10px] text-muted-foreground/70 text-right">
-                            Typical: ${range.min}–${range.max}/yr
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  ) : (
+                  </td>
+
+                  {/* Current Value */}
+                  <td className="px-4 py-3 text-right font-mono">
+                    {d.status === "sold" ? "-" : fmt(d.auto_valuation)}
+                    {(() => {
+                      const roiWarn = renewalRoiWarning(d);
+                      if (!roiWarn) return null;
+                      return (
+                        <p className={`text-[10px] mt-0.5 font-medium ${roiWarn.color}`}>
+                          {roiWarn.label}
+                        </p>
+                      );
+                    })()}
+                  </td>
+
+                  {/* P&L */}
+                  <td className={`px-4 py-3 text-right font-mono ${p.color}`}>{p.value}</td>
+
+                  {/* Sale Price - inline edit */}
+                  <td className="px-4 py-3 text-right">
+                    <InlineEditCell
+                      value={d.sale_price}
+                      onSave={(val) => updateField(d.id, "sale_price", val)}
+                      allowNull
+                      placeholder="Sale $"
+                    />
+                  </td>
+
+                  {/* Renewal - with live TLD pricing */}
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <div className="text-right">
-                        <span>{fmt(Number(d.renewal_cost_yearly))}</span>
-                        {Number(d.renewal_cost_yearly) === 0 && (() => {
-                          const range = getTldRenewalRange(d.domain_name);
-                          if (!range) return null;
-                          return (
-                            <p className="text-[10px] text-muted-foreground/60">
-                              ~${range.typical}/yr
-                            </p>
-                          );
-                        })()}
+                        <InlineEditCell
+                          value={displayRenewal}
+                          onSave={(val) => updateField(d.id, "renewal_cost_yearly", val ?? 0)}
+                          subtext={
+                            Number(d.renewal_cost_yearly) === 0 ? (
+                              <p className="text-[10px] text-muted-foreground/60 font-normal">
+                                auto ({d.tld ?? "com"})
+                              </p>
+                            ) : null
+                          }
+                        />
                       </div>
                       {(() => {
                         const warn = renewalWarning(d);
@@ -397,61 +487,52 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                         );
                       })()}
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {isEditing ? (
-                    <Input
-                      className="h-8 w-32 text-xs"
-                      placeholder="ai, tech, brandable"
-                      value={(editForm.tags ?? d.tags ?? []).join(", ")}
-                      onChange={(e) => setEditForm({ ...editForm, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })}
+                  </td>
+
+                  {/* Days Held */}
+                  <td className="px-3 py-3 text-center">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {formatDaysHeld(daysHeld)}
+                    </span>
+                  </td>
+
+                  {/* Tags - inline */}
+                  <td className="px-4 py-3">
+                    <InlineTextCell
+                      value={(d.tags ?? []).join(", ")}
+                      onSave={(val) => updateField(d.id, "tags", val ? val.split(",").map((t) => t.trim()).filter(Boolean) : [])}
+                      placeholder="Add tags..."
                     />
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {(d.tags ?? []).map((t) => (
-                        <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
-                      ))}
+                  </td>
+
+                  {/* Actions - simplified */}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleRefresh(d)}
+                        disabled={refreshingId === d.id}
+                        title="Refresh valuation"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${refreshingId === d.id ? "animate-spin" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => onDelete(d.id)}
+                        title="Remove"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {isEditing ? (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(d.id)}>
-                          <Check className="w-3.5 h-3.5 text-green-500" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingId(null)}>
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(d)} title="Edit">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleRefresh(d)}
-                          disabled={refreshingId === d.id}
-                          title="Refresh valuation"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${refreshingId === d.id ? "animate-spin" : ""}`} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleSingleDelete(d.id)} title="Remove">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
     </div>
