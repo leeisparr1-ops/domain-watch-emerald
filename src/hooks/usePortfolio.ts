@@ -51,7 +51,7 @@ export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_val
 export interface PortfolioStats {
   totalDomains: number;
   totalInvested: number;
-  totalCurrentValue: number;
+  totalListingsPrice: number;
   totalRenewalCosts: number;
   totalSold: number;
   totalSaleRevenue: number;
@@ -265,12 +265,13 @@ export function usePortfolio() {
     const sold = domains.filter((d) => d.status === "sold");
 
     const totalInvested = domains.reduce((s, d) => s + Number(d.purchase_price), 0);
-    const totalCurrentValue = holding.reduce((s, d) => s + (Number(d.auto_valuation) || 0), 0);
+    const totalListingsPrice = holding.reduce((s, d) => s + (Number(d.list_price) || 0), 0);
     const totalRenewalCosts = holding.reduce((s, d) => s + Number(d.renewal_cost_yearly), 0);
     const totalSaleRevenue = sold.reduce((s, d) => s + (Number(d.sale_price) || 0), 0);
     const soldCostBasis = sold.reduce((s, d) => s + Number(d.purchase_price), 0);
     const realizedPnL = totalSaleRevenue - soldCostBasis;
     const holdingCostBasis = holding.reduce((s, d) => s + Number(d.purchase_price), 0);
+    const totalCurrentValue = holding.reduce((s, d) => s + (Number(d.auto_valuation) || 0), 0);
     const unrealizedPnL = totalCurrentValue - holdingCostBasis;
     const expiringSoon = holding.filter((d) => {
       if (!d.next_renewal_date) return false;
@@ -282,7 +283,7 @@ export function usePortfolio() {
     return {
       totalDomains: domains.length,
       totalInvested,
-      totalCurrentValue,
+      totalListingsPrice,
       totalRenewalCosts,
       totalSold: sold.length,
       totalSaleRevenue,
