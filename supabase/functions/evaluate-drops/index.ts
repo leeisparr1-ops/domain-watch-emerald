@@ -292,8 +292,17 @@ serve(async (req) => {
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
 
-        comCount++;
+      comCount++;
         const sld = domain.replace(/\.com$/, "");
+
+        // Hard gate: reject hyphens/numbers unless domain contains a high-value keyword
+        const hasHyphen = sld.includes("-");
+        const hasNumber = /\d/.test(sld);
+        if (hasHyphen || hasNumber) {
+          const cleanSld = sld.replace(/[-0-9]/g, "");
+          const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
+          if (!hasHighValue) continue;
+        }
 
         // Fast heuristic pre-screen — only domains scoring above threshold get AI evaluation
         const quality = quickQualityScore(sld);
