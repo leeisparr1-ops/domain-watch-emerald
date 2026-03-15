@@ -8,10 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
+import { Download, Loader2, Search, TrendingUp, Star, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
 interface ScanResult {
@@ -50,21 +49,18 @@ const categoryColors: Record<string, string> = {
   weak: "bg-destructive/20 text-destructive border-destructive/30",
 };
 
-const SHARED_DROP_CSV_PATH = "/store/daily-drops.csv";
-
 const Drops = () => {
   const { user } = useAuth();
-  const [scanning, setScanning] = useState(false);
   const [currentScan, setCurrentScan] = useState<Scan | null>(null);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("ai_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [cancelling, setCancelling] = useState(false);
 
-  // Fetch results for a scan (used during polling and on mount)
+  // Fetch results for a scan
   const fetchResults = useCallback(async (scanId: string) => {
     const { data } = await supabase
       .from("drop_scan_results")
@@ -78,7 +74,6 @@ const Drops = () => {
   // Start polling for an in-progress scan
   const startPolling = useCallback((scanId: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
-    setScanning(true);
 
     pollRef.current = setInterval(async () => {
       const { data: scanUpdate } = await supabase
@@ -89,85 +84,23 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-
-        // Fetch latest results every poll (shows progress live)
         await fetchResults(scanId);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
-          setScanning(false);
-          if (scanUpdate.status === "complete") {
-            toast.success(`Scan complete! ${scanUpdate.evaluated_domains} domains evaluated.`);
-          }
         }
       }
     }, 5000);
   }, [fetchResults]);
 
-  const handleStartSharedScan = useCallback(async () => {
-    if (!user) {
-      toast.error("Please sign in to run the scan");
-      return;
-    }
-
-    setScanning(true);
-    setResults([]);
-
-    try {
-      const { data: scan, error: scanErr } = await supabase
-        .from("drop_scans")
-        .insert({ user_id: user.id, filename: "daily-drops.csv", total_domains: 0 })
-        .select()
-        .single();
-
-      if (scanErr || !scan) throw new Error(scanErr?.message || "Failed to create scan");
-      setCurrentScan(scan as Scan);
-
-      const csvUrl = `${window.location.origin}${SHARED_DROP_CSV_PATH}`;
-
-      // Fire off evaluation — backend will self-chain, no browser connection needed
-      supabase.functions.invoke("evaluate-drops", {
-        body: { scanId: scan.id, csvUrl },
-      }).catch(err => console.error("Eval invoke error:", err));
-
-      toast.success("Shared drop list scan started.");
-
-      // Start polling for progress + live results
-      startPolling(scan.id);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start shared scan");
-      setScanning(false);
-    }
-  }, [user, startPolling]);
-
-  const handleCancel = useCallback(async () => {
-    if (!currentScan) return;
-    setCancelling(true);
-    try {
-      await supabase
-        .from("drop_scans")
-        .update({ status: "complete" })
-        .eq("id", currentScan.id);
-      if (pollRef.current) clearInterval(pollRef.current);
-      setScanning(false);
-      setCurrentScan(prev => prev ? { ...prev, status: "complete" } : prev);
-      toast.success("Scan cancelled. Results so far are preserved.");
-    } catch {
-      toast.error("Failed to cancel scan");
-    } finally {
-      setCancelling(false);
-    }
-  }, [currentScan]);
-
-  // On mount: check for any in-progress or completed scan
+  // On mount: load the latest shared scan (from any user)
   const loadLatestScan = useCallback(async () => {
-    if (!user) return;
+    setLoading(true);
 
-    // First check for in-progress scans to resume polling
+    // Check for any in-progress scan (shared)
     const { data: inProgress } = await supabase
       .from("drop_scans")
       .select("*")
-      .eq("user_id", user.id)
       .in("status", ["processing", "evaluating", "pre-screening"])
       .order("created_at", { ascending: false })
       .limit(1);
@@ -177,14 +110,14 @@ const Drops = () => {
       setCurrentScan(scan);
       await fetchResults(scan.id);
       startPolling(scan.id);
+      setLoading(false);
       return;
     }
 
-    // Otherwise load last completed scan
+    // Load latest completed scan (any user — shared results)
     const { data: scans } = await supabase
       .from("drop_scans")
       .select("*")
-      .eq("user_id", user.id)
       .eq("status", "complete")
       .order("created_at", { ascending: false })
       .limit(1);
@@ -194,7 +127,8 @@ const Drops = () => {
       setCurrentScan(scan);
       await fetchResults(scan.id);
     }
-  }, [user, fetchResults, startPolling]);
+    setLoading(false);
+  }, [fetchResults, startPolling]);
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
@@ -241,17 +175,20 @@ const Drops = () => {
     URL.revokeObjectURL(url);
   };
 
+  const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
     ? Math.round((currentScan.evaluated_domains / currentScan.filtered_domains) * 100)
     : 0;
 
-  const isProcessing = scanning || (currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status));
+  const scanDate = currentScan?.created_at
+    ? new Date(currentScan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
 
   return (
     <>
       <Helmet>
         <title>Daily Drop Scanner | ExpiredHawk</title>
-        <meta name="description" content="Scan a shared daily CSV of expiring domains and rank the best investment picks with AI." />
+        <meta name="description" content="AI-evaluated expiring domains ranked by investment potential. Updated daily." />
       </Helmet>
       <Navbar />
       <main className="min-h-screen bg-background pt-20 pb-16">
@@ -259,87 +196,69 @@ const Drops = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-              <Zap className="w-4 h-4" />
-              AI Drop Scanner
+              <TrendingUp className="w-4 h-4" />
+              Daily Drops
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Daily Drop Scanner
+              Today's Best Expiring Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              AI-powered scanner evaluates hundreds of thousands of expiring domains daily to find the best investment picks.
+              AI-evaluated from 500,000+ daily drops. Only quality names make the cut.
             </p>
+            {scanDate && !isProcessing && (
+              <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                Last updated: {scanDate}
+              </div>
+            )}
           </div>
 
-          {/* Shared Source Card */}
-          <Card className="mb-8 border-dashed border-2">
-            <CardContent className="py-8 text-center">
-              {isProcessing ? (
-                <div className="space-y-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
-                  <div>
-                    {currentScan?.status === "pre-screening" ? (
-                      <>
-                        <p className="font-medium text-foreground">
-                          Pre-screening {currentScan?.total_domains?.toLocaleString() || 0} domains...
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {(currentScan?.resume_from || 0).toLocaleString()} scanned, {currentScan?.filtered_domains?.toLocaleString() || 0} qualified so far
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium text-foreground">
-                          AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
-                        </p>
-                        {currentScan && currentScan.total_domains > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {currentScan.total_domains.toLocaleString()} total → {currentScan.filtered_domains.toLocaleString()} passed quality pre-screen
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <Progress value={currentScan?.status === "pre-screening" 
-                    ? (currentScan?.total_domains ? Math.round(((currentScan?.resume_from || 0) / currentScan.total_domains) * 100) : 0)
-                    : progress
-                  } className="max-w-sm mx-auto" />
-                  <div className="flex items-center justify-center gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      Runs in background — you can leave and come back anytime
-                    </p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCancel}
-                    disabled={cancelling}
-                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  >
-                    {cancelling ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                    Cancel Scan
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <p className="font-medium text-foreground">Today's Dropping Domains</p>
-                    <p className="text-sm text-muted-foreground">
-                      548,000+ expiring .com domains updated daily. Hit scan to find the gems.
-                    </p>
-                  </div>
-                  <Button onClick={handleStartSharedScan} size="lg">
-                    <Zap className="w-4 h-4 mr-2" />
-                    Start Scan
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Loading state */}
+          {loading && (
+            <Card className="mt-4">
+              <CardContent className="py-12 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground">Loading today's drops...</p>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Results Section — shown during processing AND after completion */}
+          {/* Processing banner */}
+          {isProcessing && (
+            <Card className="mb-8 border-primary/30 bg-primary/5">
+              <CardContent className="py-6 text-center space-y-3">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+                {currentScan?.status === "pre-screening" ? (
+                  <>
+                    <p className="font-medium text-foreground">
+                      Pre-screening {currentScan?.total_domains?.toLocaleString() || 0} domains...
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {(currentScan?.resume_from || 0).toLocaleString()} scanned, {currentScan?.filtered_domains?.toLocaleString() || 0} qualified so far
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-foreground">
+                      AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} evaluated
+                    </p>
+                  </>
+                )}
+                <Progress value={currentScan?.status === "pre-screening"
+                  ? (currentScan?.total_domains ? Math.round(((currentScan?.resume_from || 0) / currentScan.total_domains) * 100) : 0)
+                  : progress
+                } className="max-w-sm mx-auto" />
+                <p className="text-xs text-muted-foreground">
+                  Results appear as they're processed — check back anytime
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Results Section */}
           {results.length > 0 && (
             <>
               {/* Stats */}
@@ -479,13 +398,13 @@ const Drops = () => {
           )}
 
           {/* Empty state */}
-          {!isProcessing && results.length === 0 && (
+          {!loading && !isProcessing && results.length === 0 && (
             <Card className="mt-4">
               <CardContent className="py-12 text-center">
                 <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold text-foreground mb-2">No scans yet</h3>
+                <h3 className="font-semibold text-foreground mb-2">No results yet</h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Start a scan from the shared daily CSV to evaluate .com domains for investment potential.
+                  Today's drop list is being processed. Check back shortly — results will appear here automatically.
                 </p>
               </CardContent>
             </Card>
