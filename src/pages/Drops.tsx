@@ -221,7 +221,7 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a CSV of expiring domains and let AI evaluate every single one — just like your brother's pipeline, but built into ExpiredHawk.
+              Upload a CSV of expiring domains and let AI evaluate every single one automatically.
             </p>
           </div>
 
