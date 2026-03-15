@@ -49,5 +49,7 @@ project_id = "orbygspxutudncbyipst"
     verify_jwt = false
   [functions.keyword-volume-lookup]
     verify_jwt = false
+  [functions.evaluate-drops]
+    verify_jwt = false
   [functions.send-weekly-digest]
     verify_jwt = false

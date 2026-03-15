@@ -89,6 +89,7 @@ const App = () => (
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/methodology" element={<Methodology />} />
                 <Route path="/report/:reportId" element={<SharedReport />} />
+                <Route path="/drops" element={<ProtectedRoute><Drops /></ProtectedRoute>} />
                 <Route path="/blog" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
