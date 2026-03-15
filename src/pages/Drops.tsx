@@ -325,14 +325,14 @@ const Drops = () => {
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <p className="font-medium text-foreground">Shared Daily Drop List</p>
+                    <p className="font-medium text-foreground">Today's Dropping Domains</p>
                     <p className="text-sm text-muted-foreground">
-                      Source file: {SHARED_DROP_CSV_PATH}. Every user scans from the same CSV.
+                      548,000+ expiring .com domains updated daily. Hit scan to find the gems.
                     </p>
                   </div>
                   <Button onClick={handleStartSharedScan} size="lg">
                     <Zap className="w-4 h-4 mr-2" />
-                    Start Shared Scan
+                    Start Scan
                   </Button>
                 </div>
               )}
