@@ -159,7 +159,7 @@ const Drops = () => {
   }, [user]);
 
   // Load last scan on mount
-  useState(() => { loadPastScan(); });
+  useEffect(() => { loadPastScan(); }, [loadPastScan]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
