@@ -426,6 +426,6 @@ const Drops = () => {
   );
 };
 
-const BATCH_SIZE = 25;
+
 
 export default Drops;
