@@ -47,6 +47,10 @@ export function Navbar() {
                   <Briefcase className="w-4 h-4" />
                   Portfolio
                 </Link>
+                <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <Zap className="w-4 h-4" />
+                  Drops
+                </Link>
                 <Link to="/settings">
                   <Button variant="ghost" size="sm">
                     <User className="w-4 h-4 mr-2" />
