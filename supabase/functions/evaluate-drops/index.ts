@@ -842,8 +842,11 @@ serve(async (req) => {
     // ─── PRE-SCREENING PHASE (chunked) ───
     if (scan.status === "pre-screening") {
       const rawLines = (scan.csv_data || "").split("\n");
-      // First line is "---RAW---", rest are domains
-      const allRaw = rawLines.slice(1).filter(Boolean);
+      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
+      const rawEndIdx = qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length;
+
+      // First line is "---RAW---", raw domains are stored before "---QUALIFIED---"
+      const allRaw = rawLines.slice(1, rawEndIdx).filter(Boolean);
       const startIdx = scan.resume_from || 0;
       const endIdx = Math.min(startIdx + PRE_SCREEN_CHUNK, allRaw.length);
       const chunk = allRaw.slice(startIdx, endIdx);
@@ -882,14 +885,13 @@ serve(async (req) => {
       }
 
       // Append qualified domains to existing qualified list stored elsewhere
-      // We accumulate qualified domains in a separate field approach: 
+      // We accumulate qualified domains in a separate field approach:
       // read existing qualified, append new ones, write back
       const existingQualified = (scan.filtered_domains || 0);
       const newQualified = existingQualified + scoredDomains.length;
 
       // Build accumulated qualified list — retrieve any previously qualified
       // We store qualified domains after the raw data, separated by "---QUALIFIED---"
-      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
       let previousQualified: string[] = [];
       if (qualifiedMarkerIdx >= 0) {
         previousQualified = rawLines.slice(qualifiedMarkerIdx + 1).filter(Boolean);
