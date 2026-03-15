@@ -7,6 +7,7 @@ import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
 import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
 import { addYears, format, isPast, parseISO as parseDate } from "date-fns";
+import { fetchRdapExpiry } from "@/lib/rdapExpiry";
 
 /** Derive the next renewal date from purchase date (next anniversary that's in the future) */
 function deriveNextRenewal(purchaseDate: string | null): string | null {
