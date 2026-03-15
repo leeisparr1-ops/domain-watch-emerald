@@ -218,9 +218,9 @@ const Drops = () => {
 
   const exportCsv = () => {
     if (!filteredResults.length) return;
-    const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Summary\n";
+    const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
     const rows = filteredResults.map(r =>
-      `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},"${r.ai_summary}"`
+      `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
