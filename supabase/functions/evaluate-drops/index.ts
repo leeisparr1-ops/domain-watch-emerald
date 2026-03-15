@@ -7,65 +7,116 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BATCH_SIZE = 25;
+const AI_BATCH_SIZE = 25;
+const DOMAINS_PER_INVOCATION = 500; // Process 500 domains per function call, then self-chain
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing authorization");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Auth: get user from JWT
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !user) throw new Error("Unauthorized");
-
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const { csvText, scanId } = await req.json();
-    if (!csvText || !scanId) throw new Error("Missing csvText or scanId");
+    const body = await req.json();
+    const { scanId, csvText } = body;
+    if (!scanId) throw new Error("Missing scanId");
 
-    // Parse CSV — extract domain names (first column or column named "domain"/"Domain Name")
-    const lines = csvText.trim().split("\n");
-    const header = lines[0].toLowerCase();
-    const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
-    let domainCol = cols.findIndex((c: string) =>
-      c === "domain" || c === "domain name" || c === "domainname" || c === "name"
-    );
-    if (domainCol === -1) domainCol = 0;
+    // If csvText is provided, this is the initial call — store CSV and parse domains
+    if (csvText) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) throw new Error("Missing authorization");
 
-    const allDomains: string[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
-      const domain = row[domainCol]?.toLowerCase().trim();
-      if (domain && domain.endsWith(".com") && domain.length > 4) {
-        allDomains.push(domain);
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: authErr } = await userClient.auth.getUser();
+      if (authErr || !user) throw new Error("Unauthorized");
+
+      // Parse CSV to extract .com domains
+      const lines = csvText.trim().split("\n");
+      const header = lines[0].toLowerCase();
+      const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
+      let domainCol = cols.findIndex((c: string) =>
+        c === "domain" || c === "domain name" || c === "domainname" || c === "name"
+      );
+      if (domainCol === -1) domainCol = 0;
+
+      const allDomains: string[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
+        const domain = row[domainCol]?.toLowerCase().trim();
+        if (domain && domain.endsWith(".com") && domain.length > 4) {
+          allDomains.push(domain);
+        }
       }
+      const domains = [...new Set(allDomains)];
+
+      // Store CSV domain list (just the filtered domains, not raw CSV) and update scan
+      await adminClient.from("drop_scans").update({
+        total_domains: lines.length - 1,
+        filtered_domains: domains.length,
+        status: "evaluating",
+        csv_data: domains.join("\n"),
+        resume_from: 0,
+      }).eq("id", scanId);
+
+      // Now self-invoke to start processing (no auth needed for chained calls)
+      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ scanId }),
+      }).catch(err => console.error("Self-chain invoke error:", err));
+
+      return new Response(JSON.stringify({ success: true, queued: true, filtered: domains.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Deduplicate
-    const domains = [...new Set(allDomains)];
+    // --- Chained invocation: no csvText, just scanId ---
+    // Load scan to get domain list and resume point
+    const { data: scan, error: scanErr } = await adminClient
+      .from("drop_scans")
+      .select("csv_data, resume_from, filtered_domains, status")
+      .eq("id", scanId)
+      .single();
 
-    // Update scan with counts
-    await adminClient.from("drop_scans").update({
-      total_domains: lines.length - 1,
-      filtered_domains: domains.length,
-      status: "evaluating",
-    }).eq("id", scanId);
+    if (scanErr || !scan) throw new Error("Scan not found");
+    if (scan.status === "complete" || scan.status === "error") {
+      return new Response(JSON.stringify({ success: true, already: scan.status }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // Batch evaluate
-    let evaluated = 0;
-    for (let i = 0; i < domains.length; i += BATCH_SIZE) {
-      const batch = domains.slice(i, i + BATCH_SIZE);
+    const allDomains = (scan.csv_data || "").split("\n").filter(Boolean);
+    const startIdx = scan.resume_from || 0;
+    const endIdx = Math.min(startIdx + DOMAINS_PER_INVOCATION, allDomains.length);
+    const chunk = allDomains.slice(startIdx, endIdx);
+
+    if (chunk.length === 0) {
+      // Nothing left to process
+      await adminClient.from("drop_scans").update({
+        status: "complete",
+        csv_data: null, // Clean up stored data
+      }).eq("id", scanId);
+
+      return new Response(JSON.stringify({ success: true, status: "complete" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Process this chunk in AI batches
+    let evaluated = startIdx;
+    for (let i = 0; i < chunk.length; i += AI_BATCH_SIZE) {
+      const batch = chunk.slice(i, i + AI_BATCH_SIZE);
 
       const prompt = `You are a domain investment expert. Evaluate each domain name for its investment potential as an expiring/dropping domain.
 
@@ -104,28 +155,27 @@ Return a JSON array of objects with keys: domain, score, summary, category, esti
         if (!aiResp.ok) {
           const status = aiResp.status;
           if (status === 429 || status === 402) {
-            console.warn(`Rate limited (${status}), waiting 10s...`);
-            await new Promise(r => setTimeout(r, 10000));
-            continue;
+            console.warn(`Rate limited (${status}), stopping chunk. Will resume from ${evaluated}.`);
+            break;
           }
           console.error("AI error:", status, await aiResp.text());
+          evaluated += batch.length;
           continue;
         }
 
         const aiData = await aiResp.json();
         const content = aiData.choices?.[0]?.message?.content || "";
 
-        // Parse JSON from response (handle markdown code blocks)
         let parsed: any[];
         try {
           const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           parsed = JSON.parse(cleaned);
         } catch {
           console.error("Failed to parse AI response for batch", i, content.slice(0, 200));
+          evaluated += batch.length;
           continue;
         }
 
-        // Insert results
         const rows = parsed.map((r: any) => ({
           scan_id: scanId,
           domain_name: r.domain || r.domain_name,
@@ -142,21 +192,49 @@ Return a JSON array of objects with keys: domain, score, summary, category, esti
         }
 
         evaluated += batch.length;
-        await adminClient.from("drop_scans").update({ evaluated_domains: evaluated }).eq("id", scanId);
+
+        // Update progress every batch
+        await adminClient.from("drop_scans").update({
+          evaluated_domains: evaluated,
+          resume_from: evaluated,
+        }).eq("id", scanId);
       } catch (batchErr) {
         console.error("Batch error:", batchErr);
+        evaluated += batch.length;
       }
 
-      // Small delay between batches to avoid rate limits
-      if (i + BATCH_SIZE < domains.length) {
-        await new Promise(r => setTimeout(r, 2000));
+      // Small delay between AI batches
+      if (i + AI_BATCH_SIZE < chunk.length) {
+        await new Promise(r => setTimeout(r, 1500));
       }
     }
 
-    // Mark complete
-    await adminClient.from("drop_scans").update({ status: "complete", evaluated_domains: evaluated }).eq("id", scanId);
+    // Update resume point
+    await adminClient.from("drop_scans").update({
+      evaluated_domains: evaluated,
+      resume_from: evaluated,
+    }).eq("id", scanId);
 
-    return new Response(JSON.stringify({ success: true, evaluated }), {
+    // If more domains remain, self-chain for next chunk
+    if (evaluated < allDomains.length) {
+      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ scanId }),
+      }).catch(err => console.error("Self-chain error:", err));
+    } else {
+      // All done
+      await adminClient.from("drop_scans").update({
+        status: "complete",
+        csv_data: null,
+      }).eq("id", scanId);
+    }
+
+    return new Response(JSON.stringify({ success: true, evaluated, total: allDomains.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
