@@ -7,8 +7,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PortfolioDomain } from "@/hooks/usePortfolio";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, format, addYears, isPast } from "date-fns";
 import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
+
+/** Compute the next renewal/expiry date from purchase_date or next_renewal_date */
+function getExpiryDate(d: PortfolioDomain): string | null {
+  // If explicitly set, use it
+  if (d.next_renewal_date) return d.next_renewal_date;
+  // Otherwise derive from purchase_date
+  if (!d.purchase_date) return null;
+  try {
+    let date = parseISO(d.purchase_date);
+    while (isPast(date)) {
+      date = addYears(date, 1);
+    }
+    return format(date, "yyyy-MM-dd");
+  } catch {
+    return null;
+  }
+}
+
+function formatExpiryDate(dateStr: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    return format(parseISO(dateStr), "MMM d, yyyy");
+  } catch {
+    return "-";
+  }
+}
 
 function renewalWarning(d: PortfolioDomain) {
   if (!d.next_renewal_date || d.status === "sold") return null;
