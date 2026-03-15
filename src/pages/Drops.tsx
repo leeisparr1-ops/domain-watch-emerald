@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Zap, Download, Loader2, Search, TrendingUp, Star } from "lucide-react";
+import { Upload, Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -60,6 +60,7 @@ const Drops = () => {
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Fetch results for a scan (used during polling and on mount)
   const fetchResults = useCallback(async (scanId: string) => {
@@ -148,6 +149,25 @@ const Drops = () => {
 
     if (fileRef.current) fileRef.current.value = "";
   }, [user, startPolling]);
+
+  const handleCancel = useCallback(async () => {
+    if (!currentScan) return;
+    setCancelling(true);
+    try {
+      await supabase
+        .from("drop_scans")
+        .update({ status: "complete" })
+        .eq("id", currentScan.id);
+      if (pollRef.current) clearInterval(pollRef.current);
+      setScanning(false);
+      setCurrentScan(prev => prev ? { ...prev, status: "complete" } : prev);
+      toast.success("Scan cancelled. Results so far are preserved.");
+    } catch {
+      toast.error("Failed to cancel scan");
+    } finally {
+      setCancelling(false);
+    }
+  }, [currentScan]);
 
   // On mount: check for any in-progress or completed scan
   const loadLatestScan = useCallback(async () => {
@@ -289,9 +309,21 @@ const Drops = () => {
                     )}
                   </div>
                   <Progress value={progress} className="max-w-sm mx-auto" />
-                  <p className="text-xs text-muted-foreground">
-                    Runs in background — you can leave and come back anytime
-                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Runs in background — you can leave and come back anytime
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    {cancelling ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                    Cancel Scan
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
