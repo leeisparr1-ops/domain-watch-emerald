@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
+import { Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -50,9 +50,10 @@ const categoryColors: Record<string, string> = {
   weak: "bg-destructive/20 text-destructive border-destructive/30",
 };
 
+const SHARED_DROP_CSV_PATH = "/store/daily-drops.csv";
+
 const Drops = () => {
   const { user } = useAuth();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [currentScan, setCurrentScan] = useState<Scan | null>(null);
   const [results, setResults] = useState<ScanResult[]>([]);
@@ -103,12 +104,9 @@ const Drops = () => {
     }, 5000);
   }, [fetchResults]);
 
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (!file.name.endsWith(".csv") && !file.name.endsWith(".txt")) {
-      toast.error("Please upload a CSV or TXT file");
+  const handleStartSharedScan = useCallback(async () => {
+    if (!user) {
+      toast.error("Please sign in to run the scan");
       return;
     }
 
@@ -116,39 +114,30 @@ const Drops = () => {
     setResults([]);
 
     try {
-      const csvText = await file.text();
-      const lines = csvText.trim().split("\n");
-      if (lines.length < 2) {
-        toast.error("File appears empty");
-        setScanning(false);
-        return;
-      }
-
-      // Create scan record
       const { data: scan, error: scanErr } = await supabase
         .from("drop_scans")
-        .insert({ user_id: user.id, filename: file.name, total_domains: lines.length - 1 })
+        .insert({ user_id: user.id, filename: "daily-drops.csv", total_domains: 0 })
         .select()
         .single();
 
       if (scanErr || !scan) throw new Error(scanErr?.message || "Failed to create scan");
       setCurrentScan(scan as Scan);
 
+      const csvUrl = `${window.location.origin}${SHARED_DROP_CSV_PATH}`;
+
       // Fire off evaluation — backend will self-chain, no browser connection needed
       supabase.functions.invoke("evaluate-drops", {
-        body: { csvText, scanId: scan.id },
+        body: { scanId: scan.id, csvUrl },
       }).catch(err => console.error("Eval invoke error:", err));
 
-      toast.success(`Queued ${lines.length - 1} domains for processing...`);
+      toast.success("Shared drop list scan started.");
 
       // Start polling for progress + live results
       startPolling(scan.id);
     } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+      toast.error(err.message || "Failed to start shared scan");
       setScanning(false);
     }
-
-    if (fileRef.current) fileRef.current.value = "";
   }, [user, startPolling]);
 
   const handleCancel = useCallback(async () => {
@@ -262,7 +251,7 @@ const Drops = () => {
     <>
       <Helmet>
         <title>Daily Drop Scanner | ExpiredHawk</title>
-        <meta name="description" content="Upload expiring domain lists and let AI evaluate the best investment picks." />
+        <meta name="description" content="Scan a shared daily CSV of expiring domains and rank the best investment picks with AI." />
       </Helmet>
       <Navbar />
       <main className="min-h-screen bg-background pt-20 pb-16">
@@ -277,22 +266,13 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a CSV of expiring domains. Our quality engine pre-screens every domain, 
-              then AI deep-evaluates the best candidates for investment potential.
+              Uses one shared daily drop CSV for all users. Run the scanner anytime to evaluate the latest list.
             </p>
           </div>
 
-          {/* Upload Card */}
+          {/* Shared Source Card */}
           <Card className="mb-8 border-dashed border-2">
             <CardContent className="py-8 text-center">
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,.txt"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={!!isProcessing}
-              />
               {isProcessing ? (
                 <div className="space-y-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
@@ -344,16 +324,15 @@ const Drops = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <Upload className="w-10 h-10 text-muted-foreground mx-auto" />
                   <div>
-                    <p className="font-medium text-foreground">Upload Expiring Domains CSV</p>
+                    <p className="font-medium text-foreground">Shared Daily Drop List</p>
                     <p className="text-sm text-muted-foreground">
-                      CSV with domain names — quality pre-screen + AI evaluation on every .com
+                      Source file: {SHARED_DROP_CSV_PATH}. Every user scans from the same CSV.
                     </p>
                   </div>
-                  <Button onClick={() => fileRef.current?.click()} size="lg">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Choose File
+                  <Button onClick={handleStartSharedScan} size="lg">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Start Shared Scan
                   </Button>
                 </div>
               )}
@@ -506,8 +485,7 @@ const Drops = () => {
                 <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold text-foreground mb-2">No scans yet</h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Upload a CSV of expiring domains from your preferred data source. 
-                  The AI will evaluate each .com domain and rank them by investment potential.
+                  Start a scan from the shared daily CSV to evaluate .com domains for investment potential.
                 </p>
               </CardContent>
             </Card>
