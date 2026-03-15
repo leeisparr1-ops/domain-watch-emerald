@@ -6,6 +6,22 @@ import { quickValuation, quickValuationEnriched } from "@/lib/domainValuation";
 import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
 import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
+import { addYears, format, isPast, parseISO as parseDate } from "date-fns";
+
+/** Derive the next renewal date from purchase date (next anniversary that's in the future) */
+function deriveNextRenewal(purchaseDate: string | null): string | null {
+  if (!purchaseDate) return null;
+  try {
+    let date = parseDate(purchaseDate);
+    // Advance to the next anniversary that hasn't passed yet
+    while (isPast(date)) {
+      date = addYears(date, 1);
+    }
+    return format(date, "yyyy-MM-dd");
+  } catch {
+    return null;
+  }
+}
 
 export interface PortfolioDomain {
   id: string;
