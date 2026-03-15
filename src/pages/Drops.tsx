@@ -3,12 +3,12 @@ import { Helmet } from "react-helmet-async";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Zap, Trophy, ArrowUpDown, Download, Loader2, Search, TrendingUp, Star } from "lucide-react";
+import { Upload, Zap, Download, Loader2, Search, TrendingUp, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -36,7 +36,6 @@ interface Scan {
 }
 
 type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "domain_name";
-const BATCH_SIZE = 25;
 
 const categoryColors: Record<string, string> = {
   premium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -60,6 +59,46 @@ const Drops = () => {
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch results for a scan (used during polling and on mount)
+  const fetchResults = useCallback(async (scanId: string) => {
+    const { data } = await supabase
+      .from("drop_scan_results")
+      .select("*")
+      .eq("scan_id", scanId)
+      .order("ai_score", { ascending: false })
+      .limit(1000);
+    setResults((data || []) as ScanResult[]);
+  }, []);
+
+  // Start polling for an in-progress scan
+  const startPolling = useCallback((scanId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setScanning(true);
+
+    pollRef.current = setInterval(async () => {
+      const { data: scanUpdate } = await supabase
+        .from("drop_scans")
+        .select("*")
+        .eq("id", scanId)
+        .single();
+
+      if (scanUpdate) {
+        setCurrentScan(scanUpdate as Scan);
+
+        // Fetch latest results every poll (shows progress live)
+        await fetchResults(scanId);
+
+        if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setScanning(false);
+          if (scanUpdate.status === "complete") {
+            toast.success(`Scan complete! ${scanUpdate.evaluated_domains} domains evaluated.`);
+          }
+        }
+      }
+    }, 5000);
+  }, [fetchResults]);
 
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,52 +131,45 @@ const Drops = () => {
       if (scanErr || !scan) throw new Error(scanErr?.message || "Failed to create scan");
       setCurrentScan(scan as Scan);
 
-      // Fire off evaluation (async — we poll for progress)
+      // Fire off evaluation — backend will self-chain, no browser connection needed
       supabase.functions.invoke("evaluate-drops", {
         body: { csvText, scanId: scan.id },
       }).catch(err => console.error("Eval invoke error:", err));
 
-      toast.success(`Processing ${lines.length - 1} domains...`);
+      toast.success(`Queued ${lines.length - 1} domains for processing...`);
 
-      // Poll for progress
-      pollRef.current = setInterval(async () => {
-        const { data: scanUpdate } = await supabase
-          .from("drop_scans")
-          .select("*")
-          .eq("id", scan.id)
-          .single();
-
-        if (scanUpdate) {
-          setCurrentScan(scanUpdate as Scan);
-
-          if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
-            if (pollRef.current) clearInterval(pollRef.current);
-            setScanning(false);
-
-            // Fetch results
-            const { data: resultData } = await supabase
-              .from("drop_scan_results")
-              .select("*")
-              .eq("scan_id", scan.id)
-              .order("ai_score", { ascending: false })
-              .limit(1000);
-
-            setResults((resultData || []) as ScanResult[]);
-            toast.success(`Scan complete! ${resultData?.length || 0} domains evaluated.`);
-          }
-        }
-      }, 3000);
+      // Start polling for progress + live results
+      startPolling(scan.id);
     } catch (err: any) {
       toast.error(err.message || "Upload failed");
       setScanning(false);
     }
 
-    // Reset file input
     if (fileRef.current) fileRef.current.value = "";
-  }, [user]);
+  }, [user, startPolling]);
 
-  const loadPastScan = useCallback(async () => {
+  // On mount: check for any in-progress or completed scan
+  const loadLatestScan = useCallback(async () => {
     if (!user) return;
+
+    // First check for in-progress scans to resume polling
+    const { data: inProgress } = await supabase
+      .from("drop_scans")
+      .select("*")
+      .eq("user_id", user.id)
+      .in("status", ["processing", "evaluating"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (inProgress && inProgress.length > 0) {
+      const scan = inProgress[0] as Scan;
+      setCurrentScan(scan);
+      await fetchResults(scan.id);
+      startPolling(scan.id);
+      return;
+    }
+
+    // Otherwise load last completed scan
     const { data: scans } = await supabase
       .from("drop_scans")
       .select("*")
@@ -149,18 +181,18 @@ const Drops = () => {
     if (scans && scans.length > 0) {
       const scan = scans[0] as Scan;
       setCurrentScan(scan);
-      const { data: resultData } = await supabase
-        .from("drop_scan_results")
-        .select("*")
-        .eq("scan_id", scan.id)
-        .order("ai_score", { ascending: false })
-        .limit(1000);
-      setResults((resultData || []) as ScanResult[]);
+      await fetchResults(scan.id);
     }
-  }, [user]);
+  }, [user, fetchResults, startPolling]);
 
-  // Load last scan on mount
-  useEffect(() => { loadPastScan(); }, [loadPastScan]);
+  useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -202,6 +234,8 @@ const Drops = () => {
     ? Math.round((currentScan.evaluated_domains / currentScan.filtered_domains) * 100)
     : 0;
 
+  const isProcessing = scanning || (currentScan && ["processing", "evaluating"].includes(currentScan.status));
+
   return (
     <>
       <Helmet>
@@ -234,22 +268,22 @@ const Drops = () => {
                 accept=".csv,.txt"
                 className="hidden"
                 onChange={handleUpload}
-                disabled={scanning}
+                disabled={!!isProcessing}
               />
-              {scanning ? (
+              {isProcessing ? (
                 <div className="space-y-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
                   <div>
                     <p className="font-medium text-foreground">
-                      Evaluating {currentScan?.filtered_domains || 0} .com domains...
+                      Evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} .com domains...
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {currentScan?.evaluated_domains || 0} / {currentScan?.filtered_domains || 0} processed
+                      {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
                     </p>
                   </div>
                   <Progress value={progress} className="max-w-sm mx-auto" />
                   <p className="text-xs text-muted-foreground">
-                    ~{Math.ceil(((currentScan?.filtered_domains || 0) - (currentScan?.evaluated_domains || 0)) / BATCH_SIZE * 5)}s remaining
+                    Runs in background — you can leave and come back anytime
                   </p>
                 </div>
               ) : (
@@ -270,7 +304,7 @@ const Drops = () => {
             </CardContent>
           </Card>
 
-          {/* Results Section */}
+          {/* Results Section — shown during processing AND after completion */}
           {results.length > 0 && (
             <>
               {/* Stats */}
@@ -278,7 +312,9 @@ const Drops = () => {
                 <Card>
                   <CardContent className="py-4 text-center">
                     <p className="text-2xl font-bold text-foreground">{results.length}</p>
-                    <p className="text-xs text-muted-foreground">Domains Evaluated</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isProcessing ? "Evaluated So Far" : "Domains Evaluated"}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -408,7 +444,7 @@ const Drops = () => {
           )}
 
           {/* Empty state */}
-          {!scanning && results.length === 0 && (
+          {!isProcessing && results.length === 0 && (
             <Card className="mt-4">
               <CardContent className="py-12 text-center">
                 <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -426,7 +462,5 @@ const Drops = () => {
     </>
   );
 };
-
-
 
 export default Drops;
