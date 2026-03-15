@@ -276,11 +276,16 @@ const Drops = () => {
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
                   <div>
                     <p className="font-medium text-foreground">
-                      Evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} .com domains...
+                      AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
                     </p>
+                    {currentScan && currentScan.total_domains > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {currentScan.total_domains.toLocaleString()} total → {currentScan.filtered_domains.toLocaleString()} passed quality pre-screen
+                      </p>
+                    )}
                   </div>
                   <Progress value={progress} className="max-w-sm mx-auto" />
                   <p className="text-xs text-muted-foreground">
