@@ -485,8 +485,7 @@ const Drops = () => {
                 <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold text-foreground mb-2">No scans yet</h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Upload a CSV of expiring domains from your preferred data source. 
-                  The AI will evaluate each .com domain and rank them by investment potential.
+                  Start a scan from the shared daily CSV to evaluate .com domains for investment potential.
                 </p>
               </CardContent>
             </Card>
