@@ -23,6 +23,7 @@ interface ScanResult {
   estimated_value: number;
   brandability: number;
   keyword_strength: number;
+  length_score: number;
 }
 
 interface Scan {
