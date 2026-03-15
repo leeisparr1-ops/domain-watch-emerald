@@ -36,6 +36,7 @@ interface Scan {
 }
 
 type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "domain_name";
+const BATCH_SIZE = 25;
 
 const categoryColors: Record<string, string> = {
   premium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -426,6 +427,6 @@ const Drops = () => {
   );
 };
 
-const BATCH_SIZE = 25;
+
 
 export default Drops;

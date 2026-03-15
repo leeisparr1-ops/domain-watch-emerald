@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, LogIn, User, HelpCircle, Briefcase } from "lucide-react";
+import { Menu, X, LogIn, User, HelpCircle, Briefcase, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +46,10 @@ export function Navbar() {
                 <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                   <Briefcase className="w-4 h-4" />
                   Portfolio
+                </Link>
+                <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <Zap className="w-4 h-4" />
+                  Drops
                 </Link>
                 <Link to="/settings">
                   <Button variant="ghost" size="sm">
@@ -115,6 +119,10 @@ export function Navbar() {
                 <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
                   <Briefcase className="w-4 h-4" />
                   Portfolio
+                </Link>
+                <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <Zap className="w-4 h-4" />
+                  Drops
                 </Link>
                 <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                   Settings
