@@ -41,6 +41,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Methodology = lazy(() => import("./pages/Methodology"));
 const SharedReport = lazy(() => import("./pages/SharedReport"));
+const Drops = lazy(() => import("./pages/Drops"));
 
 // Minimal loading fallback
 const PageLoader = () => (
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/methodology" element={<Methodology />} />
                 <Route path="/report/:reportId" element={<SharedReport />} />
+                <Route path="/drops" element={<ProtectedRoute><Drops /></ProtectedRoute>} />
                 <Route path="/blog" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
