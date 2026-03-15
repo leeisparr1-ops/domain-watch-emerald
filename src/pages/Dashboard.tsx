@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from "react";
-import { Loader2, Bell, BellOff, Trash2, Heart, Download, CheckSquare, Search } from "lucide-react";
+import { Loader2, Bell, BellOff, Trash2, Heart, CheckSquare, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -650,24 +650,6 @@ export default function Dashboard() {
     toast.success(`Removed ${domainsToRemove.length} domains from favorites`);
   }, [selectedRows, filtered, isFavorite, toggleFavorite]);
 
-  const exportSelectedCsv = useCallback(() => {
-    const rows = selectedRows.size > 0
-      ? filtered.filter(d => selectedRows.has(d.id))
-      : filtered;
-    if (rows.length === 0) return;
-    const header = "Domain,Price,Bids,Age,TLD,Ends,Source\n";
-    const csv = header + rows.map(d =>
-      `${d.domain},${d.price},${d.numberOfBids},${d.domainAge},${d.tld},${d.auctionEndTime},${d.inventorySource || ''}`
-    ).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `expiredhawk-export-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} domains to CSV`);
-  }, [selectedRows, filtered]);
 
   // Keyboard shortcuts
   useDashboardKeyboardShortcuts({
@@ -741,7 +723,7 @@ export default function Dashboard() {
               onPageReset={() => setCurrentPage(1)}
               isSearching={!!debouncedSearch && (loading || isFetchingAuctions)}
               searchInputRef={searchInputRef}
-              onExportCsv={exportSelectedCsv}
+              
             />
           )}
 
@@ -872,9 +854,6 @@ export default function Dashboard() {
                         <Heart className="w-3.5 h-3.5" /> Favorite
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" className="gap-1" onClick={exportSelectedCsv}>
-                      <Download className="w-3.5 h-3.5" /> Export
-                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setSelectedRows(new Set())}>
                       Clear
                     </Button>

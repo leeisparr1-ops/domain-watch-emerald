@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Filter, ArrowUpDown, X, Loader2, Download, Save, Bookmark, RotateCcw } from "lucide-react";
+import { Search, Filter, ArrowUpDown, X, Loader2, Save, Bookmark, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -230,12 +230,6 @@ export function SearchAndFilters({
               ))}
             </SelectContent>
           </Select>
-          {onExportCsv && (
-            <Button variant="outline" size="sm" onClick={onExportCsv} className="flex-shrink-0 gap-1">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          )}
           {/* Saved Presets */}
           {presets.length > 0 && (
             <Popover>
