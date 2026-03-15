@@ -120,6 +120,10 @@ export function Navbar() {
                   <Briefcase className="w-4 h-4" />
                   Portfolio
                 </Link>
+                <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <Zap className="w-4 h-4" />
+                  Drops
+                </Link>
                 <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                   Settings
                 </Link>
