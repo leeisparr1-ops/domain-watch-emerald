@@ -266,22 +266,13 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a CSV of expiring domains. Our quality engine pre-screens every domain, 
-              then AI deep-evaluates the best candidates for investment potential.
+              Uses one shared daily drop CSV for all users. Run the scanner anytime to evaluate the latest list.
             </p>
           </div>
 
-          {/* Upload Card */}
+          {/* Shared Source Card */}
           <Card className="mb-8 border-dashed border-2">
             <CardContent className="py-8 text-center">
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,.txt"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={!!isProcessing}
-              />
               {isProcessing ? (
                 <div className="space-y-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
@@ -333,16 +324,15 @@ const Drops = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <Upload className="w-10 h-10 text-muted-foreground mx-auto" />
                   <div>
-                    <p className="font-medium text-foreground">Upload Expiring Domains CSV</p>
+                    <p className="font-medium text-foreground">Shared Daily Drop List</p>
                     <p className="text-sm text-muted-foreground">
-                      CSV with domain names — quality pre-screen + AI evaluation on every .com
+                      Source file: {SHARED_DROP_CSV_PATH}. Every user scans from the same CSV.
                     </p>
                   </div>
-                  <Button onClick={() => fileRef.current?.click()} size="lg">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Choose File
+                  <Button onClick={handleStartSharedScan} size="lg">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Start Shared Scan
                   </Button>
                 </div>
               )}
