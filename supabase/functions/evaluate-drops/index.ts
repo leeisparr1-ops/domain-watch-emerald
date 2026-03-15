@@ -793,7 +793,7 @@ serve(async (req) => {
       });
     }
 
-    // ─── CHAINED INVOCATION: Process AI batches ───
+    // ─── CHAINED INVOCATION: Pre-screen or AI evaluate ───
     const { data: scan, error: scanErr } = await adminClient
       .from("drop_scans")
       .select("csv_data, resume_from, filtered_domains, status")
@@ -807,6 +807,125 @@ serve(async (req) => {
       });
     }
 
+    const PRE_SCREEN_CHUNK = 15000; // domains per pre-screening invocation
+
+    // ─── PRE-SCREENING PHASE (chunked) ───
+    if (scan.status === "pre-screening") {
+      const rawLines = (scan.csv_data || "").split("\n");
+      // First line is "---RAW---", rest are domains
+      const allRaw = rawLines.slice(1).filter(Boolean);
+      const startIdx = scan.resume_from || 0;
+      const endIdx = Math.min(startIdx + PRE_SCREEN_CHUNK, allRaw.length);
+      const chunk = allRaw.slice(startIdx, endIdx);
+
+      if (chunk.length === 0) {
+        // Pre-screening complete — no qualified domains found
+        await adminClient.from("drop_scans").update({
+          status: "complete",
+          csv_data: null,
+        }).eq("id", scanId);
+        return new Response(JSON.stringify({ success: true, status: "complete", qualified: 0 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Load comparable keywords once per chain (cached in function instance)
+      const comparableKeywords = await loadComparableKeywords(adminClient);
+
+      const scoredDomains: { domain: string; score: number }[] = [];
+      for (const domain of chunk) {
+        const sld = domain.replace(/\.com$/, "");
+
+        // Hard gate: reject hyphens/numbers unless contains high-value keyword
+        const hasHyphen = sld.includes("-");
+        const hasNumber = /\d/.test(sld);
+        if (hasHyphen || hasNumber) {
+          const cleanSld = sld.replace(/[-0-9]/g, "");
+          const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
+          if (!hasHighValue) continue;
+        }
+
+        const quality = quickQualityScore(sld, comparableKeywords);
+        if (quality >= QUALITY_THRESHOLD) {
+          scoredDomains.push({ domain, score: quality });
+        }
+      }
+
+      // Append qualified domains to existing qualified list stored elsewhere
+      // We accumulate qualified domains in a separate field approach: 
+      // read existing qualified, append new ones, write back
+      const existingQualified = (scan.filtered_domains || 0);
+      const newQualified = existingQualified + scoredDomains.length;
+
+      // Build accumulated qualified list — retrieve any previously qualified
+      // We store qualified domains after the raw data, separated by "---QUALIFIED---"
+      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
+      let previousQualified: string[] = [];
+      if (qualifiedMarkerIdx >= 0) {
+        previousQualified = rawLines.slice(qualifiedMarkerIdx + 1).filter(Boolean);
+      }
+
+      // Sort new batch and merge
+      scoredDomains.sort((a, b) => b.score - a.score);
+      const allQualified = [...previousQualified];
+      for (const d of scoredDomains) {
+        // Store as "domain|score" to preserve tier info
+        allQualified.push(`${d.domain}|${d.score}`);
+      }
+
+      console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
+
+      const nextIdx = endIdx;
+      if (nextIdx >= allRaw.length) {
+        // Pre-screening complete — transition to AI evaluation
+        // Sort all qualified by score, separate into premium/standard tiers
+        const allScored = allQualified.map(entry => {
+          const [domain, scoreStr] = entry.split("|");
+          return { domain, score: Number(scoreStr) || 0 };
+        });
+        allScored.sort((a, b) => b.score - a.score);
+
+        const premiumDomains = allScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const standardDomains = allScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
+
+        console.log(`Pre-screening complete: ${allScored.length} qualified → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
+
+        await adminClient.from("drop_scans").update({
+          filtered_domains: allScored.length,
+          status: "evaluating",
+          csv_data: csvData,
+          resume_from: 0,
+        }).eq("id", scanId);
+      } else {
+        // More pre-screening to do — store progress
+        const rawPart = rawLines.slice(0, qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length);
+        const updatedCsvData = [...rawPart, "---QUALIFIED---", ...allQualified].join("\n");
+
+        await adminClient.from("drop_scans").update({
+          filtered_domains: newQualified,
+          resume_from: nextIdx,
+          csv_data: updatedCsvData,
+        }).eq("id", scanId);
+      }
+
+      // Self-chain to continue
+      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ scanId }),
+      }).catch(err => console.error("Self-chain pre-screen error:", err));
+
+      return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── AI EVALUATION PHASE ───
     // Parse tiered domain list
     const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
     const tierIdx = rawDomains.indexOf("---TIER---");
