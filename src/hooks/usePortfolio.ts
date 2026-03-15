@@ -283,7 +283,7 @@ export function usePortfolio() {
     return {
       totalDomains: domains.length,
       totalInvested,
-      totalCurrentValue,
+      totalListingsPrice,
       totalRenewalCosts,
       totalSold: sold.length,
       totalSaleRevenue,

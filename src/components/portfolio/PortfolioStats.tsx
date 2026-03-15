@@ -10,7 +10,7 @@ export function PortfolioStats({ stats }: { stats: Stats }) {
   const expiringSoonColor = stats.expiringSoon > 0 ? "text-yellow-500" : "text-muted-foreground";
   const cards = [
     { label: "Total Invested", value: fmt(stats.totalInvested), icon: DollarSign },
-    { label: "Current Value", value: fmt(stats.totalCurrentValue), icon: Package },
+    { label: "Total Listings Price", value: fmt(stats.totalListingsPrice), icon: Package },
     {
       label: "Unrealized P&L",
       value: (stats.unrealizedPnL >= 0 ? "+" : "-") + fmt(stats.unrealizedPnL),
