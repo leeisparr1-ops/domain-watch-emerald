@@ -730,7 +730,7 @@ serve(async (req) => {
     const { scanId, csvText } = body;
     if (!scanId) throw new Error("Missing scanId");
 
-    // ─── INITIAL CALL: Parse CSV, pre-screen with full intelligence ───
+    // ─── INITIAL CALL: Parse CSV, extract .com domains, store for chunked pre-screening ───
     if (csvText) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) throw new Error("Missing authorization");
@@ -742,10 +742,7 @@ serve(async (req) => {
       const { data: { user }, error: authErr } = await userClient.auth.getUser();
       if (authErr || !user) throw new Error("Unauthorized");
 
-      // Load comparable sale keywords from DB for scoring boost
-      const comparableKeywords = await loadComparableKeywords(adminClient);
-
-      // Parse CSV
+      // Parse CSV — extract .com domains only (lightweight, no scoring yet)
       const lines = csvText.trim().split("\n");
       const header = lines[0].toLowerCase();
       const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
@@ -755,57 +752,29 @@ serve(async (req) => {
       if (domainCol === -1) domainCol = 0;
 
       const totalParsed = lines.length - 1;
-      const scoredDomains: { domain: string; score: number }[] = [];
-      let comCount = 0;
+      const comDomains: string[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
-
-        comCount++;
-        const sld = domain.replace(/\.com$/, "");
-
-        // Hard gate: reject hyphens/numbers unless contains high-value keyword
-        const hasHyphen = sld.includes("-");
-        const hasNumber = /\d/.test(sld);
-        if (hasHyphen || hasNumber) {
-          const cleanSld = sld.replace(/[-0-9]/g, "");
-          const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
-          if (!hasHighValue) continue;
-        }
-
-        // Full heuristic pre-screen with comparable sales boost
-        const quality = quickQualityScore(sld, comparableKeywords);
-        if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality });
-        }
+        comDomains.push(domain);
       }
 
-      // Sort by heuristic score descending — best domains first
-      scoredDomains.sort((a, b) => b.score - a.score);
+      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
 
-      const domains = [...new Set(scoredDomains.map(d => d.domain))];
-      
-      // Identify premium tier count for tiered AI evaluation
-      const premiumCount = scoredDomains.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).length;
-
-      console.log(`Pre-screen: ${totalParsed} total → ${comCount} .com → ${domains.length} qualified → ${premiumCount} premium tier (threshold: ${QUALITY_THRESHOLD}/${PREMIUM_TIER_THRESHOLD})`);
-
-      // Store with premium delimiter: premium domains first, then standard, separated by "---TIER---"
-      const premiumDomains = scoredDomains.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-      const standardDomains = scoredDomains.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-      const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
+      // Store raw .com domains with "---RAW---" marker for pre-screening phase
+      const csvData = "---RAW---\n" + comDomains.join("\n");
 
       await adminClient.from("drop_scans").update({
         total_domains: totalParsed,
-        filtered_domains: domains.length,
-        status: "evaluating",
+        filtered_domains: 0,
+        status: "pre-screening",
         csv_data: csvData,
         resume_from: 0,
       }).eq("id", scanId);
 
-      // Self-invoke to start processing
+      // Self-invoke to start chunked pre-screening
       const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
       fetch(selfUrl, {
         method: "POST",
@@ -818,14 +787,13 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true, queued: true,
-        total: totalParsed, comDomains: comCount,
-        qualified: domains.length, premiumTier: premiumCount,
+        total: totalParsed, comDomains: comDomains.length,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ─── CHAINED INVOCATION: Process AI batches ───
+    // ─── CHAINED INVOCATION: Pre-screen or AI evaluate ───
     const { data: scan, error: scanErr } = await adminClient
       .from("drop_scans")
       .select("csv_data, resume_from, filtered_domains, status")
@@ -839,6 +807,125 @@ serve(async (req) => {
       });
     }
 
+    const PRE_SCREEN_CHUNK = 15000; // domains per pre-screening invocation
+
+    // ─── PRE-SCREENING PHASE (chunked) ───
+    if (scan.status === "pre-screening") {
+      const rawLines = (scan.csv_data || "").split("\n");
+      // First line is "---RAW---", rest are domains
+      const allRaw = rawLines.slice(1).filter(Boolean);
+      const startIdx = scan.resume_from || 0;
+      const endIdx = Math.min(startIdx + PRE_SCREEN_CHUNK, allRaw.length);
+      const chunk = allRaw.slice(startIdx, endIdx);
+
+      if (chunk.length === 0) {
+        // Pre-screening complete — no qualified domains found
+        await adminClient.from("drop_scans").update({
+          status: "complete",
+          csv_data: null,
+        }).eq("id", scanId);
+        return new Response(JSON.stringify({ success: true, status: "complete", qualified: 0 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Load comparable keywords once per chain (cached in function instance)
+      const comparableKeywords = await loadComparableKeywords(adminClient);
+
+      const scoredDomains: { domain: string; score: number }[] = [];
+      for (const domain of chunk) {
+        const sld = domain.replace(/\.com$/, "");
+
+        // Hard gate: reject hyphens/numbers unless contains high-value keyword
+        const hasHyphen = sld.includes("-");
+        const hasNumber = /\d/.test(sld);
+        if (hasHyphen || hasNumber) {
+          const cleanSld = sld.replace(/[-0-9]/g, "");
+          const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
+          if (!hasHighValue) continue;
+        }
+
+        const quality = quickQualityScore(sld, comparableKeywords);
+        if (quality >= QUALITY_THRESHOLD) {
+          scoredDomains.push({ domain, score: quality });
+        }
+      }
+
+      // Append qualified domains to existing qualified list stored elsewhere
+      // We accumulate qualified domains in a separate field approach: 
+      // read existing qualified, append new ones, write back
+      const existingQualified = (scan.filtered_domains || 0);
+      const newQualified = existingQualified + scoredDomains.length;
+
+      // Build accumulated qualified list — retrieve any previously qualified
+      // We store qualified domains after the raw data, separated by "---QUALIFIED---"
+      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
+      let previousQualified: string[] = [];
+      if (qualifiedMarkerIdx >= 0) {
+        previousQualified = rawLines.slice(qualifiedMarkerIdx + 1).filter(Boolean);
+      }
+
+      // Sort new batch and merge
+      scoredDomains.sort((a, b) => b.score - a.score);
+      const allQualified = [...previousQualified];
+      for (const d of scoredDomains) {
+        // Store as "domain|score" to preserve tier info
+        allQualified.push(`${d.domain}|${d.score}`);
+      }
+
+      console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
+
+      const nextIdx = endIdx;
+      if (nextIdx >= allRaw.length) {
+        // Pre-screening complete — transition to AI evaluation
+        // Sort all qualified by score, separate into premium/standard tiers
+        const allScored = allQualified.map(entry => {
+          const [domain, scoreStr] = entry.split("|");
+          return { domain, score: Number(scoreStr) || 0 };
+        });
+        allScored.sort((a, b) => b.score - a.score);
+
+        const premiumDomains = allScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const standardDomains = allScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
+
+        console.log(`Pre-screening complete: ${allScored.length} qualified → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
+
+        await adminClient.from("drop_scans").update({
+          filtered_domains: allScored.length,
+          status: "evaluating",
+          csv_data: csvData,
+          resume_from: 0,
+        }).eq("id", scanId);
+      } else {
+        // More pre-screening to do — store progress
+        const rawPart = rawLines.slice(0, qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length);
+        const updatedCsvData = [...rawPart, "---QUALIFIED---", ...allQualified].join("\n");
+
+        await adminClient.from("drop_scans").update({
+          filtered_domains: newQualified,
+          resume_from: nextIdx,
+          csv_data: updatedCsvData,
+        }).eq("id", scanId);
+      }
+
+      // Self-chain to continue
+      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ scanId }),
+      }).catch(err => console.error("Self-chain pre-screen error:", err));
+
+      return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── AI EVALUATION PHASE ───
     // Parse tiered domain list
     const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
     const tierIdx = rawDomains.indexOf("---TIER---");

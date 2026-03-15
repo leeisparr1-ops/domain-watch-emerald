@@ -33,6 +33,7 @@ interface Scan {
   total_domains: number;
   filtered_domains: number;
   evaluated_domains: number;
+  resume_from: number;
   created_at: string;
 }
 
@@ -178,7 +179,7 @@ const Drops = () => {
       .from("drop_scans")
       .select("*")
       .eq("user_id", user.id)
-      .in("status", ["processing", "evaluating"])
+      .in("status", ["processing", "evaluating", "pre-screening"])
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -255,7 +256,7 @@ const Drops = () => {
     ? Math.round((currentScan.evaluated_domains / currentScan.filtered_domains) * 100)
     : 0;
 
-  const isProcessing = scanning || (currentScan && ["processing", "evaluating"].includes(currentScan.status));
+  const isProcessing = scanning || (currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status));
 
   return (
     <>
@@ -296,19 +297,35 @@ const Drops = () => {
                 <div className="space-y-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
                   <div>
-                    <p className="font-medium text-foreground">
-                      AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
-                    </p>
-                    {currentScan && currentScan.total_domains > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {currentScan.total_domains.toLocaleString()} total → {currentScan.filtered_domains.toLocaleString()} passed quality pre-screen
-                      </p>
+                    {currentScan?.status === "pre-screening" ? (
+                      <>
+                        <p className="font-medium text-foreground">
+                          Pre-screening {currentScan?.total_domains?.toLocaleString() || 0} domains...
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {(currentScan?.resume_from || 0).toLocaleString()} scanned, {currentScan?.filtered_domains?.toLocaleString() || 0} qualified so far
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground">
+                          AI-evaluating {currentScan?.filtered_domains?.toLocaleString() || 0} pre-screened domains...
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {currentScan?.evaluated_domains?.toLocaleString() || 0} / {currentScan?.filtered_domains?.toLocaleString() || 0} processed
+                        </p>
+                        {currentScan && currentScan.total_domains > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {currentScan.total_domains.toLocaleString()} total → {currentScan.filtered_domains.toLocaleString()} passed quality pre-screen
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
-                  <Progress value={progress} className="max-w-sm mx-auto" />
+                  <Progress value={currentScan?.status === "pre-screening" 
+                    ? (currentScan?.total_domains ? Math.round(((currentScan?.resume_from || 0) / currentScan.total_domains) * 100) : 0)
+                    : progress
+                  } className="max-w-sm mx-auto" />
                   <div className="flex items-center justify-center gap-3">
                     <p className="text-xs text-muted-foreground">
                       Runs in background — you can leave and come back anytime
