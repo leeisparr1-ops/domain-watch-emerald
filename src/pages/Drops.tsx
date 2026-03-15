@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
+import { Zap, Download, Loader2, Search, TrendingUp, Star, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -50,9 +50,10 @@ const categoryColors: Record<string, string> = {
   weak: "bg-destructive/20 text-destructive border-destructive/30",
 };
 
+const SHARED_DROP_CSV_PATH = "/store/daily-drops.csv";
+
 const Drops = () => {
   const { user } = useAuth();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [currentScan, setCurrentScan] = useState<Scan | null>(null);
   const [results, setResults] = useState<ScanResult[]>([]);
