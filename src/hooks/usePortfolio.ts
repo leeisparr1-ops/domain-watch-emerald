@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { quickValuation, quickValuationEnriched } from "@/lib/domainValuation";
 import { anchorWithComps } from "@/lib/comparableAnchor";
 import { differenceInDays, parseISO } from "date-fns";
+import { getTldRenewalRange } from "@/lib/tldRenewalPricing";
 
 export interface PortfolioDomain {
   id: string;
@@ -94,7 +95,7 @@ export function usePortfolio() {
         status: input.status ?? "holding",
         tags: input.tags ?? [],
         notes: input.notes ?? null,
-        renewal_cost_yearly: input.renewal_cost_yearly ?? 0,
+        renewal_cost_yearly: input.renewal_cost_yearly ?? getTldRenewalRange(domainName)?.typical ?? 0,
         next_renewal_date: input.next_renewal_date ?? null,
         sale_price: input.sale_price ?? null,
         sale_date: input.sale_date ?? null,
@@ -192,7 +193,7 @@ export function usePortfolio() {
         purchase_source: r.purchase_source || null,
         status: r.status || "holding",
         tags: r.tags ?? [],
-        renewal_cost_yearly: r.renewal_cost_yearly ?? 0,
+        renewal_cost_yearly: r.renewal_cost_yearly ?? getTldRenewalRange(domainName)?.typical ?? 0,
         auto_valuation: autoVal,
         valuation_updated_at: autoVal ? new Date().toISOString() : null,
       };
