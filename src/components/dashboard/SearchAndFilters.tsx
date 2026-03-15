@@ -230,12 +230,6 @@ export function SearchAndFilters({
               ))}
             </SelectContent>
           </Select>
-          {onExportCsv && (
-            <Button variant="outline" size="sm" onClick={onExportCsv} className="flex-shrink-0 gap-1">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          )}
           {/* Saved Presets */}
           {presets.length > 0 && (
             <Popover>

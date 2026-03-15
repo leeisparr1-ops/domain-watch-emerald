@@ -723,7 +723,7 @@ export default function Dashboard() {
               onPageReset={() => setCurrentPage(1)}
               isSearching={!!debouncedSearch && (loading || isFetchingAuctions)}
               searchInputRef={searchInputRef}
-              onExportCsv={exportSelectedCsv}
+              
             />
           )}
 
