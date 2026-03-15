@@ -266,7 +266,7 @@ const Drops = () => {
               Daily Drop Scanner
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Uses one shared daily drop CSV for all users. Run the scanner anytime to evaluate the latest list.
+              AI-powered scanner evaluates hundreds of thousands of expiring domains daily to find the best investment picks.
             </p>
           </div>
 
