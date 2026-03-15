@@ -197,6 +197,92 @@ export type Database = {
         }
         Relationships: []
       }
+      drop_scan_results: {
+        Row: {
+          ai_score: number
+          ai_summary: string | null
+          brandability: number | null
+          category: string | null
+          created_at: string
+          domain_name: string
+          estimated_value: number | null
+          id: string
+          keyword_strength: number | null
+          length_score: number | null
+          scan_id: string
+        }
+        Insert: {
+          ai_score?: number
+          ai_summary?: string | null
+          brandability?: number | null
+          category?: string | null
+          created_at?: string
+          domain_name: string
+          estimated_value?: number | null
+          id?: string
+          keyword_strength?: number | null
+          length_score?: number | null
+          scan_id: string
+        }
+        Update: {
+          ai_score?: number
+          ai_summary?: string | null
+          brandability?: number | null
+          category?: string | null
+          created_at?: string
+          domain_name?: string
+          estimated_value?: number | null
+          id?: string
+          keyword_strength?: number | null
+          length_score?: number | null
+          scan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drop_scan_results_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "drop_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drop_scans: {
+        Row: {
+          created_at: string
+          evaluated_domains: number
+          filename: string
+          filtered_domains: number
+          id: string
+          status: string
+          total_domains: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evaluated_domains?: number
+          filename?: string
+          filtered_domains?: number
+          id?: string
+          status?: string
+          total_domains?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evaluated_domains?: number
+          filename?: string
+          filtered_domains?: number
+          id?: string
+          status?: string
+          total_domains?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emailed_domains: {
         Row: {
           auction_id: string
