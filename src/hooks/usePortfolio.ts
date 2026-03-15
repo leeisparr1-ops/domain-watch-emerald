@@ -193,7 +193,7 @@ export function usePortfolio() {
         purchase_source: r.purchase_source || null,
         status: r.status || "holding",
         tags: r.tags ?? [],
-        renewal_cost_yearly: r.renewal_cost_yearly ?? 0,
+        renewal_cost_yearly: r.renewal_cost_yearly ?? getTldRenewalRange(domainName)?.typical ?? 0,
         auto_valuation: autoVal,
         valuation_updated_at: autoVal ? new Date().toISOString() : null,
       };
