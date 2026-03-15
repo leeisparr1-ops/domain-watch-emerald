@@ -33,6 +33,7 @@ interface Scan {
   total_domains: number;
   filtered_domains: number;
   evaluated_domains: number;
+  resume_from: number;
   created_at: string;
 }
 
