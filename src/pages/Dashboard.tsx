@@ -650,24 +650,6 @@ export default function Dashboard() {
     toast.success(`Removed ${domainsToRemove.length} domains from favorites`);
   }, [selectedRows, filtered, isFavorite, toggleFavorite]);
 
-  const exportSelectedCsv = useCallback(() => {
-    const rows = selectedRows.size > 0
-      ? filtered.filter(d => selectedRows.has(d.id))
-      : filtered;
-    if (rows.length === 0) return;
-    const header = "Domain,Price,Bids,Age,TLD,Ends,Source\n";
-    const csv = header + rows.map(d =>
-      `${d.domain},${d.price},${d.numberOfBids},${d.domainAge},${d.tld},${d.auctionEndTime},${d.inventorySource || ''}`
-    ).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `expiredhawk-export-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} domains to CSV`);
-  }, [selectedRows, filtered]);
 
   // Keyboard shortcuts
   useDashboardKeyboardShortcuts({
