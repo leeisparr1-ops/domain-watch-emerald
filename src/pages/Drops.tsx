@@ -324,6 +324,7 @@ const Drops = () => {
                     {cancelling ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
                     Cancel Scan
                   </Button>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <Upload className="w-10 h-10 text-muted-foreground mx-auto" />
