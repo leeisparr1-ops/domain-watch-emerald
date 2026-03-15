@@ -128,6 +128,20 @@ export function usePortfolio() {
     }
     toast.success(`${domainName} added to portfolio`);
     await fetchDomains();
+
+    // Background: fetch real expiry from RDAP and update
+    if (!input.next_renewal_date) {
+      fetchRdapExpiry(domainName).then(async (rdap) => {
+        if (rdap.expirationDate) {
+          await (supabase as any)
+            .from("portfolio_domains")
+            .update({ next_renewal_date: rdap.expirationDate })
+            .eq("user_id", user!.id)
+            .eq("domain_name", domainName);
+          await fetchDomains();
+        }
+      }).catch(() => { /* silent */ });
+    }
   };
 
   const updateDomain = async (id: string, updates: Partial<PortfolioDomain>) => {
