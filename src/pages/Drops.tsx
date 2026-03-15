@@ -309,10 +309,21 @@ const Drops = () => {
                     )}
                   </div>
                   <Progress value={progress} className="max-w-sm mx-auto" />
-                  <p className="text-xs text-muted-foreground">
-                    Runs in background — you can leave and come back anytime
-                  </p>
-                </div>
+                  <div className="flex items-center justify-center gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Runs in background — you can leave and come back anytime
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    {cancelling ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                    Cancel Scan
+                  </Button>
               ) : (
                 <div className="space-y-4">
                   <Upload className="w-10 h-10 text-muted-foreground mx-auto" />
