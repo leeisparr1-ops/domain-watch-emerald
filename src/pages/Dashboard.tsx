@@ -854,9 +854,6 @@ export default function Dashboard() {
                         <Heart className="w-3.5 h-3.5" /> Favorite
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" className="gap-1" onClick={exportSelectedCsv}>
-                      <Download className="w-3.5 h-3.5" /> Export
-                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setSelectedRows(new Set())}>
                       Clear
                     </Button>
