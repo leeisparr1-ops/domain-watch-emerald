@@ -41,6 +41,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Methodology = lazy(() => import("./pages/Methodology"));
 const SharedReport = lazy(() => import("./pages/SharedReport"));
+const Drops = lazy(() => import("./pages/Drops"));
 
 // Minimal loading fallback
 const PageLoader = () => (
