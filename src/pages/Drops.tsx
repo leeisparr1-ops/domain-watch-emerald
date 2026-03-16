@@ -368,7 +368,7 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredResults.slice(0, 200).map((r) => (
+                      {filteredResults.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
@@ -406,11 +406,35 @@ const Drops = () => {
                     </TableBody>
                   </Table>
                 </div>
-                {filteredResults.length > 200 && (
-                  <div className="text-center py-3 text-sm text-muted-foreground border-t">
-                    Showing 200 of {filteredResults.length} results. Export CSV for full list.
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {totalResults > 0
+                      ? `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalResults)} of ${totalResults.toLocaleString()}`
+                      : "No results"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 0}
+                      onClick={() => goToPage(page - 1)}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {page + 1} of {totalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages - 1}
+                      onClick={() => goToPage(page + 1)}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </Card>
             </>
           )}
