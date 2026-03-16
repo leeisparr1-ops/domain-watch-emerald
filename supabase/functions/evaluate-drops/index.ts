@@ -846,15 +846,7 @@ serve(async (req) => {
       }).eq("id", scanId);
 
       // Self-invoke to start chunked pre-screening
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain invoke error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "initial-queue");
 
       return new Response(JSON.stringify({
         success: true, queued: true,
