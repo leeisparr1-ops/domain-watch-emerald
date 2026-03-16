@@ -70,12 +70,13 @@ export function usePortfolio() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      // Fetch all portfolio domains - use explicit column list to ensure list_price is included
+      const { data, error } = await supabase
         .from("portfolio_domains")
-        .select("*")
+        .select("id,user_id,domain_name,tld,purchase_price,purchase_date,purchase_source,list_price,sale_price,sale_date,renewal_cost_yearly,next_renewal_date,status,tags,notes,auto_valuation,valuation_updated_at,created_at,updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setDomains(data ?? []);
+      setDomains((data ?? []) as PortfolioDomain[]);
     } catch (err: any) {
       console.error("Error fetching portfolio:", err);
       toast.error("Failed to load portfolio");
@@ -100,7 +101,7 @@ export function usePortfolio() {
       autoVal = Math.round((result.valueMin + result.valueMax) / 2);
     } catch { /* ignore valuation errors */ }
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
       .insert({
         user_id: user.id,
@@ -133,7 +134,7 @@ export function usePortfolio() {
     if (!input.next_renewal_date) {
       fetchRdapExpiry(domainName).then(async (rdap) => {
         if (rdap.expirationDate) {
-          await (supabase as any)
+          await supabase
             .from("portfolio_domains")
             .update({ next_renewal_date: rdap.expirationDate })
             .eq("user_id", user!.id)
@@ -145,9 +146,9 @@ export function usePortfolio() {
   };
 
   const updateDomain = async (id: string, updates: Partial<PortfolioDomain>) => {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
-      .update(updates)
+      .update(updates as any)
       .eq("id", id);
     if (error) {
       toast.error("Failed to update domain");
@@ -158,7 +159,7 @@ export function usePortfolio() {
   };
 
   const deleteDomain = async (id: string) => {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
       .delete()
       .eq("id", id);
@@ -172,7 +173,7 @@ export function usePortfolio() {
 
   const deleteDomains = async (ids: string[]) => {
     if (!ids.length) return;
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
       .delete()
       .in("id", ids);
@@ -245,7 +246,7 @@ export function usePortfolio() {
     let errors = 0;
     for (let i = 0; i < records.length; i += 50) {
       const batch = records.slice(i, i + 50);
-      const { error } = await (supabase as any).from("portfolio_domains").insert(batch);
+      const { error } = await supabase.from("portfolio_domains").insert(batch as any);
       if (error) {
         console.error("Bulk insert error:", error);
         errors += batch.length;

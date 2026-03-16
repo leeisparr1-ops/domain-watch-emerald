@@ -277,14 +277,11 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
-      const endTimeFilter = new Date().toISOString();
-
       // Single query with count: 'exact' — combines count + data in one round-trip
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk', { count: 'exact' })
-        .in('domain_name', favoriteDomains)
-        .gte('end_time', endTimeFilter);
+        .in('domain_name', favoriteDomains);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
@@ -890,6 +887,8 @@ export default function Dashboard() {
           domain={selectedDomain}
           open={detailSheetOpen}
           onOpenChange={setDetailSheetOpen}
+          externalIsFavorite={isFavorite}
+          externalToggleFavorite={toggleFavorite}
         />
       </main>
     </div>
