@@ -63,15 +63,21 @@ const Drops = () => {
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch results for a scan
-  const fetchResults = useCallback(async (scanId: string) => {
-    const { data } = await supabase
+  // Fetch results for a scan (paginated)
+  const fetchResults = useCallback(async (scanId: string, pageNum = 0) => {
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    // Fetch page of results
+    const { data, count } = await supabase
       .from("drop_scan_results")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("scan_id", scanId)
       .order("ai_score", { ascending: false })
-      .limit(1000);
+      .range(from, to);
+
     setResults((data || []) as ScanResult[]);
+    if (count !== null) setTotalResults(count);
   }, []);
 
   // Start polling for an in-progress scan
