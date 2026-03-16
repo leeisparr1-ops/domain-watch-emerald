@@ -62,6 +62,18 @@ const Drops = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pageRef = useRef(0);
+  const searchRef = useRef("");
+  const categoryRef = useRef("all");
+  const sortKeyRef = useRef<SortKey>("ai_score");
+  const sortDirRef = useRef<"asc" | "desc">("desc");
+
+  // Keep refs in sync
+  useEffect(() => { pageRef.current = page; }, [page]);
+  useEffect(() => { searchRef.current = searchFilter; }, [searchFilter]);
+  useEffect(() => { categoryRef.current = categoryFilter; }, [categoryFilter]);
+  useEffect(() => { sortKeyRef.current = sortKey; }, [sortKey]);
+  useEffect(() => { sortDirRef.current = sortDir; }, [sortDir]);
 
   // Fetch results for a scan (paginated, filtered server-side)
   const fetchResults = useCallback(async (
