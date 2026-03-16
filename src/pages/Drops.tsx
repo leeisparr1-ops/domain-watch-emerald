@@ -333,8 +333,8 @@ const Drops = () => {
   const goToPage = useCallback((newPage: number) => {
     if (!currentScan) return;
     setPage(newPage);
-    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir, minScore);
-  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir, minScore]);
+    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue);
+  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue]);
 
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
