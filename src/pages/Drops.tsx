@@ -93,42 +93,33 @@ const Drops = () => {
     }, 5000);
   }, [fetchResults]);
 
-  // On mount: load the latest shared scan (from any user)
+  // On mount: load the latest shared scan that has results
   const loadLatestScan = useCallback(async () => {
     setLoading(true);
 
-    // Check for any in-progress scan (shared)
-    const { data: inProgress } = await supabase
-      .from("drop_scans")
-      .select("*")
-      .in("status", ["processing", "evaluating", "pre-screening"])
-      .order("created_at", { ascending: false })
+    // Find the scan_id that has the most results (best completed scan)
+    const { data: resultScans } = await supabase
+      .from("drop_scan_results")
+      .select("scan_id")
+      .order("ai_score", { ascending: false })
       .limit(1);
 
-    if (inProgress && inProgress.length > 0) {
-      const scan = inProgress[0] as Scan;
-      setCurrentScan(scan);
-      await fetchResults(scan.id);
-      startPolling(scan.id);
-      setLoading(false);
-      return;
+    if (resultScans && resultScans.length > 0) {
+      const scanId = resultScans[0].scan_id;
+      const { data: scanData } = await supabase
+        .from("drop_scans")
+        .select("*")
+        .eq("id", scanId)
+        .single();
+
+      if (scanData) {
+        setCurrentScan(scanData as Scan);
+        await fetchResults(scanId);
+      }
     }
 
-    // Load latest completed scan (any user — shared results)
-    const { data: scans } = await supabase
-      .from("drop_scans")
-      .select("*")
-      .eq("status", "complete")
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (scans && scans.length > 0) {
-      const scan = scans[0] as Scan;
-      setCurrentScan(scan);
-      await fetchResults(scan.id);
-    }
     setLoading(false);
-  }, [fetchResults, startPolling]);
+  }, [fetchResults]);
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
