@@ -732,17 +732,25 @@ serve(async (req) => {
 
     // ─── INITIAL CALL: Parse CSV, extract .com domains, store for chunked pre-screening ───
     if (csvText || csvUrl) {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) throw new Error("Missing authorization");
-
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: { user }, error: authErr } = await userClient.auth.getUser();
-      if (authErr || !user) throw new Error("Unauthorized");
-
       let initialCsvText = csvText as string | undefined;
+      let userId: string | null = null;
+
+      // Shared daily-drops.csv can be loaded without auth
+      const isSharedCsv = csvUrl && csvUrl.includes("/store/daily-drops.csv");
+
+      if (!isSharedCsv) {
+        // Require auth for non-shared CSVs
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) throw new Error("Missing authorization");
+
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: { user }, error: authErr } = await userClient.auth.getUser();
+        if (authErr || !user) throw new Error("Unauthorized");
+        userId = user.id;
+      }
 
       if (!initialCsvText && csvUrl) {
         let parsedCsvUrl: URL;
