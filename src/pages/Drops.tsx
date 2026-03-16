@@ -381,7 +381,7 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredResults.map((r) => (
+                      {results.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
