@@ -161,23 +161,22 @@ const Drops = () => {
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
+  // Re-fetch when filters, sort, or page change (debounced for search)
+  const filterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!currentScan) return;
+    if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
+    filterTimerRef.current = setTimeout(() => {
+      setPage(0);
+      fetchResults(currentScan.id, 0, searchFilter, categoryFilter, sortKey, sortDir);
+    }, searchFilter ? 300 : 0);
+    return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
+  }, [searchFilter, categoryFilter, sortKey, sortDir, currentScan, fetchResults]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("desc"); }
   };
-
-  const filteredResults = results
-    .filter(r => {
-      if (searchFilter && !r.domain_name.includes(searchFilter.toLowerCase())) return false;
-      if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "domain_name") cmp = a.domain_name.localeCompare(b.domain_name);
-      else cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
-      return sortDir === "asc" ? cmp : -cmp;
-    });
 
   const topPicks = results.filter(r => r.ai_score >= 75).length;
   const avgScore = results.length ? Math.round(results.reduce((s, r) => s + r.ai_score, 0) / results.length) : 0;
