@@ -63,19 +63,33 @@ const Drops = () => {
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch results for a scan (paginated)
-  const fetchResults = useCallback(async (scanId: string, pageNum = 0) => {
+  // Fetch results for a scan (paginated, filtered server-side)
+  const fetchResults = useCallback(async (
+    scanId: string,
+    pageNum = 0,
+    search = "",
+    category = "all",
+    sort: SortKey = "ai_score",
+    dir: "asc" | "desc" = "desc"
+  ) => {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Fetch page of results
-    const { data, count } = await supabase
+    let query = supabase
       .from("drop_scan_results")
       .select("*", { count: "exact" })
-      .eq("scan_id", scanId)
-      .order("ai_score", { ascending: false })
-      .range(from, to);
+      .eq("scan_id", scanId);
 
+    if (search) {
+      query = query.ilike("domain_name", `%${search}%`);
+    }
+    if (category !== "all") {
+      query = query.eq("category", category);
+    }
+
+    query = query.order(sort, { ascending: dir === "asc" }).range(from, to);
+
+    const { data, count } = await query;
     setResults((data || []) as ScanResult[]);
     if (count !== null) setTotalResults(count);
   }, []);
@@ -93,7 +107,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId, 0);
+        await fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -129,7 +143,7 @@ const Drops = () => {
     // Show results from whichever scan has them
     if (resultsScan) {
       setCurrentScan(resultsScan as Scan);
-      await fetchResults(resultsScan.id, 0);
+      await fetchResults(resultsScan.id, 0, "", "all", "ai_score", "desc");
     }
 
     // Also check if there's an active scan (for progress banner)
@@ -147,31 +161,30 @@ const Drops = () => {
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
+  // Re-fetch when filters, sort, or page change (debounced for search)
+  const filterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!currentScan) return;
+    if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
+    filterTimerRef.current = setTimeout(() => {
+      setPage(0);
+      fetchResults(currentScan.id, 0, searchFilter, categoryFilter, sortKey, sortDir);
+    }, searchFilter ? 300 : 0);
+    return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
+  }, [searchFilter, categoryFilter, sortKey, sortDir, currentScan, fetchResults]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const filteredResults = results
-    .filter(r => {
-      if (searchFilter && !r.domain_name.includes(searchFilter.toLowerCase())) return false;
-      if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "domain_name") cmp = a.domain_name.localeCompare(b.domain_name);
-      else cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
   const topPicks = results.filter(r => r.ai_score >= 75).length;
   const avgScore = results.length ? Math.round(results.reduce((s, r) => s + r.ai_score, 0) / results.length) : 0;
 
   const exportCsv = () => {
-    if (!filteredResults.length) return;
+    if (!results.length) return;
     const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
-    const rows = filteredResults.map(r =>
+    const rows = results.map(r =>
       `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
@@ -188,8 +201,8 @@ const Drops = () => {
   const goToPage = useCallback((newPage: number) => {
     if (!currentScan) return;
     setPage(newPage);
-    fetchResults(currentScan.id, newPage);
-  }, [currentScan, fetchResults]);
+    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir);
+  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir]);
 
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
@@ -368,7 +381,7 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredResults.map((r) => (
+                      {results.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
