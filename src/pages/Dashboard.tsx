@@ -887,6 +887,8 @@ export default function Dashboard() {
           domain={selectedDomain}
           open={detailSheetOpen}
           onOpenChange={setDetailSheetOpen}
+          externalIsFavorite={isFavorite}
+          externalToggleFavorite={toggleFavorite}
         />
       </main>
     </div>

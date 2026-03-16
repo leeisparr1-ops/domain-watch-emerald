@@ -176,11 +176,11 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 size="icon"
                 onClick={(e) => {
                   e.preventDefault();
-                  toggleFavorite(domain.domain, domain.id);
+                  doToggleFavorite(domain.domain, domain.id);
                 }}
-                className={isFavorite(domain.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
+                className={checkIsFavorite(domain.domain) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"}
               >
-                <Heart className={`w-5 h-5 ${isFavorite(domain.domain) ? "fill-current" : ""}`} />
+                <Heart className={`w-5 h-5 ${checkIsFavorite(domain.domain) ? "fill-current" : ""}`} />
               </Button>
             </div>
             <SheetDescription className="flex items-center gap-2 flex-wrap">
