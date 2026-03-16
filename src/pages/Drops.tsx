@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Download, Loader2, Search, TrendingUp, Star, Clock, Filter, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, Search, TrendingUp, Star, Clock, Filter, RotateCcw, X, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,7 @@ const Drops = () => {
   const [minScore, setMinScore] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [rerunning, setRerunning] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pageRef = useRef(0);
   const searchRef = useRef("");
@@ -229,6 +230,53 @@ const Drops = () => {
     URL.revokeObjectURL(url);
   };
 
+  const rerunScan = async () => {
+    if (!user || rerunning) return;
+    setRerunning(true);
+    try {
+      // Create a new scan entry
+      const { data: newScan, error: insertErr } = await supabase
+        .from("drop_scans")
+        .insert({
+          user_id: user.id,
+          filename: "daily-drops.csv",
+          status: "processing",
+          total_domains: 0,
+          filtered_domains: 0,
+          evaluated_domains: 0,
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newScan) throw new Error("Failed to create scan");
+
+      // Delete old results from previous scan
+      if (currentScan?.id) {
+        await supabase.from("drop_scan_results").delete().eq("scan_id", currentScan.id);
+      }
+
+      // Trigger evaluation using the shared CSV
+      const origin = window.location.origin;
+      const { error: invokeErr } = await supabase.functions.invoke("evaluate-drops", {
+        body: {
+          scanId: newScan.id,
+          csvUrl: `${origin}/store/daily-drops.csv`,
+        },
+      });
+
+      if (invokeErr) throw invokeErr;
+
+      setCurrentScan(newScan as Scan);
+      setResults([]);
+      setTotalResults(0);
+      startPolling(newScan.id);
+    } catch (err) {
+      console.error("Re-run failed:", err);
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
 
   const goToPage = useCallback((newPage: number) => {
@@ -356,6 +404,11 @@ const Drops = () => {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {totalResults.toLocaleString()} results
                   </span>
+                  {!isProcessing && user && (
+                    <Button variant="outline" size="sm" onClick={rerunScan} disabled={rerunning}>
+                      <RefreshCw className={`w-4 h-4 mr-1 ${rerunning ? "animate-spin" : ""}`} /> Re-run
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={exportCsv}>
                     <Download className="w-4 h-4 mr-1" /> Export
                   </Button>

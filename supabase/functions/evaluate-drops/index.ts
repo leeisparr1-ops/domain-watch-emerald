@@ -549,6 +549,16 @@ function quickQualityScore(
     if (lower.includes(word)) return 0;
   }
 
+  // ─── EARLY PRONOUNCEABILITY GATE ───
+  // Reject strings with 4+ consecutive consonants (unpronounceable gibberish)
+  if (BAD_CLUSTERS.test(lower)) return 0;
+  // Reject if no vowels at all
+  const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
+  if (vowelCount === 0 && len > 2) return 0;
+  // Reject extremely low vowel ratio (< 15% = gibberish like "brkshtl")
+  const vowelRatio = vowelCount / len;
+  if (vowelRatio < 0.15 && len > 3) return 0;
+
   // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
   score += Math.round(coverage * 25);
@@ -556,72 +566,107 @@ function quickQualityScore(
   // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
   if (len === 4) score += 15;
   else if (len === 5) score += 14;
-  else if (len === 3) score += 12;
-  else if (len <= 6) score += 12;
+  else if (len === 3) score += 13;
+  else if (len === 6) score += 12;
   else if (len <= 8) score += 10;
   else if (len <= 10) score += 6;
   else if (len <= 12) score += 3;
   else if (len <= 15) score += 1;
 
-  // ─── 3. SINGLE REAL-WORD BONUS (max 10 pts) ───
+  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 20 pts) ───
+  // Single real dictionary words are the #1 most valuable drops
   if (words.length === 1 && coverage >= 0.95) {
-    if (len <= 5) score += 10;
-    else if (len === 6) score += 7;
-    else if (len <= 8) score += 5;
-  }
-  if (words.length === 2 && coverage >= 0.9 && len <= 12) {
-    score += 8;
+    if (len <= 4) score += 20;       // "fire", "volt", "sage" — ultra-premium
+    else if (len === 5) score += 18; // "surge", "blade", "radar" — premium
+    else if (len === 6) score += 14; // "shield", "beacon" — strong
+    else if (len <= 8) score += 10;  // "quantum", "platinum" — solid
+    else score += 6;
   }
 
-  // ─── 4. CVCVC PATTERN (max 10 pts) ───
+  // ─── 4. TWO-WORD COMPOUND BONUS (max 12 pts) ───
+  if (words.length === 2 && coverage >= 0.85) {
+    const bothReal = words.every(w => DICTIONARY.has(w) && w.length >= 3);
+    const totalLen = words.reduce((s, w) => s + w.length, 0);
+    if (bothReal && totalLen <= 10) score += 12;     // "dataflow", "cloudbank" — premium compound
+    else if (bothReal && totalLen <= 14) score += 10; // "smartmarket" — good compound
+    else if (bothReal) score += 7;
+    else if (coverage >= 0.9 && len <= 12) score += 6;
+  }
+
+  // ─── 5. CVCVC BRANDABLE PATTERN (max 12 pts) ───
   if (isCVCVC(lower)) {
-    if (len <= 5) score += 10;
-    else score += 7;
+    if (len <= 5) score += 12;  // "Roku", "Voxel" tier
+    else if (len === 6) score += 9;
+    else score += 6;
   }
 
-  // ─── 5. KW+WORD COMPOUND BONUS (max 8 pts) ───
-  if (words.length >= 2) {
-    const hasKW = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.5);
+  // ─── 6. EXACT TRENDING KEYWORD MATCH (max 20 pts) ───
+  // The entire SLD IS a trending keyword — extremely valuable
+  const exactTrendHeat = TRENDING_KEYWORDS[lower];
+  if (exactTrendHeat) {
+    if (exactTrendHeat >= 2.0) score += 20;
+    else if (exactTrendHeat >= 1.7) score += 16;
+    else if (exactTrendHeat >= 1.4) score += 12;
+    else score += 8;
+  }
+
+  // ─── 7. KW+WORD COMPOUND BONUS (max 10 pts) ───
+  if (words.length >= 2 && !exactTrendHeat) {
+    const hasKW = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    if (hasKW && hasDictWord) score += 8;
-    else if (hasKW && words.length === 2) score += 5;
+    if (hasKW && hasDictWord) score += 10;  // "aiforge", "cryptovault"
+    else if (hasKW && words.length === 2) score += 6;
   }
 
-  // ─── 6. TRENDING KEYWORD HEAT (max 15 pts) ───
-  let bestHeat = 0;
-  for (const word of words) {
-    const heat = TRENDING_KEYWORDS[word];
-    if (heat && heat > bestHeat) bestHeat = heat;
+  // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
+  if (!exactTrendHeat) {
+    let bestHeat = 0;
+    for (const word of words) {
+      const heat = TRENDING_KEYWORDS[word];
+      if (heat && heat > bestHeat) bestHeat = heat;
+    }
+    // Check short keywords embedded in name (ai, ev, etc.)
+    for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
+      if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
+    }
+    if (bestHeat >= 2.0) score += 12;
+    else if (bestHeat >= 1.7) score += 9;
+    else if (bestHeat >= 1.5) score += 7;
+    else if (bestHeat >= 1.3) score += 4;
+    else if (bestHeat >= 1.1) score += 2;
   }
-  for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
-    if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
-  }
-  if (bestHeat >= 2.0) score += 15;
-  else if (bestHeat >= 1.7) score += 12;
-  else if (bestHeat >= 1.5) score += 9;
-  else if (bestHeat >= 1.3) score += 6;
-  else if (bestHeat >= 1.1) score += 3;
 
-  // ─── 7. DB TRENDING KEYWORDS CROSS-REF (max 8 pts) ───
+  // ─── 9. DB TRENDING KEYWORDS CROSS-REF / Perplexity (max 10 pts) ───
   if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
     let bestDbHeat = 0;
+    // Check full name match first
+    const fullHeat = dbTrendingKeywords[lower];
+    if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
+    // Check individual words
     for (const word of words) {
       const heat = dbTrendingKeywords[word];
       if (heat && heat > bestDbHeat) bestDbHeat = heat;
     }
-    const fullHeat = dbTrendingKeywords[lower];
-    if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
-    if (bestDbHeat >= 2.0) score += 8;
-    else if (bestDbHeat >= 1.5) score += 5;
-    else if (bestDbHeat >= 1.2) score += 3;
+    // Check all DB keywords as substrings for short hot terms
+    for (const [kw, heat] of Object.entries(dbTrendingKeywords)) {
+      if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) {
+        bestDbHeat = heat;
+      }
+    }
+    if (bestDbHeat >= 2.0) score += 10;
+    else if (bestDbHeat >= 1.5) score += 7;
+    else if (bestDbHeat >= 1.2) score += 4;
+    else if (bestDbHeat >= 1.0) score += 2;
   }
 
-  // ─── 8. NICHE MARKET HEAT (max 10 pts) ───
+  // ─── 10. NICHE MARKET HEAT (max 10 pts) ───
   let bestNicheHeat = 0;
   for (const [, niche] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => niche.keywords.includes(w)).length;
     if (matchCount > 0) {
       bestNicheHeat = Math.max(bestNicheHeat, niche.heat);
+      // Multi-keyword niche bonus (e.g., "cybershield" hits security twice)
+      if (matchCount >= 2) bestNicheHeat = Math.min(100, bestNicheHeat + 10);
     }
   }
   if (bestNicheHeat >= 85) score += 10;
@@ -629,7 +674,7 @@ function quickQualityScore(
   else if (bestNicheHeat >= 55) score += 4;
   else if (bestNicheHeat >= 40) score += 2;
 
-  // ─── 9. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
+  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
   let brandableBonus = 0;
   for (const pat of BRANDABLE_SUFFIXES) {
     if (pat.test(lower)) { brandableBonus += 4; break; }
@@ -646,66 +691,69 @@ function quickQualityScore(
   const altRatio = alternations / (Math.min(len, 10) - 1);
   if (altRatio >= 0.7 && len >= 4 && len <= 8) brandableBonus += 3;
   else if (altRatio >= 0.5) brandableBonus += 1;
+  // Coined brandable: short, not a word, but sounds good
   if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
     brandableBonus += 3;
   }
   score += Math.min(8, brandableBonus);
 
-  // ─── 10. BIGRAM QUALITY (max 8 pts) ───
+  // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
   for (let i = 0; i < lower.length - 1; i++) {
     totalBi++;
     if (GOOD_BIGRAMS.has(lower.slice(i, i + 2))) goodBi++;
   }
-  score += totalBi > 0 ? Math.round((goodBi / totalBi) * 8) : 0;
+  const bigramScore = totalBi > 0 ? Math.round((goodBi / totalBi) * 8) : 0;
+  score += bigramScore;
 
-  // ─── 11. VOWEL BALANCE (max 8 pts) ───
-  const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
-  const vowelRatio = vowelCount / len;
+  // ─── 13. VOWEL BALANCE (max 8 pts) ───
   if (vowelRatio >= 0.25 && vowelRatio <= 0.55) score += 8;
   else if (vowelRatio >= 0.2 && vowelRatio <= 0.6) score += 5;
   else if (vowelRatio >= 0.15) score += 2;
 
-  // ─── 12. SYLLABLE RHYTHM (max 6 pts) ───
+  // ─── 14. SYLLABLE RHYTHM (max 6 pts) ───
   const syllables = countSyllables(lower);
   if (syllables >= 2 && syllables <= 3) score += 6;
-  else if (syllables === 1) score += 4;
+  else if (syllables === 1 && len >= 3) score += 5;
   else if (syllables === 4) score += 2;
 
-  // ─── 13. SEMANTIC COHERENCE (max 5 pts) ───
+  // ─── 15. SEMANTIC COHERENCE (max 5 pts) ───
   if (words.length >= 1) {
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
     if (fillerCount === 0 && negCount === 0) {
       if (words.length <= 2) score += 5;
       else if (words.length === 3) score += 2;
-    } else if (fillerCount >= 1) score -= 5;
-    if (negCount >= 1) score -= 5;
-    if (words.length >= 3) score -= 8;
-    if (words.length >= 4) score -= 10;
+    } else if (fillerCount >= 1) score -= 8;
+    if (negCount >= 1) score -= 8;
+    if (words.length >= 3) score -= 10;
+    if (words.length >= 4) score -= 15;
   }
 
-  // ─── 14. COMPARABLE SALES KEYWORD MATCH (max 8 pts) ───
+  // ─── 16. COMPARABLE SALES KEYWORD MATCH (max 10 pts) ───
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
     for (const word of words) {
       if (word.length >= 3 && comparableKeywords.has(word)) compMatch++;
     }
-    if (compMatch >= 2) score += 8;
-    else if (compMatch === 1) score += 5;
+    if (compMatch >= 2) score += 10;
+    else if (compMatch === 1) score += 6;
   }
 
   // ─── PENALTIES ───
-  if (BAD_CLUSTERS.test(lower)) score -= 10;
-  if (/(.)\1{2,}/.test(lower)) score -= 8;
+  // BAD_CLUSTERS already handled in early gate
+  if (/(.)\1{2,}/.test(lower)) score -= 10;
   for (const pat of NEGATIVE_SOUNDS) {
-    if (pat.test(lower)) { score -= 4; break; }
+    if (pat.test(lower)) { score -= 5; break; }
   }
-  if (lower.includes("-")) score -= 15;
-  if (/\d+x\d+/i.test(lower)) score -= 25;
-  else if (/^\d/.test(lower)) score -= 20;
-  else if (/\d/.test(lower)) score -= 12;
-  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 15;
+  if (lower.includes("-")) score -= 20;
+  if (/\d+x\d+/i.test(lower)) score -= 30;
+  else if (/^\d/.test(lower)) score -= 25;
+  else if (/\d/.test(lower)) score -= 15;
+  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 20;
+  // Long gibberish penalty: no real words found and long name
+  if (coverage < 0.3 && len >= 8) score -= 15;
+  if (coverage < 0.5 && len >= 12) score -= 10;
 
   return Math.max(0, Math.min(100, score));
 }
