@@ -573,10 +573,11 @@ function quickQualityScore(
   else if (len <= 12) score += 3;
   else if (len <= 15) score += 1;
 
-  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 20 pts) ───
+  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 25 pts) ───
   // Single real dictionary words are the #1 most valuable drops
   if (words.length === 1 && coverage >= 0.95) {
-    if (len <= 4) score += 20;       // "fire", "volt", "sage" — ultra-premium
+    if (len <= 3) score += 25;       // "car", "bet", "pay" — ultra-rare 3-letter .com
+    else if (len === 4) score += 20; // "fire", "volt", "sage" — ultra-premium
     else if (len === 5) score += 18; // "surge", "blade", "radar" — premium
     else if (len === 6) score += 14; // "shield", "beacon" — strong
     else if (len <= 8) score += 10;  // "quantum", "platinum" — solid
