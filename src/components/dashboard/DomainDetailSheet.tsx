@@ -41,6 +41,8 @@ interface DomainDetailSheetProps {
   domain: DomainData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  externalIsFavorite?: (domainName: string) => boolean;
+  externalToggleFavorite?: (domainName: string, auctionId?: string) => void;
 }
 
 function formatTimeRemaining(endTime: string): string {
