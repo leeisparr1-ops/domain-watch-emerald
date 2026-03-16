@@ -1137,8 +1137,47 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
 
         if (!aiResp.ok) {
           const status = aiResp.status;
-          if (status === 429 || status === 402) {
-            console.warn(`Rate limited (${status}), stopping at ${evaluated}. Model: ${model}`);
+          if (status === 429) {
+            // Rate limited — wait 30s then retry once
+            console.warn(`Rate limited (429) at batch ${i}, waiting 30s before retry...`);
+            await new Promise(r => setTimeout(r, 30000));
+            const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ model, messages: [
+                { role: "system", content: isPremiumBatch
+                  ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
+                  : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
+                },
+                { role: "user", content: prompt },
+              ], temperature: 0 }),
+            });
+            if (!retryResp.ok) {
+              console.warn(`Retry also failed (${retryResp.status}), stopping at ${evaluated}`);
+              break;
+            }
+            // Use retry response below
+            const retryData = await retryResp.json();
+            const retryContent = retryData.choices?.[0]?.message?.content || "";
+            try {
+              const cleaned = retryContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+              const retryParsed = JSON.parse(cleaned);
+              const rows = retryParsed.map((r: any) => ({
+                scan_id: scanId, domain_name: r.domain || r.domain_name,
+                ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
+                ai_summary: r.summary || "", category: r.category || "generic",
+                estimated_value: Number(r.estimated_value) || 0,
+                brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
+                keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
+                length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
+              }));
+              if (rows.length > 0) await adminClient.from("drop_scan_results").insert(rows);
+            } catch { /* skip */ }
+            evaluated += batch.length;
+            continue;
+          }
+          if (status === 402) {
+            console.warn(`Credits exhausted (402), stopping at ${evaluated}`);
             break;
           }
           console.error("AI error:", status, await aiResp.text());
