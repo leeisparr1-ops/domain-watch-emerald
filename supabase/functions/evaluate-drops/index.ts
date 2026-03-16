@@ -806,11 +806,9 @@ function quickQualityScore(
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 5; break; }
   }
-  if (lower.includes("-")) score -= 20;
-  if (/\d+x\d+/i.test(lower)) score -= 30;
-  else if (/^\d/.test(lower)) score -= 25;
-  else if (/\d/.test(lower)) score -= 15;
-  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 20;
+  // Digits anywhere = penalty (already rejected leading digits at gate)
+  if (/\d/.test(lower)) score -= 15;
+  if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
   if (coverage < 0.3 && len >= 8) score -= 15;
   if (coverage < 0.5 && len >= 12) score -= 10;
 
