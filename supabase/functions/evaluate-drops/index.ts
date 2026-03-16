@@ -1200,22 +1200,21 @@ serve(async (req) => {
       const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
 
       const prompt = isPremiumBatch
-        ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. These are PRE-SCREENED HIGH-QUALITY domains that passed our heuristic engine. Give them a THOROUGH evaluation.
+        ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. Evaluate like a real investor would.
 
-For each domain, deeply analyze:
-- Exact keyword commercial value (what industries would buy this?)
-- Realistic comparable sales (what have similar domains sold for?)
-- End-user buyer potential (what companies/startups would want this?)
-- Brandability: Is the name memorable, easy to spell, sounds professional?
-- SEO value: Does it contain high-volume search keywords?
-- Resale timeline: Quick flip or long-term hold?
+CRITICAL SCORING RULES — follow these strictly:
+- Single real English words (4-8 letters) are the MOST valuable drops. Examples that sold for $1M+: rocket.com, gold.com, forge.com, wise.com, galaxy.com, mojo.com
+- Two-word KW+W compounds (max 10-12 chars) can be strong IF short and clean: ebike.com ($1M), gobet.com ($850K), bestodds.com ($1M)
+- 3-word domains are almost NEVER worth catching — penalize heavily. "accessaiagency" is NOT a good domain just because it contains "ai"
+- A trending keyword (ai, crypto, pay) is only valuable as the CORE of a short domain, not stuffed into a long phrase
+- Length matters enormously: 4-8 char SLDs are king, 9-12 are okay, 13+ are junk
 
-Score FAIRLY — these are pre-screened quality names, not random junk.
-- 85-100: Premium catch (clear $1,000+ value, strong end-user appeal)
-- 70-84: Strong catch (solid $500+ potential, multiple buyer segments)
-- 50-69: Good potential (worth $100-500, specific niche appeal)
-- 30-49: Marginal (low chance of profitable flip)
-- 1-29: Pass
+Score calibration:
+- 85-100: Premium single-word or ultra-clean 2-word compound ($1,000+ value)
+- 70-84: Strong short brandable or clean KW+W compound ($500+ potential)
+- 50-69: Decent potential, specific niche appeal
+- 30-49: Marginal — too long, too many words, or weak keyword
+- 1-29: Pass — not worth the reg fee
 
 Domains to evaluate:
 ${batch.join("\n")}
@@ -1223,11 +1222,21 @@ ${batch.join("\n")}
 Return JSON array: [{domain, score, summary (15 words max), category (brandable|keyword|short|geo|niche|generic|premium|weak), estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
         : `You are an expert domain name investor. Evaluate each domain for DROP CATCHING potential.
 
-Score STRICTLY — most expiring domains are junk. Only truly good ones should score 70+.
-- 85-100: Premium catch (real words, short, high commercial value)
-- 70-84: Strong catch (brandable, good keywords, memorable)
+CRITICAL: Score like a REAL investor. What actually sells in the aftermarket:
+- Single real words (rocket.com $14M, gold.com $8.5M, forge.com $2.2M)
+- Short 2-word KW+W compounds (ebike.com $1M, gobet.com $850K)
+- NOT 3-4 word keyword-stuffed phrases — these are essentially worthless
+
+Rules:
+- 3+ word domains should almost never score above 40
+- A trending keyword in a long phrase does NOT make it valuable
+- Short (4-8 chars) > everything else
+
+Score STRICTLY:
+- 85-100: Premium catch (single real words, ultra-short, proven commercial value)
+- 70-84: Strong catch (clean 2-word brandable, short KW+W)
 - 50-69: Decent potential (usable but not exceptional)
-- 30-49: Marginal (might find a buyer eventually)
+- 30-49: Marginal (too long, too many words, weak)
 - 1-29: Pass (not worth the reg fee)
 
 Domains to evaluate:
@@ -1246,8 +1255,8 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
             model,
             messages: [
               { role: "system", content: isPremiumBatch
-                ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
-                : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
+                ? "You are a senior domain investment analyst. Score based on REAL aftermarket data: single words and short 2-word compounds dominate sales. Penalize 3+ word domains severely. Return only valid JSON arrays. No markdown."
+                : "You are a domain name investment evaluator. Be STRICT. 3+ word domains are almost never valuable. Short single-word domains are king. Return only valid JSON arrays. No markdown."
               },
               { role: "user", content: prompt },
             ],
