@@ -902,13 +902,28 @@ serve(async (req) => {
       for (const domain of chunk) {
         const sld = domain.replace(/\.com$/, "");
 
-        // Hard gate: reject hyphens/numbers unless contains high-value keyword
+        // Hard gate: reject hyphens/numbers with strict rules
         const hasHyphen = sld.includes("-");
         const hasNumber = /\d/.test(sld);
-        if (hasHyphen || hasNumber) {
-          const cleanSld = sld.replace(/[-0-9]/g, "");
+        
+        // Always reject hyphens — never brandable
+        if (hasHyphen) continue;
+        
+        if (hasNumber) {
+          // Reject dimension patterns (4x4, 2x2, 10x10, etc.)
+          if (/\d+x\d+/i.test(sld)) continue;
+          // Reject leading digits (4sale, 3dprint, etc.)
+          if (/^\d/.test(sld)) continue;
+          // Reject multiple digit groups (go2buy4less, etc.)
+          if ((sld.match(/\d+/g) || []).length > 1) continue;
+          // For single digit: only allow if high-value keyword is dominant (>50% of alpha chars)
+          const cleanSld = sld.replace(/[0-9]/g, "");
           const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
           if (!hasHighValue) continue;
+          // Even with a keyword, the keyword must be >50% of alpha chars
+          const bestKw = [...HIGH_VALUE_KEYWORDS].filter(kw => kw.length >= 3 && cleanSld.includes(kw))
+            .sort((a, b) => b.length - a.length)[0];
+          if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
         const quality = quickQualityScore(sld, comparableKeywords);
