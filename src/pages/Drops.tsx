@@ -208,7 +208,6 @@ const Drops = () => {
 
   const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
 
-  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
 
   const resetFilters = () => {
     setCategoryFilter("all");
