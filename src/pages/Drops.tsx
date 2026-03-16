@@ -77,6 +77,7 @@ const Drops = () => {
   useEffect(() => { categoryRef.current = categoryFilter; }, [categoryFilter]);
   useEffect(() => { sortKeyRef.current = sortKey; }, [sortKey]);
   useEffect(() => { sortDirRef.current = sortDir; }, [sortDir]);
+  useEffect(() => { minScoreRef.current = minScore; }, [minScore]);
 
   // Fetch results for a scan (paginated, filtered server-side)
   const fetchResults = useCallback(async (
