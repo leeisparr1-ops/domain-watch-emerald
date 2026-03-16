@@ -381,7 +381,13 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {results.map((r) => (
+                      {results.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No domains match your current filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : results.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
