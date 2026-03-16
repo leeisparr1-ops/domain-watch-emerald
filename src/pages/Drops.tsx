@@ -316,6 +316,24 @@ const Drops = () => {
                 <p className="text-xs text-muted-foreground">
                   Results appear as they're processed — check back anytime
                 </p>
+                {/* Show reset button if scan appears stuck (>1hr on same count) */}
+                {currentScan && currentScan.status === "evaluating" && (() => {
+                  const ageMs = Date.now() - new Date(currentScan.created_at).getTime();
+                  return ageMs > 60 * 60 * 1000; // >1 hour old
+                })() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                    onClick={async () => {
+                      await supabase.from("drop_scans").update({ status: "complete", csv_data: null } as any).eq("id", currentScan.id);
+                      setCurrentScan({ ...currentScan, status: "complete" });
+                      if (pollRef.current) clearInterval(pollRef.current);
+                    }}
+                  >
+                    Scan appears stuck — mark as complete
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}

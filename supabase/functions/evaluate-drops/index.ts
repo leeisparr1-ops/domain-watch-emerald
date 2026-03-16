@@ -9,8 +9,9 @@ const corsHeaders = {
 
 const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
 const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
-const QUALITY_THRESHOLD = 50;        // raised: only genuinely good names reach AI
+const QUALITY_THRESHOLD = 62;        // aggressive: only strong names reach AI
 const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
+const MAX_AI_QUEUE = 6000;           // cap AI evaluation to prevent runaway costs
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
@@ -520,27 +521,25 @@ function countSyllables(name: string): number {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ─── CVCVC PATTERN DETECTOR ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+function isCVCVC(sld: string): boolean {
+  if (sld.length < 4 || sld.length > 7) return false;
+  const pattern = [...sld].map(c => VOWELS.has(c) ? 'V' : 'C').join('');
+  const brandablePatterns = ['CVCVC', 'VCVCV', 'CVCV', 'VCVC', 'CVCCV', 'CVCVCV', 'VCVCVC'];
+  return brandablePatterns.includes(pattern);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE HEURISTIC QUALITY SCORER ──────────────────
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Score a domain SLD 0-100 using the platform's full scoring intelligence:
- * 
- *  - Dictionary coverage (DP-based):       25 pts
- *  - Length sweet spot:                     12 pts
- *  - Trending keyword heat:                15 pts (NEW)
- *  - Niche market heat:                    10 pts (NEW)
- *  - Brandable pattern recognition:         8 pts (NEW)
- *  - Bigram quality:                        8 pts
- *  - Vowel balance:                         8 pts
- *  - Syllable rhythm:                       6 pts
- *  - Semantic coherence:                    5 pts
- *  - Comparable sales keyword match:        8 pts (applied after, via DB)
- *  
- *  Penalties: offensive (-100), negative brand words, filler words,
- *  consonant clusters, negative sounds, hyphens, numbers, repeats
- */
-function quickQualityScore(sld: string, comparableKeywords?: Set<string>): number {
+function quickQualityScore(
+  sld: string,
+  comparableKeywords?: Set<string>,
+  dbTrendingKeywords?: Record<string, number>,
+): number {
   const lower = sld.toLowerCase();
   const len = lower.length;
   let score = 0;
@@ -554,21 +553,46 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   const { words, coverage } = dictionaryCoverage(lower);
   score += Math.round(coverage * 25);
 
-  // ─── 2. LENGTH SWEET SPOT (max 12 pts) ───
-  if (len <= 3) score += 10;
-  else if (len <= 5) score += 12;
-  else if (len <= 8) score += 11;
-  else if (len <= 10) score += 7;
-  else if (len <= 12) score += 4;
+  // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
+  if (len === 4) score += 15;
+  else if (len === 5) score += 14;
+  else if (len === 3) score += 12;
+  else if (len <= 6) score += 12;
+  else if (len <= 8) score += 10;
+  else if (len <= 10) score += 6;
+  else if (len <= 12) score += 3;
   else if (len <= 15) score += 1;
 
-  // ─── 3. TRENDING KEYWORD HEAT (max 15 pts) ── NEW ───
+  // ─── 3. SINGLE REAL-WORD BONUS (max 10 pts) ───
+  if (words.length === 1 && coverage >= 0.95) {
+    if (len <= 5) score += 10;
+    else if (len === 6) score += 7;
+    else if (len <= 8) score += 5;
+  }
+  if (words.length === 2 && coverage >= 0.9 && len <= 12) {
+    score += 8;
+  }
+
+  // ─── 4. CVCVC PATTERN (max 10 pts) ───
+  if (isCVCVC(lower)) {
+    if (len <= 5) score += 10;
+    else score += 7;
+  }
+
+  // ─── 5. KW+WORD COMPOUND BONUS (max 8 pts) ───
+  if (words.length >= 2) {
+    const hasKW = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.5);
+    const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
+    if (hasKW && hasDictWord) score += 8;
+    else if (hasKW && words.length === 2) score += 5;
+  }
+
+  // ─── 6. TRENDING KEYWORD HEAT (max 15 pts) ───
   let bestHeat = 0;
   for (const word of words) {
     const heat = TRENDING_KEYWORDS[word];
     if (heat && heat > bestHeat) bestHeat = heat;
   }
-  // Also check embedded short trending keywords
   for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
     if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
   }
@@ -578,7 +602,21 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   else if (bestHeat >= 1.3) score += 6;
   else if (bestHeat >= 1.1) score += 3;
 
-  // ─── 4. NICHE MARKET HEAT (max 10 pts) ── NEW ───
+  // ─── 7. DB TRENDING KEYWORDS CROSS-REF (max 8 pts) ───
+  if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
+    let bestDbHeat = 0;
+    for (const word of words) {
+      const heat = dbTrendingKeywords[word];
+      if (heat && heat > bestDbHeat) bestDbHeat = heat;
+    }
+    const fullHeat = dbTrendingKeywords[lower];
+    if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
+    if (bestDbHeat >= 2.0) score += 8;
+    else if (bestDbHeat >= 1.5) score += 5;
+    else if (bestDbHeat >= 1.2) score += 3;
+  }
+
+  // ─── 8. NICHE MARKET HEAT (max 10 pts) ───
   let bestNicheHeat = 0;
   for (const [, niche] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => niche.keywords.includes(w)).length;
@@ -591,20 +629,14 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   else if (bestNicheHeat >= 55) score += 4;
   else if (bestNicheHeat >= 40) score += 2;
 
-  // ─── 5. BRANDABLE PATTERN RECOGNITION (max 8 pts) ── NEW ───
+  // ─── 9. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
   let brandableBonus = 0;
-  
-  // Brandable suffixes (Shopify, Spotify, Calendly)
   for (const pat of BRANDABLE_SUFFIXES) {
     if (pat.test(lower)) { brandableBonus += 4; break; }
   }
-  
-  // Brandable prefixes (unbox, reboot, promax)
   for (const pat of BRANDABLE_PREFIXES) {
     if (pat.test(lower)) { brandableBonus += 2; break; }
   }
-  
-  // Vowel-consonant alternation rhythm (brandable names flow well)
   let alternations = 0;
   for (let i = 1; i < Math.min(len, 10); i++) {
     const prevV = VOWELS.has(lower[i - 1]);
@@ -614,16 +646,12 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   const altRatio = alternations / (Math.min(len, 10) - 1);
   if (altRatio >= 0.7 && len >= 4 && len <= 8) brandableBonus += 3;
   else if (altRatio >= 0.5) brandableBonus += 1;
-  
-  // Short coined names that "sound like a brand" (e.g., Roku, Hulu, Zoho)
   if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
-    // Sounds brandable even without dictionary words
     brandableBonus += 3;
   }
-  
   score += Math.min(8, brandableBonus);
 
-  // ─── 6. BIGRAM QUALITY (max 8 pts) ───
+  // ─── 10. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
   for (let i = 0; i < lower.length - 1; i++) {
     totalBi++;
@@ -631,20 +659,20 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   }
   score += totalBi > 0 ? Math.round((goodBi / totalBi) * 8) : 0;
 
-  // ─── 7. VOWEL BALANCE (max 8 pts) ───
+  // ─── 11. VOWEL BALANCE (max 8 pts) ───
   const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
   const vowelRatio = vowelCount / len;
   if (vowelRatio >= 0.25 && vowelRatio <= 0.55) score += 8;
   else if (vowelRatio >= 0.2 && vowelRatio <= 0.6) score += 5;
   else if (vowelRatio >= 0.15) score += 2;
 
-  // ─── 8. SYLLABLE RHYTHM (max 6 pts) ───
+  // ─── 12. SYLLABLE RHYTHM (max 6 pts) ───
   const syllables = countSyllables(lower);
   if (syllables >= 2 && syllables <= 3) score += 6;
   else if (syllables === 1) score += 4;
   else if (syllables === 4) score += 2;
 
-  // ─── 9. SEMANTIC COHERENCE (max 5 pts) ───
+  // ─── 13. SEMANTIC COHERENCE (max 5 pts) ───
   if (words.length >= 1) {
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
@@ -653,13 +681,11 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
       else if (words.length === 3) score += 2;
     } else if (fillerCount >= 1) score -= 5;
     if (negCount >= 1) score -= 5;
-    // 3+ word domains are almost never brandable (phrases, not brands)
     if (words.length >= 3) score -= 8;
-    // 4+ word domains are sentences, not domains
     if (words.length >= 4) score -= 10;
   }
 
-  // ─── 10. COMPARABLE SALES KEYWORD MATCH (max 8 pts) ── NEW ───
+  // ─── 14. COMPARABLE SALES KEYWORD MATCH (max 8 pts) ───
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
     for (const word of words) {
@@ -675,13 +701,10 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 4; break; }
   }
-  // Hyphens are a strong negative signal for brandability
   if (lower.includes("-")) score -= 15;
-  // Numbers: dimension patterns (4x4) are worst, leading digits bad, any digit penalized
   if (/\d+x\d+/i.test(lower)) score -= 25;
   else if (/^\d/.test(lower)) score -= 20;
   else if (/\d/.test(lower)) score -= 12;
-  // L-L or single-letter patterns (e.g. "a-b", "x-y") 
   if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 15;
 
   return Math.max(0, Math.min(100, score));
@@ -905,8 +928,24 @@ serve(async (req) => {
         });
       }
 
-      // Load comparable keywords once per chain (cached in function instance)
+      // Load comparable keywords and DB trending keywords
       const comparableKeywords = await loadComparableKeywords(adminClient);
+      
+      // Load Perplexity-sourced trending keywords from DB
+      let dbTrendingKeywords: Record<string, number> = {};
+      try {
+        const { data: trendData } = await adminClient
+          .from("trending_market_data")
+          .select("trending_keywords")
+          .eq("id", "latest")
+          .maybeSingle();
+        if (trendData?.trending_keywords) {
+          dbTrendingKeywords = trendData.trending_keywords as Record<string, number>;
+          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords for cross-ref`);
+        }
+      } catch (e) {
+        console.warn("Failed to load DB trending keywords:", e);
+      }
 
       const scoredDomains: { domain: string; score: number }[] = [];
       for (const domain of chunk) {
@@ -916,27 +955,21 @@ serve(async (req) => {
         const hasHyphen = sld.includes("-");
         const hasNumber = /\d/.test(sld);
         
-        // Always reject hyphens — never brandable
         if (hasHyphen) continue;
         
         if (hasNumber) {
-          // Reject dimension patterns (4x4, 2x2, 10x10, etc.)
           if (/\d+x\d+/i.test(sld)) continue;
-          // Reject leading digits (4sale, 3dprint, etc.)
           if (/^\d/.test(sld)) continue;
-          // Reject multiple digit groups (go2buy4less, etc.)
           if ((sld.match(/\d+/g) || []).length > 1) continue;
-          // For single digit: only allow if high-value keyword is dominant (>50% of alpha chars)
           const cleanSld = sld.replace(/[0-9]/g, "");
           const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
           if (!hasHighValue) continue;
-          // Even with a keyword, the keyword must be >50% of alpha chars
           const bestKw = [...HIGH_VALUE_KEYWORDS].filter(kw => kw.length >= 3 && cleanSld.includes(kw))
             .sort((a, b) => b.length - a.length)[0];
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords);
+        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords);
         if (quality >= QUALITY_THRESHOLD) {
           scoredDomains.push({ domain, score: quality });
         }
@@ -975,11 +1008,17 @@ serve(async (req) => {
         });
         allScored.sort((a, b) => b.score - a.score);
 
-        const premiumDomains = allScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-        const standardDomains = allScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        // Cap AI evaluation to prevent runaway costs
+        const cappedScored = allScored.slice(0, MAX_AI_QUEUE);
+        if (allScored.length > MAX_AI_QUEUE) {
+          console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
+        }
+
+        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
         const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
 
-        console.log(`Pre-screening complete: ${allScored.length} qualified → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
+        console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
 
         await adminClient.from("drop_scans").update({
           filtered_domains: allScored.length,
@@ -1098,8 +1137,47 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
 
         if (!aiResp.ok) {
           const status = aiResp.status;
-          if (status === 429 || status === 402) {
-            console.warn(`Rate limited (${status}), stopping at ${evaluated}. Model: ${model}`);
+          if (status === 429) {
+            // Rate limited — wait 30s then retry once
+            console.warn(`Rate limited (429) at batch ${i}, waiting 30s before retry...`);
+            await new Promise(r => setTimeout(r, 30000));
+            const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ model, messages: [
+                { role: "system", content: isPremiumBatch
+                  ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
+                  : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
+                },
+                { role: "user", content: prompt },
+              ], temperature: 0 }),
+            });
+            if (!retryResp.ok) {
+              console.warn(`Retry also failed (${retryResp.status}), stopping at ${evaluated}`);
+              break;
+            }
+            // Use retry response below
+            const retryData = await retryResp.json();
+            const retryContent = retryData.choices?.[0]?.message?.content || "";
+            try {
+              const cleaned = retryContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+              const retryParsed = JSON.parse(cleaned);
+              const rows = retryParsed.map((r: any) => ({
+                scan_id: scanId, domain_name: r.domain || r.domain_name,
+                ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
+                ai_summary: r.summary || "", category: r.category || "generic",
+                estimated_value: Number(r.estimated_value) || 0,
+                brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
+                keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
+                length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
+              }));
+              if (rows.length > 0) await adminClient.from("drop_scan_results").insert(rows);
+            } catch { /* skip */ }
+            evaluated += batch.length;
+            continue;
+          }
+          if (status === 402) {
+            console.warn(`Credits exhausted (402), stopping at ${evaluated}`);
             break;
           }
           console.error("AI error:", status, await aiResp.text());
@@ -1147,9 +1225,9 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
         evaluated += batch.length;
       }
 
-      // Delay between batches
+      // Delay between batches (3s to avoid rate limits)
       if (i + AI_BATCH_SIZE < chunk.length) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
