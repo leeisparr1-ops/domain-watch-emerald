@@ -97,24 +97,37 @@ const Drops = () => {
   const loadLatestScan = useCallback(async () => {
     setLoading(true);
 
-    // Find the scan_id that has the most results (best completed scan)
-    const { data: resultScans } = await supabase
-      .from("drop_scan_results")
-      .select("scan_id")
-      .order("ai_score", { ascending: false })
-      .limit(1);
+    // Find the latest shared scan (system user or any) with results or currently processing
+    const { data: scans } = await supabase
+      .from("drop_scans")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-    if (resultScans && resultScans.length > 0) {
-      const scanId = resultScans[0].scan_id;
-      const { data: scanData } = await supabase
-        .from("drop_scans")
-        .select("*")
-        .eq("id", scanId)
-        .single();
+    // Find the best scan: prefer processing, then completed with results, then any
+    let bestScan = scans?.find(s => ["pre-screening", "evaluating", "processing"].includes(s.status));
+    if (!bestScan) {
+      // Find scan with actual results
+      for (const scan of scans || []) {
+        const { count } = await supabase
+          .from("drop_scan_results")
+          .select("*", { count: "exact", head: true })
+          .eq("scan_id", scan.id);
+        if (count && count > 0) {
+          bestScan = scan;
+          break;
+        }
+      }
+    }
+    if (!bestScan && scans?.length) {
+      bestScan = scans[0];
+    }
 
-      if (scanData) {
-        setCurrentScan(scanData as Scan);
-        await fetchResults(scanId);
+    if (bestScan) {
+      setCurrentScan(bestScan as Scan);
+      await fetchResults(bestScan.id);
+      if (["processing", "evaluating", "pre-screening"].includes(bestScan.status)) {
+        startPolling(bestScan.id);
       }
     }
 
