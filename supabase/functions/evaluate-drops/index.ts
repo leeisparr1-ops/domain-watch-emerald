@@ -975,15 +975,7 @@ serve(async (req) => {
       }
 
       // Self-chain to continue
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain pre-screen error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "pre-screen");
 
       return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
