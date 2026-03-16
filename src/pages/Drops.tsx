@@ -161,17 +161,24 @@ const Drops = () => {
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
-  // Re-fetch when filters, sort, or page change (debounced for search)
+  // Re-fetch when filters or sort change (debounced for search)
   const filterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentScanIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!currentScan) return;
+    currentScanIdRef.current = currentScan?.id || null;
+  }, [currentScan?.id]);
+
+  useEffect(() => {
+    const scanId = currentScanIdRef.current;
+    if (!scanId) return;
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
     filterTimerRef.current = setTimeout(() => {
       setPage(0);
-      fetchResults(currentScan.id, 0, searchFilter, categoryFilter, sortKey, sortDir);
+      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir);
     }, searchFilter ? 300 : 0);
     return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
-  }, [searchFilter, categoryFilter, sortKey, sortDir, currentScan, fetchResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFilter, categoryFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
