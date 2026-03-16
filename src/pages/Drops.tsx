@@ -182,9 +182,9 @@ const Drops = () => {
   const avgScore = results.length ? Math.round(results.reduce((s, r) => s + r.ai_score, 0) / results.length) : 0;
 
   const exportCsv = () => {
-    if (!filteredResults.length) return;
+    if (!results.length) return;
     const headers = "Domain,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
-    const rows = filteredResults.map(r =>
+    const rows = results.map(r =>
       `"${r.domain_name}",${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
