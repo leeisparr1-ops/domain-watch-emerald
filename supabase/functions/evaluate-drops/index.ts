@@ -611,12 +611,14 @@ function quickQualityScore(
     else score += 8;
   }
 
-  // ─── 7. KW+WORD COMPOUND BONUS (max 10 pts) ───
+  // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
   if (words.length >= 2 && !exactTrendHeat) {
-    const hasKW = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
+    const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    if (hasKW && hasDictWord) score += 10;  // "aiforge", "cryptovault"
-    else if (hasKW && words.length === 2) score += 6;
+    // Dual-trending: both words are trending keywords — extremely valuable compound
+    if (trendingWords.length >= 2) score += 15;  // "aifintech", "cryptopay"
+    else if (trendingWords.length === 1 && hasDictWord) score += 10;  // "aiforge", "cryptovault"
+    else if (trendingWords.length === 1 && words.length === 2) score += 6;
   }
 
   // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
