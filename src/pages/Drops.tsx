@@ -129,7 +129,7 @@ const Drops = () => {
     // Show results from whichever scan has them
     if (resultsScan) {
       setCurrentScan(resultsScan as Scan);
-      await fetchResults(resultsScan.id);
+      await fetchResults(resultsScan.id, 0);
     }
 
     // Also check if there's an active scan (for progress banner)
