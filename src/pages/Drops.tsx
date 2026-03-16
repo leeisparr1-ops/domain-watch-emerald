@@ -597,11 +597,17 @@ const Drops = () => {
               {/* Results Table */}
               <Card>
                 <div className="overflow-auto max-h-[60vh]">
-                  <Table>
+               <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="cursor-pointer" onClick={() => toggleSort("domain_name")}>
                           Domain {sortKey === "domain_name" && (sortDir === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead className="cursor-pointer text-center w-14" onClick={() => toggleSort("sld_length")}>
+                          Len {sortKey === "sld_length" && (sortDir === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead className="cursor-pointer text-center w-14" onClick={() => toggleSort("word_count")}>
+                          Words {sortKey === "word_count" && (sortDir === "asc" ? "↑" : "↓")}
                         </TableHead>
                         <TableHead className="cursor-pointer text-center" onClick={() => toggleSort("ai_score")}>
                           Score {sortKey === "ai_score" && (sortDir === "asc" ? "↑" : "↓")}
@@ -622,15 +628,39 @@ const Drops = () => {
                     <TableBody>
                       {results.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             No domains match your current filters.
                           </TableCell>
                         </TableRow>
-                      ) : results.map((r) => (
+                      ) : (sortKey === "sld_length" || sortKey === "word_count"
+                        ? [...results].sort((a, b) => {
+                            const aVal = sortKey === "sld_length" ? getSldLength(a.domain_name) : countDomainWords(a.domain_name);
+                            const bVal = sortKey === "sld_length" ? getSldLength(b.domain_name) : countDomainWords(b.domain_name);
+                            return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+                          })
+                        : results
+                      ).map((r) => {
+                        const sldLen = getSldLength(r.domain_name);
+                        const wordCount = countDomainWords(r.domain_name);
+                        return (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
                             {r.domain_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={`text-xs font-mono ${sldLen <= 6 ? "text-emerald-400 font-bold" : sldLen <= 10 ? "text-foreground" : "text-muted-foreground"}`}>
+                              {sldLen}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={`inline-flex items-center justify-center w-6 h-5 rounded text-xs font-bold ${
+                              wordCount === 1 ? "bg-emerald-500/20 text-emerald-400" :
+                              wordCount === 2 ? "bg-blue-500/20 text-blue-400" :
+                              "bg-orange-500/20 text-orange-400"
+                            }`}>
+                              {wordCount}
+                            </span>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-bold ${
@@ -660,7 +690,7 @@ const Drops = () => {
                             {r.ai_summary}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </div>
