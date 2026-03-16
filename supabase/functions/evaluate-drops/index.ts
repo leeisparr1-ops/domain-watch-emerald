@@ -671,8 +671,14 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 4; break; }
   }
-  if (lower.includes("-")) score -= 8;
-  if (/\d/.test(lower)) score -= 6;
+  // Hyphens are a strong negative signal for brandability
+  if (lower.includes("-")) score -= 15;
+  // Numbers: dimension patterns (4x4) are worst, leading digits bad, any digit penalized
+  if (/\d+x\d+/i.test(lower)) score -= 25;
+  else if (/^\d/.test(lower)) score -= 20;
+  else if (/\d/.test(lower)) score -= 12;
+  // L-L or single-letter patterns (e.g. "a-b", "x-y") 
+  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 15;
 
   return Math.max(0, Math.min(100, score));
 }
