@@ -288,7 +288,7 @@ const Drops = () => {
           )}
 
           {/* Results Section */}
-          {results.length > 0 && (
+          {(totalResults > 0 || results.length > 0 || (currentScan && currentScan.evaluated_domains > 0)) && (
             <>
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
