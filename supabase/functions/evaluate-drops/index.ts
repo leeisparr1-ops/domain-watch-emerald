@@ -1008,11 +1008,17 @@ serve(async (req) => {
         });
         allScored.sort((a, b) => b.score - a.score);
 
-        const premiumDomains = allScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-        const standardDomains = allScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        // Cap AI evaluation to prevent runaway costs
+        const cappedScored = allScored.slice(0, MAX_AI_QUEUE);
+        if (allScored.length > MAX_AI_QUEUE) {
+          console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
+        }
+
+        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
         const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
 
-        console.log(`Pre-screening complete: ${allScored.length} qualified → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
+        console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
 
         await adminClient.from("drop_scans").update({
           filtered_domains: allScored.length,
