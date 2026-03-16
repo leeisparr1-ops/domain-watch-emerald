@@ -677,13 +677,13 @@ function quickQualityScore(
   else if (bestNicheHeat >= 55) score += 4;
   else if (bestNicheHeat >= 40) score += 2;
 
-  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
+  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 10 pts) ───
   let brandableBonus = 0;
   for (const pat of BRANDABLE_SUFFIXES) {
-    if (pat.test(lower)) { brandableBonus += 4; break; }
+    if (pat.test(lower)) { brandableBonus += 6; break; }  // raised from +4 to +6
   }
   for (const pat of BRANDABLE_PREFIXES) {
-    if (pat.test(lower)) { brandableBonus += 2; break; }
+    if (pat.test(lower)) { brandableBonus += 3; break; }  // raised from +2 to +3
   }
   let alternations = 0;
   for (let i = 1; i < Math.min(len, 10); i++) {
@@ -698,7 +698,7 @@ function quickQualityScore(
   if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
     brandableBonus += 3;
   }
-  score += Math.min(8, brandableBonus);
+  score += Math.min(10, brandableBonus);
 
   // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
