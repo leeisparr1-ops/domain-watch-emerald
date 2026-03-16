@@ -551,53 +551,63 @@ function quickQualityScore(
   }
 
   // ─── EARLY PRONOUNCEABILITY GATE ───
-  // Reject strings with 4+ consecutive consonants (unpronounceable gibberish)
   if (BAD_CLUSTERS.test(lower)) return 0;
-  // Reject if no vowels at all
   const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
   if (vowelCount === 0 && len > 2) return 0;
-  // Reject extremely low vowel ratio (< 15% = gibberish like "brkshtl")
   const vowelRatio = vowelCount / len;
   if (vowelRatio < 0.15 && len > 3) return 0;
 
+  // ─── HARD LENGTH GATE ───
+  // No real investor buys 16+ char SLDs — instant reject
+  if (len > 15) return 0;
+
   // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
+
+  // ─── HARD WORD-COUNT GATE ───
+  // 4+ word domains are NEVER valuable drops — instant reject
+  if (words.length >= 4) return 0;
+
   score += Math.round(coverage * 25);
 
   // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
-  if (len === 4) score += 15;
+  // Heavily reward short, penalise long — mirrors what actually sells
+  if (len <= 3) score += 15;
+  else if (len === 4) score += 15;
   else if (len === 5) score += 14;
-  else if (len === 3) score += 13;
   else if (len === 6) score += 12;
   else if (len <= 8) score += 10;
   else if (len <= 10) score += 6;
   else if (len <= 12) score += 3;
-  else if (len <= 15) score += 1;
+  else if (len <= 15) score += 0; // long = no length bonus
 
-  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 25 pts) ───
-  // Single real dictionary words are the #1 most valuable drops
+  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 30 pts) ───
+  // Single real dictionary words are THE most valuable drops (ai.com, rocket.com, gold.com)
   if (words.length === 1 && coverage >= 0.95) {
-    if (len <= 3) score += 25;       // "car", "bet", "pay" — ultra-rare 3-letter .com
-    else if (len === 4) score += 20; // "fire", "volt", "sage" — ultra-premium
-    else if (len === 5) score += 18; // "surge", "blade", "radar" — premium
-    else if (len === 6) score += 14; // "shield", "beacon" — strong
-    else if (len <= 8) score += 10;  // "quantum", "platinum" — solid
-    else score += 6;
+    if (len <= 3) score += 30;       // "car", "bet", "pay" — ultra-rare
+    else if (len === 4) score += 25; // "fire", "volt", "sage" — ultra-premium
+    else if (len === 5) score += 22; // "surge", "blade", "radar" — premium
+    else if (len === 6) score += 18; // "shield", "beacon" — strong
+    else if (len <= 8) score += 12;  // "quantum", "recovery" — solid
+    else score += 8;
   }
 
-  // ─── 4. TWO-WORD COMPOUND BONUS (max 12 pts) ───
+  // ─── 4. TWO-WORD COMPOUND BONUS (max 15 pts) ───
+  // KW+W is the sweet spot — but ONLY if short and clean
   if (words.length === 2 && coverage >= 0.85) {
     const bothReal = words.every(w => DICTIONARY.has(w) && w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
-    if (bothReal && totalLen <= 10) score += 12;     // "dataflow", "cloudbank" — premium compound
-    else if (bothReal && totalLen <= 14) score += 10; // "smartmarket" — good compound
-    else if (bothReal) score += 7;
-    else if (coverage >= 0.9 && len <= 12) score += 6;
+    if (bothReal && totalLen <= 8) score += 15;       // "gobet", "ebike" — premium KW+W
+    else if (bothReal && totalLen <= 10) score += 12;  // "dataflow", "cloudbank"
+    else if (bothReal && totalLen <= 12) score += 8;   // "smartmarket" — decent
+    else if (bothReal && totalLen <= 14) score += 4;   // getting long, marginal
+    else if (coverage >= 0.9 && len <= 10) score += 4;
+    // 2-word compounds over 14 chars = no bonus
   }
 
   // ─── 5. CVCVC BRANDABLE PATTERN (max 12 pts) ───
   if (isCVCVC(lower)) {
-    if (len <= 5) score += 12;  // "Roku", "Voxel" tier
+    if (len <= 5) score += 12;
     else if (len === 6) score += 9;
     else score += 6;
   }
@@ -613,54 +623,61 @@ function quickQualityScore(
   }
 
   // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
-  if (words.length >= 2 && !exactTrendHeat) {
+  // ONLY for exactly 2-word compounds that are short
+  if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    // Dual-trending: both words are trending keywords — extremely valuable compound
-    if (trendingWords.length >= 2) score += 15;  // "aifintech", "cryptopay"
+    if (trendingWords.length >= 2) score += 15;           // "cryptopay", "aifintech"
     else if (trendingWords.length === 1 && hasDictWord) score += 10;  // "aiforge", "cryptovault"
-    else if (trendingWords.length === 1 && words.length === 2) score += 6;
+    else if (trendingWords.length === 1) score += 4;
   }
+  // 3-word domains get ZERO KW+W bonus — a trending keyword buried in a phrase is worthless
 
   // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
+  // Reduced for multi-word domains
   if (!exactTrendHeat) {
     let bestHeat = 0;
     for (const word of words) {
       const heat = TRENDING_KEYWORDS[word];
       if (heat && heat > bestHeat) bestHeat = heat;
     }
-    // Check short keywords embedded in name (ai, ev, etc.)
     for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
       if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
     }
-    if (bestHeat >= 2.0) score += 12;
-    else if (bestHeat >= 1.7) score += 9;
-    else if (bestHeat >= 1.5) score += 7;
-    else if (bestHeat >= 1.3) score += 4;
-    else if (bestHeat >= 1.1) score += 2;
+    // Scale trending bonus by word count — single/two-word = full, three-word = capped
+    let trendBonus = 0;
+    if (bestHeat >= 2.0) trendBonus = 12;
+    else if (bestHeat >= 1.7) trendBonus = 9;
+    else if (bestHeat >= 1.5) trendBonus = 7;
+    else if (bestHeat >= 1.3) trendBonus = 4;
+    else if (bestHeat >= 1.1) trendBonus = 2;
+    // 3-word domains get at most half the trending bonus
+    if (words.length >= 3) trendBonus = Math.min(trendBonus, 4);
+    score += trendBonus;
   }
 
   // ─── 9. DB TRENDING KEYWORDS CROSS-REF / Perplexity (max 10 pts) ───
   if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
     let bestDbHeat = 0;
-    // Check full name match first
     const fullHeat = dbTrendingKeywords[lower];
     if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
-    // Check individual words
     for (const word of words) {
       const heat = dbTrendingKeywords[word];
       if (heat && heat > bestDbHeat) bestDbHeat = heat;
     }
-    // Check all DB keywords as substrings for short hot terms
     for (const [kw, heat] of Object.entries(dbTrendingKeywords)) {
       if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) {
         bestDbHeat = heat;
       }
     }
-    if (bestDbHeat >= 2.0) score += 10;
-    else if (bestDbHeat >= 1.5) score += 7;
-    else if (bestDbHeat >= 1.2) score += 4;
-    else if (bestDbHeat >= 1.0) score += 2;
+    let dbBonus = 0;
+    if (bestDbHeat >= 2.0) dbBonus = 10;
+    else if (bestDbHeat >= 1.5) dbBonus = 7;
+    else if (bestDbHeat >= 1.2) dbBonus = 4;
+    else if (bestDbHeat >= 1.0) dbBonus = 2;
+    // Cap for 3-word domains
+    if (words.length >= 3) dbBonus = Math.min(dbBonus, 3);
+    score += dbBonus;
   }
 
   // ─── 10. NICHE MARKET HEAT (max 10 pts) ───
@@ -669,22 +686,25 @@ function quickQualityScore(
     const matchCount = words.filter(w => niche.keywords.includes(w)).length;
     if (matchCount > 0) {
       bestNicheHeat = Math.max(bestNicheHeat, niche.heat);
-      // Multi-keyword niche bonus (e.g., "cybershield" hits security twice)
       if (matchCount >= 2) bestNicheHeat = Math.min(100, bestNicheHeat + 10);
     }
   }
-  if (bestNicheHeat >= 85) score += 10;
-  else if (bestNicheHeat >= 70) score += 7;
-  else if (bestNicheHeat >= 55) score += 4;
-  else if (bestNicheHeat >= 40) score += 2;
+  let nicheBonus = 0;
+  if (bestNicheHeat >= 85) nicheBonus = 10;
+  else if (bestNicheHeat >= 70) nicheBonus = 7;
+  else if (bestNicheHeat >= 55) nicheBonus = 4;
+  else if (bestNicheHeat >= 40) nicheBonus = 2;
+  // 3-word domains: cap niche bonus
+  if (words.length >= 3) nicheBonus = Math.min(nicheBonus, 3);
+  score += nicheBonus;
 
   // ─── 11. BRANDABLE PATTERN RECOGNITION (max 10 pts) ───
   let brandableBonus = 0;
   for (const pat of BRANDABLE_SUFFIXES) {
-    if (pat.test(lower)) { brandableBonus += 6; break; }  // raised from +4 to +6
+    if (pat.test(lower)) { brandableBonus += 6; break; }
   }
   for (const pat of BRANDABLE_PREFIXES) {
-    if (pat.test(lower)) { brandableBonus += 3; break; }  // raised from +2 to +3
+    if (pat.test(lower)) { brandableBonus += 3; break; }
   }
   let alternations = 0;
   for (let i = 1; i < Math.min(len, 10); i++) {
@@ -695,7 +715,6 @@ function quickQualityScore(
   const altRatio = alternations / (Math.min(len, 10) - 1);
   if (altRatio >= 0.7 && len >= 4 && len <= 8) brandableBonus += 3;
   else if (altRatio >= 0.5) brandableBonus += 1;
-  // Coined brandable: short, not a word, but sounds good
   if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
     brandableBonus += 3;
   }
@@ -721,51 +740,63 @@ function quickQualityScore(
   else if (syllables === 1 && len >= 3) score += 5;
   else if (syllables === 4) score += 2;
 
-  // ─── 15. SEMANTIC COHERENCE (max 5 pts) ───
+  // ─── 15. SEMANTIC COHERENCE & WORD-COUNT PENALTY ───
   if (words.length >= 1) {
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
     if (fillerCount === 0 && negCount === 0) {
-      if (words.length <= 2) score += 5;
-      else if (words.length === 3) score += 2;
-    } else if (fillerCount >= 1) score -= 8;
-    if (negCount >= 1) score -= 8;
-    if (words.length >= 3) score -= 10;
-    if (words.length >= 4) score -= 15;
+      if (words.length <= 2) score += 5;    // clean 1-2 word = good
+      // 3-word gets NO coherence bonus
+    } else if (fillerCount >= 1) score -= 10;
+    if (negCount >= 1) score -= 10;
+
+    // ─── STEEP MULTI-WORD PENALTIES ───
+    // 3-word domains: severe penalty — these almost never sell well
+    if (words.length === 3) score -= 25;
+    // 4+ already rejected at hard gate above
   }
 
-  // ─── 16. COMPARABLE SALES KEYWORD MATCH (max 10 pts) ───
+  // ─── 16. COMPARABLE SALES KEYWORD MATCH (max 12 pts) ───
+  // Boost if domain structure matches what has actually sold
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
     for (const word of words) {
       if (word.length >= 3 && comparableKeywords.has(word)) compMatch++;
     }
-    if (compMatch >= 2) score += 10;
-    else if (compMatch === 1) score += 6;
+    // Only reward if domain is also short (matches sold domain patterns)
+    if (compMatch >= 2 && words.length <= 2 && len <= 12) score += 12;
+    else if (compMatch >= 1 && words.length <= 2 && len <= 10) score += 8;
+    else if (compMatch >= 1 && words.length <= 2) score += 5;
+    else if (compMatch >= 1) score += 2; // 3-word with comp match = tiny bonus
   }
 
   // ─── 17. SEARCH VOLUME CROSS-REF from keyword_volume_cache (max 12 pts) ───
   if (kwVolumeCache && kwVolumeCache.size > 0) {
     let bestVolume = 0;
-    // Check full SLD
     const fullVol = kwVolumeCache.get(lower);
     if (fullVol && fullVol > bestVolume) bestVolume = fullVol;
-    // Check individual words
     for (const word of words) {
       if (word.length >= 3) {
         const vol = kwVolumeCache.get(word);
         if (vol && vol > bestVolume) bestVolume = vol;
       }
     }
-    if (bestVolume >= 10000) score += 12;       // 10k+ monthly searches — very high demand
-    else if (bestVolume >= 5000) score += 10;
-    else if (bestVolume >= 1000) score += 7;
-    else if (bestVolume >= 500) score += 4;
-    else if (bestVolume >= 100) score += 2;
+    let volBonus = 0;
+    if (bestVolume >= 10000) volBonus = 12;
+    else if (bestVolume >= 5000) volBonus = 10;
+    else if (bestVolume >= 1000) volBonus = 7;
+    else if (bestVolume >= 500) volBonus = 4;
+    else if (bestVolume >= 100) volBonus = 2;
+    // 3-word domains: cap volume bonus
+    if (words.length >= 3) volBonus = Math.min(volBonus, 4);
+    score += volBonus;
   }
 
-  // ─── PENALTIES ───
-  // BAD_CLUSTERS already handled in early gate
+  // ─── 18. LENGTH PENALTY (steep for long SLDs) ───
+  if (len >= 13) score -= 15;
+  else if (len >= 11) score -= 8;
+
+  // ─── OTHER PENALTIES ───
   if (/(.)\1{2,}/.test(lower)) score -= 10;
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 5; break; }
@@ -775,7 +806,6 @@ function quickQualityScore(
   else if (/^\d/.test(lower)) score -= 25;
   else if (/\d/.test(lower)) score -= 15;
   if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 20;
-  // Long gibberish penalty: no real words found and long name
   if (coverage < 0.3 && len >= 8) score -= 15;
   if (coverage < 0.5 && len >= 12) score -= 10;
 
@@ -1170,22 +1200,21 @@ serve(async (req) => {
       const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
 
       const prompt = isPremiumBatch
-        ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. These are PRE-SCREENED HIGH-QUALITY domains that passed our heuristic engine. Give them a THOROUGH evaluation.
+        ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. Evaluate like a real investor would.
 
-For each domain, deeply analyze:
-- Exact keyword commercial value (what industries would buy this?)
-- Realistic comparable sales (what have similar domains sold for?)
-- End-user buyer potential (what companies/startups would want this?)
-- Brandability: Is the name memorable, easy to spell, sounds professional?
-- SEO value: Does it contain high-volume search keywords?
-- Resale timeline: Quick flip or long-term hold?
+CRITICAL SCORING RULES — follow these strictly:
+- Single real English words (4-8 letters) are the MOST valuable drops. Examples that sold for $1M+: rocket.com, gold.com, forge.com, wise.com, galaxy.com, mojo.com
+- Two-word KW+W compounds (max 10-12 chars) can be strong IF short and clean: ebike.com ($1M), gobet.com ($850K), bestodds.com ($1M)
+- 3-word domains are almost NEVER worth catching — penalize heavily. "accessaiagency" is NOT a good domain just because it contains "ai"
+- A trending keyword (ai, crypto, pay) is only valuable as the CORE of a short domain, not stuffed into a long phrase
+- Length matters enormously: 4-8 char SLDs are king, 9-12 are okay, 13+ are junk
 
-Score FAIRLY — these are pre-screened quality names, not random junk.
-- 85-100: Premium catch (clear $1,000+ value, strong end-user appeal)
-- 70-84: Strong catch (solid $500+ potential, multiple buyer segments)
-- 50-69: Good potential (worth $100-500, specific niche appeal)
-- 30-49: Marginal (low chance of profitable flip)
-- 1-29: Pass
+Score calibration:
+- 85-100: Premium single-word or ultra-clean 2-word compound ($1,000+ value)
+- 70-84: Strong short brandable or clean KW+W compound ($500+ potential)
+- 50-69: Decent potential, specific niche appeal
+- 30-49: Marginal — too long, too many words, or weak keyword
+- 1-29: Pass — not worth the reg fee
 
 Domains to evaluate:
 ${batch.join("\n")}
@@ -1193,11 +1222,21 @@ ${batch.join("\n")}
 Return JSON array: [{domain, score, summary (15 words max), category (brandable|keyword|short|geo|niche|generic|premium|weak), estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
         : `You are an expert domain name investor. Evaluate each domain for DROP CATCHING potential.
 
-Score STRICTLY — most expiring domains are junk. Only truly good ones should score 70+.
-- 85-100: Premium catch (real words, short, high commercial value)
-- 70-84: Strong catch (brandable, good keywords, memorable)
+CRITICAL: Score like a REAL investor. What actually sells in the aftermarket:
+- Single real words (rocket.com $14M, gold.com $8.5M, forge.com $2.2M)
+- Short 2-word KW+W compounds (ebike.com $1M, gobet.com $850K)
+- NOT 3-4 word keyword-stuffed phrases — these are essentially worthless
+
+Rules:
+- 3+ word domains should almost never score above 40
+- A trending keyword in a long phrase does NOT make it valuable
+- Short (4-8 chars) > everything else
+
+Score STRICTLY:
+- 85-100: Premium catch (single real words, ultra-short, proven commercial value)
+- 70-84: Strong catch (clean 2-word brandable, short KW+W)
 - 50-69: Decent potential (usable but not exceptional)
-- 30-49: Marginal (might find a buyer eventually)
+- 30-49: Marginal (too long, too many words, weak)
 - 1-29: Pass (not worth the reg fee)
 
 Domains to evaluate:
@@ -1216,8 +1255,8 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
             model,
             messages: [
               { role: "system", content: isPremiumBatch
-                ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
-                : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
+                ? "You are a senior domain investment analyst. Score based on REAL aftermarket data: single words and short 2-word compounds dominate sales. Penalize 3+ word domains severely. Return only valid JSON arrays. No markdown."
+                : "You are a domain name investment evaluator. Be STRICT. 3+ word domains are almost never valuable. Short single-word domains are king. Return only valid JSON arrays. No markdown."
               },
               { role: "user", content: prompt },
             ],
