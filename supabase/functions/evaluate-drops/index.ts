@@ -653,6 +653,10 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
       else if (words.length === 3) score += 2;
     } else if (fillerCount >= 1) score -= 5;
     if (negCount >= 1) score -= 5;
+    // 3+ word domains are almost never brandable (phrases, not brands)
+    if (words.length >= 3) score -= 8;
+    // 4+ word domains are sentences, not domains
+    if (words.length >= 4) score -= 10;
   }
 
   // ─── 10. COMPARABLE SALES KEYWORD MATCH (max 8 pts) ── NEW ───
@@ -671,8 +675,14 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 4; break; }
   }
-  if (lower.includes("-")) score -= 8;
-  if (/\d/.test(lower)) score -= 6;
+  // Hyphens are a strong negative signal for brandability
+  if (lower.includes("-")) score -= 15;
+  // Numbers: dimension patterns (4x4) are worst, leading digits bad, any digit penalized
+  if (/\d+x\d+/i.test(lower)) score -= 25;
+  else if (/^\d/.test(lower)) score -= 20;
+  else if (/\d/.test(lower)) score -= 12;
+  // L-L or single-letter patterns (e.g. "a-b", "x-y") 
+  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 15;
 
   return Math.max(0, Math.min(100, score));
 }
@@ -902,13 +912,28 @@ serve(async (req) => {
       for (const domain of chunk) {
         const sld = domain.replace(/\.com$/, "");
 
-        // Hard gate: reject hyphens/numbers unless contains high-value keyword
+        // Hard gate: reject hyphens/numbers with strict rules
         const hasHyphen = sld.includes("-");
         const hasNumber = /\d/.test(sld);
-        if (hasHyphen || hasNumber) {
-          const cleanSld = sld.replace(/[-0-9]/g, "");
+        
+        // Always reject hyphens — never brandable
+        if (hasHyphen) continue;
+        
+        if (hasNumber) {
+          // Reject dimension patterns (4x4, 2x2, 10x10, etc.)
+          if (/\d+x\d+/i.test(sld)) continue;
+          // Reject leading digits (4sale, 3dprint, etc.)
+          if (/^\d/.test(sld)) continue;
+          // Reject multiple digit groups (go2buy4less, etc.)
+          if ((sld.match(/\d+/g) || []).length > 1) continue;
+          // For single digit: only allow if high-value keyword is dominant (>50% of alpha chars)
+          const cleanSld = sld.replace(/[0-9]/g, "");
           const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
           if (!hasHighValue) continue;
+          // Even with a keyword, the keyword must be >50% of alpha chars
+          const bestKw = [...HIGH_VALUE_KEYWORDS].filter(kw => kw.length >= 3 && cleanSld.includes(kw))
+            .sort((a, b) => b.length - a.length)[0];
+          if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
         const quality = quickQualityScore(sld, comparableKeywords);
