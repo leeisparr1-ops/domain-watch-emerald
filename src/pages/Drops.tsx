@@ -119,7 +119,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir);
+        await fetchResults(scanId, pageRef.current, searchRef.current, categoryRef.current, sortKeyRef.current, sortDirRef.current);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
