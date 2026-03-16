@@ -1279,8 +1279,8 @@ Return JSON array: [{domain, score, summary (15 words max), category, estimated_
             model,
             messages: [
               { role: "system", content: isPremiumBatch
-                ? "You are a senior domain investment analyst. Score based on REAL aftermarket data: single words and short 2-word compounds dominate sales. Penalize 3+ word domains severely. Return only valid JSON arrays. No markdown."
-                : "You are a domain name investment evaluator. Be STRICT. 3+ word domains are almost never valuable. Short single-word domains are king. Return only valid JSON arrays. No markdown."
+                ? "You are a senior domain investment analyst. Real English words >>> made-up strings. Gibberish is NOT premium. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
+                : "You are a domain evaluator. Be STRICT. Made-up strings are worth $50-200 not $40k. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
               },
               { role: "user", content: prompt },
             ],
