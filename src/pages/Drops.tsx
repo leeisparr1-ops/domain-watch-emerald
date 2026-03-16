@@ -125,8 +125,11 @@ const Drops = () => {
 
     // Also check if there's an active scan (for progress banner)
     const activeScan = scans?.find(s => ["pre-screening", "evaluating", "processing"].includes(s.status));
-    if (activeScan && (!resultsScan || activeScan.id !== resultsScan.id)) {
-      // Show active scan info but keep showing old results
+    if (activeScan) {
+      // If active scan is the same as results scan, show it and poll
+      if (!resultsScan || activeScan.id === resultsScan.id) {
+        setCurrentScan(activeScan as Scan);
+      }
       startPolling(activeScan.id);
     }
 
