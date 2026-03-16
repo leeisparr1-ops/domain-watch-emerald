@@ -653,6 +653,10 @@ function quickQualityScore(sld: string, comparableKeywords?: Set<string>): numbe
       else if (words.length === 3) score += 2;
     } else if (fillerCount >= 1) score -= 5;
     if (negCount >= 1) score -= 5;
+    // 3+ word domains are almost never brandable (phrases, not brands)
+    if (words.length >= 3) score -= 8;
+    // 4+ word domains are sentences, not domains
+    if (words.length >= 4) score -= 10;
   }
 
   // ─── 10. COMPARABLE SALES KEYWORD MATCH (max 8 pts) ── NEW ───
