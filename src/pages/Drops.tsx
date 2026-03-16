@@ -753,7 +753,11 @@ const Drops = () => {
                             return sortDir === "asc" ? aVal - bVal : bVal - aVal;
                           })
                         : results
-                      ).map((r) => {
+                      ).filter((r) => {
+                        if (maxLength > 0 && getSldLength(r.domain_name) > maxLength) return false;
+                        if (maxWords > 0 && countDomainWords(r.domain_name) > maxWords) return false;
+                        return true;
+                      }).map((r) => {
                         const sldLen = getSldLength(r.domain_name);
                         const wordCount = countDomainWords(r.domain_name);
                         return (
