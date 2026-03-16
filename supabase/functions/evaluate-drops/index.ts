@@ -559,24 +559,24 @@ function quickQualityScore(
 
   // ─── HARD LENGTH GATE ───
   if (len > 15) return 0;
-  // Hyphens = instant reject (never sell well)
   if (lower.includes("-")) return 0;
-  // Dimension patterns = instant reject
   if (/\d+x\d+/i.test(lower)) return 0;
-  // Leading digits = instant reject
   if (/^\d/.test(lower)) return 0;
 
   // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
 
   // ─── HARD WORD-COUNT GATE ───
-  // 4+ word domains are NEVER valuable drops — instant reject
   if (words.length >= 4) return 0;
 
   score += Math.round(coverage * 25);
 
+  // ─── REAL WORD VERIFICATION ───
+  // A word is "real" if it's in our DICTIONARY (not just HIGH_VALUE_KEYWORDS shortlist)
+  const realWords = words.filter(w => DICTIONARY.has(w));
+  const realCoverage = realWords.reduce((s, w) => s + w.length, 0) / Math.max(len, 1);
+
   // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
-  // Heavily reward short, penalise long — mirrors what actually sells
   if (len <= 3) score += 15;
   else if (len === 4) score += 15;
   else if (len === 5) score += 14;
@@ -584,62 +584,78 @@ function quickQualityScore(
   else if (len <= 8) score += 10;
   else if (len <= 10) score += 6;
   else if (len <= 12) score += 3;
-  else if (len <= 15) score += 0; // long = no length bonus
 
   // ─── 3. SINGLE REAL-WORD POWER BONUS (max 30 pts) ───
-  // Single real dictionary words are THE most valuable drops (ai.com, rocket.com, gold.com)
-  if (words.length === 1 && coverage >= 0.95) {
-    if (len <= 3) score += 30;       // "car", "bet", "pay" — ultra-rare
-    else if (len === 4) score += 25; // "fire", "volt", "sage" — ultra-premium
-    else if (len === 5) score += 22; // "surge", "blade", "radar" — premium
-    else if (len === 6) score += 18; // "shield", "beacon" — strong
-    else if (len <= 8) score += 12;  // "quantum", "recovery" — solid
+  // MUST be an actual dictionary word, not just a pronounceable string
+  const isSingleRealWord = realWords.length === 1 && realCoverage >= 0.95;
+  if (isSingleRealWord) {
+    if (len <= 3) score += 30;       // "car", "bet", "pay"
+    else if (len === 4) score += 25; // "fire", "volt", "sage"
+    else if (len === 5) score += 22; // "surge", "blade", "radar"
+    else if (len === 6) score += 18; // "shield", "beacon"
+    else if (len <= 8) score += 12;  // "quantum", "merchant"
     else score += 8;
+  } else if (words.length === 1 && coverage >= 0.95 && !DICTIONARY.has(lower)) {
+    // Matched by HIGH_VALUE_KEYWORDS but not real dictionary — much smaller bonus
+    if (len <= 4) score += 8;
+    else if (len <= 6) score += 5;
+    else score += 2;
   }
 
   // ─── 4. TWO-WORD COMPOUND BONUS (max 15 pts) ───
-  // KW+W is the sweet spot — but ONLY if short and clean
+  // Both words MUST be real dictionary words for full bonus
   if (words.length === 2 && coverage >= 0.85) {
-    const bothReal = words.every(w => DICTIONARY.has(w) && w.length >= 3);
+    const bothRealDict = realWords.length === 2 && realWords.every(w => w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
-    if (bothReal && totalLen <= 8) score += 15;       // "gobet", "ebike" — premium KW+W
-    else if (bothReal && totalLen <= 10) score += 12;  // "dataflow", "cloudbank"
-    else if (bothReal && totalLen <= 12) score += 8;   // "smartmarket" — decent
-    else if (bothReal && totalLen <= 14) score += 4;   // getting long, marginal
-    else if (coverage >= 0.9 && len <= 10) score += 4;
-    // 2-word compounds over 14 chars = no bonus
+    
+    if (bothRealDict) {
+      // Premium KW+W: both are real words
+      if (totalLen <= 8) score += 15;       // "gobet", "ebike"
+      else if (totalLen <= 10) score += 12;  // "dataflow", "cloudbank"
+      else if (totalLen <= 12) score += 8;   // "smartmarket"
+      else if (totalLen <= 14) score += 4;
+    } else if (words.some(w => DICTIONARY.has(w) && w.length >= 3)) {
+      // One real word + one fragment — smaller bonus
+      if (totalLen <= 8) score += 6;
+      else if (totalLen <= 10) score += 4;
+      else score += 2;
+    }
   }
 
-  // ─── 5. CVCVC BRANDABLE PATTERN (max 12 pts) ───
-  if (isCVCVC(lower)) {
-    if (len <= 5) score += 12;
-    else if (len === 6) score += 9;
-    else score += 6;
+  // ─── 5. CVCVC BRANDABLE PATTERN (max 10 pts) ───
+  // Only award if it's NOT already getting a real-word bonus (avoid double-dipping on gibberish)
+  if (isCVCVC(lower) && !isSingleRealWord) {
+    // Only valuable if short AND pronounceable — not random letter combos
+    const syllables = wordSyllables(lower);
+    if (len <= 5 && syllables <= 2) score += 10;
+    else if (len === 6 && syllables <= 2) score += 7;
+    else if (len <= 7 && syllables <= 3) score += 4;
+    // Longer CVCVC = not really brandable
   }
 
   // ─── 6. EXACT TRENDING KEYWORD MATCH (max 20 pts) ───
-  // The entire SLD IS a trending keyword — extremely valuable
   const exactTrendHeat = TRENDING_KEYWORDS[lower];
   if (exactTrendHeat) {
-    if (exactTrendHeat >= 2.0) score += 20;
-    else if (exactTrendHeat >= 1.7) score += 16;
-    else if (exactTrendHeat >= 1.4) score += 12;
-    else score += 8;
+    // Only full bonus if it's also a real word or very short
+    const isRealOrShort = DICTIONARY.has(lower) || len <= 3;
+    if (exactTrendHeat >= 2.0) score += isRealOrShort ? 20 : 14;
+    else if (exactTrendHeat >= 1.7) score += isRealOrShort ? 16 : 10;
+    else if (exactTrendHeat >= 1.4) score += isRealOrShort ? 12 : 7;
+    else score += isRealOrShort ? 8 : 4;
   }
 
   // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
-  // ONLY for exactly 2-word compounds that are short
   if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    if (trendingWords.length >= 2) score += 15;           // "cryptopay", "aifintech"
-    else if (trendingWords.length === 1 && hasDictWord) score += 10;  // "aiforge", "cryptovault"
-    else if (trendingWords.length === 1) score += 4;
+    // Only full bonus when the dictionary word is real
+    if (trendingWords.length >= 2 && realWords.length >= 1) score += 15;
+    else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) score += 10;
+    else if (trendingWords.length === 1 && realWords.length >= 1) score += 4;
+    else if (trendingWords.length >= 1) score += 2;
   }
-  // 3-word domains get ZERO KW+W bonus — a trending keyword buried in a phrase is worthless
 
   // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
-  // Reduced for multi-word domains
   if (!exactTrendHeat) {
     let bestHeat = 0;
     for (const word of words) {
@@ -649,19 +665,17 @@ function quickQualityScore(
     for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
       if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
     }
-    // Scale trending bonus by word count — single/two-word = full, three-word = capped
     let trendBonus = 0;
     if (bestHeat >= 2.0) trendBonus = 12;
     else if (bestHeat >= 1.7) trendBonus = 9;
     else if (bestHeat >= 1.5) trendBonus = 7;
     else if (bestHeat >= 1.3) trendBonus = 4;
     else if (bestHeat >= 1.1) trendBonus = 2;
-    // 3-word domains get at most half the trending bonus
     if (words.length >= 3) trendBonus = Math.min(trendBonus, 4);
     score += trendBonus;
   }
 
-  // ─── 9. DB TRENDING KEYWORDS CROSS-REF / Perplexity (max 10 pts) ───
+  // ─── 9. DB TRENDING KEYWORDS CROSS-REF (max 10 pts) ───
   if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
     let bestDbHeat = 0;
     const fullHeat = dbTrendingKeywords[lower];
@@ -680,7 +694,6 @@ function quickQualityScore(
     else if (bestDbHeat >= 1.5) dbBonus = 7;
     else if (bestDbHeat >= 1.2) dbBonus = 4;
     else if (bestDbHeat >= 1.0) dbBonus = 2;
-    // Cap for 3-word domains
     if (words.length >= 3) dbBonus = Math.min(dbBonus, 3);
     score += dbBonus;
   }
@@ -699,31 +712,32 @@ function quickQualityScore(
   else if (bestNicheHeat >= 70) nicheBonus = 7;
   else if (bestNicheHeat >= 55) nicheBonus = 4;
   else if (bestNicheHeat >= 40) nicheBonus = 2;
-  // 3-word domains: cap niche bonus
   if (words.length >= 3) nicheBonus = Math.min(nicheBonus, 3);
   score += nicheBonus;
 
-  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 10 pts) ───
+  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
+  // Tightened: only award if domain has real-word content, not random letter combos
   let brandableBonus = 0;
-  for (const pat of BRANDABLE_SUFFIXES) {
-    if (pat.test(lower)) { brandableBonus += 6; break; }
+  if (realCoverage >= 0.4 || len <= 6) {
+    for (const pat of BRANDABLE_SUFFIXES) {
+      if (pat.test(lower)) { brandableBonus += 5; break; }
+    }
+    for (const pat of BRANDABLE_PREFIXES) {
+      if (pat.test(lower)) { brandableBonus += 3; break; }
+    }
   }
-  for (const pat of BRANDABLE_PREFIXES) {
-    if (pat.test(lower)) { brandableBonus += 3; break; }
+  // Only award phonetic bonus for short domains
+  if (len >= 4 && len <= 7) {
+    let alternations = 0;
+    for (let i = 1; i < len; i++) {
+      const prevV = VOWELS.has(lower[i - 1]);
+      const currV = VOWELS.has(lower[i]);
+      if (prevV !== currV) alternations++;
+    }
+    const altRatio = alternations / (len - 1);
+    if (altRatio >= 0.7) brandableBonus += 2;
   }
-  let alternations = 0;
-  for (let i = 1; i < Math.min(len, 10); i++) {
-    const prevV = VOWELS.has(lower[i - 1]);
-    const currV = VOWELS.has(lower[i]);
-    if (prevV !== currV) alternations++;
-  }
-  const altRatio = alternations / (Math.min(len, 10) - 1);
-  if (altRatio >= 0.7 && len >= 4 && len <= 8) brandableBonus += 3;
-  else if (altRatio >= 0.5) brandableBonus += 1;
-  if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
-    brandableBonus += 3;
-  }
-  score += Math.min(10, brandableBonus);
+  score += Math.min(8, brandableBonus);
 
   // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
@@ -750,32 +764,37 @@ function quickQualityScore(
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
     if (fillerCount === 0 && negCount === 0) {
-      if (words.length <= 2) score += 5;    // clean 1-2 word = good
-      // 3-word gets NO coherence bonus
+      if (words.length <= 2 && realWords.length >= 1) score += 5;
     } else if (fillerCount >= 1) score -= 10;
     if (negCount >= 1) score -= 10;
 
-    // ─── STEEP MULTI-WORD PENALTIES ───
-    // 3-word domains: severe penalty — these almost never sell well
     if (words.length === 3) score -= 25;
-    // 4+ already rejected at hard gate above
   }
 
-  // ─── 16. COMPARABLE SALES KEYWORD MATCH (max 12 pts) ───
-  // Boost if domain structure matches what has actually sold
+  // ─── 16. GIBBERISH / NO-REAL-WORD PENALTY ───
+  // If we couldn't find ANY real dictionary word, penalize heavily
+  if (realWords.length === 0 && len >= 5) {
+    score -= 20;
+  } else if (realWords.length === 0 && len >= 4) {
+    score -= 10;
+  }
+  // Low real-word coverage on longer domains = gibberish
+  if (realCoverage < 0.3 && len >= 8) score -= 15;
+  if (realCoverage < 0.5 && len >= 12) score -= 10;
+
+  // ─── 17. COMPARABLE SALES KEYWORD MATCH (max 12 pts) ───
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
     for (const word of words) {
       if (word.length >= 3 && comparableKeywords.has(word)) compMatch++;
     }
-    // Only reward if domain is also short (matches sold domain patterns)
     if (compMatch >= 2 && words.length <= 2 && len <= 12) score += 12;
     else if (compMatch >= 1 && words.length <= 2 && len <= 10) score += 8;
     else if (compMatch >= 1 && words.length <= 2) score += 5;
-    else if (compMatch >= 1) score += 2; // 3-word with comp match = tiny bonus
+    else if (compMatch >= 1) score += 2;
   }
 
-  // ─── 17. SEARCH VOLUME CROSS-REF from keyword_volume_cache (max 12 pts) ───
+  // ─── 18. SEARCH VOLUME CROSS-REF (max 12 pts) ───
   if (kwVolumeCache && kwVolumeCache.size > 0) {
     let bestVolume = 0;
     const fullVol = kwVolumeCache.get(lower);
@@ -792,12 +811,11 @@ function quickQualityScore(
     else if (bestVolume >= 1000) volBonus = 7;
     else if (bestVolume >= 500) volBonus = 4;
     else if (bestVolume >= 100) volBonus = 2;
-    // 3-word domains: cap volume bonus
     if (words.length >= 3) volBonus = Math.min(volBonus, 4);
     score += volBonus;
   }
 
-  // ─── 18. LENGTH PENALTY (steep for long SLDs) ───
+  // ─── 19. LENGTH PENALTY (steep for long SLDs) ───
   if (len >= 13) score -= 15;
   else if (len >= 11) score -= 8;
 
@@ -806,11 +824,8 @@ function quickQualityScore(
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 5; break; }
   }
-  // Digits anywhere = penalty (already rejected leading digits at gate)
   if (/\d/.test(lower)) score -= 15;
   if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
-  if (coverage < 0.3 && len >= 8) score -= 15;
-  if (coverage < 0.5 && len >= 12) score -= 10;
 
   return Math.max(0, Math.min(100, score));
 }
