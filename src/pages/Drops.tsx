@@ -200,7 +200,7 @@ const Drops = () => {
               Today's Best Expiring Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              AI-evaluated from 500,000+ daily drops. Only quality names make the cut.
+              AI-evaluated daily drops. Only quality names make the cut.
             </p>
             {scanDate && !isProcessing && (
               <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
