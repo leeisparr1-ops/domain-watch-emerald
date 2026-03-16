@@ -249,12 +249,14 @@ const Drops = () => {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
-
+  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0) + (maxLength > 0 ? 1 : 0) + (maxWords > 0 ? 1 : 0) + (minValue > 0 ? 1 : 0);
 
   const resetFilters = () => {
     setCategoryFilter("all");
     setMinScore(0);
+    setMaxLength(0);
+    setMaxWords(0);
+    setMinValue(0);
     setSearchFilter("");
   };
 
