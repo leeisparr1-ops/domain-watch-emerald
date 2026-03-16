@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const AI_BATCH_SIZE = 25;
-const DOMAINS_PER_INVOCATION = 500;
+const DOMAINS_PER_INVOCATION = 100;
 const QUALITY_THRESHOLD = 30;
 const PREMIUM_TIER_THRESHOLD = 65; // top-tier domains get GPT-5 deep analysis
 
@@ -712,6 +712,39 @@ async function loadComparableKeywords(adminClient: any): Promise<Set<string>> {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ─── CHAINING HELPER ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+function queueNextEvaluateInvocation(supabaseUrl: string, serviceKey: string, scanId: string, context: string) {
+  const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+
+  const chainPromise = fetch(selfUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceKey}`,
+      Prefer: "respond-async",
+    },
+    body: JSON.stringify({ scanId }),
+  })
+    .then(async (resp) => {
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        console.error(`[${context}] Self-chain failed:`, resp.status, body.slice(0, 300));
+      }
+    })
+    .catch((err) => console.error(`[${context}] Self-chain error:`, err));
+
+  const edgeRuntime = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+  }).EdgeRuntime;
+
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(chainPromise);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ─── MAIN HANDLER ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
@@ -813,15 +846,7 @@ serve(async (req) => {
       }).eq("id", scanId);
 
       // Self-invoke to start chunked pre-screening
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain invoke error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "initial-queue");
 
       return new Response(JSON.stringify({
         success: true, queued: true,
@@ -950,15 +975,7 @@ serve(async (req) => {
       }
 
       // Self-chain to continue
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain pre-screen error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "pre-screen");
 
       return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1119,15 +1136,7 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
 
     // Self-chain or complete
     if (evaluated < allDomains.length) {
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "ai-eval");
     } else {
       await adminClient.from("drop_scans").update({
         status: "complete",
