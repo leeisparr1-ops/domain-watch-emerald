@@ -744,6 +744,26 @@ function quickQualityScore(
     else if (compMatch === 1) score += 6;
   }
 
+  // ─── 17. SEARCH VOLUME CROSS-REF from keyword_volume_cache (max 12 pts) ───
+  if (kwVolumeCache && kwVolumeCache.size > 0) {
+    let bestVolume = 0;
+    // Check full SLD
+    const fullVol = kwVolumeCache.get(lower);
+    if (fullVol && fullVol > bestVolume) bestVolume = fullVol;
+    // Check individual words
+    for (const word of words) {
+      if (word.length >= 3) {
+        const vol = kwVolumeCache.get(word);
+        if (vol && vol > bestVolume) bestVolume = vol;
+      }
+    }
+    if (bestVolume >= 10000) score += 12;       // 10k+ monthly searches — very high demand
+    else if (bestVolume >= 5000) score += 10;
+    else if (bestVolume >= 1000) score += 7;
+    else if (bestVolume >= 500) score += 4;
+    else if (bestVolume >= 100) score += 2;
+  }
+
   // ─── PENALTIES ───
   // BAD_CLUSTERS already handled in early gate
   if (/(.)\1{2,}/.test(lower)) score -= 10;
