@@ -183,6 +183,14 @@ const Drops = () => {
     URL.revokeObjectURL(url);
   };
 
+  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+
+  const goToPage = useCallback((newPage: number) => {
+    if (!currentScan) return;
+    setPage(newPage);
+    fetchResults(currentScan.id, newPage);
+  }, [currentScan, fetchResults]);
+
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
     ? Math.round((currentScan.evaluated_domains / currentScan.filtered_domains) * 100)
