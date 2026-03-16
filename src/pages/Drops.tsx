@@ -206,7 +206,14 @@ const Drops = () => {
   };
 
   const topPicks = results.filter(r => r.ai_score >= 75).length;
-  const avgScore = results.length ? Math.round(results.reduce((s, r) => s + r.ai_score, 0) / results.length) : 0;
+
+  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
+
+  const resetFilters = () => {
+    setCategoryFilter("all");
+    setMinScore(0);
+    setSearchFilter("");
+  };
 
   const exportCsv = () => {
     if (!results.length) return;
