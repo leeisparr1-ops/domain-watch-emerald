@@ -539,6 +539,7 @@ function quickQualityScore(
   sld: string,
   comparableKeywords?: Set<string>,
   dbTrendingKeywords?: Record<string, number>,
+  kwVolumeCache?: Map<string, number>,
 ): number {
   const lower = sld.toLowerCase();
   const len = lower.length;
@@ -573,10 +574,11 @@ function quickQualityScore(
   else if (len <= 12) score += 3;
   else if (len <= 15) score += 1;
 
-  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 20 pts) ───
+  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 25 pts) ───
   // Single real dictionary words are the #1 most valuable drops
   if (words.length === 1 && coverage >= 0.95) {
-    if (len <= 4) score += 20;       // "fire", "volt", "sage" — ultra-premium
+    if (len <= 3) score += 25;       // "car", "bet", "pay" — ultra-rare 3-letter .com
+    else if (len === 4) score += 20; // "fire", "volt", "sage" — ultra-premium
     else if (len === 5) score += 18; // "surge", "blade", "radar" — premium
     else if (len === 6) score += 14; // "shield", "beacon" — strong
     else if (len <= 8) score += 10;  // "quantum", "platinum" — solid
@@ -610,12 +612,14 @@ function quickQualityScore(
     else score += 8;
   }
 
-  // ─── 7. KW+WORD COMPOUND BONUS (max 10 pts) ───
+  // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
   if (words.length >= 2 && !exactTrendHeat) {
-    const hasKW = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
+    const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    if (hasKW && hasDictWord) score += 10;  // "aiforge", "cryptovault"
-    else if (hasKW && words.length === 2) score += 6;
+    // Dual-trending: both words are trending keywords — extremely valuable compound
+    if (trendingWords.length >= 2) score += 15;  // "aifintech", "cryptopay"
+    else if (trendingWords.length === 1 && hasDictWord) score += 10;  // "aiforge", "cryptovault"
+    else if (trendingWords.length === 1 && words.length === 2) score += 6;
   }
 
   // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
@@ -674,13 +678,13 @@ function quickQualityScore(
   else if (bestNicheHeat >= 55) score += 4;
   else if (bestNicheHeat >= 40) score += 2;
 
-  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
+  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 10 pts) ───
   let brandableBonus = 0;
   for (const pat of BRANDABLE_SUFFIXES) {
-    if (pat.test(lower)) { brandableBonus += 4; break; }
+    if (pat.test(lower)) { brandableBonus += 6; break; }  // raised from +4 to +6
   }
   for (const pat of BRANDABLE_PREFIXES) {
-    if (pat.test(lower)) { brandableBonus += 2; break; }
+    if (pat.test(lower)) { brandableBonus += 3; break; }  // raised from +2 to +3
   }
   let alternations = 0;
   for (let i = 1; i < Math.min(len, 10); i++) {
@@ -695,7 +699,7 @@ function quickQualityScore(
   if (len >= 4 && len <= 6 && coverage < 0.5 && altRatio >= 0.6) {
     brandableBonus += 3;
   }
-  score += Math.min(8, brandableBonus);
+  score += Math.min(10, brandableBonus);
 
   // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
@@ -738,6 +742,26 @@ function quickQualityScore(
     }
     if (compMatch >= 2) score += 10;
     else if (compMatch === 1) score += 6;
+  }
+
+  // ─── 17. SEARCH VOLUME CROSS-REF from keyword_volume_cache (max 12 pts) ───
+  if (kwVolumeCache && kwVolumeCache.size > 0) {
+    let bestVolume = 0;
+    // Check full SLD
+    const fullVol = kwVolumeCache.get(lower);
+    if (fullVol && fullVol > bestVolume) bestVolume = fullVol;
+    // Check individual words
+    for (const word of words) {
+      if (word.length >= 3) {
+        const vol = kwVolumeCache.get(word);
+        if (vol && vol > bestVolume) bestVolume = vol;
+      }
+    }
+    if (bestVolume >= 10000) score += 12;       // 10k+ monthly searches — very high demand
+    else if (bestVolume >= 5000) score += 10;
+    else if (bestVolume >= 1000) score += 7;
+    else if (bestVolume >= 500) score += 4;
+    else if (bestVolume >= 100) score += 2;
   }
 
   // ─── PENALTIES ───
@@ -995,6 +1019,24 @@ serve(async (req) => {
         console.warn("Failed to load DB trending keywords:", e);
       }
 
+      // Load search volume data from keyword_volume_cache
+      const kwVolumeCache = new Map<string, number>();
+      try {
+        const { data: volData } = await adminClient
+          .from("keyword_volume_cache")
+          .select("keyword, search_volume")
+          .gt("search_volume", 0)
+          .limit(1000);
+        if (volData) {
+          for (const row of volData) {
+            kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
+          }
+          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache for cross-ref`);
+        }
+      } catch (e) {
+        console.warn("Failed to load keyword volume cache:", e);
+      }
+
       const scoredDomains: { domain: string; score: number }[] = [];
       for (const domain of chunk) {
         const sld = domain.replace(/\.com$/, "");
@@ -1017,7 +1059,7 @@ serve(async (req) => {
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords);
+        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
         if (quality >= QUALITY_THRESHOLD) {
           scoredDomains.push({ domain, score: quality });
         }
