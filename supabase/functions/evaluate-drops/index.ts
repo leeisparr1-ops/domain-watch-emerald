@@ -1136,15 +1136,7 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
 
     // Self-chain or complete
     if (evaluated < allDomains.length) {
-      const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
-      fetch(selfUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ scanId }),
-      }).catch(err => console.error("Self-chain error:", err));
+      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "ai-eval");
     } else {
       await adminClient.from("drop_scans").update({
         status: "complete",
