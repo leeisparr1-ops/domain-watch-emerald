@@ -85,8 +85,10 @@ function getDomainWithoutTld(domain: string): string {
   return domain;
 }
 
-export function DomainDetailSheet({ domain, open, onOpenChange }: DomainDetailSheetProps) {
-  const { isFavorite, toggleFavorite } = useFavorites();
+export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavorite, externalToggleFavorite }: DomainDetailSheetProps) {
+  const { isFavorite: localIsFavorite, toggleFavorite: localToggleFavorite } = useFavorites();
+  const checkIsFavorite = externalIsFavorite ?? localIsFavorite;
+  const doToggleFavorite = externalToggleFavorite ?? localToggleFavorite;
   const navigate = useNavigate();
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
   useBackClose(open, handleClose);
