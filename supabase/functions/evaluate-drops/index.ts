@@ -1209,6 +1209,18 @@ serve(async (req) => {
     // Determine which domains in this chunk are premium tier
     const premiumSet = new Set(premiumDomains);
 
+    const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
+    const normalizeCategory = (cat: string): string => {
+      const c = (cat || "").toLowerCase().trim();
+      if (VALID_CATEGORIES.has(c)) return c;
+      if (c.includes("pass") || c.includes("marginal") || c.includes("weak")) return "weak";
+      if (c.includes("strong") || c.includes("premium")) return "premium";
+      if (c.includes("decent") || c.includes("moderate")) return "generic";
+      if (c.includes("brand")) return "brandable";
+      if (c.includes("compound") || c.includes("kw+w")) return "compound";
+      return "generic";
+    };
+
     let evaluated = startIdx;
     for (let i = 0; i < chunk.length; i += AI_BATCH_SIZE) {
       const batch = chunk.slice(i, i + AI_BATCH_SIZE);
