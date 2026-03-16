@@ -206,7 +206,7 @@ const Drops = () => {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const topPicks = results.filter(r => r.ai_score >= 75).length;
+  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
 
   const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
 
