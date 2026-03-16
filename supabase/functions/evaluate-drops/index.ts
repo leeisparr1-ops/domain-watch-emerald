@@ -928,8 +928,24 @@ serve(async (req) => {
         });
       }
 
-      // Load comparable keywords once per chain (cached in function instance)
+      // Load comparable keywords and DB trending keywords
       const comparableKeywords = await loadComparableKeywords(adminClient);
+      
+      // Load Perplexity-sourced trending keywords from DB
+      let dbTrendingKeywords: Record<string, number> = {};
+      try {
+        const { data: trendData } = await adminClient
+          .from("trending_market_data")
+          .select("trending_keywords")
+          .eq("id", "latest")
+          .maybeSingle();
+        if (trendData?.trending_keywords) {
+          dbTrendingKeywords = trendData.trending_keywords as Record<string, number>;
+          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords for cross-ref`);
+        }
+      } catch (e) {
+        console.warn("Failed to load DB trending keywords:", e);
+      }
 
       const scoredDomains: { domain: string; score: number }[] = [];
       for (const domain of chunk) {
@@ -939,27 +955,21 @@ serve(async (req) => {
         const hasHyphen = sld.includes("-");
         const hasNumber = /\d/.test(sld);
         
-        // Always reject hyphens — never brandable
         if (hasHyphen) continue;
         
         if (hasNumber) {
-          // Reject dimension patterns (4x4, 2x2, 10x10, etc.)
           if (/\d+x\d+/i.test(sld)) continue;
-          // Reject leading digits (4sale, 3dprint, etc.)
           if (/^\d/.test(sld)) continue;
-          // Reject multiple digit groups (go2buy4less, etc.)
           if ((sld.match(/\d+/g) || []).length > 1) continue;
-          // For single digit: only allow if high-value keyword is dominant (>50% of alpha chars)
           const cleanSld = sld.replace(/[0-9]/g, "");
           const hasHighValue = [...HIGH_VALUE_KEYWORDS].some(kw => kw.length >= 3 && cleanSld.includes(kw));
           if (!hasHighValue) continue;
-          // Even with a keyword, the keyword must be >50% of alpha chars
           const bestKw = [...HIGH_VALUE_KEYWORDS].filter(kw => kw.length >= 3 && cleanSld.includes(kw))
             .sort((a, b) => b.length - a.length)[0];
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords);
+        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords);
         if (quality >= QUALITY_THRESHOLD) {
           scoredDomains.push({ domain, score: quality });
         }
