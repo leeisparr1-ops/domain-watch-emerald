@@ -93,7 +93,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId);
+        await fetchResults(scanId, 0);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
