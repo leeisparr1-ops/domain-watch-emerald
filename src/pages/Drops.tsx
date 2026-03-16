@@ -514,9 +514,11 @@ const Drops = () => {
                             { value: "brandable", label: "Brandable", color: "purple" },
                             { value: "keyword", label: "Keyword", color: "blue" },
                             { value: "short", label: "Short", color: "green" },
+                            { value: "compound", label: "Compound", color: "cyan" },
                             { value: "geo", label: "Geo", color: "orange" },
                             { value: "niche", label: "Niche", color: "rose" },
                             { value: "generic", label: "Generic", color: "default" },
+                            { value: "weak", label: "Weak", color: "red" },
                           ].map((opt) => {
                             const active = categoryFilter === opt.value;
                             const chipStyles: Record<string, string> = {
