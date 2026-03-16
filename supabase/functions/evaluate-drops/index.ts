@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const AI_BATCH_SIZE = 25;
-const DOMAINS_PER_INVOCATION = 500;
+const DOMAINS_PER_INVOCATION = 100;
 const QUALITY_THRESHOLD = 30;
 const PREMIUM_TIER_THRESHOLD = 65; // top-tier domains get GPT-5 deep analysis
 
