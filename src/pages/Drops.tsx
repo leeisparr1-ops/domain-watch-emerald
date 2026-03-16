@@ -201,8 +201,8 @@ const Drops = () => {
   const goToPage = useCallback((newPage: number) => {
     if (!currentScan) return;
     setPage(newPage);
-    fetchResults(currentScan.id, newPage);
-  }, [currentScan, fetchResults]);
+    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir);
+  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir]);
 
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
