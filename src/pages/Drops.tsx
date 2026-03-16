@@ -230,6 +230,53 @@ const Drops = () => {
     URL.revokeObjectURL(url);
   };
 
+  const rerunScan = async () => {
+    if (!user || rerunning) return;
+    setRerunning(true);
+    try {
+      // Create a new scan entry
+      const { data: newScan, error: insertErr } = await supabase
+        .from("drop_scans")
+        .insert({
+          user_id: user.id,
+          filename: "daily-drops.csv",
+          status: "processing",
+          total_domains: 0,
+          filtered_domains: 0,
+          evaluated_domains: 0,
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newScan) throw new Error("Failed to create scan");
+
+      // Delete old results from previous scan
+      if (currentScan?.id) {
+        await supabase.from("drop_scan_results").delete().eq("scan_id", currentScan.id);
+      }
+
+      // Trigger evaluation using the shared CSV
+      const origin = window.location.origin;
+      const { error: invokeErr } = await supabase.functions.invoke("evaluate-drops", {
+        body: {
+          scanId: newScan.id,
+          csvUrl: `${origin}/store/daily-drops.csv`,
+        },
+      });
+
+      if (invokeErr) throw invokeErr;
+
+      setCurrentScan(newScan as Scan);
+      setResults([]);
+      setTotalResults(0);
+      startPolling(newScan.id);
+    } catch (err) {
+      console.error("Re-run failed:", err);
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
 
   const goToPage = useCallback((newPage: number) => {
