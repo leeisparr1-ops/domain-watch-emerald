@@ -246,7 +246,7 @@ export function usePortfolio() {
     let errors = 0;
     for (let i = 0; i < records.length; i += 50) {
       const batch = records.slice(i, i + 50);
-      const { error } = await (supabase as any).from("portfolio_domains").insert(batch);
+      const { error } = await supabase.from("portfolio_domains").insert(batch as any);
       if (error) {
         console.error("Bulk insert error:", error);
         errors += batch.length;
