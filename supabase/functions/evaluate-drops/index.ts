@@ -1217,50 +1217,56 @@ serve(async (req) => {
       // ─── COST-OPTIMISED: Premium get Flash, standard get Flash-Lite ───
       const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
 
-      const prompt = isPremiumBatch
-        ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. Evaluate like a real investor would.
+      const categoryInstruction = `IMPORTANT: category MUST be exactly one of: "premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak". No other values allowed.
+- premium: Single real English word, 4-8 chars, high commercial value (rocket, forge, shield)
+- brandable: Invented/coined name that sounds like a brand (Zapier-like, catchy)
+- keyword: Contains a strong industry keyword (fintech, crypto, health)
+- short: ≤4 character SLD
+- compound: Clean 2-word combination (dataflow, cloudbank, smartpay)
+- geo: Contains geographic term
+- niche: Targets a specific vertical/industry
+- generic: Common term, low differentiation
+- weak: Long, multi-word, misspelled, or low value`;
 
-CRITICAL SCORING RULES — follow these strictly:
-- Single real English words (4-8 letters) are the MOST valuable drops. Examples that sold for $1M+: rocket.com, gold.com, forge.com, wise.com, galaxy.com, mojo.com
-- Two-word KW+W compounds (max 10-12 chars) can be strong IF short and clean: ebike.com ($1M), gobet.com ($850K), bestodds.com ($1M)
-- 3-word domains are almost NEVER worth catching — penalize heavily. "accessaiagency" is NOT a good domain just because it contains "ai"
-- A trending keyword (ai, crypto, pay) is only valuable as the CORE of a short domain, not stuffed into a long phrase
-- Length matters enormously: 4-8 char SLDs are king, 9-12 are okay, 13+ are junk
+      const prompt = isPremiumBatch
+        ? `You are a SENIOR domain name investor with 20+ years experience.
+
+CRITICAL RULES:
+- Single REAL English words (4-8 letters) are THE most valuable: rocket.com, gold.com, forge.com
+- Made-up "brandable" strings (sfitty, aiili, sefew, tallaq) are NOT worth $40k+ — score 40-60 max
+- Two-word KW+W compounds are strong IF both parts are real words AND short: ebike.com, gobet.com
+- 3-word domains: almost never above 35
+- Gibberish with a trending keyword is NOT valuable
+
+${categoryInstruction}
 
 Score calibration:
-- 85-100: Premium single-word or ultra-clean 2-word compound ($1,000+ value)
-- 70-84: Strong short brandable or clean KW+W compound ($500+ potential)
-- 50-69: Decent potential, specific niche appeal
-- 30-49: Marginal — too long, too many words, or weak keyword
-- 1-29: Pass — not worth the reg fee
+- 85-100: Real single word, ultra-short, proven commercial value
+- 70-84: Clean KW+W compound with real words, strong short brandable
+- 50-69: Decent niche/keyword domain
+- 30-49: Marginal
+- 1-29: Not worth reg fee
 
-Domains to evaluate:
+Domains:
 ${batch.join("\n")}
 
-Return JSON array: [{domain, score, summary (15 words max), category (brandable|keyword|short|geo|niche|generic|premium|weak), estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
-        : `You are an expert domain name investor. Evaluate each domain for DROP CATCHING potential.
+Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
+        : `You are a domain investor evaluator. Be STRICT.
 
-CRITICAL: Score like a REAL investor. What actually sells in the aftermarket:
-- Single real words (rocket.com $14M, gold.com $8.5M, forge.com $2.2M)
-- Short 2-word KW+W compounds (ebike.com $1M, gobet.com $850K)
-- NOT 3-4 word keyword-stuffed phrases — these are essentially worthless
+CRITICAL:
+- Real English words >>> made-up strings. "sfitty.com" is NOT $40k.
+- 2-word compounds with real words: strong. Random combos: weak.
+- 3+ word domains: almost never above 35
+- Score honestly — most invented strings are worth $50-200
 
-Rules:
-- 3+ word domains should almost never score above 40
-- A trending keyword in a long phrase does NOT make it valuable
-- Short (4-8 chars) > everything else
+${categoryInstruction}
 
-Score STRICTLY:
-- 85-100: Premium catch (single real words, ultra-short, proven commercial value)
-- 70-84: Strong catch (clean 2-word brandable, short KW+W)
-- 50-69: Decent potential (usable but not exceptional)
-- 30-49: Marginal (too long, too many words, weak)
-- 1-29: Pass (not worth the reg fee)
+Score: 85-100 premium, 70-84 strong, 50-69 decent, 30-49 marginal, 1-29 pass
 
-Domains to evaluate:
+Domains:
 ${batch.join("\n")}
 
-Return JSON array: [{domain, score, summary (15 words max), category (brandable|keyword|short|geo|niche|generic|premium|weak), estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`;
+Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`;
 
       try {
         const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
