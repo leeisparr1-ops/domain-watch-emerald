@@ -101,6 +101,9 @@ const Drops = () => {
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [minScore, setMinScore] = useState<number>(0);
+  const [maxLength, setMaxLength] = useState<number>(0);
+  const [maxWords, setMaxWords] = useState<number>(0);
+  const [minValue, setMinValue] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rerunning, setRerunning] = useState(false);
@@ -111,6 +114,7 @@ const Drops = () => {
   const sortKeyRef = useRef<SortKey>("ai_score");
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
+  const minValueRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => { pageRef.current = page; }, [page]);
@@ -119,6 +123,7 @@ const Drops = () => {
   useEffect(() => { sortKeyRef.current = sortKey; }, [sortKey]);
   useEffect(() => { sortDirRef.current = sortDir; }, [sortDir]);
   useEffect(() => { minScoreRef.current = minScore; }, [minScore]);
+  useEffect(() => { minValueRef.current = minValue; }, [minValue]);
 
   // Fetch results for a scan (paginated, filtered server-side)
   const fetchResults = useCallback(async (
@@ -128,7 +133,8 @@ const Drops = () => {
     category = "all",
     sort: SortKey = "ai_score",
     dir: "asc" | "desc" = "desc",
-    scoreMin = 0
+    scoreMin = 0,
+    valueMin = 0
   ) => {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -146,6 +152,9 @@ const Drops = () => {
     }
     if (scoreMin > 0) {
       query = query.gte("ai_score", scoreMin);
+    }
+    if (valueMin > 0) {
+      query = query.gte("estimated_value", valueMin);
     }
 
     query = query.order(sort, { ascending: dir === "asc" }).range(from, to);
@@ -168,7 +177,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId, pageRef.current, searchRef.current, categoryRef.current, sortKeyRef.current, sortDirRef.current, minScoreRef.current);
+        await fetchResults(scanId, pageRef.current, searchRef.current, categoryRef.current, sortKeyRef.current, sortDirRef.current, minScoreRef.current, minValueRef.current);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -204,7 +213,7 @@ const Drops = () => {
     // Show results from whichever scan has them
     if (resultsScan) {
       setCurrentScan(resultsScan as Scan);
-      await fetchResults(resultsScan.id, 0, "", "all", "ai_score", "desc", 0);
+      await fetchResults(resultsScan.id, 0, "", "all", "ai_score", "desc", 0, 0);
     }
 
     // Also check if there's an active scan (for progress banner)
@@ -235,23 +244,25 @@ const Drops = () => {
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
     filterTimerRef.current = setTimeout(() => {
       setPage(0);
-      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir, minScore);
+      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue);
     }, searchFilter ? 300 : 0);
     return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFilter, categoryFilter, sortKey, sortDir, minScore]);
+  }, [searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0);
-
+  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0) + (maxLength > 0 ? 1 : 0) + (maxWords > 0 ? 1 : 0) + (minValue > 0 ? 1 : 0);
 
   const resetFilters = () => {
     setCategoryFilter("all");
     setMinScore(0);
+    setMaxLength(0);
+    setMaxWords(0);
+    setMinValue(0);
     setSearchFilter("");
   };
 
@@ -322,8 +333,8 @@ const Drops = () => {
   const goToPage = useCallback((newPage: number) => {
     if (!currentScan) return;
     setPage(newPage);
-    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir, minScore);
-  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir, minScore]);
+    fetchResults(currentScan.id, newPage, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue);
+  }, [currentScan, fetchResults, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue]);
 
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
@@ -572,6 +583,91 @@ const Drops = () => {
                         </div>
                       </div>
 
+                      {/* Max SLD Length */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Max Domain Length</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 5, label: "≤5 chars" },
+                            { value: 6, label: "≤6 chars" },
+                            { value: 8, label: "≤8 chars" },
+                            { value: 10, label: "≤10 chars" },
+                          ].map((opt) => {
+                            const active = maxLength === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMaxLength(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/50 ring-1 ring-sky-500/20"
+                                    : "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20 hover:bg-sky-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Max Words */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Max Words</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 1, label: "1 word only" },
+                            { value: 2, label: "≤2 words" },
+                          ].map((opt) => {
+                            const active = maxWords === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMaxWords(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/50 ring-1 ring-violet-500/20"
+                                    : "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-500/20 hover:bg-violet-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Min Est. Value */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Min Estimated Value</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 500, label: "$500+" },
+                            { value: 1000, label: "$1k+" },
+                            { value: 5000, label: "$5k+" },
+                            { value: 10000, label: "$10k+" },
+                          ].map((opt) => {
+                            const active = minValue === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMinValue(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 ring-1 ring-amber-500/20"
+                                    : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Active filter summary */}
                       {activeFilterCount > 0 && (
                         <div className="pt-3 border-t border-border flex flex-wrap gap-1.5">
@@ -585,6 +681,24 @@ const Drops = () => {
                             <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                               Score: {minScore}+
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setMinScore(0)} />
+                            </Badge>
+                          )}
+                          {maxLength > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Length: ≤{maxLength}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMaxLength(0)} />
+                            </Badge>
+                          )}
+                          {maxWords > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Words: ≤{maxWords}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMaxWords(0)} />
+                            </Badge>
+                          )}
+                          {minValue > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Value: ${minValue.toLocaleString()}+
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMinValue(0)} />
                             </Badge>
                           )}
                         </div>
@@ -639,7 +753,11 @@ const Drops = () => {
                             return sortDir === "asc" ? aVal - bVal : bVal - aVal;
                           })
                         : results
-                      ).map((r) => {
+                      ).filter((r) => {
+                        if (maxLength > 0 && getSldLength(r.domain_name) > maxLength) return false;
+                        if (maxWords > 0 && countDomainWords(r.domain_name) > maxWords) return false;
+                        return true;
+                      }).map((r) => {
                         const sldLen = getSldLength(r.domain_name);
                         const wordCount = countDomainWords(r.domain_name);
                         return (

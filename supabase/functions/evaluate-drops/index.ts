@@ -9,9 +9,9 @@ const corsHeaders = {
 
 const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
 const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
-const QUALITY_THRESHOLD = 62;        // aggressive: only strong names reach AI
+const QUALITY_THRESHOLD = 68;        // raised: only genuinely strong names reach AI
 const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
-const MAX_AI_QUEUE = 6000;           // cap AI evaluation to prevent runaway costs
+const MAX_AI_QUEUE = 4000;           // tighter cap for cost control
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
@@ -558,8 +558,13 @@ function quickQualityScore(
   if (vowelRatio < 0.15 && len > 3) return 0;
 
   // ─── HARD LENGTH GATE ───
-  // No real investor buys 16+ char SLDs — instant reject
   if (len > 15) return 0;
+  // Hyphens = instant reject (never sell well)
+  if (lower.includes("-")) return 0;
+  // Dimension patterns = instant reject
+  if (/\d+x\d+/i.test(lower)) return 0;
+  // Leading digits = instant reject
+  if (/^\d/.test(lower)) return 0;
 
   // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
@@ -801,11 +806,9 @@ function quickQualityScore(
   for (const pat of NEGATIVE_SOUNDS) {
     if (pat.test(lower)) { score -= 5; break; }
   }
-  if (lower.includes("-")) score -= 20;
-  if (/\d+x\d+/i.test(lower)) score -= 30;
-  else if (/^\d/.test(lower)) score -= 25;
-  else if (/\d/.test(lower)) score -= 15;
-  if (/^[a-z][-][a-z]$/i.test(lower) || /^[a-z]{1,2}$/i.test(lower)) score -= 20;
+  // Digits anywhere = penalty (already rejected leading digits at gate)
+  if (/\d/.test(lower)) score -= 15;
+  if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
   if (coverage < 0.3 && len >= 8) score -= 15;
   if (coverage < 0.5 && len >= 12) score -= 10;
 
