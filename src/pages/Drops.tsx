@@ -244,11 +244,11 @@ const Drops = () => {
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
     filterTimerRef.current = setTimeout(() => {
       setPage(0);
-      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir, minScore);
+      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue);
     }, searchFilter ? 300 : 0);
     return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFilter, categoryFilter, sortKey, sortDir, minScore]);
+  }, [searchFilter, categoryFilter, sortKey, sortDir, minScore, minValue]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
