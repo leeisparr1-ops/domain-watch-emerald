@@ -101,7 +101,7 @@ export function usePortfolio() {
       autoVal = Math.round((result.valueMin + result.valueMax) / 2);
     } catch { /* ignore valuation errors */ }
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
       .insert({
         user_id: user.id,
