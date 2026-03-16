@@ -134,7 +134,7 @@ export function usePortfolio() {
     if (!input.next_renewal_date) {
       fetchRdapExpiry(domainName).then(async (rdap) => {
         if (rdap.expirationDate) {
-          await (supabase as any)
+          await supabase
             .from("portfolio_domains")
             .update({ next_renewal_date: rdap.expirationDate })
             .eq("user_id", user!.id)
