@@ -1225,9 +1225,9 @@ Return JSON array: [{domain, score, summary (15 words max), category (brandable|
         evaluated += batch.length;
       }
 
-      // Delay between batches
+      // Delay between batches (3s to avoid rate limits)
       if (i + AI_BATCH_SIZE < chunk.length) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
