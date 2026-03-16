@@ -173,7 +173,7 @@ export function usePortfolio() {
 
   const deleteDomains = async (ids: string[]) => {
     if (!ids.length) return;
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
       .delete()
       .in("id", ids);
