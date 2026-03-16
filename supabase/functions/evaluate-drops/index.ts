@@ -1019,6 +1019,24 @@ serve(async (req) => {
         console.warn("Failed to load DB trending keywords:", e);
       }
 
+      // Load search volume data from keyword_volume_cache
+      const kwVolumeCache = new Map<string, number>();
+      try {
+        const { data: volData } = await adminClient
+          .from("keyword_volume_cache")
+          .select("keyword, search_volume")
+          .gt("search_volume", 0)
+          .limit(1000);
+        if (volData) {
+          for (const row of volData) {
+            kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
+          }
+          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache for cross-ref`);
+        }
+      } catch (e) {
+        console.warn("Failed to load keyword volume cache:", e);
+      }
+
       const scoredDomains: { domain: string; score: number }[] = [];
       for (const domain of chunk) {
         const sld = domain.replace(/\.com$/, "");
@@ -1041,7 +1059,7 @@ serve(async (req) => {
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords);
+        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
         if (quality >= QUALITY_THRESHOLD) {
           scoredDomains.push({ domain, score: quality });
         }
