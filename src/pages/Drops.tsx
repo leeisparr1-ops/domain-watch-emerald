@@ -376,7 +376,7 @@ const Drops = () => {
 
               {/* Results Table */}
               <Card>
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-[60vh]">
                   <Table>
                     <TableHeader>
                       <TableRow>
