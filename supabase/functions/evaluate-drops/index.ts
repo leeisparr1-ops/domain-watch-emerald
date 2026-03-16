@@ -9,9 +9,9 @@ const corsHeaders = {
 
 const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
 const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
-const QUALITY_THRESHOLD = 62;        // aggressive: only strong names reach AI
+const QUALITY_THRESHOLD = 68;        // raised: only genuinely strong names reach AI
 const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
-const MAX_AI_QUEUE = 6000;           // cap AI evaluation to prevent runaway costs
+const MAX_AI_QUEUE = 4000;           // tighter cap for cost control
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
