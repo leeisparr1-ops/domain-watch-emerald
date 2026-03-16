@@ -264,7 +264,9 @@ const Drops = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <Card>
                   <CardContent className="py-4 text-center">
-                    <p className="text-2xl font-bold text-foreground">{results.length}</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {(currentScan?.evaluated_domains || results.length).toLocaleString()}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {isProcessing ? "Evaluated So Far" : "Domains Evaluated"}
                     </p>
