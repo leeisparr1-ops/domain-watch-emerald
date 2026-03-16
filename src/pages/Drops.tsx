@@ -63,19 +63,33 @@ const Drops = () => {
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch results for a scan (paginated)
-  const fetchResults = useCallback(async (scanId: string, pageNum = 0) => {
+  // Fetch results for a scan (paginated, filtered server-side)
+  const fetchResults = useCallback(async (
+    scanId: string,
+    pageNum = 0,
+    search = "",
+    category = "all",
+    sort: SortKey = "ai_score",
+    dir: "asc" | "desc" = "desc"
+  ) => {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Fetch page of results
-    const { data, count } = await supabase
+    let query = supabase
       .from("drop_scan_results")
       .select("*", { count: "exact" })
-      .eq("scan_id", scanId)
-      .order("ai_score", { ascending: false })
-      .range(from, to);
+      .eq("scan_id", scanId);
 
+    if (search) {
+      query = query.ilike("domain_name", `%${search}%`);
+    }
+    if (category !== "all") {
+      query = query.eq("category", category);
+    }
+
+    query = query.order(sort, { ascending: dir === "asc" }).range(from, to);
+
+    const { data, count } = await query;
     setResults((data || []) as ScanResult[]);
     if (count !== null) setTotalResults(count);
   }, []);
