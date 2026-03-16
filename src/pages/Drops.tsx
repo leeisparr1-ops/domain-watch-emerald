@@ -404,6 +404,11 @@ const Drops = () => {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {totalResults.toLocaleString()} results
                   </span>
+                  {!isProcessing && user && (
+                    <Button variant="outline" size="sm" onClick={rerunScan} disabled={rerunning}>
+                      <RefreshCw className={`w-4 h-4 mr-1 ${rerunning ? "animate-spin" : ""}`} /> Re-run
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={exportCsv}>
                     <Download className="w-4 h-4 mr-1" /> Export
                   </Button>
