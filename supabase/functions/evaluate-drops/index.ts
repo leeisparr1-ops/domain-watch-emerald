@@ -558,8 +558,13 @@ function quickQualityScore(
   if (vowelRatio < 0.15 && len > 3) return 0;
 
   // ─── HARD LENGTH GATE ───
-  // No real investor buys 16+ char SLDs — instant reject
   if (len > 15) return 0;
+  // Hyphens = instant reject (never sell well)
+  if (lower.includes("-")) return 0;
+  // Dimension patterns = instant reject
+  if (/\d+x\d+/i.test(lower)) return 0;
+  // Leading digits = instant reject
+  if (/^\d/.test(lower)) return 0;
 
   // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
