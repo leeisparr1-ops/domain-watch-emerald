@@ -62,6 +62,18 @@ const Drops = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pageRef = useRef(0);
+  const searchRef = useRef("");
+  const categoryRef = useRef("all");
+  const sortKeyRef = useRef<SortKey>("ai_score");
+  const sortDirRef = useRef<"asc" | "desc">("desc");
+
+  // Keep refs in sync
+  useEffect(() => { pageRef.current = page; }, [page]);
+  useEffect(() => { searchRef.current = searchFilter; }, [searchFilter]);
+  useEffect(() => { categoryRef.current = categoryFilter; }, [categoryFilter]);
+  useEffect(() => { sortKeyRef.current = sortKey; }, [sortKey]);
+  useEffect(() => { sortDirRef.current = sortDir; }, [sortDir]);
 
   // Fetch results for a scan (paginated, filtered server-side)
   const fetchResults = useCallback(async (
@@ -107,7 +119,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir);
+        await fetchResults(scanId, pageRef.current, searchRef.current, categoryRef.current, sortKeyRef.current, sortDirRef.current);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -161,17 +173,24 @@ const Drops = () => {
 
   useEffect(() => { loadLatestScan(); }, [loadLatestScan]);
 
-  // Re-fetch when filters, sort, or page change (debounced for search)
+  // Re-fetch when filters or sort change (debounced for search)
   const filterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentScanIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!currentScan) return;
+    currentScanIdRef.current = currentScan?.id || null;
+  }, [currentScan?.id]);
+
+  useEffect(() => {
+    const scanId = currentScanIdRef.current;
+    if (!scanId) return;
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
     filterTimerRef.current = setTimeout(() => {
       setPage(0);
-      fetchResults(currentScan.id, 0, searchFilter, categoryFilter, sortKey, sortDir);
+      fetchResults(scanId, 0, searchFilter, categoryFilter, sortKey, sortDir);
     }, searchFilter ? 300 : 0);
     return () => { if (filterTimerRef.current) clearTimeout(filterTimerRef.current); };
-  }, [searchFilter, categoryFilter, sortKey, sortDir, currentScan, fetchResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFilter, categoryFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -288,7 +307,7 @@ const Drops = () => {
           )}
 
           {/* Results Section */}
-          {results.length > 0 && (
+          {(totalResults > 0 || results.length > 0 || (currentScan && currentScan.evaluated_domains > 0)) && (
             <>
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -357,7 +376,7 @@ const Drops = () => {
 
               {/* Results Table */}
               <Card>
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-[60vh]">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -381,7 +400,13 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {results.map((r) => (
+                      {results.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No domains match your current filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : results.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
