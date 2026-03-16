@@ -1037,8 +1037,8 @@ serve(async (req) => {
       const batch = chunk.slice(i, i + AI_BATCH_SIZE);
       const isPremiumBatch = batch.some(d => premiumSet.has(d));
 
-      // ─── TIERED AI: Premium candidates get GPT-5, standard get Flash ───
-      const model = isPremiumBatch ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
+      // ─── COST-OPTIMISED: Premium get Flash, standard get Flash-Lite ───
+      const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
 
       const prompt = isPremiumBatch
         ? `You are a SENIOR domain name investor with 20+ years of aftermarket experience. These are PRE-SCREENED HIGH-QUALITY domains that passed our heuristic engine. Give them a THOROUGH evaluation.
