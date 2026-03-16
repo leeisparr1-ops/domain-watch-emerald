@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Loader2, Search, TrendingUp, Star, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, Search, TrendingUp, Star, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,9 @@ const Drops = () => {
   const { user } = useAuth();
   const [currentScan, setCurrentScan] = useState<Scan | null>(null);
   const [results, setResults] = useState<ScanResult[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
   const [sortKey, setSortKey] = useState<SortKey>("ai_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
@@ -60,15 +63,21 @@ const Drops = () => {
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch results for a scan
-  const fetchResults = useCallback(async (scanId: string) => {
-    const { data } = await supabase
+  // Fetch results for a scan (paginated)
+  const fetchResults = useCallback(async (scanId: string, pageNum = 0) => {
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    // Fetch page of results
+    const { data, count } = await supabase
       .from("drop_scan_results")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("scan_id", scanId)
       .order("ai_score", { ascending: false })
-      .limit(1000);
+      .range(from, to);
+
     setResults((data || []) as ScanResult[]);
+    if (count !== null) setTotalResults(count);
   }, []);
 
   // Start polling for an in-progress scan
@@ -84,7 +93,7 @@ const Drops = () => {
 
       if (scanUpdate) {
         setCurrentScan(scanUpdate as Scan);
-        await fetchResults(scanId);
+        await fetchResults(scanId, 0);
 
         if (scanUpdate.status === "complete" || scanUpdate.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -120,7 +129,7 @@ const Drops = () => {
     // Show results from whichever scan has them
     if (resultsScan) {
       setCurrentScan(resultsScan as Scan);
-      await fetchResults(resultsScan.id);
+      await fetchResults(resultsScan.id, 0);
     }
 
     // Also check if there's an active scan (for progress banner)
@@ -173,6 +182,14 @@ const Drops = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+
+  const goToPage = useCallback((newPage: number) => {
+    if (!currentScan) return;
+    setPage(newPage);
+    fetchResults(currentScan.id, newPage);
+  }, [currentScan, fetchResults]);
 
   const isProcessing = currentScan && ["processing", "evaluating", "pre-screening"].includes(currentScan.status);
   const progress = currentScan && currentScan.filtered_domains > 0
@@ -351,7 +368,7 @@ const Drops = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredResults.slice(0, 200).map((r) => (
+                      {filteredResults.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
                             {r.ai_score >= 80 && <Star className="w-3 h-3 inline mr-1 text-amber-400" />}
@@ -389,11 +406,35 @@ const Drops = () => {
                     </TableBody>
                   </Table>
                 </div>
-                {filteredResults.length > 200 && (
-                  <div className="text-center py-3 text-sm text-muted-foreground border-t">
-                    Showing 200 of {filteredResults.length} results. Export CSV for full list.
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {totalResults > 0
+                      ? `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalResults)} of ${totalResults.toLocaleString()}`
+                      : "No results"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 0}
+                      onClick={() => goToPage(page - 1)}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {page + 1} of {totalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages - 1}
+                      onClick={() => goToPage(page + 1)}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </Card>
             </>
           )}
