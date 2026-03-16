@@ -1363,18 +1363,7 @@ Return JSON array: [{domain, score, summary (15 words max), category, estimated_
           continue;
         }
 
-        const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
-        const normalizeCategory = (cat: string): string => {
-          const c = (cat || "").toLowerCase().trim();
-          if (VALID_CATEGORIES.has(c)) return c;
-          // Map common AI hallucinated categories
-          if (c.includes("pass") || c.includes("marginal") || c.includes("weak")) return "weak";
-          if (c.includes("strong") || c.includes("premium")) return "premium";
-          if (c.includes("decent") || c.includes("moderate")) return "generic";
-          if (c.includes("brand")) return "brandable";
-          if (c.includes("compound") || c.includes("kw+w")) return "compound";
-          return "generic";
-        };
+
 
         const rows = parsed.map((r: any) => ({
           scan_id: scanId,
