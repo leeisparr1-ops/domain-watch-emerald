@@ -131,7 +131,8 @@ const Drops = () => {
     category = "all",
     sort: SortKey = "ai_score",
     dir: "asc" | "desc" = "desc",
-    scoreMin = 0
+    scoreMin = 0,
+    valueMin = 0
   ) => {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -149,6 +150,9 @@ const Drops = () => {
     }
     if (scoreMin > 0) {
       query = query.gte("ai_score", scoreMin);
+    }
+    if (valueMin > 0) {
+      query = query.gte("estimated_value", valueMin);
     }
 
     query = query.order(sort, { ascending: dir === "asc" }).range(from, to);
