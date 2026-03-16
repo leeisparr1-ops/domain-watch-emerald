@@ -104,31 +104,30 @@ const Drops = () => {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    // Find the best scan: prefer processing, then completed with results, then any
-    let bestScan = scans?.find(s => ["pre-screening", "evaluating", "processing"].includes(s.status));
-    if (!bestScan) {
-      // Find scan with actual results
-      for (const scan of scans || []) {
-        const { count } = await supabase
-          .from("drop_scan_results")
-          .select("*", { count: "exact", head: true })
-          .eq("scan_id", scan.id);
-        if (count && count > 0) {
-          bestScan = scan;
-          break;
-        }
+    // First, find a scan that has actual results
+    let resultsScan: typeof scans extends (infer T)[] | null ? T : never = null;
+    for (const scan of scans || []) {
+      const { count } = await supabase
+        .from("drop_scan_results")
+        .select("*", { count: "exact", head: true })
+        .eq("scan_id", scan.id);
+      if (count && count > 0) {
+        resultsScan = scan;
+        break;
       }
-    }
-    if (!bestScan && scans?.length) {
-      bestScan = scans[0];
     }
 
-    if (bestScan) {
-      setCurrentScan(bestScan as Scan);
-      await fetchResults(bestScan.id);
-      if (["processing", "evaluating", "pre-screening"].includes(bestScan.status)) {
-        startPolling(bestScan.id);
-      }
+    // Show results from whichever scan has them
+    if (resultsScan) {
+      setCurrentScan(resultsScan as Scan);
+      await fetchResults(resultsScan.id);
+    }
+
+    // Also check if there's an active scan (for progress banner)
+    const activeScan = scans?.find(s => ["pre-screening", "evaluating", "processing"].includes(s.status));
+    if (activeScan && (!resultsScan || activeScan.id !== resultsScan.id)) {
+      // Show active scan info but keep showing old results
+      startPolling(activeScan.id);
     }
 
     setLoading(false);
