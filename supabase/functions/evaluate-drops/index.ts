@@ -712,6 +712,39 @@ async function loadComparableKeywords(adminClient: any): Promise<Set<string>> {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ─── CHAINING HELPER ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+function queueNextEvaluateInvocation(supabaseUrl: string, serviceKey: string, scanId: string, context: string) {
+  const selfUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
+
+  const chainPromise = fetch(selfUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceKey}`,
+      Prefer: "respond-async",
+    },
+    body: JSON.stringify({ scanId }),
+  })
+    .then(async (resp) => {
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        console.error(`[${context}] Self-chain failed:`, resp.status, body.slice(0, 300));
+      }
+    })
+    .catch((err) => console.error(`[${context}] Self-chain error:`, err));
+
+  const edgeRuntime = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+  }).EdgeRuntime;
+
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(chainPromise);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ─── MAIN HANDLER ────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
