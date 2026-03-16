@@ -7,10 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_BATCH_SIZE = 25;
-const DOMAINS_PER_INVOCATION = 100;
-const QUALITY_THRESHOLD = 30;
-const PREMIUM_TIER_THRESHOLD = 65; // top-tier domains get GPT-5 deep analysis
+const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
+const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
+const QUALITY_THRESHOLD = 50;        // raised: only genuinely good names reach AI
+const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
