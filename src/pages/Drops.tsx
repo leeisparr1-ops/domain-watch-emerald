@@ -53,6 +53,9 @@ const Drops = () => {
   const { user } = useAuth();
   const [currentScan, setCurrentScan] = useState<Scan | null>(null);
   const [results, setResults] = useState<ScanResult[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
   const [sortKey, setSortKey] = useState<SortKey>("ai_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
