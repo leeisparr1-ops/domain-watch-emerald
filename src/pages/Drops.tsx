@@ -69,6 +69,7 @@ const Drops = () => {
   const categoryRef = useRef("all");
   const sortKeyRef = useRef<SortKey>("ai_score");
   const sortDirRef = useRef<"asc" | "desc">("desc");
+  const minScoreRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => { pageRef.current = page; }, [page]);
