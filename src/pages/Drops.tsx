@@ -63,6 +63,7 @@ const Drops = () => {
   const [minScore, setMinScore] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [rerunning, setRerunning] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pageRef = useRef(0);
   const searchRef = useRef("");
