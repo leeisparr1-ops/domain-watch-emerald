@@ -325,41 +325,7 @@ const Drops = () => {
           {/* Results Section */}
           {(totalResults > 0 || results.length > 0 || (currentScan && currentScan.evaluated_domains > 0)) && (
             <>
-              {/* Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <Card>
-                  <CardContent className="py-4 text-center">
-                    <p className="text-2xl font-bold text-foreground">
-                      {(currentScan?.evaluated_domains || results.length).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {isProcessing ? "Evaluated So Far" : "Domains Evaluated"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="py-4 text-center">
-                    <p className="text-2xl font-bold text-primary">{topPicks}</p>
-                    <p className="text-xs text-muted-foreground">Top Picks (75+)</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="py-4 text-center">
-                    <p className="text-2xl font-bold text-foreground">{avgScore}</p>
-                    <p className="text-xs text-muted-foreground">Avg Score</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="py-4 text-center">
-                    <p className="text-2xl font-bold text-foreground">
-                      ${Math.round(results.filter(r => r.ai_score >= 75).reduce((s, r) => s + r.estimated_value, 0)).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Top Picks Value</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Filters */}
+              {/* Search + Export row */}
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -370,25 +336,154 @@ const Drops = () => {
                     className="pl-9"
                   />
                 </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="brandable">Brandable</SelectItem>
-                    <SelectItem value="keyword">Keyword</SelectItem>
-                    <SelectItem value="short">Short</SelectItem>
-                    <SelectItem value="geo">Geo</SelectItem>
-                    <SelectItem value="niche">Niche</SelectItem>
-                    <SelectItem value="generic">Generic</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" onClick={exportCsv}>
-                  <Download className="w-4 h-4 mr-1" /> Export
-                </Button>
+                <div className="flex gap-2 items-center">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {totalResults.toLocaleString()} results
+                  </span>
+                  <Button variant="outline" size="sm" onClick={exportCsv}>
+                    <Download className="w-4 h-4 mr-1" /> Export
+                  </Button>
+                </div>
               </div>
+
+              {/* Chip-based Filter Panel */}
+              <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+                <div className="mb-4 rounded-xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden">
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-sm">Filters</span>
+                        {activeFilterCount > 0 && (
+                          <Badge variant="default" className="h-5 px-1.5 text-xs">
+                            {activeFilterCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {activeFilterCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={(e) => { e.stopPropagation(); resetFilters(); }}
+                          >
+                            <RotateCcw className="w-3 h-3 mr-1" /> Reset
+                          </Button>
+                        )}
+                        <svg
+                          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${showFilters ? "rotate-180" : ""}`}
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    <div className="px-4 pb-4 space-y-4">
+                      {/* Category */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: "all", label: "All", color: "default" },
+                            { value: "premium", label: "Premium", color: "amber" },
+                            { value: "brandable", label: "Brandable", color: "purple" },
+                            { value: "keyword", label: "Keyword", color: "blue" },
+                            { value: "short", label: "Short", color: "green" },
+                            { value: "geo", label: "Geo", color: "orange" },
+                            { value: "niche", label: "Niche", color: "rose" },
+                            { value: "generic", label: "Generic", color: "default" },
+                          ].map((opt) => {
+                            const active = categoryFilter === opt.value;
+                            const chipStyles: Record<string, string> = {
+                              default: active
+                                ? "bg-primary/20 text-primary border-primary/50 ring-1 ring-primary/20"
+                                : "bg-muted/60 text-foreground border-border/60 hover:bg-muted",
+                              amber: active
+                                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 ring-1 ring-amber-500/20"
+                                : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100",
+                              purple: active
+                                ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/50 ring-1 ring-purple-500/20"
+                                : "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20 hover:bg-purple-100",
+                              blue: active
+                                ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50 ring-1 ring-blue-500/20"
+                                : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20 hover:bg-blue-100",
+                              green: active
+                                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 ring-1 ring-emerald-500/20"
+                                : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100",
+                              orange: active
+                                ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/50 ring-1 ring-orange-500/20"
+                                : "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20 hover:bg-orange-100",
+                              rose: active
+                                ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 ring-1 ring-rose-500/20"
+                                : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100",
+                            };
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setCategoryFilter(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${chipStyles[opt.color]}`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Min Score */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Minimum Score</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 50, label: "50+" },
+                            { value: 65, label: "65+" },
+                            { value: 75, label: "75+ (Top Picks)" },
+                            { value: 85, label: "85+ (Elite)" },
+                          ].map((opt) => {
+                            const active = minScore === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMinScore(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 ring-1 ring-emerald-500/20"
+                                    : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Active filter summary */}
+                      {activeFilterCount > 0 && (
+                        <div className="pt-3 border-t border-border flex flex-wrap gap-1.5">
+                          {categoryFilter !== "all" && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Category: {categoryFilter}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setCategoryFilter("all")} />
+                            </Badge>
+                          )}
+                          {minScore > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Score: {minScore}+
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMinScore(0)} />
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
 
               {/* Results Table */}
               <Card>
