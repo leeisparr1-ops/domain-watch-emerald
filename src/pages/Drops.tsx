@@ -583,6 +583,91 @@ const Drops = () => {
                         </div>
                       </div>
 
+                      {/* Max SLD Length */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Max Domain Length</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 5, label: "≤5 chars" },
+                            { value: 6, label: "≤6 chars" },
+                            { value: 8, label: "≤8 chars" },
+                            { value: 10, label: "≤10 chars" },
+                          ].map((opt) => {
+                            const active = maxLength === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMaxLength(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/50 ring-1 ring-sky-500/20"
+                                    : "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20 hover:bg-sky-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Max Words */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Max Words</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 1, label: "1 word only" },
+                            { value: 2, label: "≤2 words" },
+                          ].map((opt) => {
+                            const active = maxWords === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMaxWords(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/50 ring-1 ring-violet-500/20"
+                                    : "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-500/20 hover:bg-violet-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Min Est. Value */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Min Estimated Value</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 0, label: "Any" },
+                            { value: 500, label: "$500+" },
+                            { value: 1000, label: "$1k+" },
+                            { value: 5000, label: "$5k+" },
+                            { value: 10000, label: "$10k+" },
+                          ].map((opt) => {
+                            const active = minValue === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setMinValue(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50 ring-1 ring-amber-500/20"
+                                    : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Active filter summary */}
                       {activeFilterCount > 0 && (
                         <div className="pt-3 border-t border-border flex flex-wrap gap-1.5">
@@ -596,6 +681,24 @@ const Drops = () => {
                             <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                               Score: {minScore}+
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setMinScore(0)} />
+                            </Badge>
+                          )}
+                          {maxLength > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Length: ≤{maxLength}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMaxLength(0)} />
+                            </Badge>
+                          )}
+                          {maxWords > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Words: ≤{maxWords}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMaxWords(0)} />
+                            </Badge>
+                          )}
+                          {minValue > 0 && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              Value: ${minValue.toLocaleString()}+
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setMinValue(0)} />
                             </Badge>
                           )}
                         </div>
