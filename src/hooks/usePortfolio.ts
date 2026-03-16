@@ -146,9 +146,9 @@ export function usePortfolio() {
   };
 
   const updateDomain = async (id: string, updates: Partial<PortfolioDomain>) => {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("portfolio_domains")
-      .update(updates)
+      .update(updates as any)
       .eq("id", id);
     if (error) {
       toast.error("Failed to update domain");
