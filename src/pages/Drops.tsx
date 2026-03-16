@@ -114,6 +114,7 @@ const Drops = () => {
   const sortKeyRef = useRef<SortKey>("ai_score");
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
+  const minValueRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => { pageRef.current = page; }, [page]);
@@ -122,6 +123,7 @@ const Drops = () => {
   useEffect(() => { sortKeyRef.current = sortKey; }, [sortKey]);
   useEffect(() => { sortDirRef.current = sortDir; }, [sortDir]);
   useEffect(() => { minScoreRef.current = minScore; }, [minScore]);
+  useEffect(() => { minValueRef.current = minValue; }, [minValue]);
 
   // Fetch results for a scan (paginated, filtered server-side)
   const fetchResults = useCallback(async (
