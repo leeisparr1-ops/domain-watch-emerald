@@ -539,6 +539,7 @@ function quickQualityScore(
   sld: string,
   comparableKeywords?: Set<string>,
   dbTrendingKeywords?: Record<string, number>,
+  kwVolumeCache?: Map<string, number>,
 ): number {
   const lower = sld.toLowerCase();
   const len = lower.length;
