@@ -36,7 +36,47 @@ interface Scan {
   created_at: string;
 }
 
-type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name";
+type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name" | "sld_length" | "word_count";
+
+// Simple word segmentation using dictionary-like heuristic
+function countDomainWords(domain: string): number {
+  const sld = domain.split(".")[0].toLowerCase();
+  // Common short words that appear in compound domains
+  const markers = [
+    "pay","bet","buy","sell","hub","app","web","dev","pro","lab","net","bio","eco","fit",
+    "cloud","smart","data","code","tech","shop","store","cash","bank","loan","trade",
+    "health","care","home","land","rent","game","play","safe","guard","solar","green",
+    "crypto","chain","coin","token","defi","fund","wealth","money","credit","invest",
+    "travel","hotel","food","chef","legal","law","hire","work","jobs","pet","dog","cat",
+    "ai","ev","ml","vr","ar","iot",
+  ];
+  // Try to split into known words greedily
+  let remaining = sld;
+  let words = 0;
+  while (remaining.length > 0) {
+    let found = false;
+    // Try longest match first (up to 10 chars)
+    for (let len = Math.min(remaining.length, 10); len >= 2; len--) {
+      const candidate = remaining.slice(0, len);
+      if (markers.includes(candidate) || (len >= 4 && remaining.length > len)) {
+        words++;
+        remaining = remaining.slice(len);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // If no known word found, the rest is one "word"
+      words++;
+      break;
+    }
+  }
+  return Math.max(1, words);
+}
+
+function getSldLength(domain: string): number {
+  return domain.split(".")[0].length;
+}
 
 const categoryColors: Record<string, string> = {
   premium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
