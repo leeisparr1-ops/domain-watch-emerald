@@ -83,6 +83,7 @@ const categoryColors: Record<string, string> = {
   brandable: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   keyword: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   short: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  compound: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
   geo: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   niche: "bg-pink-500/20 text-pink-400 border-pink-500/30",
   generic: "bg-muted text-muted-foreground border-border",
@@ -513,9 +514,11 @@ const Drops = () => {
                             { value: "brandable", label: "Brandable", color: "purple" },
                             { value: "keyword", label: "Keyword", color: "blue" },
                             { value: "short", label: "Short", color: "green" },
+                            { value: "compound", label: "Compound", color: "cyan" },
                             { value: "geo", label: "Geo", color: "orange" },
                             { value: "niche", label: "Niche", color: "rose" },
                             { value: "generic", label: "Generic", color: "default" },
+                            { value: "weak", label: "Weak", color: "red" },
                           ].map((opt) => {
                             const active = categoryFilter === opt.value;
                             const chipStyles: Record<string, string> = {
@@ -540,6 +543,12 @@ const Drops = () => {
                               rose: active
                                 ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/50 ring-1 ring-rose-500/20"
                                 : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20 hover:bg-rose-100",
+                              cyan: active
+                                ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/50 ring-1 ring-cyan-500/20"
+                                : "bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-500/20 hover:bg-cyan-100",
+                              red: active
+                                ? "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/50 ring-1 ring-red-500/20"
+                                : "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20 hover:bg-red-100",
                             };
                             return (
                               <button
