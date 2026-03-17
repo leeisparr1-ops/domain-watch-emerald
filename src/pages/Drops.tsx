@@ -350,7 +350,7 @@ const Drops = () => {
     <>
       <Helmet>
         <title>Daily Drop Scanner | ExpiredHawk</title>
-        <meta name="description" content="AI-evaluated expiring domains ranked by investment potential. Updated daily." />
+        <meta name="description" content="AI-evaluated pending delete domains ranked by investment potential. Updated daily." />
       </Helmet>
       <Navbar />
       <main className="min-h-screen bg-background pt-20 pb-16">
