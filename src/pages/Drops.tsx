@@ -350,7 +350,7 @@ const Drops = () => {
     <>
       <Helmet>
         <title>Daily Drop Scanner | ExpiredHawk</title>
-        <meta name="description" content="AI-evaluated expiring domains ranked by investment potential. Updated daily." />
+        <meta name="description" content="AI-evaluated pending delete domains ranked by investment potential. Updated daily." />
       </Helmet>
       <Navbar />
       <main className="min-h-screen bg-background pt-20 pb-16">
@@ -362,10 +362,10 @@ const Drops = () => {
               Daily Drops
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Today's Best Expiring Domains
+              Today's Best Pending Delete Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              AI-evaluated daily drops. Only quality names make the cut.
+              AI-evaluated daily pending deletes.
             </p>
             {scanDate && !isProcessing && (
               <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
