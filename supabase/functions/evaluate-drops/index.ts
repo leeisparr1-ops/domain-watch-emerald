@@ -1191,7 +1191,7 @@ async function loadComparableKeywords(adminClient: any): Promise<Set<string>> {
       .from("comparable_sales")
       .select("domain_name")
       .gte("sale_price", 500)
-      .limit(1000);
+      .limit(5000);
 
     if (error || !data) return new Set();
 
