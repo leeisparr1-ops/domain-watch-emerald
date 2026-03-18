@@ -940,18 +940,21 @@ function quickQualityScore(
     else score += 2;
   }
 
-  // ─── 4. TWO-WORD COMPOUND BONUS (max 15 pts) ───
+  // ─── 4. TWO-WORD COMPOUND BONUS (max 18 pts) ───
   // Both words MUST be real dictionary words for full bonus
+  // Handles KW+W and W+KW patterns equally (order doesn't matter)
   if (words.length === 2 && coverage >= 0.85) {
     const bothRealDict = realWords.length === 2 && realWords.every(w => w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
     
     if (bothRealDict) {
-      // Premium KW+W: both are real words
-      if (totalLen <= 8) score += 15;       // "gobet", "ebike"
-      else if (totalLen <= 10) score += 12;  // "dataflow", "cloudbank"
-      else if (totalLen <= 12) score += 8;   // "smartmarket"
-      else if (totalLen <= 14) score += 4;
+      // Premium compound: both are real dictionary words (KW+W or W+KW)
+      // e.g., "smartpay", "dataflow", "cloudbank", "payclean", "cashfire"
+      const hasTrending = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
+      if (totalLen <= 8) score += hasTrending ? 18 : 15;       // "gobet", "ebike", "cashpay"
+      else if (totalLen <= 10) score += hasTrending ? 15 : 13;  // "dataflow", "cloudbank"
+      else if (totalLen <= 12) score += hasTrending ? 10 : 8;   // "smartmarket"
+      else if (totalLen <= 14) score += 5;
     } else if (words.some(w => DICTIONARY.has(w) && w.length >= 3)) {
       // One real word + one fragment — smaller bonus
       if (totalLen <= 8) score += 6;
