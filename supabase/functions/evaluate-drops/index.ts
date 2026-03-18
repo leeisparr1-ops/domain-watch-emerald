@@ -940,18 +940,21 @@ function quickQualityScore(
     else score += 2;
   }
 
-  // ─── 4. TWO-WORD COMPOUND BONUS (max 15 pts) ───
+  // ─── 4. TWO-WORD COMPOUND BONUS (max 18 pts) ───
   // Both words MUST be real dictionary words for full bonus
+  // Handles KW+W and W+KW patterns equally (order doesn't matter)
   if (words.length === 2 && coverage >= 0.85) {
     const bothRealDict = realWords.length === 2 && realWords.every(w => w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
     
     if (bothRealDict) {
-      // Premium KW+W: both are real words
-      if (totalLen <= 8) score += 15;       // "gobet", "ebike"
-      else if (totalLen <= 10) score += 12;  // "dataflow", "cloudbank"
-      else if (totalLen <= 12) score += 8;   // "smartmarket"
-      else if (totalLen <= 14) score += 4;
+      // Premium compound: both are real dictionary words (KW+W or W+KW)
+      // e.g., "smartpay", "dataflow", "cloudbank", "payclean", "cashfire"
+      const hasTrending = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
+      if (totalLen <= 8) score += hasTrending ? 18 : 15;       // "gobet", "ebike", "cashpay"
+      else if (totalLen <= 10) score += hasTrending ? 15 : 13;  // "dataflow", "cloudbank"
+      else if (totalLen <= 12) score += hasTrending ? 10 : 8;   // "smartmarket"
+      else if (totalLen <= 14) score += 5;
     } else if (words.some(w => DICTIONARY.has(w) && w.length >= 3)) {
       // One real word + one fragment — smaller bonus
       if (totalLen <= 8) score += 6;
@@ -982,14 +985,20 @@ function quickQualityScore(
     else score += isRealOrShort ? 8 : 4;
   }
 
-  // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
+  // ─── 7. KW+WORD / WORD+KW COMPOUND BONUS (max 18 pts) ───
+  // Handles both KW+W ("aiflow") and W+KW ("flowai") patterns equally
   if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    // Only full bonus when the dictionary word is real
-    if (trendingWords.length >= 2 && realWords.length >= 1) score += 15;
-    else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) score += 10;
-    else if (trendingWords.length === 1 && realWords.length >= 1) score += 4;
+    // Dual trending: both words are hot keywords
+    if (trendingWords.length >= 2 && realWords.length >= 1) score += 18;
+    // KW+W or W+KW: one trending keyword + one real dictionary word
+    else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) {
+      // Extra credit for high-heat keywords (ai, gpt, agent, quantum)
+      const bestTrendHeat = Math.max(...trendingWords.map(w => TRENDING_KEYWORDS[w] || 0));
+      score += bestTrendHeat >= 2.0 ? 14 : bestTrendHeat >= 1.7 ? 12 : 10;
+    }
+    else if (trendingWords.length === 1 && realWords.length >= 1) score += 5;
     else if (trendingWords.length >= 1) score += 2;
   }
 
@@ -1182,7 +1191,7 @@ async function loadComparableKeywords(adminClient: any): Promise<Set<string>> {
       .from("comparable_sales")
       .select("domain_name")
       .gte("sale_price", 500)
-      .limit(1000);
+      .limit(5000);
 
     if (error || !data) return new Set();
 
