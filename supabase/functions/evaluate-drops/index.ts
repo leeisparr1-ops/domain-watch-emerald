@@ -985,14 +985,20 @@ function quickQualityScore(
     else score += isRealOrShort ? 8 : 4;
   }
 
-  // ─── 7. KW+WORD COMPOUND BONUS (max 15 pts) ───
+  // ─── 7. KW+WORD / WORD+KW COMPOUND BONUS (max 18 pts) ───
+  // Handles both KW+W ("aiflow") and W+KW ("flowai") patterns equally
   if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    // Only full bonus when the dictionary word is real
-    if (trendingWords.length >= 2 && realWords.length >= 1) score += 15;
-    else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) score += 10;
-    else if (trendingWords.length === 1 && realWords.length >= 1) score += 4;
+    // Dual trending: both words are hot keywords
+    if (trendingWords.length >= 2 && realWords.length >= 1) score += 18;
+    // KW+W or W+KW: one trending keyword + one real dictionary word
+    else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) {
+      // Extra credit for high-heat keywords (ai, gpt, agent, quantum)
+      const bestTrendHeat = Math.max(...trendingWords.map(w => TRENDING_KEYWORDS[w] || 0));
+      score += bestTrendHeat >= 2.0 ? 14 : bestTrendHeat >= 1.7 ? 12 : 10;
+    }
+    else if (trendingWords.length === 1 && realWords.length >= 1) score += 5;
     else if (trendingWords.length >= 1) score += 2;
   }
 
