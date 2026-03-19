@@ -857,8 +857,19 @@ const Drops = () => {
                           <TableCell className="text-right font-medium">
                             ${r.estimated_value?.toLocaleString() || "—"}
                           </TableCell>
-                          <TableCell className="text-center hidden md:table-cell">
-                            <span className="text-sm">{r.brandability}</span>
+                          <TableCell className="text-center text-xs whitespace-nowrap">
+                            {r.drop_date ? (() => {
+                              const dropMs = new Date(r.drop_date).getTime();
+                              const nowMs = Date.now();
+                              const daysUntil = Math.ceil((dropMs - nowMs) / 86400000);
+                              return (
+                                <span className={`font-medium ${daysUntil <= 1 ? "text-emerald-400" : daysUntil <= 3 ? "text-amber-400" : "text-muted-foreground"}`}>
+                                  {new Date(r.drop_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  {daysUntil >= 0 && <span className="ml-1 opacity-70">({daysUntil}d)</span>}
+                                </span>
+                              );
+                            })() : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
                           </TableCell>
                           <TableCell className="text-center hidden md:table-cell">
                             <span className="text-sm">{r.keyword_strength}</span>
