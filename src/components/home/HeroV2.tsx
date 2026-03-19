@@ -82,32 +82,28 @@ export function HeroV2() {
               <div className="aspect-video relative bg-[#0a0a0f]">
                 <video
                   ref={videoRef}
-                  src="/expiredhawk-promo.mp4"
+                  src="/expiredhawk-tutorial.mp4"
                   className="w-full h-full object-cover"
                   playsInline
                   muted
                   loop
-                  preload="metadata"
-                  onEnded={() => setIsPlaying(false)}
+                  autoPlay
+                  preload="auto"
                 />
-                {/* Play/Pause overlay */}
+                {/* Pause overlay - only visible on hover when playing */}
                 <div
                   className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
-                    isPlaying ? "opacity-0 hover:opacity-100" : "opacity-100"
+                    isPaused ? "opacity-100" : "opacity-0 hover:opacity-100"
                   } bg-background/20`}
                 >
-                  <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    {isPlaying ? (
-                      <Pause className="w-7 h-7 text-primary-foreground" />
-                    ) : (
-                      <Play className="w-7 h-7 text-primary-foreground ml-1" />
-                    )}
+                  <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                    <Pause className="w-6 h-6 text-primary-foreground" />
                   </div>
                 </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              See how ExpiredHawk helps you find valuable expiring domains
+              See how easy it is to set up your first pattern in under 60 seconds
             </p>
           </motion.div>
         </motion.div>
