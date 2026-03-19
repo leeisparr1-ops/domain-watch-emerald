@@ -366,10 +366,10 @@ const Drops = () => {
               Daily Drops
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Today's Best Pending Delete Domains
+              Pending Delete Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Scored and ranked daily from 115K+ pending deletes. Sorted by brandability, keyword strength, and flip potential.
+              Sorted by brandability, keyword strength, and flip potential.
             </p>
             {scanDate && !isProcessing && (
               <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
