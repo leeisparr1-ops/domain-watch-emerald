@@ -22,9 +22,9 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
             <Logo size="md" />
-            <span className="text-xl font-bold gradient-text">ExpiredHawk</span>
+            <span className="text-xl font-bold gradient-text whitespace-nowrap">ExpiredHawk</span>
           </Link>
 
           {/* Desktop Navigation */}
