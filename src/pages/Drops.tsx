@@ -365,7 +365,7 @@ const Drops = () => {
               Today's Best Pending Delete Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              AI-evaluated daily pending deletes.
+              Scored and ranked daily from 115K+ pending deletes. Sorted by brandability, keyword strength, and flip potential.
             </p>
             {scanDate && !isProcessing && (
               <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
