@@ -1530,8 +1530,10 @@ serve(async (req) => {
         console.warn("Failed to load keyword volume cache:", e);
       }
 
-      const scoredDomains: { domain: string; score: number }[] = [];
-      for (const domain of chunk) {
+      const scoredDomains: { domain: string; score: number; dropDate: string }[] = [];
+      for (const entry of chunk) {
+        // Entry may be "domain\tdropDate" or just "domain"
+        const [domain, dropDate] = entry.includes("\t") ? entry.split("\t") : [entry, ""];
         const sld = domain.replace(/\.com$/, "");
 
         // Hard gate: reject hyphens/numbers with strict rules
@@ -1554,7 +1556,7 @@ serve(async (req) => {
 
         const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
         if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality });
+          scoredDomains.push({ domain, score: quality, dropDate });
         }
       }
 
@@ -1575,8 +1577,8 @@ serve(async (req) => {
       scoredDomains.sort((a, b) => b.score - a.score);
       const allQualified = [...previousQualified];
       for (const d of scoredDomains) {
-        // Store as "domain|score" to preserve tier info
-        allQualified.push(`${d.domain}|${d.score}`);
+        // Store as "domain|score|dropDate" to preserve tier info and drop date
+        allQualified.push(`${d.domain}|${d.score}${d.dropDate ? `|${d.dropDate}` : ""}`);
       }
 
       console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
