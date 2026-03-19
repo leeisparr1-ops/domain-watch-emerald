@@ -312,10 +312,11 @@ const Drops = () => {
 
       // Trigger evaluation using the shared CSV
       const origin = window.location.origin;
+      const sharedCsvUrl = `${origin}/store/daily-drops.csv?v=${Date.now()}`;
       const { error: invokeErr } = await supabase.functions.invoke("evaluate-drops", {
         body: {
           scanId: newScan.id,
-          csvUrl: `${origin}/store/daily-drops.csv`,
+          csvUrl: sharedCsvUrl,
         },
       });
 
