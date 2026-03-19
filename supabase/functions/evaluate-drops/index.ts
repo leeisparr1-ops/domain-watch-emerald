@@ -929,6 +929,14 @@ function quickQualityScore(
     if (lower.includes(word)) return 0;
   }
 
+  // ─── TRADEMARK REJECTION ───
+  // Exact match against known brand/exam names = instant reject
+  if (TRADEMARK_BRANDS_REJECT.has(lower)) return 0;
+  // Check if any trademark brand is a substring (e.g., "toeflDaily", "nikeShop")
+  for (const tm of TRADEMARK_SUBSTRINGS) {
+    if (lower.includes(tm) && lower !== tm) return 0; // embedded trademark = reject
+  }
+
   // ─── EARLY PRONOUNCEABILITY GATE ───
   if (BAD_CLUSTERS.test(lower)) return 0;
   const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
