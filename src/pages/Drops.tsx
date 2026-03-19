@@ -101,6 +101,7 @@ const Drops = () => {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [tldFilter, setTldFilter] = useState<string>("all");
   const [minScore, setMinScore] = useState<number>(0);
   const [maxLength, setMaxLength] = useState<number>(0);
   const [maxWords, setMaxWords] = useState<number>(0);
