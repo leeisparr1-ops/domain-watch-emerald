@@ -1,7 +1,6 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { HeroV2 } from "@/components/home/HeroV2";
 import { HowItWorksV2 } from "@/components/home/HowItWorksV2";
-import { HowItWorksV2 } from "@/components/home/HowItWorksV2";
 import { ToolsShowcaseV2 } from "@/components/home/ToolsShowcaseV2";
 import { FeaturesV2 } from "@/components/home/FeaturesV2";
 import { CtaBanner } from "@/components/home/CtaBanner";
