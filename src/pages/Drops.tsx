@@ -565,7 +565,36 @@ const Drops = () => {
                         </div>
                       </div>
 
-                      {/* Min Score */}
+                      {/* TLD Filter */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">TLD</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: "all", label: "All" },
+                            { value: ".com", label: ".com" },
+                            { value: ".net", label: ".net" },
+                            { value: ".org", label: ".org" },
+                            { value: ".io", label: ".io" },
+                            { value: ".ai", label: ".ai" },
+                            { value: ".co", label: ".co" },
+                          ].map((opt) => {
+                            const active = tldFilter === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setTldFilter(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-primary/20 text-primary border-primary/50 ring-1 ring-primary/20"
+                                    : "bg-muted/60 text-foreground border-border/60 hover:bg-muted"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                       <div>
                         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Minimum Score</h4>
                         <div className="flex flex-wrap gap-1.5">
