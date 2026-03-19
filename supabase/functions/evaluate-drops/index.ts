@@ -727,6 +727,47 @@ const OFFENSIVE = new Set([
   "poo","poop","crap","damn","ass","butt","fart","puke","vomit","barf",
 ]);
 
+// ─── TRADEMARK / BRAND BLOCKLIST (instant reject or heavy penalty) ───
+const TRADEMARK_BRANDS_REJECT = new Set([
+  // Standardized exams & certifications (heavily protected)
+  "toefl","ielts","gmat","gre","lsat","mcat","toeic",
+  "cissp","comptia","ccna","ccnp","ccie","itil","pmp",
+  // Big tech brands
+  "google","apple","microsoft","amazon","facebook","instagram","tiktok","snapchat",
+  "youtube","twitter","netflix","spotify","uber","lyft","airbnb","tesla","nvidia",
+  "openai","chatgpt","midjourney","anthropic","claude",
+  "adobe","oracle","cisco","samsung","huawei","xiaomi",
+  // Major brands
+  "nike","adidas","puma","gucci","prada","chanel","hermes","rolex","cartier",
+  "coca","pepsi","mcdonalds","starbucks","walmart","costco",
+  "disney","marvel","pixar","warner","sony","nintendo","playstation","xbox",
+  "ferrari","porsche","lamborghini","maserati","bentley","bugatti",
+  "visa","mastercard","amex","paypal","stripe","venmo","coinbase","binance",
+  // Pharma
+  "pfizer","moderna","astrazeneca","novartis","roche","merck","bayer",
+  // Protected orgs
+  "olympic","grammy","oscar","emmy","fifa","nfl","nba","mlb","nhl","uefa",
+  "harvard","stanford","oxford","cambridge","yale","mit","princeton",
+]);
+
+// Substrings that trigger heavy penalty (not rejection) when embedded in longer domains
+const TRADEMARK_SUBSTRINGS = [
+  "google","amazon","facebook","instagram","tiktok","youtube","netflix",
+  "spotify","uber","tesla","nvidia","openai","chatgpt","disney","marvel",
+  "toefl","ielts","gmat","coinbase","binance","paypal",
+  "ferrari","porsche","rolex","gucci","chanel","prada",
+  "microsoft","adobe","oracle","cisco","samsung",
+];
+
+// ─── NICHE LIQUIDITY SCORES (1-10, higher = more buyers = easier resale) ───
+const NICHE_LIQUIDITY: Record<string, number> = {
+  ai_tech: 9, saas: 9, fintech: 8, ecommerce: 8,
+  health: 7, gaming: 7, real_estate: 7,
+  security: 6, jobs: 6, automotive: 6,
+  biotech: 5, insurance: 5, legal: 5, energy: 5, travel: 5, beauty: 5,
+  education: 4, pet: 4, space: 3,
+};
+
 // Negative brand words — penalty
 const NEGATIVE_BRAND_WORDS = new Set([
   "lost","lose","dead","death","die","dying","kill","grave","tomb","ghost","doom","curse",
