@@ -796,6 +796,10 @@ const Drops = () => {
                       ).filter((r) => {
                         if (maxLength > 0 && getSldLength(r.domain_name) > maxLength) return false;
                         if (maxWords > 0 && countDomainWords(r.domain_name) > maxWords) return false;
+                        if (tldFilter !== "all") {
+                          const domainTld = "." + r.domain_name.split(".").slice(1).join(".");
+                          if (domainTld !== tldFilter) return false;
+                        }
                         return true;
                       }).map((r) => {
                         const sldLen = getSldLength(r.domain_name);
