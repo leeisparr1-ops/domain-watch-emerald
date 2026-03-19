@@ -1633,12 +1633,31 @@ serve(async (req) => {
     }
 
     // ─── AI EVALUATION PHASE ───
-    // Parse tiered domain list
+    // Parse tiered domain list — entries may be "domain\tdropDate" or just "domain"
     const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
     const tierIdx = rawDomains.indexOf("---TIER---");
-    const premiumDomains = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
-    const standardDomains = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
-    const allDomains = [...premiumDomains, ...standardDomains];
+    const premiumEntries = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
+    const standardEntries = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
+    const allEntries = [...premiumEntries, ...standardEntries];
+
+    // Build drop date lookup from entries
+    const dropDateMap = new Map<string, string>();
+    const allDomains: string[] = [];
+    for (const entry of allEntries) {
+      if (entry.includes("\t")) {
+        const [domain, dd] = entry.split("\t");
+        allDomains.push(domain);
+        if (dd) dropDateMap.set(domain, dd);
+      } else {
+        allDomains.push(entry);
+      }
+    }
+
+    // Also build premium set from entries (domain only)
+    const premiumDomainsList: string[] = [];
+    for (const entry of premiumEntries) {
+      premiumDomainsList.push(entry.includes("\t") ? entry.split("\t")[0] : entry);
+    }
 
     const startIdx = scan.resume_from || 0;
     const endIdx = Math.min(startIdx + DOMAINS_PER_INVOCATION, allDomains.length);
