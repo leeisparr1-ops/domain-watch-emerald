@@ -88,14 +88,9 @@ serve(async (req) => {
 
     console.log(`Created daily drop scan: ${scanId}`);
 
-    // Build the CSV URL for the shared daily drops file
-    // Use the published app URL or the preview URL
-    const csvUrl = `${supabaseUrl.replace('.supabase.co', '.supabase.co')}/storage/v1/object/public/email-assets/daily-drops.csv`;
-    
-    // Actually, the CSV is hosted as a static file at the app's public URL
-    // We'll pass the URL pattern that evaluate-drops expects
+    // Use the shared static CSV with a cache-busting query to avoid stale CDN copies
     const appUrl = "https://expiredhawk.lovable.app";
-    const sharedCsvUrl = `${appUrl}/store/daily-drops.csv`;
+    const sharedCsvUrl = `${appUrl}/store/daily-drops.csv?v=${Date.now()}`;
 
     // Trigger evaluate-drops with the shared CSV URL
     const evalUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;

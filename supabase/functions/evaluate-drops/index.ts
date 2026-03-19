@@ -1407,25 +1407,105 @@ serve(async (req) => {
       }
 
       // Parse CSV — extract .com domains only (lightweight, no scoring yet)
-      const lines = initialCsvText.trim().split("\n");
-      const header = lines[0].toLowerCase();
-      const cols = header.split(",").map((c: string) => c.trim().replace(/"/g, ""));
+      const parseCsvLine = (line: string): string[] => {
+        const values: string[] = [];
+        let current = "";
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === "," && !inQuotes) {
+            values.push(current);
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+
+        values.push(current);
+        return values;
+      };
+
+      const formatLocalDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+
+      const normalizeDropDate = (rawValue: string): string => {
+        const value = rawValue.trim().replace(/^"|"$/g, "");
+        if (!value) return "";
+
+        const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (isoMatch) {
+          const year = Number(isoMatch[1]);
+          const month = String(Number(isoMatch[2])).padStart(2, "0");
+          const day = String(Number(isoMatch[3])).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }
+
+        const slashIsoMatch = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+        if (slashIsoMatch) {
+          const year = Number(slashIsoMatch[1]);
+          const month = String(Number(slashIsoMatch[2])).padStart(2, "0");
+          const day = String(Number(slashIsoMatch[3])).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }
+
+        const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (usMatch) {
+          const month = String(Number(usMatch[1])).padStart(2, "0");
+          const day = String(Number(usMatch[2])).padStart(2, "0");
+          const year = Number(usMatch[3]);
+          return `${year}-${month}-${day}`;
+        }
+
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          return formatLocalDate(parsed);
+        }
+
+        return "";
+      };
+
+      const lines = initialCsvText.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (lines.length === 0) {
+        throw new Error("CSV source has no rows");
+      }
+
+      const cols = parseCsvLine(lines[0]).map((c: string) => c.toLowerCase().trim().replace(/"/g, ""));
       let domainCol = cols.findIndex((c: string) =>
         c === "domain" || c === "domain name" || c === "domainname" || c === "name"
       );
       if (domainCol === -1) domainCol = 0;
       const dropDateCol = cols.findIndex((c: string) =>
-        c === "drop date" || c === "dropdate" || c === "drop_date" || c === "delete date"
+        c === "drop date" ||
+        c === "dropdate" ||
+        c === "drop_date" ||
+        c === "delete date" ||
+        c === "expiry date" ||
+        c === "expiration date"
       );
 
       const totalParsed = lines.length - 1;
       const comDomains: string[] = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
+        const row = parseCsvLine(lines[i]).map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
-        const dropDate = dropDateCol >= 0 ? (row[dropDateCol] || "").trim() : "";
+
+        const rawDropDate = dropDateCol >= 0 ? row[dropDateCol] || "" : "";
+        const dropDate = normalizeDropDate(rawDropDate);
+
         // Store domain with drop date separated by tab
         comDomains.push(dropDate ? `${domain}\t${dropDate}` : domain);
       }
