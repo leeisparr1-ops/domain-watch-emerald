@@ -1223,6 +1223,50 @@ function quickQualityScore(
   if (/\d/.test(lower)) score -= 15;
   if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
 
+  // ─── 20. SEMANTIC MEANING GATE (penalty for high-scoring gibberish) ───
+  // If a domain scores well on structure/phonetics but has NO recognizable meaning,
+  // it's a false positive (e.g., "Tounify", "Brovex", "Xalido")
+  if (realWords.length === 0 && score >= 50) {
+    // Heavily penalize: good structure but zero meaning = not brandable
+    score -= 25;
+  } else if (realWords.length === 0 && score >= 30) {
+    score -= 15;
+  }
+  // Domains where dictionary words cover < 40% but still scoring well
+  if (realCoverage < 0.4 && score >= 55 && len >= 6) {
+    score -= 12;
+  }
+
+  // ─── 21. TRADEMARK IN DECOMPOSED WORDS (penalty for embedded brands) ───
+  // Check if any decomposed word is a trademark (catches "toeflDaily" → ["toefl","daily"])
+  for (const w of words) {
+    if (TRADEMARK_BRANDS_REJECT.has(w)) {
+      score -= 40; // Devastating penalty — trademark kills resale
+      break;
+    }
+  }
+
+  // ─── 22. LIQUIDITY / BUYER-POOL SIGNAL (max 8 pts / penalty up to -8) ───
+  // Estimate how many potential buyers exist for this domain's niche
+  let bestLiquidity = 5; // default: neutral
+  let matchedNiche = "";
+  for (const [niche, config] of Object.entries(NICHE_CATEGORIES)) {
+    const matchCount = words.filter(w => config.keywords.includes(w)).length;
+    if (matchCount > 0) {
+      const liq = NICHE_LIQUIDITY[niche] || 5;
+      if (liq !== bestLiquidity && (matchedNiche === "" || liq > bestLiquidity)) {
+        bestLiquidity = liq;
+        matchedNiche = niche;
+      }
+    }
+  }
+  // High liquidity niches get a bonus, low liquidity gets a penalty
+  if (bestLiquidity >= 8) score += 8;
+  else if (bestLiquidity >= 7) score += 5;
+  else if (bestLiquidity >= 6) score += 2;
+  else if (bestLiquidity <= 3) score -= 8;
+  else if (bestLiquidity <= 4) score -= 4;
+
   return Math.max(0, Math.min(100, score));
 }
 
