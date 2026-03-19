@@ -1,25 +1,11 @@
 import { Link } from "react-router-dom";
-import { Bell, ArrowRight, Pause } from "lucide-react";
+import { Bell, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
 
 export function HeroV2() {
-  const [isPaused, setIsPaused] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const toggleVideo = () => {
-    if (!videoRef.current) return;
-    if (isPaused) {
-      videoRef.current.play();
-    } else {
-      videoRef.current.pause();
-    }
-    setIsPaused(!isPaused);
-  };
-
   return (
-    <section className="relative min-h-[50vh] lg:min-h-[60vh] flex items-center overflow-hidden pt-20 pb-12">
+    <section className="relative min-h-[55vh] lg:min-h-[65vh] flex items-center overflow-hidden pt-20 pb-16">
       {/* Subtle grid background */}
       <div className="absolute inset-0 pattern-grid opacity-[0.08]" />
       
@@ -64,48 +50,9 @@ export function HeroV2() {
             </Link>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-10">
+          <p className="text-sm text-muted-foreground">
             Free tier includes 30 patterns · No credit card required
           </p>
-
-          {/* Promo Video */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="w-full max-w-2xl"
-          >
-            <div
-              className="relative rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden cursor-pointer group shadow-lg hover:shadow-xl transition-shadow"
-              onClick={toggleVideo}
-            >
-              <div className="aspect-video relative bg-[#0a0a0f]">
-                <video
-                  ref={videoRef}
-                  src="/expiredhawk-tutorial.mp4"
-                  className="w-full h-full object-cover"
-                  playsInline
-                  muted
-                  loop
-                  autoPlay
-                  preload="auto"
-                />
-                {/* Pause overlay - only visible on hover when playing */}
-                <div
-                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
-                    isPaused ? "opacity-100" : "opacity-0 hover:opacity-100"
-                  } bg-background/20`}
-                >
-                  <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                    <Pause className="w-6 h-6 text-primary-foreground" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              See how easy it is to set up your first pattern in under 60 seconds
-            </p>
-          </motion.div>
         </motion.div>
       </div>
     </section>
