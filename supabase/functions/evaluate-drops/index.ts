@@ -727,6 +727,47 @@ const OFFENSIVE = new Set([
   "poo","poop","crap","damn","ass","butt","fart","puke","vomit","barf",
 ]);
 
+// ─── TRADEMARK / BRAND BLOCKLIST (instant reject or heavy penalty) ───
+const TRADEMARK_BRANDS_REJECT = new Set([
+  // Standardized exams & certifications (heavily protected)
+  "toefl","ielts","gmat","gre","lsat","mcat","toeic",
+  "cissp","comptia","ccna","ccnp","ccie","itil","pmp",
+  // Big tech brands
+  "google","apple","microsoft","amazon","facebook","instagram","tiktok","snapchat",
+  "youtube","twitter","netflix","spotify","uber","lyft","airbnb","tesla","nvidia",
+  "openai","chatgpt","midjourney","anthropic","claude",
+  "adobe","oracle","cisco","samsung","huawei","xiaomi",
+  // Major brands
+  "nike","adidas","puma","gucci","prada","chanel","hermes","rolex","cartier",
+  "coca","pepsi","mcdonalds","starbucks","walmart","costco",
+  "disney","marvel","pixar","warner","sony","nintendo","playstation","xbox",
+  "ferrari","porsche","lamborghini","maserati","bentley","bugatti",
+  "visa","mastercard","amex","paypal","stripe","venmo","coinbase","binance",
+  // Pharma
+  "pfizer","moderna","astrazeneca","novartis","roche","merck","bayer",
+  // Protected orgs
+  "olympic","grammy","oscar","emmy","fifa","nfl","nba","mlb","nhl","uefa",
+  "harvard","stanford","oxford","cambridge","yale","mit","princeton",
+]);
+
+// Substrings that trigger heavy penalty (not rejection) when embedded in longer domains
+const TRADEMARK_SUBSTRINGS = [
+  "google","amazon","facebook","instagram","tiktok","youtube","netflix",
+  "spotify","uber","tesla","nvidia","openai","chatgpt","disney","marvel",
+  "toefl","ielts","gmat","coinbase","binance","paypal",
+  "ferrari","porsche","rolex","gucci","chanel","prada",
+  "microsoft","adobe","oracle","cisco","samsung",
+];
+
+// ─── NICHE LIQUIDITY SCORES (1-10, higher = more buyers = easier resale) ───
+const NICHE_LIQUIDITY: Record<string, number> = {
+  ai_tech: 9, saas: 9, fintech: 8, ecommerce: 8,
+  health: 7, gaming: 7, real_estate: 7,
+  security: 6, jobs: 6, automotive: 6,
+  biotech: 5, insurance: 5, legal: 5, energy: 5, travel: 5, beauty: 5,
+  education: 4, pet: 4, space: 3,
+};
+
 // Negative brand words — penalty
 const NEGATIVE_BRAND_WORDS = new Set([
   "lost","lose","dead","death","die","dying","kill","grave","tomb","ghost","doom","curse",
@@ -886,6 +927,14 @@ function quickQualityScore(
   // ─── INSTANT REJECT ───
   for (const word of OFFENSIVE) {
     if (lower.includes(word)) return 0;
+  }
+
+  // ─── TRADEMARK REJECTION ───
+  // Exact match against known brand/exam names = instant reject
+  if (TRADEMARK_BRANDS_REJECT.has(lower)) return 0;
+  // Check if any trademark brand is a substring (e.g., "toeflDaily", "nikeShop")
+  for (const tm of TRADEMARK_SUBSTRINGS) {
+    if (lower.includes(tm) && lower !== tm) return 0; // embedded trademark = reject
   }
 
   // ─── EARLY PRONOUNCEABILITY GATE ───
@@ -1173,6 +1222,50 @@ function quickQualityScore(
   }
   if (/\d/.test(lower)) score -= 15;
   if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
+
+  // ─── 20. SEMANTIC MEANING GATE (penalty for high-scoring gibberish) ───
+  // If a domain scores well on structure/phonetics but has NO recognizable meaning,
+  // it's a false positive (e.g., "Tounify", "Brovex", "Xalido")
+  if (realWords.length === 0 && score >= 50) {
+    // Heavily penalize: good structure but zero meaning = not brandable
+    score -= 25;
+  } else if (realWords.length === 0 && score >= 30) {
+    score -= 15;
+  }
+  // Domains where dictionary words cover < 40% but still scoring well
+  if (realCoverage < 0.4 && score >= 55 && len >= 6) {
+    score -= 12;
+  }
+
+  // ─── 21. TRADEMARK IN DECOMPOSED WORDS (penalty for embedded brands) ───
+  // Check if any decomposed word is a trademark (catches "toeflDaily" → ["toefl","daily"])
+  for (const w of words) {
+    if (TRADEMARK_BRANDS_REJECT.has(w)) {
+      score -= 40; // Devastating penalty — trademark kills resale
+      break;
+    }
+  }
+
+  // ─── 22. LIQUIDITY / BUYER-POOL SIGNAL (max 8 pts / penalty up to -8) ───
+  // Estimate how many potential buyers exist for this domain's niche
+  let bestLiquidity = 5; // default: neutral
+  let matchedNiche = "";
+  for (const [niche, config] of Object.entries(NICHE_CATEGORIES)) {
+    const matchCount = words.filter(w => config.keywords.includes(w)).length;
+    if (matchCount > 0) {
+      const liq = NICHE_LIQUIDITY[niche] || 5;
+      if (liq !== bestLiquidity && (matchedNiche === "" || liq > bestLiquidity)) {
+        bestLiquidity = liq;
+        matchedNiche = niche;
+      }
+    }
+  }
+  // High liquidity niches get a bonus, low liquidity gets a penalty
+  if (bestLiquidity >= 8) score += 8;
+  else if (bestLiquidity >= 7) score += 5;
+  else if (bestLiquidity >= 6) score += 2;
+  else if (bestLiquidity <= 3) score -= 8;
+  else if (bestLiquidity <= 4) score -= 4;
 
   return Math.max(0, Math.min(100, score));
 }
