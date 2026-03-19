@@ -100,7 +100,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-background border-t border-border animate-fade-in">
+        <div className="lg:hidden bg-background border-t border-border animate-fade-in">
           <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
             <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
               Home
