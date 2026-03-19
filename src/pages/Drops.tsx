@@ -272,9 +272,9 @@ const Drops = () => {
 
   const exportCsv = () => {
     if (!results.length) return;
-    const headers = "Domain,SLD Length,Words,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
+    const headers = "Domain,SLD Length,Words,Score,Category,Est. Value,Drop Date,Brandability,Keyword Strength,Length Score,Summary\n";
     const rows = results.map(r =>
-      `"${r.domain_name}",${getSldLength(r.domain_name)},${countDomainWords(r.domain_name)},${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
+      `"${r.domain_name}",${getSldLength(r.domain_name)},${countDomainWords(r.domain_name)},${r.ai_score},"${r.category}",${r.estimated_value},"${r.drop_date || ""}",${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
