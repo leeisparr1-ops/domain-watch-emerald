@@ -1836,17 +1836,21 @@ Return JSON array: [{domain, score, summary (15 words max), category, estimated_
 
 
 
-        const rows = parsed.map((r: any) => ({
-          scan_id: scanId,
-          domain_name: r.domain || r.domain_name,
-          ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-          ai_summary: r.summary || "",
-          category: normalizeCategory(r.category),
-          estimated_value: Number(r.estimated_value) || 0,
-          brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-          keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-          length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-        }));
+        const rows = parsed.map((r: any) => {
+          const dn = r.domain || r.domain_name;
+          return {
+            scan_id: scanId,
+            domain_name: dn,
+            ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
+            ai_summary: r.summary || "",
+            category: normalizeCategory(r.category),
+            estimated_value: Number(r.estimated_value) || 0,
+            brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
+            keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
+            length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
+            drop_date: dropDateMap.get(dn) || null,
+          };
+        });
 
         if (rows.length > 0) {
           await adminClient.from("drop_scan_results").insert(rows);
