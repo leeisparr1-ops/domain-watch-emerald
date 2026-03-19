@@ -23,6 +23,7 @@ interface ScanResult {
   brandability: number;
   keyword_strength: number;
   length_score: number;
+  drop_date: string | null;
 }
 
 interface Scan {
@@ -36,7 +37,7 @@ interface Scan {
   created_at: string;
 }
 
-type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name" | "sld_length" | "word_count";
+type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name" | "sld_length" | "word_count" | "drop_date";
 
 // Simple word segmentation using dictionary-like heuristic
 function countDomainWords(domain: string): number {
@@ -271,9 +272,9 @@ const Drops = () => {
 
   const exportCsv = () => {
     if (!results.length) return;
-    const headers = "Domain,SLD Length,Words,Score,Category,Est. Value,Brandability,Keyword Strength,Length Score,Summary\n";
+    const headers = "Domain,SLD Length,Words,Score,Category,Est. Value,Drop Date,Brandability,Keyword Strength,Length Score,Summary\n";
     const rows = results.map(r =>
-      `"${r.domain_name}",${getSldLength(r.domain_name)},${countDomainWords(r.domain_name)},${r.ai_score},"${r.category}",${r.estimated_value},${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
+      `"${r.domain_name}",${getSldLength(r.domain_name)},${countDomainWords(r.domain_name)},${r.ai_score},"${r.category}",${r.estimated_value},"${r.drop_date || ""}",${r.brandability},${r.keyword_strength},${r.length_score || 0},"${r.ai_summary}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -776,6 +777,9 @@ const Drops = () => {
                         <TableHead className="cursor-pointer text-right" onClick={() => toggleSort("estimated_value")}>
                           Est. Value {sortKey === "estimated_value" && (sortDir === "asc" ? "↑" : "↓")}
                         </TableHead>
+                        <TableHead className="cursor-pointer text-center" onClick={() => toggleSort("drop_date")}>
+                          Drop Date {sortKey === "drop_date" && (sortDir === "asc" ? "↑" : "↓")}
+                        </TableHead>
                         <TableHead className="cursor-pointer text-center hidden md:table-cell" onClick={() => toggleSort("brandability")}>
                           Brand {sortKey === "brandability" && (sortDir === "asc" ? "↑" : "↓")}
                         </TableHead>
@@ -788,12 +792,17 @@ const Drops = () => {
                     <TableBody>
                       {results.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                             No domains match your current filters.
                           </TableCell>
                         </TableRow>
-                      ) : (sortKey === "sld_length" || sortKey === "word_count"
+                      ) : (sortKey === "sld_length" || sortKey === "word_count" || sortKey === "drop_date"
                         ? [...results].sort((a, b) => {
+                            if (sortKey === "drop_date") {
+                              const aDate = a.drop_date || "";
+                              const bDate = b.drop_date || "";
+                              return sortDir === "asc" ? aDate.localeCompare(bDate) : bDate.localeCompare(aDate);
+                            }
                             const aVal = sortKey === "sld_length" ? getSldLength(a.domain_name) : countDomainWords(a.domain_name);
                             const bVal = sortKey === "sld_length" ? getSldLength(b.domain_name) : countDomainWords(b.domain_name);
                             return sortDir === "asc" ? aVal - bVal : bVal - aVal;
@@ -847,6 +856,19 @@ const Drops = () => {
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             ${r.estimated_value?.toLocaleString() || "—"}
+                          </TableCell>
+                          <TableCell className="text-center text-xs whitespace-nowrap">
+                            {r.drop_date ? (() => {
+                              const dropMs = new Date(r.drop_date).getTime();
+                              const nowMs = Date.now();
+                              const daysUntil = Math.ceil((dropMs - nowMs) / 86400000);
+                              return (
+                                <span className={`font-medium ${daysUntil <= 1 ? "text-emerald-400" : daysUntil <= 3 ? "text-amber-400" : "text-muted-foreground"}`}>
+                                  {new Date(r.drop_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  {daysUntil >= 0 && <span className="ml-1 opacity-70">({daysUntil}d)</span>}
+                                </span>
+                              );
+                            })() : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell className="text-center hidden md:table-cell">
                             <span className="text-sm">{r.brandability}</span>

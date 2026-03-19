@@ -1414,6 +1414,9 @@ serve(async (req) => {
         c === "domain" || c === "domain name" || c === "domainname" || c === "name"
       );
       if (domainCol === -1) domainCol = 0;
+      const dropDateCol = cols.findIndex((c: string) =>
+        c === "drop date" || c === "dropdate" || c === "drop_date" || c === "delete date"
+      );
 
       const totalParsed = lines.length - 1;
       const comDomains: string[] = [];
@@ -1422,7 +1425,9 @@ serve(async (req) => {
         const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
-        comDomains.push(domain);
+        const dropDate = dropDateCol >= 0 ? (row[dropDateCol] || "").trim() : "";
+        // Store domain with drop date separated by tab
+        comDomains.push(dropDate ? `${domain}\t${dropDate}` : domain);
       }
 
       console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
@@ -1525,8 +1530,10 @@ serve(async (req) => {
         console.warn("Failed to load keyword volume cache:", e);
       }
 
-      const scoredDomains: { domain: string; score: number }[] = [];
-      for (const domain of chunk) {
+      const scoredDomains: { domain: string; score: number; dropDate: string }[] = [];
+      for (const entry of chunk) {
+        // Entry may be "domain\tdropDate" or just "domain"
+        const [domain, dropDate] = entry.includes("\t") ? entry.split("\t") : [entry, ""];
         const sld = domain.replace(/\.com$/, "");
 
         // Hard gate: reject hyphens/numbers with strict rules
@@ -1549,7 +1556,7 @@ serve(async (req) => {
 
         const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
         if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality });
+          scoredDomains.push({ domain, score: quality, dropDate });
         }
       }
 
@@ -1570,8 +1577,8 @@ serve(async (req) => {
       scoredDomains.sort((a, b) => b.score - a.score);
       const allQualified = [...previousQualified];
       for (const d of scoredDomains) {
-        // Store as "domain|score" to preserve tier info
-        allQualified.push(`${d.domain}|${d.score}`);
+        // Store as "domain|score|dropDate" to preserve tier info and drop date
+        allQualified.push(`${d.domain}|${d.score}${d.dropDate ? `|${d.dropDate}` : ""}`);
       }
 
       console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
@@ -1581,8 +1588,8 @@ serve(async (req) => {
         // Pre-screening complete — transition to AI evaluation
         // Sort all qualified by score, separate into premium/standard tiers
         const allScored = allQualified.map(entry => {
-          const [domain, scoreStr] = entry.split("|");
-          return { domain, score: Number(scoreStr) || 0 };
+          const parts = entry.split("|");
+          return { domain: parts[0], score: Number(parts[1]) || 0, dropDate: parts[2] || "" };
         });
         allScored.sort((a, b) => b.score - a.score);
 
@@ -1592,8 +1599,9 @@ serve(async (req) => {
           console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
         }
 
-        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        // Store as "domain\tdropDate" to carry drop date through to AI eval
+        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
+        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
         const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
 
         console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
@@ -1625,12 +1633,31 @@ serve(async (req) => {
     }
 
     // ─── AI EVALUATION PHASE ───
-    // Parse tiered domain list
+    // Parse tiered domain list — entries may be "domain\tdropDate" or just "domain"
     const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
     const tierIdx = rawDomains.indexOf("---TIER---");
-    const premiumDomains = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
-    const standardDomains = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
-    const allDomains = [...premiumDomains, ...standardDomains];
+    const premiumEntries = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
+    const standardEntries = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
+    const allEntries = [...premiumEntries, ...standardEntries];
+
+    // Build drop date lookup from entries
+    const dropDateMap = new Map<string, string>();
+    const allDomains: string[] = [];
+    for (const entry of allEntries) {
+      if (entry.includes("\t")) {
+        const [domain, dd] = entry.split("\t");
+        allDomains.push(domain);
+        if (dd) dropDateMap.set(domain, dd);
+      } else {
+        allDomains.push(entry);
+      }
+    }
+
+    // Also build premium set from entries (domain only)
+    const premiumDomainsList: string[] = [];
+    for (const entry of premiumEntries) {
+      premiumDomainsList.push(entry.includes("\t") ? entry.split("\t")[0] : entry);
+    }
 
     const startIdx = scan.resume_from || 0;
     const endIdx = Math.min(startIdx + DOMAINS_PER_INVOCATION, allDomains.length);
@@ -1647,7 +1674,7 @@ serve(async (req) => {
     }
 
     // Determine which domains in this chunk are premium tier
-    const premiumSet = new Set(premiumDomains);
+    const premiumSet = new Set(premiumDomainsList);
 
     const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
     const normalizeCategory = (cat: string): string => {
@@ -1767,15 +1794,19 @@ Return JSON array: [{domain, score, summary (15 words max), category, estimated_
             try {
               const cleaned = retryContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
               const retryParsed = JSON.parse(cleaned);
-              const rows = retryParsed.map((r: any) => ({
-                scan_id: scanId, domain_name: r.domain || r.domain_name,
-                ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-                ai_summary: r.summary || "", category: normalizeCategory(r.category),
-                estimated_value: Number(r.estimated_value) || 0,
-                brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-                keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-                length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-              }));
+              const rows = retryParsed.map((r: any) => {
+                const dn = r.domain || r.domain_name;
+                return {
+                  scan_id: scanId, domain_name: dn,
+                  ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
+                  ai_summary: r.summary || "", category: normalizeCategory(r.category),
+                  estimated_value: Number(r.estimated_value) || 0,
+                  brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
+                  keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
+                  length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
+                  drop_date: dropDateMap.get(dn) || null,
+                };
+              });
               if (rows.length > 0) await adminClient.from("drop_scan_results").insert(rows);
             } catch { /* skip */ }
             evaluated += batch.length;
@@ -1805,17 +1836,21 @@ Return JSON array: [{domain, score, summary (15 words max), category, estimated_
 
 
 
-        const rows = parsed.map((r: any) => ({
-          scan_id: scanId,
-          domain_name: r.domain || r.domain_name,
-          ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-          ai_summary: r.summary || "",
-          category: normalizeCategory(r.category),
-          estimated_value: Number(r.estimated_value) || 0,
-          brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-          keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-          length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-        }));
+        const rows = parsed.map((r: any) => {
+          const dn = r.domain || r.domain_name;
+          return {
+            scan_id: scanId,
+            domain_name: dn,
+            ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
+            ai_summary: r.summary || "",
+            category: normalizeCategory(r.category),
+            estimated_value: Number(r.estimated_value) || 0,
+            brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
+            keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
+            length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
+            drop_date: dropDateMap.get(dn) || null,
+          };
+        });
 
         if (rows.length > 0) {
           await adminClient.from("drop_scan_results").insert(rows);

@@ -1,0 +1,1 @@
+ALTER TABLE public.drop_scan_results ADD COLUMN IF NOT EXISTS drop_date date;
