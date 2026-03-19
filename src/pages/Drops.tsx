@@ -37,7 +37,7 @@ interface Scan {
   created_at: string;
 }
 
-type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name" | "sld_length" | "word_count";
+type SortKey = "ai_score" | "estimated_value" | "brandability" | "keyword_strength" | "length_score" | "domain_name" | "sld_length" | "word_count" | "drop_date";
 
 // Simple word segmentation using dictionary-like heuristic
 function countDomainWords(domain: string): number {
