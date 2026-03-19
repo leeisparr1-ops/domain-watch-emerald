@@ -1674,7 +1674,7 @@ serve(async (req) => {
     }
 
     // Determine which domains in this chunk are premium tier
-    const premiumSet = new Set(premiumDomains);
+    const premiumSet = new Set(premiumDomainsList);
 
     const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
     const normalizeCategory = (cat: string): string => {
