@@ -10,12 +10,12 @@ export function HeroV2() {
 
   const toggleVideo = () => {
     if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
+    if (isPaused) {
       videoRef.current.play();
+    } else {
+      videoRef.current.pause();
     }
-    setIsPlaying(!isPlaying);
+    setIsPaused(!isPaused);
   };
 
   return (
