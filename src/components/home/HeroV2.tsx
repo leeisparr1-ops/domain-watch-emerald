@@ -32,7 +32,7 @@ export function HeroV2() {
           </h1>
 
           <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-            You set the filters. We watch the auctions. You get the alerts.
+            Tired of refreshing auctions and closeouts? Define your criteria once and we'll do the hunting for you, delivering matches straight to your inbox.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-8">
