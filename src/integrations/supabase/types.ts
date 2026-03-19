@@ -205,6 +205,7 @@ export type Database = {
           category: string | null
           created_at: string
           domain_name: string
+          drop_date: string | null
           estimated_value: number | null
           id: string
           keyword_strength: number | null
@@ -218,6 +219,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           domain_name: string
+          drop_date?: string | null
           estimated_value?: number | null
           id?: string
           keyword_strength?: number | null
@@ -231,6 +233,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           domain_name?: string
+          drop_date?: string | null
           estimated_value?: number | null
           id?: string
           keyword_strength?: number | null
