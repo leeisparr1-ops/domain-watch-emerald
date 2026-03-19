@@ -1588,8 +1588,8 @@ serve(async (req) => {
         // Pre-screening complete — transition to AI evaluation
         // Sort all qualified by score, separate into premium/standard tiers
         const allScored = allQualified.map(entry => {
-          const [domain, scoreStr] = entry.split("|");
-          return { domain, score: Number(scoreStr) || 0 };
+          const parts = entry.split("|");
+          return { domain: parts[0], score: Number(parts[1]) || 0, dropDate: parts[2] || "" };
         });
         allScored.sort((a, b) => b.score - a.score);
 
@@ -1599,8 +1599,9 @@ serve(async (req) => {
           console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
         }
 
-        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.domain);
-        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.domain);
+        // Store as "domain\tdropDate" to carry drop date through to AI eval
+        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
+        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
         const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
 
         console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
