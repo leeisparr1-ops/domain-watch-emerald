@@ -21,7 +21,6 @@ const Index = () => {
         <Navbar />
         <main>
           <HeroV2 />
-          <StatsBar />
           <HowItWorksV2 />
           <ToolsShowcaseV2 />
           <FeaturesV2 />
