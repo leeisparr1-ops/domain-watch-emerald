@@ -777,6 +777,9 @@ const Drops = () => {
                         <TableHead className="cursor-pointer text-right" onClick={() => toggleSort("estimated_value")}>
                           Est. Value {sortKey === "estimated_value" && (sortDir === "asc" ? "↑" : "↓")}
                         </TableHead>
+                        <TableHead className="cursor-pointer text-center" onClick={() => toggleSort("drop_date")}>
+                          Drop Date {sortKey === "drop_date" && (sortDir === "asc" ? "↑" : "↓")}
+                        </TableHead>
                         <TableHead className="cursor-pointer text-center hidden md:table-cell" onClick={() => toggleSort("brandability")}>
                           Brand {sortKey === "brandability" && (sortDir === "asc" ? "↑" : "↓")}
                         </TableHead>
