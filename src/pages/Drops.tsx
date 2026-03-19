@@ -796,8 +796,13 @@ const Drops = () => {
                             No domains match your current filters.
                           </TableCell>
                         </TableRow>
-                      ) : (sortKey === "sld_length" || sortKey === "word_count"
+                      ) : (sortKey === "sld_length" || sortKey === "word_count" || sortKey === "drop_date"
                         ? [...results].sort((a, b) => {
+                            if (sortKey === "drop_date") {
+                              const aDate = a.drop_date || "";
+                              const bDate = b.drop_date || "";
+                              return sortDir === "asc" ? aDate.localeCompare(bDate) : bDate.localeCompare(aDate);
+                            }
                             const aVal = sortKey === "sld_length" ? getSldLength(a.domain_name) : countDomainWords(a.domain_name);
                             const bVal = sortKey === "sld_length" ? getSldLength(b.domain_name) : countDomainWords(b.domain_name);
                             return sortDir === "asc" ? aVal - bVal : bVal - aVal;
