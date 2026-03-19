@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
-import { Bell, ArrowRight, Play, Pause } from "lucide-react";
+import { Bell, ArrowRight, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 
 export function HeroV2() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const toggleVideo = () => {
