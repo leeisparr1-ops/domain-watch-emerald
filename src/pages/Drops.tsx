@@ -23,6 +23,7 @@ interface ScanResult {
   brandability: number;
   keyword_strength: number;
   length_score: number;
+  drop_date: string | null;
 }
 
 interface Scan {
