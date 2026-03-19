@@ -870,6 +870,8 @@ const Drops = () => {
                               );
                             })() : <span className="text-muted-foreground">—</span>}
                           </TableCell>
+                          <TableCell className="text-center hidden md:table-cell">
+                            <span className="text-sm">{r.brandability}</span>
                           </TableCell>
                           <TableCell className="text-center hidden md:table-cell">
                             <span className="text-sm">{r.keyword_strength}</span>
