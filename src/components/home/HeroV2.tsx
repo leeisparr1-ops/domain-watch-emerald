@@ -32,7 +32,7 @@ export function HeroV2() {
           </h1>
 
           <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-            Set your rules once — we'll watch millions of expiring domains and ping you when something good drops. Simple as that.
+            You set the filters. We watch the auctions. You get the alerts.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-8">
