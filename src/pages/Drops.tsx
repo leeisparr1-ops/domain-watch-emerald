@@ -101,6 +101,7 @@ const Drops = () => {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [tldFilter, setTldFilter] = useState<string>("all");
   const [minScore, setMinScore] = useState<number>(0);
   const [maxLength, setMaxLength] = useState<number>(0);
   const [maxWords, setMaxWords] = useState<number>(0);
@@ -256,10 +257,11 @@ const Drops = () => {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0) + (maxLength > 0 ? 1 : 0) + (maxWords > 0 ? 1 : 0) + (minValue > 0 ? 1 : 0);
+  const activeFilterCount = (categoryFilter !== "all" ? 1 : 0) + (tldFilter !== "all" ? 1 : 0) + (minScore > 0 ? 1 : 0) + (maxLength > 0 ? 1 : 0) + (maxWords > 0 ? 1 : 0) + (minValue > 0 ? 1 : 0);
 
   const resetFilters = () => {
     setCategoryFilter("all");
+    setTldFilter("all");
     setMinScore(0);
     setMaxLength(0);
     setMaxWords(0);
@@ -365,7 +367,7 @@ const Drops = () => {
               Today's Best Pending Delete Domains
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              AI-evaluated daily pending deletes.
+              Scored and ranked daily from 115K+ pending deletes. Sorted by brandability, keyword strength, and flip potential.
             </p>
             {scanDate && !isProcessing && (
               <div className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground">
@@ -563,7 +565,36 @@ const Drops = () => {
                         </div>
                       </div>
 
-                      {/* Min Score */}
+                      {/* TLD Filter */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">TLD</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: "all", label: "All" },
+                            { value: ".com", label: ".com" },
+                            { value: ".net", label: ".net" },
+                            { value: ".org", label: ".org" },
+                            { value: ".io", label: ".io" },
+                            { value: ".ai", label: ".ai" },
+                            { value: ".co", label: ".co" },
+                          ].map((opt) => {
+                            const active = tldFilter === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setTldFilter(opt.value)}
+                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-[13px] font-medium border transition-all duration-150 cursor-pointer select-none ${
+                                  active
+                                    ? "bg-primary/20 text-primary border-primary/50 ring-1 ring-primary/20"
+                                    : "bg-muted/60 text-foreground border-border/60 hover:bg-muted"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                       <div>
                         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Minimum Score</h4>
                         <div className="flex flex-wrap gap-1.5">
@@ -686,6 +717,12 @@ const Drops = () => {
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setCategoryFilter("all")} />
                             </Badge>
                           )}
+                          {tldFilter !== "all" && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              TLD: {tldFilter}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setTldFilter("all")} />
+                            </Badge>
+                          )}
                           {minScore > 0 && (
                             <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                               Score: {minScore}+
@@ -765,6 +802,10 @@ const Drops = () => {
                       ).filter((r) => {
                         if (maxLength > 0 && getSldLength(r.domain_name) > maxLength) return false;
                         if (maxWords > 0 && countDomainWords(r.domain_name) > maxWords) return false;
+                        if (tldFilter !== "all") {
+                          const domainTld = "." + r.domain_name.split(".").slice(1).join(".");
+                          if (domainTld !== tldFilter) return false;
+                        }
                         return true;
                       }).map((r) => {
                         const sldLen = getSldLength(r.domain_name);
