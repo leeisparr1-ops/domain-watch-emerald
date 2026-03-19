@@ -1414,6 +1414,9 @@ serve(async (req) => {
         c === "domain" || c === "domain name" || c === "domainname" || c === "name"
       );
       if (domainCol === -1) domainCol = 0;
+      const dropDateCol = cols.findIndex((c: string) =>
+        c === "drop date" || c === "dropdate" || c === "drop_date" || c === "delete date"
+      );
 
       const totalParsed = lines.length - 1;
       const comDomains: string[] = [];
@@ -1422,7 +1425,9 @@ serve(async (req) => {
         const row = lines[i].split(",").map((c: string) => c.trim().replace(/"/g, ""));
         const domain = row[domainCol]?.toLowerCase().trim();
         if (!domain || !domain.endsWith(".com") || domain.length <= 4) continue;
-        comDomains.push(domain);
+        const dropDate = dropDateCol >= 0 ? (row[dropDateCol] || "").trim() : "";
+        // Store domain with drop date separated by tab
+        comDomains.push(dropDate ? `${domain}\t${dropDate}` : domain);
       }
 
       console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
