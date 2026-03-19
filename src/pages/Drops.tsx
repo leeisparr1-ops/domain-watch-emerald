@@ -717,6 +717,12 @@ const Drops = () => {
                               <X className="w-3 h-3 cursor-pointer" onClick={() => setCategoryFilter("all")} />
                             </Badge>
                           )}
+                          {tldFilter !== "all" && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              TLD: {tldFilter}
+                              <X className="w-3 h-3 cursor-pointer" onClick={() => setTldFilter("all")} />
+                            </Badge>
+                          )}
                           {minScore > 0 && (
                             <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                               Score: {minScore}+
