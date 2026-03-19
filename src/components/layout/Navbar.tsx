@@ -28,7 +28,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6 ml-auto">
+          <div className="hidden lg:flex items-center gap-3 xl:gap-5 ml-auto">
             <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
               Home
             </Link>
