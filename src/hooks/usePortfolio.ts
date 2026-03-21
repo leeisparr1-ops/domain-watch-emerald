@@ -131,19 +131,28 @@ export function usePortfolio() {
     toast.success(`${domainName} added to portfolio`);
     await fetchDomains();
 
-    // Background: fetch real expiry from RDAP and update
+    // Background: fetch real expiry from RDAP and nameservers
+    const bgTasks: Promise<void>[] = [];
     if (!input.next_renewal_date) {
-      fetchRdapExpiry(domainName).then(async (rdap) => {
-        if (rdap.expirationDate) {
-          await supabase
-            .from("portfolio_domains")
-            .update({ next_renewal_date: rdap.expirationDate })
-            .eq("user_id", user!.id)
-            .eq("domain_name", domainName);
-          await fetchDomains();
-        }
-      }).catch(() => { /* silent */ });
+      bgTasks.push(
+        fetchRdapExpiry(domainName).then(async (rdap) => {
+          if (rdap.expirationDate) {
+            await supabase
+              .from("portfolio_domains")
+              .update({ next_renewal_date: rdap.expirationDate })
+              .eq("user_id", user!.id)
+              .eq("domain_name", domainName);
+          }
+        }).catch(() => { /* silent */ })
+      );
     }
+    // Fetch nameservers in background
+    bgTasks.push(
+      supabase.functions.invoke("lookup-nameservers", {
+        body: { domains: [domainName] },
+      }).then(() => {}).catch(() => { /* silent */ })
+    );
+    Promise.all(bgTasks).then(() => fetchDomains()).catch(() => {});
   };
 
   const updateDomain = async (id: string, updates: Partial<PortfolioDomain>) => {
