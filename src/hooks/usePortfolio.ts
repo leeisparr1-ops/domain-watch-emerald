@@ -42,11 +42,12 @@ export interface PortfolioDomain {
   notes: string | null;
   auto_valuation: number | null;
   valuation_updated_at: string | null;
+  nameservers: string[] | null;
   created_at: string;
   updated_at: string;
 }
 
-export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_valuation" | "valuation_updated_at" | "created_at" | "updated_at">;
+export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_valuation" | "valuation_updated_at" | "nameservers" | "created_at" | "updated_at">;
 
 export interface PortfolioStats {
   totalDomains: number;
