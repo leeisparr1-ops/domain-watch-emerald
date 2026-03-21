@@ -756,6 +756,31 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                     />
                   </td>
 
+                  {/* Nameservers */}
+                  <td className="px-4 py-3">
+                    {d.nameservers && d.nameservers.length > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        {d.nameservers.map((ns, i) => (
+                          <span key={i} className="text-xs text-muted-foreground font-mono truncate max-w-[180px]" title={ns}>
+                            {ns}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <button
+                        className="text-xs text-muted-foreground/40 hover:text-primary transition-colors"
+                        onClick={async () => {
+                          setLookingUpNS(true);
+                          await onLookupNameservers([d.domain_name]);
+                          setLookingUpNS(false);
+                        }}
+                        title="Look up nameservers"
+                      >
+                        Look up
+                      </button>
+                    )}
+                  </td>
+
                   {/* Actions - simplified */}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-0.5">
