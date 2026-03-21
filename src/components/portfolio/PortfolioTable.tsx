@@ -353,6 +353,9 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
         case "tags":
           cmp = (a.tags ?? []).join(",").localeCompare((b.tags ?? []).join(","));
           break;
+        case "nameservers":
+          cmp = (a.nameservers ?? []).join(",").localeCompare((b.nameservers ?? []).join(","));
+          break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
