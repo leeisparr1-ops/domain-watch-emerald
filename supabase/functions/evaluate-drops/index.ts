@@ -911,153 +911,135 @@ function isCVCVC(sld: string): boolean {
 // ─── COMPREHENSIVE HEURISTIC QUALITY SCORER ──────────────────
 // ═══════════════════════════════════════════════════════════════
 
-function quickQualityScore(
+interface HeuristicResult {
+  score: number;
+  category: string;
+  summary: string;
+  estimated_value: number;
+  brandability: number;
+  keyword_strength: number;
+  length_score: number;
+}
+
+function fullHeuristicScore(
   sld: string,
   comparableKeywords?: Set<string>,
   dbTrendingKeywords?: Record<string, number>,
   kwVolumeCache?: Map<string, number>,
-): number {
+): HeuristicResult | null {
   const lower = sld.toLowerCase();
   const len = lower.length;
   let score = 0;
 
   // ─── INSTANT REJECT ───
   for (const word of OFFENSIVE) {
-    if (lower.includes(word)) return 0;
+    if (lower.includes(word)) return null;
   }
-
-  // ─── TRADEMARK REJECTION ───
-  // Exact match against known brand/exam names = instant reject
-  if (TRADEMARK_BRANDS_REJECT.has(lower)) return 0;
-  // Check if any trademark brand is a substring (e.g., "toeflDaily", "nikeShop")
+  if (TRADEMARK_BRANDS_REJECT.has(lower)) return null;
   for (const tm of TRADEMARK_SUBSTRINGS) {
-    if (lower.includes(tm) && lower !== tm) return 0; // embedded trademark = reject
+    if (lower.includes(tm) && lower !== tm) return null;
   }
-
-  // ─── EARLY PRONOUNCEABILITY GATE ───
-  if (BAD_CLUSTERS.test(lower)) return 0;
+  if (BAD_CLUSTERS.test(lower)) return null;
   const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
-  if (vowelCount === 0 && len > 2) return 0;
+  if (vowelCount === 0 && len > 2) return null;
   const vowelRatio = vowelCount / len;
-  if (vowelRatio < 0.15 && len > 3) return 0;
+  if (vowelRatio < 0.15 && len > 3) return null;
+  if (len > 15) return null;
+  if (lower.includes("-")) return null;
+  if (/\d+x\d+/i.test(lower)) return null;
+  if (/^\d/.test(lower)) return null;
 
-  // ─── HARD LENGTH GATE ───
-  if (len > 15) return 0;
-  if (lower.includes("-")) return 0;
-  if (/\d+x\d+/i.test(lower)) return 0;
-  if (/^\d/.test(lower)) return 0;
-
-  // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
+  if (words.length >= 4) return null;
 
-  // ─── HARD WORD-COUNT GATE ───
-  if (words.length >= 4) return 0;
-
-  score += Math.round(coverage * 25);
-
-  // ─── REAL WORD VERIFICATION ───
-  // A word is "real" if it's in our DICTIONARY (not just HIGH_VALUE_KEYWORDS shortlist)
   const realWords = words.filter(w => DICTIONARY.has(w));
   const realCoverage = realWords.reduce((s, w) => s + w.length, 0) / Math.max(len, 1);
 
-  // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
-  if (len <= 3) score += 15;
-  else if (len === 4) score += 15;
-  else if (len === 5) score += 14;
-  else if (len === 6) score += 12;
-  else if (len <= 8) score += 10;
-  else if (len <= 10) score += 6;
-  else if (len <= 12) score += 3;
+  let brandabilityRaw = 0;
+  let keywordStrengthRaw = 0;
+  let lengthScoreRaw = 0;
+  let detectedCategory = "generic";
+  let matchedNiche = "";
 
-  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 30 pts) ───
-  // MUST be an actual dictionary word, not just a pronounceable string
+  score += Math.round(coverage * 25);
+
+  if (len <= 3) { score += 15; lengthScoreRaw = 95; }
+  else if (len === 4) { score += 15; lengthScoreRaw = 92; }
+  else if (len === 5) { score += 14; lengthScoreRaw = 85; }
+  else if (len === 6) { score += 12; lengthScoreRaw = 75; }
+  else if (len <= 8) { score += 10; lengthScoreRaw = 60; }
+  else if (len <= 10) { score += 6; lengthScoreRaw = 40; }
+  else if (len <= 12) { score += 3; lengthScoreRaw = 25; }
+  else { lengthScoreRaw = 10; }
+
   const isSingleRealWord = realWords.length === 1 && realCoverage >= 0.95;
   if (isSingleRealWord) {
-    if (len <= 3) score += 30;       // "car", "bet", "pay"
-    else if (len === 4) score += 25; // "fire", "volt", "sage"
-    else if (len === 5) score += 22; // "surge", "blade", "radar"
-    else if (len === 6) score += 18; // "shield", "beacon"
-    else if (len <= 8) score += 12;  // "quantum", "merchant"
-    else score += 8;
+    if (len <= 3) { score += 30; brandabilityRaw += 90; }
+    else if (len === 4) { score += 25; brandabilityRaw += 85; }
+    else if (len === 5) { score += 22; brandabilityRaw += 80; }
+    else if (len === 6) { score += 18; brandabilityRaw += 70; }
+    else if (len <= 8) { score += 12; brandabilityRaw += 55; }
+    else { score += 8; brandabilityRaw += 40; }
+    detectedCategory = len <= 4 ? "short" : "premium";
   } else if (words.length === 1 && coverage >= 0.95 && !DICTIONARY.has(lower)) {
-    // Matched by HIGH_VALUE_KEYWORDS but not real dictionary — much smaller bonus
-    if (len <= 4) score += 8;
-    else if (len <= 6) score += 5;
-    else score += 2;
+    if (len <= 4) { score += 8; brandabilityRaw += 40; }
+    else if (len <= 6) { score += 5; brandabilityRaw += 30; }
+    else { score += 2; brandabilityRaw += 15; }
   }
 
-  // ─── 4. TWO-WORD COMPOUND BONUS (max 18 pts) ───
-  // Both words MUST be real dictionary words for full bonus
-  // Handles KW+W and W+KW patterns equally (order doesn't matter)
   if (words.length === 2 && coverage >= 0.85) {
     const bothRealDict = realWords.length === 2 && realWords.every(w => w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
-    
     if (bothRealDict) {
-      // Premium compound: both are real dictionary words (KW+W or W+KW)
-      // e.g., "smartpay", "dataflow", "cloudbank", "payclean", "cashfire"
       const hasTrending = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
-      if (totalLen <= 8) score += hasTrending ? 18 : 15;       // "gobet", "ebike", "cashpay"
-      else if (totalLen <= 10) score += hasTrending ? 15 : 13;  // "dataflow", "cloudbank"
-      else if (totalLen <= 12) score += hasTrending ? 10 : 8;   // "smartmarket"
-      else if (totalLen <= 14) score += 5;
+      if (totalLen <= 8) { score += hasTrending ? 18 : 15; brandabilityRaw += 70; }
+      else if (totalLen <= 10) { score += hasTrending ? 15 : 13; brandabilityRaw += 60; }
+      else if (totalLen <= 12) { score += hasTrending ? 10 : 8; brandabilityRaw += 45; }
+      else if (totalLen <= 14) { score += 5; brandabilityRaw += 30; }
+      detectedCategory = "compound";
     } else if (words.some(w => DICTIONARY.has(w) && w.length >= 3)) {
-      // One real word + one fragment — smaller bonus
-      if (totalLen <= 8) score += 6;
-      else if (totalLen <= 10) score += 4;
-      else score += 2;
+      if (totalLen <= 8) { score += 6; brandabilityRaw += 35; }
+      else if (totalLen <= 10) { score += 4; brandabilityRaw += 25; }
+      else { score += 2; brandabilityRaw += 15; }
+      detectedCategory = "compound";
     }
   }
 
-  // ─── 5. CVCVC BRANDABLE PATTERN (max 10 pts) ───
-  // Only award if it's NOT already getting a real-word bonus (avoid double-dipping on gibberish)
   if (isCVCVC(lower) && !isSingleRealWord) {
-    // Only valuable if short AND pronounceable — not random letter combos
-    const syllables = wordSyllables(lower);
-    if (len <= 5 && syllables <= 2) score += 10;
-    else if (len === 6 && syllables <= 2) score += 7;
-    else if (len <= 7 && syllables <= 3) score += 4;
-    // Longer CVCVC = not really brandable
+    const syl = wordSyllables(lower);
+    if (len <= 5 && syl <= 2) { score += 10; brandabilityRaw += 50; detectedCategory = "brandable"; }
+    else if (len === 6 && syl <= 2) { score += 7; brandabilityRaw += 40; detectedCategory = "brandable"; }
+    else if (len <= 7 && syl <= 3) { score += 4; brandabilityRaw += 25; }
   }
 
-  // ─── 6. EXACT TRENDING KEYWORD MATCH (max 20 pts) ───
   const exactTrendHeat = TRENDING_KEYWORDS[lower];
   if (exactTrendHeat) {
-    // Only full bonus if it's also a real word or very short
     const isRealOrShort = DICTIONARY.has(lower) || len <= 3;
-    if (exactTrendHeat >= 2.0) score += isRealOrShort ? 20 : 14;
-    else if (exactTrendHeat >= 1.7) score += isRealOrShort ? 16 : 10;
-    else if (exactTrendHeat >= 1.4) score += isRealOrShort ? 12 : 7;
-    else score += isRealOrShort ? 8 : 4;
+    if (exactTrendHeat >= 2.0) { score += isRealOrShort ? 20 : 14; keywordStrengthRaw += 90; }
+    else if (exactTrendHeat >= 1.7) { score += isRealOrShort ? 16 : 10; keywordStrengthRaw += 75; }
+    else if (exactTrendHeat >= 1.4) { score += isRealOrShort ? 12 : 7; keywordStrengthRaw += 60; }
+    else { score += isRealOrShort ? 8 : 4; keywordStrengthRaw += 40; }
+    detectedCategory = "keyword";
   }
 
-  // ─── 7. KW+WORD / WORD+KW COMPOUND BONUS (max 18 pts) ───
-  // Handles both KW+W ("aiflow") and W+KW ("flowai") patterns equally
   if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    // Dual trending: both words are hot keywords
-    if (trendingWords.length >= 2 && realWords.length >= 1) score += 18;
-    // KW+W or W+KW: one trending keyword + one real dictionary word
+    if (trendingWords.length >= 2 && realWords.length >= 1) { score += 18; keywordStrengthRaw += 85; detectedCategory = "keyword"; }
     else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) {
-      // Extra credit for high-heat keywords (ai, gpt, agent, quantum)
       const bestTrendHeat = Math.max(...trendingWords.map(w => TRENDING_KEYWORDS[w] || 0));
       score += bestTrendHeat >= 2.0 ? 14 : bestTrendHeat >= 1.7 ? 12 : 10;
+      keywordStrengthRaw += 70;
+      detectedCategory = "keyword";
     }
-    else if (trendingWords.length === 1 && realWords.length >= 1) score += 5;
-    else if (trendingWords.length >= 1) score += 2;
+    else if (trendingWords.length === 1 && realWords.length >= 1) { score += 5; keywordStrengthRaw += 40; }
+    else if (trendingWords.length >= 1) { score += 2; keywordStrengthRaw += 20; }
   }
 
-  // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
   if (!exactTrendHeat) {
     let bestHeat = 0;
-    for (const word of words) {
-      const heat = TRENDING_KEYWORDS[word];
-      if (heat && heat > bestHeat) bestHeat = heat;
-    }
-    for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
-      if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
-    }
+    for (const word of words) { const heat = TRENDING_KEYWORDS[word]; if (heat && heat > bestHeat) bestHeat = heat; }
+    for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) { if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat; }
     let trendBonus = 0;
     if (bestHeat >= 2.0) trendBonus = 12;
     else if (bestHeat >= 1.7) trendBonus = 9;
@@ -1066,22 +1048,15 @@ function quickQualityScore(
     else if (bestHeat >= 1.1) trendBonus = 2;
     if (words.length >= 3) trendBonus = Math.min(trendBonus, 4);
     score += trendBonus;
+    if (bestHeat > 1.3) keywordStrengthRaw += Math.min(30, Math.round(bestHeat * 15));
   }
 
-  // ─── 9. DB TRENDING KEYWORDS CROSS-REF (max 10 pts) ───
   if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
     let bestDbHeat = 0;
     const fullHeat = dbTrendingKeywords[lower];
     if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
-    for (const word of words) {
-      const heat = dbTrendingKeywords[word];
-      if (heat && heat > bestDbHeat) bestDbHeat = heat;
-    }
-    for (const [kw, heat] of Object.entries(dbTrendingKeywords)) {
-      if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) {
-        bestDbHeat = heat;
-      }
-    }
+    for (const word of words) { const heat = dbTrendingKeywords[word]; if (heat && heat > bestDbHeat) bestDbHeat = heat; }
+    for (const [kw, heat] of Object.entries(dbTrendingKeywords)) { if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) bestDbHeat = heat; }
     let dbBonus = 0;
     if (bestDbHeat >= 2.0) dbBonus = 10;
     else if (bestDbHeat >= 1.5) dbBonus = 7;
@@ -1089,14 +1064,14 @@ function quickQualityScore(
     else if (bestDbHeat >= 1.0) dbBonus = 2;
     if (words.length >= 3) dbBonus = Math.min(dbBonus, 3);
     score += dbBonus;
+    if (bestDbHeat > 1.2) keywordStrengthRaw += Math.min(20, Math.round(bestDbHeat * 10));
   }
 
-  // ─── 10. NICHE MARKET HEAT (max 10 pts) ───
   let bestNicheHeat = 0;
-  for (const [, niche] of Object.entries(NICHE_CATEGORIES)) {
+  for (const [nicheName, niche] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => niche.keywords.includes(w)).length;
     if (matchCount > 0) {
-      bestNicheHeat = Math.max(bestNicheHeat, niche.heat);
+      if (niche.heat > bestNicheHeat) { bestNicheHeat = niche.heat; matchedNiche = nicheName; }
       if (matchCount >= 2) bestNicheHeat = Math.min(100, bestNicheHeat + 10);
     }
   }
@@ -1107,97 +1082,65 @@ function quickQualityScore(
   else if (bestNicheHeat >= 40) nicheBonus = 2;
   if (words.length >= 3) nicheBonus = Math.min(nicheBonus, 3);
   score += nicheBonus;
+  if (matchedNiche && detectedCategory === "generic") detectedCategory = "niche";
 
-  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
-  // Tightened: only award if domain has real-word content, not random letter combos
   let brandableBonus = 0;
   if (realCoverage >= 0.4 || len <= 6) {
-    for (const pat of BRANDABLE_SUFFIXES) {
-      if (pat.test(lower)) { brandableBonus += 5; break; }
-    }
-    for (const pat of BRANDABLE_PREFIXES) {
-      if (pat.test(lower)) { brandableBonus += 3; break; }
-    }
+    for (const pat of BRANDABLE_SUFFIXES) { if (pat.test(lower)) { brandableBonus += 5; break; } }
+    for (const pat of BRANDABLE_PREFIXES) { if (pat.test(lower)) { brandableBonus += 3; break; } }
   }
-  // Only award phonetic bonus for short domains
   if (len >= 4 && len <= 7) {
     let alternations = 0;
-    for (let i = 1; i < len; i++) {
-      const prevV = VOWELS.has(lower[i - 1]);
-      const currV = VOWELS.has(lower[i]);
-      if (prevV !== currV) alternations++;
-    }
-    const altRatio = alternations / (len - 1);
-    if (altRatio >= 0.7) brandableBonus += 2;
+    for (let i = 1; i < len; i++) { if (VOWELS.has(lower[i - 1]) !== VOWELS.has(lower[i])) alternations++; }
+    if (alternations / (len - 1) >= 0.7) brandableBonus += 2;
   }
-  score += Math.min(8, brandableBonus);
+  const cappedBrandable = Math.min(8, brandableBonus);
+  score += cappedBrandable;
+  brandabilityRaw += cappedBrandable * 5;
 
-  // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
-  for (let i = 0; i < lower.length - 1; i++) {
-    totalBi++;
-    if (GOOD_BIGRAMS.has(lower.slice(i, i + 2))) goodBi++;
-  }
+  for (let i = 0; i < lower.length - 1; i++) { totalBi++; if (GOOD_BIGRAMS.has(lower.slice(i, i + 2))) goodBi++; }
   const bigramScore = totalBi > 0 ? Math.round((goodBi / totalBi) * 8) : 0;
   score += bigramScore;
+  brandabilityRaw += bigramScore * 3;
 
-  // ─── 13. VOWEL BALANCE (max 8 pts) ───
   if (vowelRatio >= 0.25 && vowelRatio <= 0.55) score += 8;
   else if (vowelRatio >= 0.2 && vowelRatio <= 0.6) score += 5;
   else if (vowelRatio >= 0.15) score += 2;
 
-  // ─── 14. SYLLABLE RHYTHM (max 6 pts) ───
   const syllables = countSyllables(lower);
   if (syllables >= 2 && syllables <= 3) score += 6;
   else if (syllables === 1 && len >= 3) score += 5;
   else if (syllables === 4) score += 2;
 
-  // ─── 15. SEMANTIC COHERENCE & WORD-COUNT PENALTY ───
   if (words.length >= 1) {
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
-    if (fillerCount === 0 && negCount === 0) {
-      if (words.length <= 2 && realWords.length >= 1) score += 5;
-    } else if (fillerCount >= 1) score -= 10;
+    if (fillerCount === 0 && negCount === 0) { if (words.length <= 2 && realWords.length >= 1) score += 5; }
+    else if (fillerCount >= 1) score -= 10;
     if (negCount >= 1) score -= 10;
-
     if (words.length === 3) score -= 25;
   }
 
-  // ─── 16. GIBBERISH / NO-REAL-WORD PENALTY ───
-  // If we couldn't find ANY real dictionary word, penalize heavily
-  if (realWords.length === 0 && len >= 5) {
-    score -= 20;
-  } else if (realWords.length === 0 && len >= 4) {
-    score -= 10;
-  }
-  // Low real-word coverage on longer domains = gibberish
+  if (realWords.length === 0 && len >= 5) score -= 20;
+  else if (realWords.length === 0 && len >= 4) score -= 10;
   if (realCoverage < 0.3 && len >= 8) score -= 15;
   if (realCoverage < 0.5 && len >= 12) score -= 10;
 
-  // ─── 17. COMPARABLE SALES KEYWORD MATCH (max 12 pts) ───
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
-    for (const word of words) {
-      if (word.length >= 3 && comparableKeywords.has(word)) compMatch++;
-    }
-    if (compMatch >= 2 && words.length <= 2 && len <= 12) score += 12;
-    else if (compMatch >= 1 && words.length <= 2 && len <= 10) score += 8;
-    else if (compMatch >= 1 && words.length <= 2) score += 5;
-    else if (compMatch >= 1) score += 2;
+    for (const word of words) { if (word.length >= 3 && comparableKeywords.has(word)) compMatch++; }
+    if (compMatch >= 2 && words.length <= 2 && len <= 12) { score += 12; keywordStrengthRaw += 20; }
+    else if (compMatch >= 1 && words.length <= 2 && len <= 10) { score += 8; keywordStrengthRaw += 15; }
+    else if (compMatch >= 1 && words.length <= 2) { score += 5; keywordStrengthRaw += 10; }
+    else if (compMatch >= 1) { score += 2; keywordStrengthRaw += 5; }
   }
 
-  // ─── 18. SEARCH VOLUME CROSS-REF (max 12 pts) ───
   if (kwVolumeCache && kwVolumeCache.size > 0) {
     let bestVolume = 0;
     const fullVol = kwVolumeCache.get(lower);
     if (fullVol && fullVol > bestVolume) bestVolume = fullVol;
-    for (const word of words) {
-      if (word.length >= 3) {
-        const vol = kwVolumeCache.get(word);
-        if (vol && vol > bestVolume) bestVolume = vol;
-      }
-    }
+    for (const word of words) { if (word.length >= 3) { const vol = kwVolumeCache.get(word); if (vol && vol > bestVolume) bestVolume = vol; } }
     let volBonus = 0;
     if (bestVolume >= 10000) volBonus = 12;
     else if (bestVolume >= 5000) volBonus = 10;
@@ -1206,65 +1149,69 @@ function quickQualityScore(
     else if (bestVolume >= 100) volBonus = 2;
     if (words.length >= 3) volBonus = Math.min(volBonus, 4);
     score += volBonus;
+    keywordStrengthRaw += volBonus * 3;
   }
 
-  // ─── 19. LENGTH PENALTY (steep for long SLDs) ───
   if (len >= 13) score -= 15;
   else if (len >= 11) score -= 8;
 
-  // ─── OTHER PENALTIES ───
   if (/(.)\1{2,}/.test(lower)) score -= 10;
-  for (const pat of NEGATIVE_SOUNDS) {
-    if (pat.test(lower)) { score -= 5; break; }
-  }
+  for (const pat of NEGATIVE_SOUNDS) { if (pat.test(lower)) { score -= 5; break; } }
   if (/\d/.test(lower)) score -= 15;
   if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
 
-  // ─── 20. SEMANTIC MEANING GATE (penalty for high-scoring gibberish) ───
-  // If a domain scores well on structure/phonetics but has NO recognizable meaning,
-  // it's a false positive (e.g., "Tounify", "Brovex", "Xalido")
-  if (realWords.length === 0 && score >= 50) {
-    // Heavily penalize: good structure but zero meaning = not brandable
-    score -= 25;
-  } else if (realWords.length === 0 && score >= 30) {
-    score -= 15;
-  }
-  // Domains where dictionary words cover < 40% but still scoring well
-  if (realCoverage < 0.4 && score >= 55 && len >= 6) {
-    score -= 12;
-  }
+  if (realWords.length === 0 && score >= 50) score -= 25;
+  else if (realWords.length === 0 && score >= 30) score -= 15;
+  if (realCoverage < 0.4 && score >= 55 && len >= 6) score -= 12;
 
-  // ─── 21. TRADEMARK IN DECOMPOSED WORDS (penalty for embedded brands) ───
-  // Check if any decomposed word is a trademark (catches "toeflDaily" → ["toefl","daily"])
-  for (const w of words) {
-    if (TRADEMARK_BRANDS_REJECT.has(w)) {
-      score -= 40; // Devastating penalty — trademark kills resale
-      break;
-    }
-  }
+  for (const w of words) { if (TRADEMARK_BRANDS_REJECT.has(w)) { score -= 40; break; } }
 
-  // ─── 22. LIQUIDITY / BUYER-POOL SIGNAL (max 8 pts / penalty up to -8) ───
-  // Estimate how many potential buyers exist for this domain's niche
-  let bestLiquidity = 5; // default: neutral
-  let matchedNiche = "";
+  let bestLiquidity = 5;
   for (const [niche, config] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => config.keywords.includes(w)).length;
-    if (matchCount > 0) {
-      const liq = NICHE_LIQUIDITY[niche] || 5;
-      if (liq !== bestLiquidity && (matchedNiche === "" || liq > bestLiquidity)) {
-        bestLiquidity = liq;
-        matchedNiche = niche;
-      }
-    }
+    if (matchCount > 0) { const liq = NICHE_LIQUIDITY[niche] || 5; if (matchedNiche === "" || liq > bestLiquidity) { bestLiquidity = liq; matchedNiche = niche; } }
   }
-  // High liquidity niches get a bonus, low liquidity gets a penalty
   if (bestLiquidity >= 8) score += 8;
   else if (bestLiquidity >= 7) score += 5;
   else if (bestLiquidity >= 6) score += 2;
   else if (bestLiquidity <= 3) score -= 8;
   else if (bestLiquidity <= 4) score -= 4;
 
-  return Math.max(0, Math.min(100, score));
+  const finalScore = Math.max(0, Math.min(100, score));
+
+  if (len <= 4 && isSingleRealWord) detectedCategory = "short";
+  else if (isSingleRealWord && finalScore >= 70) detectedCategory = "premium";
+
+  let estimatedValue = 0;
+  if (finalScore >= 85) estimatedValue = isSingleRealWord ? 15000 + (finalScore - 85) * 2000 : 8000 + (finalScore - 85) * 1000;
+  else if (finalScore >= 75) estimatedValue = isSingleRealWord ? 3000 + (finalScore - 75) * 500 : 1500 + (finalScore - 75) * 300;
+  else if (finalScore >= 65) estimatedValue = 500 + (finalScore - 65) * 80;
+  else if (finalScore >= 55) estimatedValue = 150 + (finalScore - 55) * 30;
+  else estimatedValue = 50 + finalScore;
+
+  if (bestLiquidity >= 8) estimatedValue = Math.round(estimatedValue * 1.3);
+  else if (bestLiquidity <= 3) estimatedValue = Math.round(estimatedValue * 0.6);
+
+  const summaryParts: string[] = [];
+  if (isSingleRealWord) summaryParts.push(`Real word "${realWords[0]}"`);
+  else if (words.length === 2 && realWords.length === 2) summaryParts.push(`Clean compound: ${words.join("+")}`);
+  else if (words.length === 2) summaryParts.push(`Two-part: ${words.join("+")}`);
+  else if (detectedCategory === "brandable") summaryParts.push("Brandable coined name");
+  else summaryParts.push(`${len}-char domain`);
+
+  if (matchedNiche) summaryParts.push(matchedNiche.replace(/_/g, " "));
+  if (finalScore >= 75) summaryParts.push("strong potential");
+  else if (finalScore >= 60) summaryParts.push("decent potential");
+
+  return {
+    score: finalScore,
+    category: detectedCategory,
+    summary: summaryParts.join(", ").slice(0, 100),
+    estimated_value: estimatedValue,
+    brandability: Math.min(100, Math.max(0, brandabilityRaw)),
+    keyword_strength: Math.min(100, Math.max(0, keywordStrengthRaw)),
+    length_score: Math.min(100, Math.max(0, lengthScoreRaw)),
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
