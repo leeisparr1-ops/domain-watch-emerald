@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { Briefcase, Filter, Search, RefreshCw } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
@@ -11,6 +11,7 @@ import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioTable } from "@/components/portfolio/PortfolioTable";
 import { AddDomainDialog } from "@/components/portfolio/AddDomainDialog";
 import { BulkImportDialog } from "@/components/portfolio/BulkImportDialog";
+import { NameserverChart } from "@/components/portfolio/NameserverChart";
 import { toast } from "sonner";
 
 export default function Portfolio() {
