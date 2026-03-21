@@ -289,6 +289,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
   const [deleting, setDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [refreshingBulk, setRefreshingBulk] = useState(false);
+  const [lookingUpNS, setLookingUpNS] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
