@@ -505,8 +505,24 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshingBulk ? "animate-spin" : ""}`} />
                 {refreshingBulk ? "Refreshing..." : "Refresh Renewals"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
+               </Button>
+               <Button
+                 variant="outline"
+                 size="sm"
+                 className="gap-1.5"
+                 onClick={async () => {
+                   const names = domains.filter((d) => selected.has(d.id)).map((d) => d.domain_name);
+                   if (names.length === 0) return;
+                   setLookingUpNS(true);
+                   await onLookupNameservers(names);
+                   setLookingUpNS(false);
+                 }}
+                 disabled={lookingUpNS}
+               >
+                 <Server className={`w-3.5 h-3.5 ${lookingUpNS ? "animate-spin" : ""}`} />
+                 {lookingUpNS ? "Looking up..." : "Refresh NS"}
+               </Button>
+               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
             </>
           )}
         </div>
