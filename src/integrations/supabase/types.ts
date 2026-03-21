@@ -490,6 +490,7 @@ export type Database = {
           domain_name: string
           id: string
           list_price: number | null
+          nameservers: string[] | null
           next_renewal_date: string | null
           notes: string | null
           purchase_date: string | null
@@ -511,6 +512,7 @@ export type Database = {
           domain_name: string
           id?: string
           list_price?: number | null
+          nameservers?: string[] | null
           next_renewal_date?: string | null
           notes?: string | null
           purchase_date?: string | null
@@ -532,6 +534,7 @@ export type Database = {
           domain_name?: string
           id?: string
           list_price?: number | null
+          nameservers?: string[] | null
           next_renewal_date?: string | null
           notes?: string | null
           purchase_date?: string | null

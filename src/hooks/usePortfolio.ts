@@ -42,11 +42,12 @@ export interface PortfolioDomain {
   notes: string | null;
   auto_valuation: number | null;
   valuation_updated_at: string | null;
+  nameservers: string[] | null;
   created_at: string;
   updated_at: string;
 }
 
-export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_valuation" | "valuation_updated_at" | "created_at" | "updated_at">;
+export type PortfolioInsert = Omit<PortfolioDomain, "id" | "user_id" | "auto_valuation" | "valuation_updated_at" | "nameservers" | "created_at" | "updated_at">;
 
 export interface PortfolioStats {
   totalDomains: number;
@@ -73,7 +74,7 @@ export function usePortfolio() {
       // Fetch all portfolio domains - use explicit column list to ensure list_price is included
       const { data, error } = await supabase
         .from("portfolio_domains")
-        .select("id,user_id,domain_name,tld,purchase_price,purchase_date,purchase_source,list_price,sale_price,sale_date,renewal_cost_yearly,next_renewal_date,status,tags,notes,auto_valuation,valuation_updated_at,created_at,updated_at")
+        .select("id,user_id,domain_name,tld,purchase_price,purchase_date,purchase_source,list_price,sale_price,sale_date,renewal_cost_yearly,next_renewal_date,status,tags,notes,auto_valuation,valuation_updated_at,nameservers,created_at,updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       setDomains((data ?? []) as PortfolioDomain[]);
@@ -130,19 +131,28 @@ export function usePortfolio() {
     toast.success(`${domainName} added to portfolio`);
     await fetchDomains();
 
-    // Background: fetch real expiry from RDAP and update
+    // Background: fetch real expiry from RDAP and nameservers
+    const bgTasks: Promise<void>[] = [];
     if (!input.next_renewal_date) {
-      fetchRdapExpiry(domainName).then(async (rdap) => {
-        if (rdap.expirationDate) {
-          await supabase
-            .from("portfolio_domains")
-            .update({ next_renewal_date: rdap.expirationDate })
-            .eq("user_id", user!.id)
-            .eq("domain_name", domainName);
-          await fetchDomains();
-        }
-      }).catch(() => { /* silent */ });
+      bgTasks.push(
+        fetchRdapExpiry(domainName).then(async (rdap) => {
+          if (rdap.expirationDate) {
+            await supabase
+              .from("portfolio_domains")
+              .update({ next_renewal_date: rdap.expirationDate })
+              .eq("user_id", user!.id)
+              .eq("domain_name", domainName);
+          }
+        }).catch(() => { /* silent */ })
+      );
     }
+    // Fetch nameservers in background
+    bgTasks.push(
+      supabase.functions.invoke("lookup-nameservers", {
+        body: { domains: [domainName] },
+      }).then(() => {}).catch(() => { /* silent */ })
+    );
+    Promise.all(bgTasks).then(() => fetchDomains()).catch(() => {});
   };
 
   const updateDomain = async (id: string, updates: Partial<PortfolioDomain>) => {
@@ -295,5 +305,22 @@ export function usePortfolio() {
     };
   })();
 
-  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, refetch: fetchDomains };
+  const lookupNameservers = async (domainNames: string[]) => {
+    if (!user || domainNames.length === 0) return;
+    try {
+      // Process in batches of 50
+      for (let i = 0; i < domainNames.length; i += 50) {
+        const batch = domainNames.slice(i, i + 50);
+        await supabase.functions.invoke("lookup-nameservers", {
+          body: { domains: batch },
+        });
+      }
+      await fetchDomains();
+      toast.success(`Nameservers updated for ${domainNames.length} domain${domainNames.length !== 1 ? "s" : ""}`);
+    } catch {
+      toast.error("Failed to look up nameservers");
+    }
+  };
+
+  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, lookupNameservers, refetch: fetchDomains };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, RefreshCw, ExternalLink, AlertTriangle, Clock, StickyNote, CheckSquare, Square, MinusSquare, CalendarClock, Download, ArrowUpDown, ArrowUp, ArrowDown, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -247,7 +247,7 @@ function InlineTextCell({ value, onSave, placeholder = "..." }: InlineTextCellPr
 }
 
 // -- Sorting --
-type SortKey = "domain" | "length" | "status" | "cost" | "list_price" | "value" | "pnl" | "sale_price" | "expires" | "renewal" | "held" | "tags";
+type SortKey = "domain" | "length" | "status" | "cost" | "list_price" | "value" | "pnl" | "sale_price" | "expires" | "renewal" | "held" | "tags" | "nameservers";
 type SortDir = "asc" | "desc";
 
 function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, className = "" }: {
@@ -280,14 +280,16 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
   onDeleteBulk: (ids: string[]) => Promise<void>;
   onRefreshValuation: (domain: PortfolioDomain) => Promise<void>;
+  onLookupNameservers: (domainNames: string[]) => Promise<void>;
 }
 
-export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation }: Props) {
+export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation, onLookupNameservers }: Props) {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [refreshingBulk, setRefreshingBulk] = useState(false);
+  const [lookingUpNS, setLookingUpNS] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -350,6 +352,9 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
         }
         case "tags":
           cmp = (a.tags ?? []).join(",").localeCompare((b.tags ?? []).join(","));
+          break;
+        case "nameservers":
+          cmp = (a.nameservers ?? []).join(",").localeCompare((b.nameservers ?? []).join(","));
           break;
       }
       return sortDir === "asc" ? cmp : -cmp;
@@ -421,7 +426,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
       ? domains.filter((d) => selected.has(d.id))
       : domains;
 
-    const headers = ["Domain", "TLD", "Length", "Status", "Purchase Price", "List Price", "Valuation", "P&L", "Sale Price", "Expires", "Renewal Cost", "Days Held", "Tags", "Notes", "Purchase Date", "Purchase Source"];
+    const headers = ["Domain", "TLD", "Length", "Status", "Purchase Price", "List Price", "Valuation", "P&L", "Sale Price", "Expires", "Renewal Cost", "Days Held", "Tags", "Nameservers", "Notes", "Purchase Date", "Purchase Source"];
     const rows = exportDomains.map((d) => {
       const p = d.status === "sold"
         ? (d.sale_price ?? 0) - Number(d.purchase_price)
@@ -441,6 +446,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
         String(Number(d.renewal_cost_yearly) || getLiveRenewal(d.domain_name)),
         String(getDaysHeld(d.purchase_date) ?? ""),
         (d.tags ?? []).join("; "),
+        (d.nameservers ?? []).join("; "),
         d.notes ?? "",
         d.purchase_date ?? "",
         d.purchase_source ?? "",
@@ -500,8 +506,24 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshingBulk ? "animate-spin" : ""}`} />
                 {refreshingBulk ? "Refreshing..." : "Refresh Renewals"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
+               </Button>
+               <Button
+                 variant="outline"
+                 size="sm"
+                 className="gap-1.5"
+                 onClick={async () => {
+                   const names = domains.filter((d) => selected.has(d.id)).map((d) => d.domain_name);
+                   if (names.length === 0) return;
+                   setLookingUpNS(true);
+                   await onLookupNameservers(names);
+                   setLookingUpNS(false);
+                 }}
+                 disabled={lookingUpNS}
+               >
+                 <Server className={`w-3.5 h-3.5 ${lookingUpNS ? "animate-spin" : ""}`} />
+                 {lookingUpNS ? "Looking up..." : "Refresh NS"}
+               </Button>
+               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
             </>
           )}
         </div>
@@ -527,6 +549,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               <th className="px-4 py-3"><SortableHeader label="Renewal" sortKey="renewal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
               <th className="px-3 py-3"><SortableHeader label="Held" sortKey="held" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-center" /></th>
               <th className="px-4 py-3"><SortableHeader label="Tags" sortKey="tags" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
+              <th className="px-4 py-3"><SortableHeader label="Nameservers" sortKey="nameservers" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
@@ -732,6 +755,31 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
                       onSave={(val) => updateField(d.id, "tags", val ? val.split(",").map((t) => t.trim()).filter(Boolean) : [])}
                       placeholder="Add tags..."
                     />
+                  </td>
+
+                  {/* Nameservers */}
+                  <td className="px-4 py-3">
+                    {d.nameservers && d.nameservers.length > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        {d.nameservers.map((ns, i) => (
+                          <span key={i} className="text-xs text-muted-foreground font-mono truncate max-w-[180px]" title={ns}>
+                            {ns}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <button
+                        className="text-xs text-muted-foreground/40 hover:text-primary transition-colors"
+                        onClick={async () => {
+                          setLookingUpNS(true);
+                          await onLookupNameservers([d.domain_name]);
+                          setLookingUpNS(false);
+                        }}
+                        title="Look up nameservers"
+                      >
+                        Look up
+                      </button>
+                    )}
                   </td>
 
                   {/* Actions - simplified */}
