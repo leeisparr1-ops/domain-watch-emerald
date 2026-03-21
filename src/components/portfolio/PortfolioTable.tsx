@@ -548,6 +548,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
               <th className="px-4 py-3"><SortableHeader label="Renewal" sortKey="renewal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-end" /></th>
               <th className="px-3 py-3"><SortableHeader label="Held" sortKey="held" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="justify-center" /></th>
               <th className="px-4 py-3"><SortableHeader label="Tags" sortKey="tags" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
+              <th className="px-4 py-3"><SortableHeader label="Nameservers" sortKey="nameservers" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} /></th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
