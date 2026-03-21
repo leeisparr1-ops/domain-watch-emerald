@@ -7,11 +7,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
-const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
-const QUALITY_THRESHOLD = 68;        // raised: only genuinely strong names reach AI
-const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
-const MAX_AI_QUEUE = 4000;           // tighter cap for cost control
+const QUALITY_THRESHOLD = 55;        // lower threshold since heuristic is the final scorer now
+const MAX_RESULTS = 5000;            // max results to store per scan
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
