@@ -446,6 +446,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
         String(Number(d.renewal_cost_yearly) || getLiveRenewal(d.domain_name)),
         String(getDaysHeld(d.purchase_date) ?? ""),
         (d.tags ?? []).join("; "),
+        (d.nameservers ?? []).join("; "),
         d.notes ?? "",
         d.purchase_date ?? "",
         d.purchase_source ?? "",
