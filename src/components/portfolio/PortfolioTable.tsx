@@ -426,7 +426,7 @@ export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRe
       ? domains.filter((d) => selected.has(d.id))
       : domains;
 
-    const headers = ["Domain", "TLD", "Length", "Status", "Purchase Price", "List Price", "Valuation", "P&L", "Sale Price", "Expires", "Renewal Cost", "Days Held", "Tags", "Notes", "Purchase Date", "Purchase Source"];
+    const headers = ["Domain", "TLD", "Length", "Status", "Purchase Price", "List Price", "Valuation", "P&L", "Sale Price", "Expires", "Renewal Cost", "Days Held", "Tags", "Nameservers", "Notes", "Purchase Date", "Purchase Source"];
     const rows = exportDomains.map((d) => {
       const p = d.status === "sold"
         ? (d.sale_price ?? 0) - Number(d.purchase_price)
