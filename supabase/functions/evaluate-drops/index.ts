@@ -1291,8 +1291,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
@@ -1305,11 +1303,9 @@ serve(async (req) => {
       let initialCsvText = csvText as string | undefined;
       let userId: string | null = null;
 
-      // Shared daily-drops.csv can be loaded without auth
       const isSharedCsv = csvUrl && csvUrl.includes("/store/daily-drops.csv");
 
       if (!isSharedCsv) {
-        // Require auth for non-shared CSVs
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) throw new Error("Missing authorization");
 
@@ -1350,29 +1346,19 @@ serve(async (req) => {
         throw new Error("CSV source is empty");
       }
 
-      // Parse CSV — extract .com domains only (lightweight, no scoring yet)
+      // Parse CSV — extract .com domains only
       const parseCsvLine = (line: string): string[] => {
         const values: string[] = [];
         let current = "";
         let inQuotes = false;
-
         for (let i = 0; i < line.length; i++) {
           const ch = line[i];
           if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (ch === "," && !inQuotes) {
-            values.push(current);
-            current = "";
-          } else {
-            current += ch;
-          }
+            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === "," && !inQuotes) { values.push(current); current = ""; }
+          else current += ch;
         }
-
         values.push(current);
         return values;
       };
@@ -1387,43 +1373,19 @@ serve(async (req) => {
       const normalizeDropDate = (rawValue: string): string => {
         const value = rawValue.trim().replace(/^"|"$/g, "");
         if (!value) return "";
-
         const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-        if (isoMatch) {
-          const year = Number(isoMatch[1]);
-          const month = String(Number(isoMatch[2])).padStart(2, "0");
-          const day = String(Number(isoMatch[3])).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        }
-
+        if (isoMatch) return `${isoMatch[1]}-${String(Number(isoMatch[2])).padStart(2, "0")}-${String(Number(isoMatch[3])).padStart(2, "0")}`;
         const slashIsoMatch = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-        if (slashIsoMatch) {
-          const year = Number(slashIsoMatch[1]);
-          const month = String(Number(slashIsoMatch[2])).padStart(2, "0");
-          const day = String(Number(slashIsoMatch[3])).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        }
-
+        if (slashIsoMatch) return `${slashIsoMatch[1]}-${String(Number(slashIsoMatch[2])).padStart(2, "0")}-${String(Number(slashIsoMatch[3])).padStart(2, "0")}`;
         const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (usMatch) {
-          const month = String(Number(usMatch[1])).padStart(2, "0");
-          const day = String(Number(usMatch[2])).padStart(2, "0");
-          const year = Number(usMatch[3]);
-          return `${year}-${month}-${day}`;
-        }
-
+        if (usMatch) return `${usMatch[3]}-${String(Number(usMatch[1])).padStart(2, "0")}-${String(Number(usMatch[2])).padStart(2, "0")}`;
         const parsed = new Date(value);
-        if (!Number.isNaN(parsed.getTime())) {
-          return formatLocalDate(parsed);
-        }
-
+        if (!Number.isNaN(parsed.getTime())) return formatLocalDate(parsed);
         return "";
       };
 
       const lines = initialCsvText.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length === 0) {
-        throw new Error("CSV source has no rows");
-      }
+      if (lines.length === 0) throw new Error("CSV source has no rows");
 
       const cols = parseCsvLine(lines[0]).map((c: string) => c.toLowerCase().trim().replace(/"/g, ""));
       let domainCol = cols.findIndex((c: string) =>
@@ -1431,12 +1393,8 @@ serve(async (req) => {
       );
       if (domainCol === -1) domainCol = 0;
       const dropDateCol = cols.findIndex((c: string) =>
-        c === "drop date" ||
-        c === "dropdate" ||
-        c === "drop_date" ||
-        c === "delete date" ||
-        c === "expiry date" ||
-        c === "expiration date"
+        c === "drop date" || c === "dropdate" || c === "drop_date" ||
+        c === "delete date" || c === "expiry date" || c === "expiration date"
       );
 
       const totalParsed = lines.length - 1;
@@ -1449,14 +1407,11 @@ serve(async (req) => {
 
         const rawDropDate = dropDateCol >= 0 ? row[dropDateCol] || "" : "";
         const dropDate = normalizeDropDate(rawDropDate);
-
-        // Store domain with drop date separated by tab
         comDomains.push(dropDate ? `${domain}\t${dropDate}` : domain);
       }
 
-      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
+      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked heuristic evaluation`);
 
-      // Store raw .com domains with "---RAW---" marker for pre-screening phase
       const csvData = "---RAW---\n" + comDomains.join("\n");
 
       await adminClient.from("drop_scans").update({
@@ -1467,7 +1422,6 @@ serve(async (req) => {
         resume_from: 0,
       }).eq("id", scanId);
 
-      // Self-invoke to start chunked pre-screening
       queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "initial-queue");
 
       return new Response(JSON.stringify({
@@ -1478,10 +1432,10 @@ serve(async (req) => {
       });
     }
 
-    // ─── CHAINED INVOCATION: Pre-screen or AI evaluate ───
+    // ─── CHAINED INVOCATION: Heuristic evaluation ───
     const { data: scan, error: scanErr } = await adminClient
       .from("drop_scans")
-      .select("csv_data, resume_from, filtered_domains, status")
+      .select("csv_data, resume_from, filtered_domains, evaluated_domains, status")
       .eq("id", scanId)
       .single();
 
@@ -1492,35 +1446,29 @@ serve(async (req) => {
       });
     }
 
-    const PRE_SCREEN_CHUNK = 15000; // domains per pre-screening invocation
+    const PRE_SCREEN_CHUNK = 15000;
 
-    // ─── PRE-SCREENING PHASE (chunked) ───
+    // ─── HEURISTIC EVALUATION PHASE (replaces old pre-screen + AI two-phase) ───
     if (scan.status === "pre-screening") {
       const rawLines = (scan.csv_data || "").split("\n");
-      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
-      const rawEndIdx = qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length;
-
-      // First line is "---RAW---", raw domains are stored before "---QUALIFIED---"
-      const allRaw = rawLines.slice(1, rawEndIdx).filter(Boolean);
+      const allRaw = rawLines.slice(1).filter(Boolean); // skip "---RAW---"
       const startIdx = scan.resume_from || 0;
       const endIdx = Math.min(startIdx + PRE_SCREEN_CHUNK, allRaw.length);
       const chunk = allRaw.slice(startIdx, endIdx);
 
       if (chunk.length === 0) {
-        // Pre-screening complete — no qualified domains found
         await adminClient.from("drop_scans").update({
           status: "complete",
           csv_data: null,
         }).eq("id", scanId);
-        return new Response(JSON.stringify({ success: true, status: "complete", qualified: 0 }), {
+        return new Response(JSON.stringify({ success: true, status: "complete", evaluated: scan.evaluated_domains || 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Load comparable keywords and DB trending keywords
+      // Load enrichment data
       const comparableKeywords = await loadComparableKeywords(adminClient);
-      
-      // Load Perplexity-sourced trending keywords from DB
+
       let dbTrendingKeywords: Record<string, number> = {};
       try {
         const { data: trendData } = await adminClient
@@ -1530,13 +1478,12 @@ serve(async (req) => {
           .maybeSingle();
         if (trendData?.trending_keywords) {
           dbTrendingKeywords = trendData.trending_keywords as Record<string, number>;
-          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords for cross-ref`);
+          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords`);
         }
       } catch (e) {
         console.warn("Failed to load DB trending keywords:", e);
       }
 
-      // Load search volume data from keyword_volume_cache
       const kwVolumeCache = new Map<string, number>();
       try {
         const { data: volData } = await adminClient
@@ -1545,28 +1492,27 @@ serve(async (req) => {
           .gt("search_volume", 0)
           .limit(1000);
         if (volData) {
-          for (const row of volData) {
-            kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
-          }
-          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache for cross-ref`);
+          for (const row of volData) kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
+          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache`);
         }
       } catch (e) {
         console.warn("Failed to load keyword volume cache:", e);
       }
 
-      const scoredDomains: { domain: string; score: number; dropDate: string }[] = [];
+      // Score domains and collect results directly
+      const results: {
+        scan_id: string; domain_name: string; ai_score: number; ai_summary: string;
+        category: string; estimated_value: number; brandability: number;
+        keyword_strength: number; length_score: number; drop_date: string | null;
+      }[] = [];
+
       for (const entry of chunk) {
-        // Entry may be "domain\tdropDate" or just "domain"
         const [domain, dropDate] = entry.includes("\t") ? entry.split("\t") : [entry, ""];
         const sld = domain.replace(/\.com$/, "");
 
-        // Hard gate: reject hyphens/numbers with strict rules
-        const hasHyphen = sld.includes("-");
-        const hasNumber = /\d/.test(sld);
-        
-        if (hasHyphen) continue;
-        
-        if (hasNumber) {
+        // Hard gate: reject hyphens/numbers
+        if (sld.includes("-")) continue;
+        if (/\d/.test(sld)) {
           if (/\d+x\d+/i.test(sld)) continue;
           if (/^\d/.test(sld)) continue;
           if ((sld.match(/\d+/g) || []).length > 1) continue;
@@ -1578,342 +1524,98 @@ serve(async (req) => {
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
-        if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality, dropDate });
+        const result = fullHeuristicScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
+        if (result && result.score >= QUALITY_THRESHOLD) {
+          results.push({
+            scan_id: scanId,
+            domain_name: domain,
+            ai_score: result.score,
+            ai_summary: result.summary,
+            category: result.category,
+            estimated_value: result.estimated_value,
+            brandability: result.brandability,
+            keyword_strength: result.keyword_strength,
+            length_score: result.length_score,
+            drop_date: dropDate || null,
+          });
         }
       }
 
-      // Append qualified domains to existing qualified list stored elsewhere
-      // We accumulate qualified domains in a separate field approach:
-      // read existing qualified, append new ones, write back
-      const existingQualified = (scan.filtered_domains || 0);
-      const newQualified = existingQualified + scoredDomains.length;
+      // Sort by score and cap total results
+      results.sort((a, b) => b.ai_score - a.ai_score);
 
-      // Build accumulated qualified list — retrieve any previously qualified
-      // We store qualified domains after the raw data, separated by "---QUALIFIED---"
-      let previousQualified: string[] = [];
-      if (qualifiedMarkerIdx >= 0) {
-        previousQualified = rawLines.slice(qualifiedMarkerIdx + 1).filter(Boolean);
+      // Insert results in batches
+      const existingEvaluated = scan.evaluated_domains || 0;
+      const existingFiltered = scan.filtered_domains || 0;
+      const INSERT_BATCH = 200;
+      let inserted = 0;
+
+      for (let i = 0; i < results.length; i += INSERT_BATCH) {
+        const batch = results.slice(i, i + INSERT_BATCH);
+        const { error: insertErr } = await adminClient.from("drop_scan_results").insert(batch);
+        if (insertErr) {
+          console.error("Insert error:", insertErr.message);
+        } else {
+          inserted += batch.length;
+        }
       }
 
-      // Sort new batch and merge
-      scoredDomains.sort((a, b) => b.score - a.score);
-      const allQualified = [...previousQualified];
-      for (const d of scoredDomains) {
-        // Store as "domain|score|dropDate" to preserve tier info and drop date
-        allQualified.push(`${d.domain}|${d.score}${d.dropDate ? `|${d.dropDate}` : ""}`);
-      }
+      const newEvaluated = existingEvaluated + chunk.length;
+      const newFiltered = existingFiltered + results.length;
 
-      console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
+      console.log(`Heuristic chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${results.length} qualified (total filtered: ${newFiltered}, evaluated: ${newEvaluated})`);
 
       const nextIdx = endIdx;
       if (nextIdx >= allRaw.length) {
-        // Pre-screening complete — transition to AI evaluation
-        // Sort all qualified by score, separate into premium/standard tiers
-        const allScored = allQualified.map(entry => {
-          const parts = entry.split("|");
-          return { domain: parts[0], score: Number(parts[1]) || 0, dropDate: parts[2] || "" };
-        });
-        allScored.sort((a, b) => b.score - a.score);
-
-        // Cap AI evaluation to prevent runaway costs
-        const cappedScored = allScored.slice(0, MAX_AI_QUEUE);
-        if (allScored.length > MAX_AI_QUEUE) {
-          console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
-        }
-
-        // Store as "domain\tdropDate" to carry drop date through to AI eval
-        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
-        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
-        const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
-
-        console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
-
+        // All done
         await adminClient.from("drop_scans").update({
-          filtered_domains: allScored.length,
-          status: "evaluating",
-          csv_data: csvData,
-          resume_from: 0,
-        }).eq("id", scanId);
-      } else {
-        // More pre-screening to do — store progress
-        const rawPart = rawLines.slice(0, qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length);
-        const updatedCsvData = [...rawPart, "---QUALIFIED---", ...allQualified].join("\n");
-
-        await adminClient.from("drop_scans").update({
-          filtered_domains: newQualified,
+          status: "complete",
+          csv_data: null,
+          filtered_domains: newFiltered,
+          evaluated_domains: newEvaluated,
           resume_from: nextIdx,
-          csv_data: updatedCsvData,
         }).eq("id", scanId);
-      }
 
-      // Self-chain to continue
-      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "pre-screen");
+        console.log(`Scan complete: ${newEvaluated} evaluated, ${newFiltered} results stored (zero AI cost)`);
 
-      return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ─── AI EVALUATION PHASE ───
-    // Parse tiered domain list — entries may be "domain\tdropDate" or just "domain"
-    const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
-    const tierIdx = rawDomains.indexOf("---TIER---");
-    const premiumEntries = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
-    const standardEntries = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
-    const allEntries = [...premiumEntries, ...standardEntries];
-
-    // Build drop date lookup from entries
-    const dropDateMap = new Map<string, string>();
-    const allDomains: string[] = [];
-    for (const entry of allEntries) {
-      if (entry.includes("\t")) {
-        const [domain, dd] = entry.split("\t");
-        allDomains.push(domain);
-        if (dd) dropDateMap.set(domain, dd);
+        return new Response(JSON.stringify({
+          success: true, status: "complete",
+          evaluated: newEvaluated, qualified: newFiltered,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       } else {
-        allDomains.push(entry);
+        // More chunks to process
+        await adminClient.from("drop_scans").update({
+          filtered_domains: newFiltered,
+          evaluated_domains: newEvaluated,
+          resume_from: nextIdx,
+        }).eq("id", scanId);
+
+        queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "heuristic-eval");
+
+        return new Response(JSON.stringify({
+          success: true, phase: "heuristic-eval",
+          processed: nextIdx, total: allRaw.length,
+          chunkQualified: results.length,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
-    // Also build premium set from entries (domain only)
-    const premiumDomainsList: string[] = [];
-    for (const entry of premiumEntries) {
-      premiumDomainsList.push(entry.includes("\t") ? entry.split("\t")[0] : entry);
-    }
-
-    const startIdx = scan.resume_from || 0;
-    const endIdx = Math.min(startIdx + DOMAINS_PER_INVOCATION, allDomains.length);
-    const chunk = allDomains.slice(startIdx, endIdx);
-
-    if (chunk.length === 0) {
+    // Fallback for any legacy "evaluating" status scans — just mark complete
+    if (scan.status === "evaluating") {
       await adminClient.from("drop_scans").update({
         status: "complete",
         csv_data: null,
       }).eq("id", scanId);
-      return new Response(JSON.stringify({ success: true, status: "complete" }), {
+      return new Response(JSON.stringify({ success: true, status: "complete", legacy: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Determine which domains in this chunk are premium tier
-    const premiumSet = new Set(premiumDomainsList);
-
-    const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
-    const normalizeCategory = (cat: string): string => {
-      const c = (cat || "").toLowerCase().trim();
-      if (VALID_CATEGORIES.has(c)) return c;
-      if (c.includes("pass") || c.includes("marginal") || c.includes("weak")) return "weak";
-      if (c.includes("strong") || c.includes("premium")) return "premium";
-      if (c.includes("decent") || c.includes("moderate")) return "generic";
-      if (c.includes("brand")) return "brandable";
-      if (c.includes("compound") || c.includes("kw+w")) return "compound";
-      return "generic";
-    };
-
-    let evaluated = startIdx;
-    for (let i = 0; i < chunk.length; i += AI_BATCH_SIZE) {
-      const batch = chunk.slice(i, i + AI_BATCH_SIZE);
-      const isPremiumBatch = batch.some(d => premiumSet.has(d));
-
-      // ─── COST-OPTIMISED: Premium get Flash, standard get Flash-Lite ───
-      const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
-
-      const categoryInstruction = `IMPORTANT: category MUST be exactly one of: "premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak". No other values allowed.
-- premium: Single real English word, 4-8 chars, high commercial value (rocket, forge, shield)
-- brandable: Invented/coined name that sounds like a brand (Zapier-like, catchy)
-- keyword: Contains a strong industry keyword (fintech, crypto, health)
-- short: ≤4 character SLD
-- compound: Clean 2-word combination (dataflow, cloudbank, smartpay)
-- geo: Contains geographic term
-- niche: Targets a specific vertical/industry
-- generic: Common term, low differentiation
-- weak: Long, multi-word, misspelled, or low value`;
-
-      const prompt = isPremiumBatch
-        ? `You are a SENIOR domain name investor with 20+ years experience.
-
-CRITICAL RULES:
-- Single REAL English words (4-8 letters) are THE most valuable: rocket.com, gold.com, forge.com
-- Made-up "brandable" strings (sfitty, aiili, sefew, tallaq) are NOT worth $40k+ — score 40-60 max
-- Two-word KW+W compounds are strong IF both parts are real words AND short: ebike.com, gobet.com
-- 3-word domains: almost never above 35
-- Gibberish with a trending keyword is NOT valuable
-
-${categoryInstruction}
-
-Score calibration:
-- 85-100: Real single word, ultra-short, proven commercial value
-- 70-84: Clean KW+W compound with real words, strong short brandable
-- 50-69: Decent niche/keyword domain
-- 30-49: Marginal
-- 1-29: Not worth reg fee
-
-Domains:
-${batch.join("\n")}
-
-Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
-        : `You are a domain investor evaluator. Be STRICT.
-
-CRITICAL:
-- Real English words >>> made-up strings. "sfitty.com" is NOT $40k.
-- 2-word compounds with real words: strong. Random combos: weak.
-- 3+ word domains: almost never above 35
-- Score honestly — most invented strings are worth $50-200
-
-${categoryInstruction}
-
-Score: 85-100 premium, 70-84 strong, 50-69 decent, 30-49 marginal, 1-29 pass
-
-Domains:
-${batch.join("\n")}
-
-Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`;
-
-      try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: isPremiumBatch
-                ? "You are a senior domain investment analyst. Real English words >>> made-up strings. Gibberish is NOT premium. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
-                : "You are a domain evaluator. Be STRICT. Made-up strings are worth $50-200 not $40k. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0,
-          }),
-        });
-
-        if (!aiResp.ok) {
-          const status = aiResp.status;
-          if (status === 429) {
-            // Rate limited — wait 30s then retry once
-            console.warn(`Rate limited (429) at batch ${i}, waiting 30s before retry...`);
-            await new Promise(r => setTimeout(r, 30000));
-            const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: [
-                { role: "system", content: isPremiumBatch
-                  ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
-                  : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
-                },
-                { role: "user", content: prompt },
-              ], temperature: 0 }),
-            });
-            if (!retryResp.ok) {
-              console.warn(`Retry also failed (${retryResp.status}), stopping at ${evaluated}`);
-              break;
-            }
-            // Use retry response below
-            const retryData = await retryResp.json();
-            const retryContent = retryData.choices?.[0]?.message?.content || "";
-            try {
-              const cleaned = retryContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-              const retryParsed = JSON.parse(cleaned);
-              const rows = retryParsed.map((r: any) => {
-                const dn = r.domain || r.domain_name;
-                return {
-                  scan_id: scanId, domain_name: dn,
-                  ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-                  ai_summary: r.summary || "", category: normalizeCategory(r.category),
-                  estimated_value: Number(r.estimated_value) || 0,
-                  brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-                  keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-                  length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-                  drop_date: dropDateMap.get(dn) || null,
-                };
-              });
-              if (rows.length > 0) await adminClient.from("drop_scan_results").insert(rows);
-            } catch { /* skip */ }
-            evaluated += batch.length;
-            continue;
-          }
-          if (status === 402) {
-            console.warn(`Credits exhausted (402), stopping at ${evaluated}`);
-            break;
-          }
-          console.error("AI error:", status, await aiResp.text());
-          evaluated += batch.length;
-          continue;
-        }
-
-        const aiData = await aiResp.json();
-        const content = aiData.choices?.[0]?.message?.content || "";
-
-        let parsed: any[];
-        try {
-          const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          parsed = JSON.parse(cleaned);
-        } catch {
-          console.error("Failed to parse AI response for batch", i, content.slice(0, 200));
-          evaluated += batch.length;
-          continue;
-        }
-
-
-
-        const rows = parsed.map((r: any) => {
-          const dn = r.domain || r.domain_name;
-          return {
-            scan_id: scanId,
-            domain_name: dn,
-            ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-            ai_summary: r.summary || "",
-            category: normalizeCategory(r.category),
-            estimated_value: Number(r.estimated_value) || 0,
-            brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-            keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-            length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-            drop_date: dropDateMap.get(dn) || null,
-          };
-        });
-
-        if (rows.length > 0) {
-          await adminClient.from("drop_scan_results").insert(rows);
-        }
-
-        evaluated += batch.length;
-
-        await adminClient.from("drop_scans").update({
-          evaluated_domains: evaluated,
-          resume_from: evaluated,
-        }).eq("id", scanId);
-      } catch (batchErr) {
-        console.error("Batch error:", batchErr);
-        evaluated += batch.length;
-      }
-
-      // Delay between batches (3s to avoid rate limits)
-      if (i + AI_BATCH_SIZE < chunk.length) {
-        await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-
-    // Update resume point
-    await adminClient.from("drop_scans").update({
-      evaluated_domains: evaluated,
-      resume_from: evaluated,
-    }).eq("id", scanId);
-
-    // Self-chain or complete
-    if (evaluated < allDomains.length) {
-      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "ai-eval");
-    } else {
-      await adminClient.from("drop_scans").update({
-        status: "complete",
-        csv_data: null,
-      }).eq("id", scanId);
-    }
-
-    return new Response(JSON.stringify({ success: true, evaluated, total: allDomains.length }), {
+    return new Response(JSON.stringify({ success: true, status: scan.status }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
