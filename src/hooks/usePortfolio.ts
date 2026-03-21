@@ -305,10 +305,9 @@ export function usePortfolio() {
     };
   })();
 
-  const lookupNameservers = async (domainNames: string[]) => {
+  const lookupNameservers = async (domainNames: string[], silent = false) => {
     if (!user || domainNames.length === 0) return;
     try {
-      // Process in batches of 50
       for (let i = 0; i < domainNames.length; i += 50) {
         const batch = domainNames.slice(i, i + 50);
         await supabase.functions.invoke("lookup-nameservers", {
@@ -316,9 +315,9 @@ export function usePortfolio() {
         });
       }
       await fetchDomains();
-      toast.success(`Nameservers updated for ${domainNames.length} domain${domainNames.length !== 1 ? "s" : ""}`);
+      if (!silent) toast.success(`Nameservers updated for ${domainNames.length} domain${domainNames.length !== 1 ? "s" : ""}`);
     } catch {
-      toast.error("Failed to look up nameservers");
+      if (!silent) toast.error("Failed to look up nameservers");
     }
   };
 
