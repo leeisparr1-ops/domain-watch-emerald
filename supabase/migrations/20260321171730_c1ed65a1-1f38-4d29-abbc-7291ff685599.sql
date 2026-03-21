@@ -1,0 +1,1 @@
+ALTER TABLE public.portfolio_domains ADD COLUMN nameservers text[] DEFAULT NULL;

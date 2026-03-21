@@ -74,7 +74,7 @@ export function usePortfolio() {
       // Fetch all portfolio domains - use explicit column list to ensure list_price is included
       const { data, error } = await supabase
         .from("portfolio_domains")
-        .select("id,user_id,domain_name,tld,purchase_price,purchase_date,purchase_source,list_price,sale_price,sale_date,renewal_cost_yearly,next_renewal_date,status,tags,notes,auto_valuation,valuation_updated_at,created_at,updated_at")
+        .select("id,user_id,domain_name,tld,purchase_price,purchase_date,purchase_source,list_price,sale_price,sale_date,renewal_cost_yearly,next_renewal_date,status,tags,notes,auto_valuation,valuation_updated_at,nameservers,created_at,updated_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       setDomains((data ?? []) as PortfolioDomain[]);
