@@ -53,11 +53,25 @@ serve(async (req) => {
             return;
           }
           const data = await resp.json();
+          // NS records from Answer section (type 2)
           const nsRecords = (data.Answer ?? [])
-            .filter((r: any) => r.type === 2) // NS record type
+            .filter((r: any) => r.type === 2)
             .map((r: any) => r.data?.replace(/\.$/, "") ?? "")
             .filter(Boolean)
             .sort();
+
+          // If no NS records in Answer, extract primary NS from SOA in Authority
+          if (nsRecords.length === 0 && data.Authority) {
+            for (const auth of data.Authority) {
+              if (auth.type === 6 && auth.data) {
+                // SOA data format: "ns1.example.com. hostmaster.example.com. ..."
+                const primaryNs = auth.data.split(" ")[0]?.replace(/\.$/, "");
+                if (primaryNs) {
+                  nsRecords.push(primaryNs);
+                }
+              }
+            }
+          }
           results[domain] = nsRecords;
         } catch {
           results[domain] = [];
