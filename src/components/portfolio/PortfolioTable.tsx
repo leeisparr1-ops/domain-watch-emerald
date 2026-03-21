@@ -280,9 +280,10 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
   onDeleteBulk: (ids: string[]) => Promise<void>;
   onRefreshValuation: (domain: PortfolioDomain) => Promise<void>;
+  onLookupNameservers: (domainNames: string[]) => Promise<void>;
 }
 
-export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation }: Props) {
+export function PortfolioTable({ domains, onUpdate, onDelete, onDeleteBulk, onRefreshValuation, onLookupNameservers }: Props) {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
