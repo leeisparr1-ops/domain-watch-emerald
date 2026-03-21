@@ -19,6 +19,19 @@ export default function Portfolio() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const backfillRan = useRef(false);
+
+  // Auto-backfill nameservers for domains that don't have them yet
+  useEffect(() => {
+    if (backfillRan.current || loading || domains.length === 0) return;
+    const missing = domains
+      .filter((d) => d.status !== "sold" && (!d.nameservers || d.nameservers.length === 0))
+      .map((d) => d.domain_name);
+    if (missing.length === 0) return;
+    backfillRan.current = true;
+    // Run in background without toast spam
+    lookupNameservers(missing).catch(() => {});
+  }, [domains, loading, lookupNameservers]);
 
   const filtered = domains.filter((d) => {
     const matchesSearch = d.domain_name.toLowerCase().includes(search.toLowerCase());
