@@ -30,7 +30,7 @@ export default function Portfolio() {
     if (missing.length === 0) return;
     backfillRan.current = true;
     // Run in background without toast spam
-    lookupNameservers(missing).catch(() => {});
+    lookupNameservers(missing, true).catch(() => {});
   }, [domains, loading, lookupNameservers]);
 
   const filtered = domains.filter((d) => {
