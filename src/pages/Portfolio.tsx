@@ -98,6 +98,14 @@ export default function Portfolio() {
           {/* Stats */}
           <PortfolioStats stats={stats} />
 
+          {/* Nameserver Chart */}
+          {domains.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-1">
+                <NameserverChart domains={domains} />
+              </div>
+            </div>
+          )}
           {/* Search & Filter */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
