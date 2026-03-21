@@ -247,7 +247,7 @@ function InlineTextCell({ value, onSave, placeholder = "..." }: InlineTextCellPr
 }
 
 // -- Sorting --
-type SortKey = "domain" | "length" | "status" | "cost" | "list_price" | "value" | "pnl" | "sale_price" | "expires" | "renewal" | "held" | "tags";
+type SortKey = "domain" | "length" | "status" | "cost" | "list_price" | "value" | "pnl" | "sale_price" | "expires" | "renewal" | "held" | "tags" | "nameservers";
 type SortDir = "asc" | "desc";
 
 function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, className = "" }: {
