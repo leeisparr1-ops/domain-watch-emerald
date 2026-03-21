@@ -305,5 +305,22 @@ export function usePortfolio() {
     };
   })();
 
-  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, refetch: fetchDomains };
+  const lookupNameservers = async (domainNames: string[]) => {
+    if (!user || domainNames.length === 0) return;
+    try {
+      // Process in batches of 50
+      for (let i = 0; i < domainNames.length; i += 50) {
+        const batch = domainNames.slice(i, i + 50);
+        await supabase.functions.invoke("lookup-nameservers", {
+          body: { domains: batch },
+        });
+      }
+      await fetchDomains();
+      toast.success(`Nameservers updated for ${domainNames.length} domain${domainNames.length !== 1 ? "s" : ""}`);
+    } catch {
+      toast.error("Failed to look up nameservers");
+    }
+  };
+
+  return { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, lookupNameservers, refetch: fetchDomains };
 }
