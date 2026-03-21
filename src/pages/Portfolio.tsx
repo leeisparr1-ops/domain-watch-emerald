@@ -121,6 +121,7 @@ export default function Portfolio() {
               onDelete={deleteDomain}
               onDeleteBulk={deleteDomains}
               onRefreshValuation={refreshValuation}
+              onLookupNameservers={lookupNameservers}
             />
           )}
 
