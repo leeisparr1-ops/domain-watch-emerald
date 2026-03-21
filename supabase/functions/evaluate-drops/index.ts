@@ -7,11 +7,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_BATCH_SIZE = 50;           // larger batches = fewer API calls
-const DOMAINS_PER_INVOCATION = 200;  // process more per chain link
-const QUALITY_THRESHOLD = 68;        // raised: only genuinely strong names reach AI
-const PREMIUM_TIER_THRESHOLD = 75;   // only the best get the bigger model
-const MAX_AI_QUEUE = 4000;           // tighter cap for cost control
+const QUALITY_THRESHOLD = 55;        // lower threshold since heuristic is the final scorer now
+const MAX_RESULTS = 5000;            // max results to store per scan
 
 // ═══════════════════════════════════════════════════════════════
 // ─── COMPREHENSIVE DICTIONARIES (ported from platform engines) ─
@@ -914,153 +911,135 @@ function isCVCVC(sld: string): boolean {
 // ─── COMPREHENSIVE HEURISTIC QUALITY SCORER ──────────────────
 // ═══════════════════════════════════════════════════════════════
 
-function quickQualityScore(
+interface HeuristicResult {
+  score: number;
+  category: string;
+  summary: string;
+  estimated_value: number;
+  brandability: number;
+  keyword_strength: number;
+  length_score: number;
+}
+
+function fullHeuristicScore(
   sld: string,
   comparableKeywords?: Set<string>,
   dbTrendingKeywords?: Record<string, number>,
   kwVolumeCache?: Map<string, number>,
-): number {
+): HeuristicResult | null {
   const lower = sld.toLowerCase();
   const len = lower.length;
   let score = 0;
 
   // ─── INSTANT REJECT ───
   for (const word of OFFENSIVE) {
-    if (lower.includes(word)) return 0;
+    if (lower.includes(word)) return null;
   }
-
-  // ─── TRADEMARK REJECTION ───
-  // Exact match against known brand/exam names = instant reject
-  if (TRADEMARK_BRANDS_REJECT.has(lower)) return 0;
-  // Check if any trademark brand is a substring (e.g., "toeflDaily", "nikeShop")
+  if (TRADEMARK_BRANDS_REJECT.has(lower)) return null;
   for (const tm of TRADEMARK_SUBSTRINGS) {
-    if (lower.includes(tm) && lower !== tm) return 0; // embedded trademark = reject
+    if (lower.includes(tm) && lower !== tm) return null;
   }
-
-  // ─── EARLY PRONOUNCEABILITY GATE ───
-  if (BAD_CLUSTERS.test(lower)) return 0;
+  if (BAD_CLUSTERS.test(lower)) return null;
   const vowelCount = [...lower].filter(c => VOWELS.has(c)).length;
-  if (vowelCount === 0 && len > 2) return 0;
+  if (vowelCount === 0 && len > 2) return null;
   const vowelRatio = vowelCount / len;
-  if (vowelRatio < 0.15 && len > 3) return 0;
+  if (vowelRatio < 0.15 && len > 3) return null;
+  if (len > 15) return null;
+  if (lower.includes("-")) return null;
+  if (/\d+x\d+/i.test(lower)) return null;
+  if (/^\d/.test(lower)) return null;
 
-  // ─── HARD LENGTH GATE ───
-  if (len > 15) return 0;
-  if (lower.includes("-")) return 0;
-  if (/\d+x\d+/i.test(lower)) return 0;
-  if (/^\d/.test(lower)) return 0;
-
-  // ─── 1. DICTIONARY COVERAGE (max 25 pts) ───
   const { words, coverage } = dictionaryCoverage(lower);
+  if (words.length >= 4) return null;
 
-  // ─── HARD WORD-COUNT GATE ───
-  if (words.length >= 4) return 0;
-
-  score += Math.round(coverage * 25);
-
-  // ─── REAL WORD VERIFICATION ───
-  // A word is "real" if it's in our DICTIONARY (not just HIGH_VALUE_KEYWORDS shortlist)
   const realWords = words.filter(w => DICTIONARY.has(w));
   const realCoverage = realWords.reduce((s, w) => s + w.length, 0) / Math.max(len, 1);
 
-  // ─── 2. LENGTH SWEET SPOT (max 15 pts) ───
-  if (len <= 3) score += 15;
-  else if (len === 4) score += 15;
-  else if (len === 5) score += 14;
-  else if (len === 6) score += 12;
-  else if (len <= 8) score += 10;
-  else if (len <= 10) score += 6;
-  else if (len <= 12) score += 3;
+  let brandabilityRaw = 0;
+  let keywordStrengthRaw = 0;
+  let lengthScoreRaw = 0;
+  let detectedCategory = "generic";
+  let matchedNiche = "";
 
-  // ─── 3. SINGLE REAL-WORD POWER BONUS (max 30 pts) ───
-  // MUST be an actual dictionary word, not just a pronounceable string
+  score += Math.round(coverage * 25);
+
+  if (len <= 3) { score += 15; lengthScoreRaw = 95; }
+  else if (len === 4) { score += 15; lengthScoreRaw = 92; }
+  else if (len === 5) { score += 14; lengthScoreRaw = 85; }
+  else if (len === 6) { score += 12; lengthScoreRaw = 75; }
+  else if (len <= 8) { score += 10; lengthScoreRaw = 60; }
+  else if (len <= 10) { score += 6; lengthScoreRaw = 40; }
+  else if (len <= 12) { score += 3; lengthScoreRaw = 25; }
+  else { lengthScoreRaw = 10; }
+
   const isSingleRealWord = realWords.length === 1 && realCoverage >= 0.95;
   if (isSingleRealWord) {
-    if (len <= 3) score += 30;       // "car", "bet", "pay"
-    else if (len === 4) score += 25; // "fire", "volt", "sage"
-    else if (len === 5) score += 22; // "surge", "blade", "radar"
-    else if (len === 6) score += 18; // "shield", "beacon"
-    else if (len <= 8) score += 12;  // "quantum", "merchant"
-    else score += 8;
+    if (len <= 3) { score += 30; brandabilityRaw += 90; }
+    else if (len === 4) { score += 25; brandabilityRaw += 85; }
+    else if (len === 5) { score += 22; brandabilityRaw += 80; }
+    else if (len === 6) { score += 18; brandabilityRaw += 70; }
+    else if (len <= 8) { score += 12; brandabilityRaw += 55; }
+    else { score += 8; brandabilityRaw += 40; }
+    detectedCategory = len <= 4 ? "short" : "premium";
   } else if (words.length === 1 && coverage >= 0.95 && !DICTIONARY.has(lower)) {
-    // Matched by HIGH_VALUE_KEYWORDS but not real dictionary — much smaller bonus
-    if (len <= 4) score += 8;
-    else if (len <= 6) score += 5;
-    else score += 2;
+    if (len <= 4) { score += 8; brandabilityRaw += 40; }
+    else if (len <= 6) { score += 5; brandabilityRaw += 30; }
+    else { score += 2; brandabilityRaw += 15; }
   }
 
-  // ─── 4. TWO-WORD COMPOUND BONUS (max 18 pts) ───
-  // Both words MUST be real dictionary words for full bonus
-  // Handles KW+W and W+KW patterns equally (order doesn't matter)
   if (words.length === 2 && coverage >= 0.85) {
     const bothRealDict = realWords.length === 2 && realWords.every(w => w.length >= 3);
     const totalLen = words.reduce((s, w) => s + w.length, 0);
-    
     if (bothRealDict) {
-      // Premium compound: both are real dictionary words (KW+W or W+KW)
-      // e.g., "smartpay", "dataflow", "cloudbank", "payclean", "cashfire"
       const hasTrending = words.some(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
-      if (totalLen <= 8) score += hasTrending ? 18 : 15;       // "gobet", "ebike", "cashpay"
-      else if (totalLen <= 10) score += hasTrending ? 15 : 13;  // "dataflow", "cloudbank"
-      else if (totalLen <= 12) score += hasTrending ? 10 : 8;   // "smartmarket"
-      else if (totalLen <= 14) score += 5;
+      if (totalLen <= 8) { score += hasTrending ? 18 : 15; brandabilityRaw += 70; }
+      else if (totalLen <= 10) { score += hasTrending ? 15 : 13; brandabilityRaw += 60; }
+      else if (totalLen <= 12) { score += hasTrending ? 10 : 8; brandabilityRaw += 45; }
+      else if (totalLen <= 14) { score += 5; brandabilityRaw += 30; }
+      detectedCategory = "compound";
     } else if (words.some(w => DICTIONARY.has(w) && w.length >= 3)) {
-      // One real word + one fragment — smaller bonus
-      if (totalLen <= 8) score += 6;
-      else if (totalLen <= 10) score += 4;
-      else score += 2;
+      if (totalLen <= 8) { score += 6; brandabilityRaw += 35; }
+      else if (totalLen <= 10) { score += 4; brandabilityRaw += 25; }
+      else { score += 2; brandabilityRaw += 15; }
+      detectedCategory = "compound";
     }
   }
 
-  // ─── 5. CVCVC BRANDABLE PATTERN (max 10 pts) ───
-  // Only award if it's NOT already getting a real-word bonus (avoid double-dipping on gibberish)
   if (isCVCVC(lower) && !isSingleRealWord) {
-    // Only valuable if short AND pronounceable — not random letter combos
-    const syllables = wordSyllables(lower);
-    if (len <= 5 && syllables <= 2) score += 10;
-    else if (len === 6 && syllables <= 2) score += 7;
-    else if (len <= 7 && syllables <= 3) score += 4;
-    // Longer CVCVC = not really brandable
+    const syl = wordSyllables(lower);
+    if (len <= 5 && syl <= 2) { score += 10; brandabilityRaw += 50; detectedCategory = "brandable"; }
+    else if (len === 6 && syl <= 2) { score += 7; brandabilityRaw += 40; detectedCategory = "brandable"; }
+    else if (len <= 7 && syl <= 3) { score += 4; brandabilityRaw += 25; }
   }
 
-  // ─── 6. EXACT TRENDING KEYWORD MATCH (max 20 pts) ───
   const exactTrendHeat = TRENDING_KEYWORDS[lower];
   if (exactTrendHeat) {
-    // Only full bonus if it's also a real word or very short
     const isRealOrShort = DICTIONARY.has(lower) || len <= 3;
-    if (exactTrendHeat >= 2.0) score += isRealOrShort ? 20 : 14;
-    else if (exactTrendHeat >= 1.7) score += isRealOrShort ? 16 : 10;
-    else if (exactTrendHeat >= 1.4) score += isRealOrShort ? 12 : 7;
-    else score += isRealOrShort ? 8 : 4;
+    if (exactTrendHeat >= 2.0) { score += isRealOrShort ? 20 : 14; keywordStrengthRaw += 90; }
+    else if (exactTrendHeat >= 1.7) { score += isRealOrShort ? 16 : 10; keywordStrengthRaw += 75; }
+    else if (exactTrendHeat >= 1.4) { score += isRealOrShort ? 12 : 7; keywordStrengthRaw += 60; }
+    else { score += isRealOrShort ? 8 : 4; keywordStrengthRaw += 40; }
+    detectedCategory = "keyword";
   }
 
-  // ─── 7. KW+WORD / WORD+KW COMPOUND BONUS (max 18 pts) ───
-  // Handles both KW+W ("aiflow") and W+KW ("flowai") patterns equally
   if (words.length === 2 && !exactTrendHeat && len <= 12) {
     const trendingWords = words.filter(w => TRENDING_KEYWORDS[w] && TRENDING_KEYWORDS[w] >= 1.3);
     const hasDictWord = words.some(w => DICTIONARY.has(w) && w.length >= 3 && !TRENDING_KEYWORDS[w]);
-    // Dual trending: both words are hot keywords
-    if (trendingWords.length >= 2 && realWords.length >= 1) score += 18;
-    // KW+W or W+KW: one trending keyword + one real dictionary word
+    if (trendingWords.length >= 2 && realWords.length >= 1) { score += 18; keywordStrengthRaw += 85; detectedCategory = "keyword"; }
     else if (trendingWords.length === 1 && hasDictWord && realWords.length >= 1) {
-      // Extra credit for high-heat keywords (ai, gpt, agent, quantum)
       const bestTrendHeat = Math.max(...trendingWords.map(w => TRENDING_KEYWORDS[w] || 0));
       score += bestTrendHeat >= 2.0 ? 14 : bestTrendHeat >= 1.7 ? 12 : 10;
+      keywordStrengthRaw += 70;
+      detectedCategory = "keyword";
     }
-    else if (trendingWords.length === 1 && realWords.length >= 1) score += 5;
-    else if (trendingWords.length >= 1) score += 2;
+    else if (trendingWords.length === 1 && realWords.length >= 1) { score += 5; keywordStrengthRaw += 40; }
+    else if (trendingWords.length >= 1) { score += 2; keywordStrengthRaw += 20; }
   }
 
-  // ─── 8. PARTIAL TRENDING KEYWORD HEAT (max 12 pts) ───
   if (!exactTrendHeat) {
     let bestHeat = 0;
-    for (const word of words) {
-      const heat = TRENDING_KEYWORDS[word];
-      if (heat && heat > bestHeat) bestHeat = heat;
-    }
-    for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) {
-      if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat;
-    }
+    for (const word of words) { const heat = TRENDING_KEYWORDS[word]; if (heat && heat > bestHeat) bestHeat = heat; }
+    for (const [kw, heat] of Object.entries(TRENDING_KEYWORDS)) { if (kw.length <= 3 && lower.includes(kw) && heat > bestHeat) bestHeat = heat; }
     let trendBonus = 0;
     if (bestHeat >= 2.0) trendBonus = 12;
     else if (bestHeat >= 1.7) trendBonus = 9;
@@ -1069,22 +1048,15 @@ function quickQualityScore(
     else if (bestHeat >= 1.1) trendBonus = 2;
     if (words.length >= 3) trendBonus = Math.min(trendBonus, 4);
     score += trendBonus;
+    if (bestHeat > 1.3) keywordStrengthRaw += Math.min(30, Math.round(bestHeat * 15));
   }
 
-  // ─── 9. DB TRENDING KEYWORDS CROSS-REF (max 10 pts) ───
   if (dbTrendingKeywords && Object.keys(dbTrendingKeywords).length > 0) {
     let bestDbHeat = 0;
     const fullHeat = dbTrendingKeywords[lower];
     if (fullHeat && fullHeat > bestDbHeat) bestDbHeat = fullHeat;
-    for (const word of words) {
-      const heat = dbTrendingKeywords[word];
-      if (heat && heat > bestDbHeat) bestDbHeat = heat;
-    }
-    for (const [kw, heat] of Object.entries(dbTrendingKeywords)) {
-      if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) {
-        bestDbHeat = heat;
-      }
-    }
+    for (const word of words) { const heat = dbTrendingKeywords[word]; if (heat && heat > bestDbHeat) bestDbHeat = heat; }
+    for (const [kw, heat] of Object.entries(dbTrendingKeywords)) { if (kw.length >= 3 && kw.length <= 6 && lower.includes(kw) && heat > bestDbHeat) bestDbHeat = heat; }
     let dbBonus = 0;
     if (bestDbHeat >= 2.0) dbBonus = 10;
     else if (bestDbHeat >= 1.5) dbBonus = 7;
@@ -1092,14 +1064,14 @@ function quickQualityScore(
     else if (bestDbHeat >= 1.0) dbBonus = 2;
     if (words.length >= 3) dbBonus = Math.min(dbBonus, 3);
     score += dbBonus;
+    if (bestDbHeat > 1.2) keywordStrengthRaw += Math.min(20, Math.round(bestDbHeat * 10));
   }
 
-  // ─── 10. NICHE MARKET HEAT (max 10 pts) ───
   let bestNicheHeat = 0;
-  for (const [, niche] of Object.entries(NICHE_CATEGORIES)) {
+  for (const [nicheName, niche] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => niche.keywords.includes(w)).length;
     if (matchCount > 0) {
-      bestNicheHeat = Math.max(bestNicheHeat, niche.heat);
+      if (niche.heat > bestNicheHeat) { bestNicheHeat = niche.heat; matchedNiche = nicheName; }
       if (matchCount >= 2) bestNicheHeat = Math.min(100, bestNicheHeat + 10);
     }
   }
@@ -1110,97 +1082,65 @@ function quickQualityScore(
   else if (bestNicheHeat >= 40) nicheBonus = 2;
   if (words.length >= 3) nicheBonus = Math.min(nicheBonus, 3);
   score += nicheBonus;
+  if (matchedNiche && detectedCategory === "generic") detectedCategory = "niche";
 
-  // ─── 11. BRANDABLE PATTERN RECOGNITION (max 8 pts) ───
-  // Tightened: only award if domain has real-word content, not random letter combos
   let brandableBonus = 0;
   if (realCoverage >= 0.4 || len <= 6) {
-    for (const pat of BRANDABLE_SUFFIXES) {
-      if (pat.test(lower)) { brandableBonus += 5; break; }
-    }
-    for (const pat of BRANDABLE_PREFIXES) {
-      if (pat.test(lower)) { brandableBonus += 3; break; }
-    }
+    for (const pat of BRANDABLE_SUFFIXES) { if (pat.test(lower)) { brandableBonus += 5; break; } }
+    for (const pat of BRANDABLE_PREFIXES) { if (pat.test(lower)) { brandableBonus += 3; break; } }
   }
-  // Only award phonetic bonus for short domains
   if (len >= 4 && len <= 7) {
     let alternations = 0;
-    for (let i = 1; i < len; i++) {
-      const prevV = VOWELS.has(lower[i - 1]);
-      const currV = VOWELS.has(lower[i]);
-      if (prevV !== currV) alternations++;
-    }
-    const altRatio = alternations / (len - 1);
-    if (altRatio >= 0.7) brandableBonus += 2;
+    for (let i = 1; i < len; i++) { if (VOWELS.has(lower[i - 1]) !== VOWELS.has(lower[i])) alternations++; }
+    if (alternations / (len - 1) >= 0.7) brandableBonus += 2;
   }
-  score += Math.min(8, brandableBonus);
+  const cappedBrandable = Math.min(8, brandableBonus);
+  score += cappedBrandable;
+  brandabilityRaw += cappedBrandable * 5;
 
-  // ─── 12. BIGRAM QUALITY (max 8 pts) ───
   let goodBi = 0, totalBi = 0;
-  for (let i = 0; i < lower.length - 1; i++) {
-    totalBi++;
-    if (GOOD_BIGRAMS.has(lower.slice(i, i + 2))) goodBi++;
-  }
+  for (let i = 0; i < lower.length - 1; i++) { totalBi++; if (GOOD_BIGRAMS.has(lower.slice(i, i + 2))) goodBi++; }
   const bigramScore = totalBi > 0 ? Math.round((goodBi / totalBi) * 8) : 0;
   score += bigramScore;
+  brandabilityRaw += bigramScore * 3;
 
-  // ─── 13. VOWEL BALANCE (max 8 pts) ───
   if (vowelRatio >= 0.25 && vowelRatio <= 0.55) score += 8;
   else if (vowelRatio >= 0.2 && vowelRatio <= 0.6) score += 5;
   else if (vowelRatio >= 0.15) score += 2;
 
-  // ─── 14. SYLLABLE RHYTHM (max 6 pts) ───
   const syllables = countSyllables(lower);
   if (syllables >= 2 && syllables <= 3) score += 6;
   else if (syllables === 1 && len >= 3) score += 5;
   else if (syllables === 4) score += 2;
 
-  // ─── 15. SEMANTIC COHERENCE & WORD-COUNT PENALTY ───
   if (words.length >= 1) {
     const fillerCount = words.filter(w => FILLER_WORDS.has(w)).length;
     const negCount = words.filter(w => NEGATIVE_BRAND_WORDS.has(w)).length;
-    if (fillerCount === 0 && negCount === 0) {
-      if (words.length <= 2 && realWords.length >= 1) score += 5;
-    } else if (fillerCount >= 1) score -= 10;
+    if (fillerCount === 0 && negCount === 0) { if (words.length <= 2 && realWords.length >= 1) score += 5; }
+    else if (fillerCount >= 1) score -= 10;
     if (negCount >= 1) score -= 10;
-
     if (words.length === 3) score -= 25;
   }
 
-  // ─── 16. GIBBERISH / NO-REAL-WORD PENALTY ───
-  // If we couldn't find ANY real dictionary word, penalize heavily
-  if (realWords.length === 0 && len >= 5) {
-    score -= 20;
-  } else if (realWords.length === 0 && len >= 4) {
-    score -= 10;
-  }
-  // Low real-word coverage on longer domains = gibberish
+  if (realWords.length === 0 && len >= 5) score -= 20;
+  else if (realWords.length === 0 && len >= 4) score -= 10;
   if (realCoverage < 0.3 && len >= 8) score -= 15;
   if (realCoverage < 0.5 && len >= 12) score -= 10;
 
-  // ─── 17. COMPARABLE SALES KEYWORD MATCH (max 12 pts) ───
   if (comparableKeywords && comparableKeywords.size > 0) {
     let compMatch = 0;
-    for (const word of words) {
-      if (word.length >= 3 && comparableKeywords.has(word)) compMatch++;
-    }
-    if (compMatch >= 2 && words.length <= 2 && len <= 12) score += 12;
-    else if (compMatch >= 1 && words.length <= 2 && len <= 10) score += 8;
-    else if (compMatch >= 1 && words.length <= 2) score += 5;
-    else if (compMatch >= 1) score += 2;
+    for (const word of words) { if (word.length >= 3 && comparableKeywords.has(word)) compMatch++; }
+    if (compMatch >= 2 && words.length <= 2 && len <= 12) { score += 12; keywordStrengthRaw += 20; }
+    else if (compMatch >= 1 && words.length <= 2 && len <= 10) { score += 8; keywordStrengthRaw += 15; }
+    else if (compMatch >= 1 && words.length <= 2) { score += 5; keywordStrengthRaw += 10; }
+    else if (compMatch >= 1) { score += 2; keywordStrengthRaw += 5; }
   }
 
-  // ─── 18. SEARCH VOLUME CROSS-REF (max 12 pts) ───
   if (kwVolumeCache && kwVolumeCache.size > 0) {
     let bestVolume = 0;
     const fullVol = kwVolumeCache.get(lower);
     if (fullVol && fullVol > bestVolume) bestVolume = fullVol;
-    for (const word of words) {
-      if (word.length >= 3) {
-        const vol = kwVolumeCache.get(word);
-        if (vol && vol > bestVolume) bestVolume = vol;
-      }
-    }
+    for (const word of words) { if (word.length >= 3) { const vol = kwVolumeCache.get(word); if (vol && vol > bestVolume) bestVolume = vol; } }
     let volBonus = 0;
     if (bestVolume >= 10000) volBonus = 12;
     else if (bestVolume >= 5000) volBonus = 10;
@@ -1209,65 +1149,69 @@ function quickQualityScore(
     else if (bestVolume >= 100) volBonus = 2;
     if (words.length >= 3) volBonus = Math.min(volBonus, 4);
     score += volBonus;
+    keywordStrengthRaw += volBonus * 3;
   }
 
-  // ─── 19. LENGTH PENALTY (steep for long SLDs) ───
   if (len >= 13) score -= 15;
   else if (len >= 11) score -= 8;
 
-  // ─── OTHER PENALTIES ───
   if (/(.)\1{2,}/.test(lower)) score -= 10;
-  for (const pat of NEGATIVE_SOUNDS) {
-    if (pat.test(lower)) { score -= 5; break; }
-  }
+  for (const pat of NEGATIVE_SOUNDS) { if (pat.test(lower)) { score -= 5; break; } }
   if (/\d/.test(lower)) score -= 15;
   if (/^[a-z]{1,2}$/i.test(lower)) score -= 20;
 
-  // ─── 20. SEMANTIC MEANING GATE (penalty for high-scoring gibberish) ───
-  // If a domain scores well on structure/phonetics but has NO recognizable meaning,
-  // it's a false positive (e.g., "Tounify", "Brovex", "Xalido")
-  if (realWords.length === 0 && score >= 50) {
-    // Heavily penalize: good structure but zero meaning = not brandable
-    score -= 25;
-  } else if (realWords.length === 0 && score >= 30) {
-    score -= 15;
-  }
-  // Domains where dictionary words cover < 40% but still scoring well
-  if (realCoverage < 0.4 && score >= 55 && len >= 6) {
-    score -= 12;
-  }
+  if (realWords.length === 0 && score >= 50) score -= 25;
+  else if (realWords.length === 0 && score >= 30) score -= 15;
+  if (realCoverage < 0.4 && score >= 55 && len >= 6) score -= 12;
 
-  // ─── 21. TRADEMARK IN DECOMPOSED WORDS (penalty for embedded brands) ───
-  // Check if any decomposed word is a trademark (catches "toeflDaily" → ["toefl","daily"])
-  for (const w of words) {
-    if (TRADEMARK_BRANDS_REJECT.has(w)) {
-      score -= 40; // Devastating penalty — trademark kills resale
-      break;
-    }
-  }
+  for (const w of words) { if (TRADEMARK_BRANDS_REJECT.has(w)) { score -= 40; break; } }
 
-  // ─── 22. LIQUIDITY / BUYER-POOL SIGNAL (max 8 pts / penalty up to -8) ───
-  // Estimate how many potential buyers exist for this domain's niche
-  let bestLiquidity = 5; // default: neutral
-  let matchedNiche = "";
+  let bestLiquidity = 5;
   for (const [niche, config] of Object.entries(NICHE_CATEGORIES)) {
     const matchCount = words.filter(w => config.keywords.includes(w)).length;
-    if (matchCount > 0) {
-      const liq = NICHE_LIQUIDITY[niche] || 5;
-      if (liq !== bestLiquidity && (matchedNiche === "" || liq > bestLiquidity)) {
-        bestLiquidity = liq;
-        matchedNiche = niche;
-      }
-    }
+    if (matchCount > 0) { const liq = NICHE_LIQUIDITY[niche] || 5; if (matchedNiche === "" || liq > bestLiquidity) { bestLiquidity = liq; matchedNiche = niche; } }
   }
-  // High liquidity niches get a bonus, low liquidity gets a penalty
   if (bestLiquidity >= 8) score += 8;
   else if (bestLiquidity >= 7) score += 5;
   else if (bestLiquidity >= 6) score += 2;
   else if (bestLiquidity <= 3) score -= 8;
   else if (bestLiquidity <= 4) score -= 4;
 
-  return Math.max(0, Math.min(100, score));
+  const finalScore = Math.max(0, Math.min(100, score));
+
+  if (len <= 4 && isSingleRealWord) detectedCategory = "short";
+  else if (isSingleRealWord && finalScore >= 70) detectedCategory = "premium";
+
+  let estimatedValue = 0;
+  if (finalScore >= 85) estimatedValue = isSingleRealWord ? 15000 + (finalScore - 85) * 2000 : 8000 + (finalScore - 85) * 1000;
+  else if (finalScore >= 75) estimatedValue = isSingleRealWord ? 3000 + (finalScore - 75) * 500 : 1500 + (finalScore - 75) * 300;
+  else if (finalScore >= 65) estimatedValue = 500 + (finalScore - 65) * 80;
+  else if (finalScore >= 55) estimatedValue = 150 + (finalScore - 55) * 30;
+  else estimatedValue = 50 + finalScore;
+
+  if (bestLiquidity >= 8) estimatedValue = Math.round(estimatedValue * 1.3);
+  else if (bestLiquidity <= 3) estimatedValue = Math.round(estimatedValue * 0.6);
+
+  const summaryParts: string[] = [];
+  if (isSingleRealWord) summaryParts.push(`Real word "${realWords[0]}"`);
+  else if (words.length === 2 && realWords.length === 2) summaryParts.push(`Clean compound: ${words.join("+")}`);
+  else if (words.length === 2) summaryParts.push(`Two-part: ${words.join("+")}`);
+  else if (detectedCategory === "brandable") summaryParts.push("Brandable coined name");
+  else summaryParts.push(`${len}-char domain`);
+
+  if (matchedNiche) summaryParts.push(matchedNiche.replace(/_/g, " "));
+  if (finalScore >= 75) summaryParts.push("strong potential");
+  else if (finalScore >= 60) summaryParts.push("decent potential");
+
+  return {
+    score: finalScore,
+    category: detectedCategory,
+    summary: summaryParts.join(", ").slice(0, 100),
+    estimated_value: estimatedValue,
+    brandability: Math.min(100, Math.max(0, brandabilityRaw)),
+    keyword_strength: Math.min(100, Math.max(0, keywordStrengthRaw)),
+    length_score: Math.min(100, Math.max(0, lengthScoreRaw)),
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1347,8 +1291,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
@@ -1361,11 +1303,9 @@ serve(async (req) => {
       let initialCsvText = csvText as string | undefined;
       let userId: string | null = null;
 
-      // Shared daily-drops.csv can be loaded without auth
       const isSharedCsv = csvUrl && csvUrl.includes("/store/daily-drops.csv");
 
       if (!isSharedCsv) {
-        // Require auth for non-shared CSVs
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) throw new Error("Missing authorization");
 
@@ -1406,29 +1346,19 @@ serve(async (req) => {
         throw new Error("CSV source is empty");
       }
 
-      // Parse CSV — extract .com domains only (lightweight, no scoring yet)
+      // Parse CSV — extract .com domains only
       const parseCsvLine = (line: string): string[] => {
         const values: string[] = [];
         let current = "";
         let inQuotes = false;
-
         for (let i = 0; i < line.length; i++) {
           const ch = line[i];
           if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (ch === "," && !inQuotes) {
-            values.push(current);
-            current = "";
-          } else {
-            current += ch;
-          }
+            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === "," && !inQuotes) { values.push(current); current = ""; }
+          else current += ch;
         }
-
         values.push(current);
         return values;
       };
@@ -1443,43 +1373,19 @@ serve(async (req) => {
       const normalizeDropDate = (rawValue: string): string => {
         const value = rawValue.trim().replace(/^"|"$/g, "");
         if (!value) return "";
-
         const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-        if (isoMatch) {
-          const year = Number(isoMatch[1]);
-          const month = String(Number(isoMatch[2])).padStart(2, "0");
-          const day = String(Number(isoMatch[3])).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        }
-
+        if (isoMatch) return `${isoMatch[1]}-${String(Number(isoMatch[2])).padStart(2, "0")}-${String(Number(isoMatch[3])).padStart(2, "0")}`;
         const slashIsoMatch = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-        if (slashIsoMatch) {
-          const year = Number(slashIsoMatch[1]);
-          const month = String(Number(slashIsoMatch[2])).padStart(2, "0");
-          const day = String(Number(slashIsoMatch[3])).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        }
-
+        if (slashIsoMatch) return `${slashIsoMatch[1]}-${String(Number(slashIsoMatch[2])).padStart(2, "0")}-${String(Number(slashIsoMatch[3])).padStart(2, "0")}`;
         const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (usMatch) {
-          const month = String(Number(usMatch[1])).padStart(2, "0");
-          const day = String(Number(usMatch[2])).padStart(2, "0");
-          const year = Number(usMatch[3]);
-          return `${year}-${month}-${day}`;
-        }
-
+        if (usMatch) return `${usMatch[3]}-${String(Number(usMatch[1])).padStart(2, "0")}-${String(Number(usMatch[2])).padStart(2, "0")}`;
         const parsed = new Date(value);
-        if (!Number.isNaN(parsed.getTime())) {
-          return formatLocalDate(parsed);
-        }
-
+        if (!Number.isNaN(parsed.getTime())) return formatLocalDate(parsed);
         return "";
       };
 
       const lines = initialCsvText.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length === 0) {
-        throw new Error("CSV source has no rows");
-      }
+      if (lines.length === 0) throw new Error("CSV source has no rows");
 
       const cols = parseCsvLine(lines[0]).map((c: string) => c.toLowerCase().trim().replace(/"/g, ""));
       let domainCol = cols.findIndex((c: string) =>
@@ -1487,12 +1393,8 @@ serve(async (req) => {
       );
       if (domainCol === -1) domainCol = 0;
       const dropDateCol = cols.findIndex((c: string) =>
-        c === "drop date" ||
-        c === "dropdate" ||
-        c === "drop_date" ||
-        c === "delete date" ||
-        c === "expiry date" ||
-        c === "expiration date"
+        c === "drop date" || c === "dropdate" || c === "drop_date" ||
+        c === "delete date" || c === "expiry date" || c === "expiration date"
       );
 
       const totalParsed = lines.length - 1;
@@ -1505,14 +1407,11 @@ serve(async (req) => {
 
         const rawDropDate = dropDateCol >= 0 ? row[dropDateCol] || "" : "";
         const dropDate = normalizeDropDate(rawDropDate);
-
-        // Store domain with drop date separated by tab
         comDomains.push(dropDate ? `${domain}\t${dropDate}` : domain);
       }
 
-      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked pre-screen`);
+      console.log(`Initial parse: ${totalParsed} total → ${comDomains.length} .com domains — starting chunked heuristic evaluation`);
 
-      // Store raw .com domains with "---RAW---" marker for pre-screening phase
       const csvData = "---RAW---\n" + comDomains.join("\n");
 
       await adminClient.from("drop_scans").update({
@@ -1523,7 +1422,6 @@ serve(async (req) => {
         resume_from: 0,
       }).eq("id", scanId);
 
-      // Self-invoke to start chunked pre-screening
       queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "initial-queue");
 
       return new Response(JSON.stringify({
@@ -1534,10 +1432,10 @@ serve(async (req) => {
       });
     }
 
-    // ─── CHAINED INVOCATION: Pre-screen or AI evaluate ───
+    // ─── CHAINED INVOCATION: Heuristic evaluation ───
     const { data: scan, error: scanErr } = await adminClient
       .from("drop_scans")
-      .select("csv_data, resume_from, filtered_domains, status")
+      .select("csv_data, resume_from, filtered_domains, evaluated_domains, status")
       .eq("id", scanId)
       .single();
 
@@ -1548,35 +1446,29 @@ serve(async (req) => {
       });
     }
 
-    const PRE_SCREEN_CHUNK = 15000; // domains per pre-screening invocation
+    const PRE_SCREEN_CHUNK = 15000;
 
-    // ─── PRE-SCREENING PHASE (chunked) ───
+    // ─── HEURISTIC EVALUATION PHASE (replaces old pre-screen + AI two-phase) ───
     if (scan.status === "pre-screening") {
       const rawLines = (scan.csv_data || "").split("\n");
-      const qualifiedMarkerIdx = rawLines.indexOf("---QUALIFIED---");
-      const rawEndIdx = qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length;
-
-      // First line is "---RAW---", raw domains are stored before "---QUALIFIED---"
-      const allRaw = rawLines.slice(1, rawEndIdx).filter(Boolean);
+      const allRaw = rawLines.slice(1).filter(Boolean); // skip "---RAW---"
       const startIdx = scan.resume_from || 0;
       const endIdx = Math.min(startIdx + PRE_SCREEN_CHUNK, allRaw.length);
       const chunk = allRaw.slice(startIdx, endIdx);
 
       if (chunk.length === 0) {
-        // Pre-screening complete — no qualified domains found
         await adminClient.from("drop_scans").update({
           status: "complete",
           csv_data: null,
         }).eq("id", scanId);
-        return new Response(JSON.stringify({ success: true, status: "complete", qualified: 0 }), {
+        return new Response(JSON.stringify({ success: true, status: "complete", evaluated: scan.evaluated_domains || 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Load comparable keywords and DB trending keywords
+      // Load enrichment data
       const comparableKeywords = await loadComparableKeywords(adminClient);
-      
-      // Load Perplexity-sourced trending keywords from DB
+
       let dbTrendingKeywords: Record<string, number> = {};
       try {
         const { data: trendData } = await adminClient
@@ -1586,13 +1478,12 @@ serve(async (req) => {
           .maybeSingle();
         if (trendData?.trending_keywords) {
           dbTrendingKeywords = trendData.trending_keywords as Record<string, number>;
-          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords for cross-ref`);
+          console.log(`Loaded ${Object.keys(dbTrendingKeywords).length} DB trending keywords`);
         }
       } catch (e) {
         console.warn("Failed to load DB trending keywords:", e);
       }
 
-      // Load search volume data from keyword_volume_cache
       const kwVolumeCache = new Map<string, number>();
       try {
         const { data: volData } = await adminClient
@@ -1601,28 +1492,27 @@ serve(async (req) => {
           .gt("search_volume", 0)
           .limit(1000);
         if (volData) {
-          for (const row of volData) {
-            kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
-          }
-          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache for cross-ref`);
+          for (const row of volData) kwVolumeCache.set(row.keyword.toLowerCase(), row.search_volume);
+          console.log(`Loaded ${kwVolumeCache.size} keywords from volume cache`);
         }
       } catch (e) {
         console.warn("Failed to load keyword volume cache:", e);
       }
 
-      const scoredDomains: { domain: string; score: number; dropDate: string }[] = [];
+      // Score domains and collect results directly
+      const results: {
+        scan_id: string; domain_name: string; ai_score: number; ai_summary: string;
+        category: string; estimated_value: number; brandability: number;
+        keyword_strength: number; length_score: number; drop_date: string | null;
+      }[] = [];
+
       for (const entry of chunk) {
-        // Entry may be "domain\tdropDate" or just "domain"
         const [domain, dropDate] = entry.includes("\t") ? entry.split("\t") : [entry, ""];
         const sld = domain.replace(/\.com$/, "");
 
-        // Hard gate: reject hyphens/numbers with strict rules
-        const hasHyphen = sld.includes("-");
-        const hasNumber = /\d/.test(sld);
-        
-        if (hasHyphen) continue;
-        
-        if (hasNumber) {
+        // Hard gate: reject hyphens/numbers
+        if (sld.includes("-")) continue;
+        if (/\d/.test(sld)) {
           if (/\d+x\d+/i.test(sld)) continue;
           if (/^\d/.test(sld)) continue;
           if ((sld.match(/\d+/g) || []).length > 1) continue;
@@ -1634,342 +1524,98 @@ serve(async (req) => {
           if (!bestKw || bestKw.length / cleanSld.length < 0.5) continue;
         }
 
-        const quality = quickQualityScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
-        if (quality >= QUALITY_THRESHOLD) {
-          scoredDomains.push({ domain, score: quality, dropDate });
+        const result = fullHeuristicScore(sld, comparableKeywords, dbTrendingKeywords, kwVolumeCache);
+        if (result && result.score >= QUALITY_THRESHOLD) {
+          results.push({
+            scan_id: scanId,
+            domain_name: domain,
+            ai_score: result.score,
+            ai_summary: result.summary,
+            category: result.category,
+            estimated_value: result.estimated_value,
+            brandability: result.brandability,
+            keyword_strength: result.keyword_strength,
+            length_score: result.length_score,
+            drop_date: dropDate || null,
+          });
         }
       }
 
-      // Append qualified domains to existing qualified list stored elsewhere
-      // We accumulate qualified domains in a separate field approach:
-      // read existing qualified, append new ones, write back
-      const existingQualified = (scan.filtered_domains || 0);
-      const newQualified = existingQualified + scoredDomains.length;
+      // Sort by score and cap total results
+      results.sort((a, b) => b.ai_score - a.ai_score);
 
-      // Build accumulated qualified list — retrieve any previously qualified
-      // We store qualified domains after the raw data, separated by "---QUALIFIED---"
-      let previousQualified: string[] = [];
-      if (qualifiedMarkerIdx >= 0) {
-        previousQualified = rawLines.slice(qualifiedMarkerIdx + 1).filter(Boolean);
+      // Insert results in batches
+      const existingEvaluated = scan.evaluated_domains || 0;
+      const existingFiltered = scan.filtered_domains || 0;
+      const INSERT_BATCH = 200;
+      let inserted = 0;
+
+      for (let i = 0; i < results.length; i += INSERT_BATCH) {
+        const batch = results.slice(i, i + INSERT_BATCH);
+        const { error: insertErr } = await adminClient.from("drop_scan_results").insert(batch);
+        if (insertErr) {
+          console.error("Insert error:", insertErr.message);
+        } else {
+          inserted += batch.length;
+        }
       }
 
-      // Sort new batch and merge
-      scoredDomains.sort((a, b) => b.score - a.score);
-      const allQualified = [...previousQualified];
-      for (const d of scoredDomains) {
-        // Store as "domain|score|dropDate" to preserve tier info and drop date
-        allQualified.push(`${d.domain}|${d.score}${d.dropDate ? `|${d.dropDate}` : ""}`);
-      }
+      const newEvaluated = existingEvaluated + chunk.length;
+      const newFiltered = existingFiltered + results.length;
 
-      console.log(`Pre-screen chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${scoredDomains.length} qualified (total: ${newQualified})`);
+      console.log(`Heuristic chunk ${startIdx}-${endIdx}/${allRaw.length}: ${chunk.length} checked → ${results.length} qualified (total filtered: ${newFiltered}, evaluated: ${newEvaluated})`);
 
       const nextIdx = endIdx;
       if (nextIdx >= allRaw.length) {
-        // Pre-screening complete — transition to AI evaluation
-        // Sort all qualified by score, separate into premium/standard tiers
-        const allScored = allQualified.map(entry => {
-          const parts = entry.split("|");
-          return { domain: parts[0], score: Number(parts[1]) || 0, dropDate: parts[2] || "" };
-        });
-        allScored.sort((a, b) => b.score - a.score);
-
-        // Cap AI evaluation to prevent runaway costs
-        const cappedScored = allScored.slice(0, MAX_AI_QUEUE);
-        if (allScored.length > MAX_AI_QUEUE) {
-          console.log(`Capping AI queue: ${allScored.length} qualified → top ${MAX_AI_QUEUE} by score (min score: ${cappedScored[cappedScored.length - 1]?.score})`);
-        }
-
-        // Store as "domain\tdropDate" to carry drop date through to AI eval
-        const premiumDomains = cappedScored.filter(d => d.score >= PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
-        const standardDomains = cappedScored.filter(d => d.score < PREMIUM_TIER_THRESHOLD).map(d => d.dropDate ? `${d.domain}\t${d.dropDate}` : d.domain);
-        const csvData = [...premiumDomains, "---TIER---", ...standardDomains].join("\n");
-
-        console.log(`Pre-screening complete: ${cappedScored.length} for AI eval → ${premiumDomains.length} premium, ${standardDomains.length} standard`);
-
+        // All done
         await adminClient.from("drop_scans").update({
-          filtered_domains: allScored.length,
-          status: "evaluating",
-          csv_data: csvData,
-          resume_from: 0,
-        }).eq("id", scanId);
-      } else {
-        // More pre-screening to do — store progress
-        const rawPart = rawLines.slice(0, qualifiedMarkerIdx >= 0 ? qualifiedMarkerIdx : rawLines.length);
-        const updatedCsvData = [...rawPart, "---QUALIFIED---", ...allQualified].join("\n");
-
-        await adminClient.from("drop_scans").update({
-          filtered_domains: newQualified,
+          status: "complete",
+          csv_data: null,
+          filtered_domains: newFiltered,
+          evaluated_domains: newEvaluated,
           resume_from: nextIdx,
-          csv_data: updatedCsvData,
         }).eq("id", scanId);
-      }
 
-      // Self-chain to continue
-      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "pre-screen");
+        console.log(`Scan complete: ${newEvaluated} evaluated, ${newFiltered} results stored (zero AI cost)`);
 
-      return new Response(JSON.stringify({ success: true, phase: "pre-screening", processed: endIdx, total: allRaw.length }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ─── AI EVALUATION PHASE ───
-    // Parse tiered domain list — entries may be "domain\tdropDate" or just "domain"
-    const rawDomains = (scan.csv_data || "").split("\n").filter(Boolean);
-    const tierIdx = rawDomains.indexOf("---TIER---");
-    const premiumEntries = tierIdx >= 0 ? rawDomains.slice(0, tierIdx) : [];
-    const standardEntries = tierIdx >= 0 ? rawDomains.slice(tierIdx + 1) : rawDomains;
-    const allEntries = [...premiumEntries, ...standardEntries];
-
-    // Build drop date lookup from entries
-    const dropDateMap = new Map<string, string>();
-    const allDomains: string[] = [];
-    for (const entry of allEntries) {
-      if (entry.includes("\t")) {
-        const [domain, dd] = entry.split("\t");
-        allDomains.push(domain);
-        if (dd) dropDateMap.set(domain, dd);
+        return new Response(JSON.stringify({
+          success: true, status: "complete",
+          evaluated: newEvaluated, qualified: newFiltered,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       } else {
-        allDomains.push(entry);
+        // More chunks to process
+        await adminClient.from("drop_scans").update({
+          filtered_domains: newFiltered,
+          evaluated_domains: newEvaluated,
+          resume_from: nextIdx,
+        }).eq("id", scanId);
+
+        queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "heuristic-eval");
+
+        return new Response(JSON.stringify({
+          success: true, phase: "heuristic-eval",
+          processed: nextIdx, total: allRaw.length,
+          chunkQualified: results.length,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
-    // Also build premium set from entries (domain only)
-    const premiumDomainsList: string[] = [];
-    for (const entry of premiumEntries) {
-      premiumDomainsList.push(entry.includes("\t") ? entry.split("\t")[0] : entry);
-    }
-
-    const startIdx = scan.resume_from || 0;
-    const endIdx = Math.min(startIdx + DOMAINS_PER_INVOCATION, allDomains.length);
-    const chunk = allDomains.slice(startIdx, endIdx);
-
-    if (chunk.length === 0) {
+    // Fallback for any legacy "evaluating" status scans — just mark complete
+    if (scan.status === "evaluating") {
       await adminClient.from("drop_scans").update({
         status: "complete",
         csv_data: null,
       }).eq("id", scanId);
-      return new Response(JSON.stringify({ success: true, status: "complete" }), {
+      return new Response(JSON.stringify({ success: true, status: "complete", legacy: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Determine which domains in this chunk are premium tier
-    const premiumSet = new Set(premiumDomainsList);
-
-    const VALID_CATEGORIES = new Set(["premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak"]);
-    const normalizeCategory = (cat: string): string => {
-      const c = (cat || "").toLowerCase().trim();
-      if (VALID_CATEGORIES.has(c)) return c;
-      if (c.includes("pass") || c.includes("marginal") || c.includes("weak")) return "weak";
-      if (c.includes("strong") || c.includes("premium")) return "premium";
-      if (c.includes("decent") || c.includes("moderate")) return "generic";
-      if (c.includes("brand")) return "brandable";
-      if (c.includes("compound") || c.includes("kw+w")) return "compound";
-      return "generic";
-    };
-
-    let evaluated = startIdx;
-    for (let i = 0; i < chunk.length; i += AI_BATCH_SIZE) {
-      const batch = chunk.slice(i, i + AI_BATCH_SIZE);
-      const isPremiumBatch = batch.some(d => premiumSet.has(d));
-
-      // ─── COST-OPTIMISED: Premium get Flash, standard get Flash-Lite ───
-      const model = isPremiumBatch ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
-
-      const categoryInstruction = `IMPORTANT: category MUST be exactly one of: "premium", "brandable", "keyword", "short", "compound", "geo", "niche", "generic", "weak". No other values allowed.
-- premium: Single real English word, 4-8 chars, high commercial value (rocket, forge, shield)
-- brandable: Invented/coined name that sounds like a brand (Zapier-like, catchy)
-- keyword: Contains a strong industry keyword (fintech, crypto, health)
-- short: ≤4 character SLD
-- compound: Clean 2-word combination (dataflow, cloudbank, smartpay)
-- geo: Contains geographic term
-- niche: Targets a specific vertical/industry
-- generic: Common term, low differentiation
-- weak: Long, multi-word, misspelled, or low value`;
-
-      const prompt = isPremiumBatch
-        ? `You are a SENIOR domain name investor with 20+ years experience.
-
-CRITICAL RULES:
-- Single REAL English words (4-8 letters) are THE most valuable: rocket.com, gold.com, forge.com
-- Made-up "brandable" strings (sfitty, aiili, sefew, tallaq) are NOT worth $40k+ — score 40-60 max
-- Two-word KW+W compounds are strong IF both parts are real words AND short: ebike.com, gobet.com
-- 3-word domains: almost never above 35
-- Gibberish with a trending keyword is NOT valuable
-
-${categoryInstruction}
-
-Score calibration:
-- 85-100: Real single word, ultra-short, proven commercial value
-- 70-84: Clean KW+W compound with real words, strong short brandable
-- 50-69: Decent niche/keyword domain
-- 30-49: Marginal
-- 1-29: Not worth reg fee
-
-Domains:
-${batch.join("\n")}
-
-Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`
-        : `You are a domain investor evaluator. Be STRICT.
-
-CRITICAL:
-- Real English words >>> made-up strings. "sfitty.com" is NOT $40k.
-- 2-word compounds with real words: strong. Random combos: weak.
-- 3+ word domains: almost never above 35
-- Score honestly — most invented strings are worth $50-200
-
-${categoryInstruction}
-
-Score: 85-100 premium, 70-84 strong, 50-69 decent, 30-49 marginal, 1-29 pass
-
-Domains:
-${batch.join("\n")}
-
-Return JSON array: [{domain, score, summary (15 words max), category, estimated_value (USD), brandability (1-100), keyword_strength (1-100), length_score (1-100)}]`;
-
-      try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: isPremiumBatch
-                ? "You are a senior domain investment analyst. Real English words >>> made-up strings. Gibberish is NOT premium. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
-                : "You are a domain evaluator. Be STRICT. Made-up strings are worth $50-200 not $40k. Category must be one of: premium, brandable, keyword, short, compound, geo, niche, generic, weak. Return only valid JSON arrays. No markdown."
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0,
-          }),
-        });
-
-        if (!aiResp.ok) {
-          const status = aiResp.status;
-          if (status === 429) {
-            // Rate limited — wait 30s then retry once
-            console.warn(`Rate limited (429) at batch ${i}, waiting 30s before retry...`);
-            await new Promise(r => setTimeout(r, 30000));
-            const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: [
-                { role: "system", content: isPremiumBatch
-                  ? "You are a senior domain investment analyst. These domains passed rigorous pre-screening. Evaluate thoroughly and fairly. Return only valid JSON arrays. No markdown."
-                  : "You are a domain name investment evaluator. Be STRICT with scores. Return only valid JSON arrays. No markdown."
-                },
-                { role: "user", content: prompt },
-              ], temperature: 0 }),
-            });
-            if (!retryResp.ok) {
-              console.warn(`Retry also failed (${retryResp.status}), stopping at ${evaluated}`);
-              break;
-            }
-            // Use retry response below
-            const retryData = await retryResp.json();
-            const retryContent = retryData.choices?.[0]?.message?.content || "";
-            try {
-              const cleaned = retryContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-              const retryParsed = JSON.parse(cleaned);
-              const rows = retryParsed.map((r: any) => {
-                const dn = r.domain || r.domain_name;
-                return {
-                  scan_id: scanId, domain_name: dn,
-                  ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-                  ai_summary: r.summary || "", category: normalizeCategory(r.category),
-                  estimated_value: Number(r.estimated_value) || 0,
-                  brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-                  keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-                  length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-                  drop_date: dropDateMap.get(dn) || null,
-                };
-              });
-              if (rows.length > 0) await adminClient.from("drop_scan_results").insert(rows);
-            } catch { /* skip */ }
-            evaluated += batch.length;
-            continue;
-          }
-          if (status === 402) {
-            console.warn(`Credits exhausted (402), stopping at ${evaluated}`);
-            break;
-          }
-          console.error("AI error:", status, await aiResp.text());
-          evaluated += batch.length;
-          continue;
-        }
-
-        const aiData = await aiResp.json();
-        const content = aiData.choices?.[0]?.message?.content || "";
-
-        let parsed: any[];
-        try {
-          const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          parsed = JSON.parse(cleaned);
-        } catch {
-          console.error("Failed to parse AI response for batch", i, content.slice(0, 200));
-          evaluated += batch.length;
-          continue;
-        }
-
-
-
-        const rows = parsed.map((r: any) => {
-          const dn = r.domain || r.domain_name;
-          return {
-            scan_id: scanId,
-            domain_name: dn,
-            ai_score: Math.min(100, Math.max(0, Number(r.score) || 0)),
-            ai_summary: r.summary || "",
-            category: normalizeCategory(r.category),
-            estimated_value: Number(r.estimated_value) || 0,
-            brandability: Math.min(100, Math.max(0, Number(r.brandability) || 0)),
-            keyword_strength: Math.min(100, Math.max(0, Number(r.keyword_strength) || 0)),
-            length_score: Math.min(100, Math.max(0, Number(r.length_score) || 0)),
-            drop_date: dropDateMap.get(dn) || null,
-          };
-        });
-
-        if (rows.length > 0) {
-          await adminClient.from("drop_scan_results").insert(rows);
-        }
-
-        evaluated += batch.length;
-
-        await adminClient.from("drop_scans").update({
-          evaluated_domains: evaluated,
-          resume_from: evaluated,
-        }).eq("id", scanId);
-      } catch (batchErr) {
-        console.error("Batch error:", batchErr);
-        evaluated += batch.length;
-      }
-
-      // Delay between batches (3s to avoid rate limits)
-      if (i + AI_BATCH_SIZE < chunk.length) {
-        await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-
-    // Update resume point
-    await adminClient.from("drop_scans").update({
-      evaluated_domains: evaluated,
-      resume_from: evaluated,
-    }).eq("id", scanId);
-
-    // Self-chain or complete
-    if (evaluated < allDomains.length) {
-      queueNextEvaluateInvocation(supabaseUrl, serviceKey, scanId, "ai-eval");
-    } else {
-      await adminClient.from("drop_scans").update({
-        status: "complete",
-        csv_data: null,
-      }).eq("id", scanId);
-    }
-
-    return new Response(JSON.stringify({ success: true, evaluated, total: allDomains.length }), {
+    return new Response(JSON.stringify({ success: true, status: scan.status }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
