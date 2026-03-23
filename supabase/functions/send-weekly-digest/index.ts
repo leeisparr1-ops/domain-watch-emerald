@@ -286,13 +286,18 @@ serve(async (req: Request): Promise<Response> => {
         if (!email) continue;
 
         // Build email
-        const domainRows = rows.slice(0, 10).map((m: any) => `
+        const domainRows = rows.slice(0, 10).map((m: any) => {
+          const valuation = m.valuation ? `$${Number(m.valuation).toLocaleString()}` : "-";
+          const dealRatio = (m.valuation && m.price > 0) ? (m.valuation / m.price).toFixed(1) + "x" : "-";
+          return `
           <tr>
             <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-family:monospace;color:#1f2937;font-size:14px;">${m.domain_name}</td>
             <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">${m.pattern_description || "Pattern"}</td>
             <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#16a34a;font-weight:bold;text-align:right;font-size:14px;">$${Number(m.price).toLocaleString()}</td>
-          </tr>
-        `).join("");
+            <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#3b82f6;text-align:right;font-size:13px;">${valuation}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#a855f7;font-weight:bold;text-align:right;font-size:13px;">${dealRatio}</td>
+          </tr>`;
+        }).join("");
 
         const preheader = `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns today`;
 
