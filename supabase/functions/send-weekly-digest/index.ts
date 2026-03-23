@@ -240,7 +240,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Processing weekly digest for ${users!.length} users`);
+    console.log(`Processing daily digest for ${users!.length} users`);
     let sentCount = 0;
 
     for (const userSetting of users) {
