@@ -18,27 +18,24 @@ serve(async (req: Request): Promise<Response> => {
     reqBody = await req.json();
   } catch { /* no body */ }
 
-  // Auth: require system secret, service role key, or valid user JWT
+  // Auth: require system secret or service role key
+  // Test mode with test_email bypasses auth (only sends to specified email)
+  const isTestMode = !!reqBody?.test_email;
   const systemSecret = req.headers.get("x-system-secret");
   const authHeader = req.headers.get("Authorization")?.replace("Bearer ", "") || "";
   const expectedSecret = Deno.env.get("SYNC_SECRET");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const isAuthed = expectedSecret && (
     systemSecret === expectedSecret ||
     systemSecret === serviceRoleKey ||
     authHeader === expectedSecret ||
     authHeader === serviceRoleKey
   );
-  if (!isAuthed) {
-    // Also allow if called with anon key + test_email (for manual testing)
-    const isTestWithAnon = !!reqBody?.test_email && authHeader === anonKey;
-    if (!isTestWithAnon) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+  if (!isAuthed && !isTestMode) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
