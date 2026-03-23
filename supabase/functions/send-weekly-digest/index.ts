@@ -336,7 +336,7 @@ serve(async (req: Request): Promise<Response> => {
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             "X-Entity-Ref-ID": crypto.randomUUID(),
             "Precedence": "bulk",
-            "Feedback-ID": "weekly_digest:expiredhawk",
+            "Feedback-ID": "daily_digest:expiredhawk",
           },
         });
 
