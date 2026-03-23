@@ -18,13 +18,20 @@ serve(async (req: Request): Promise<Response> => {
     reqBody = await req.json();
   } catch { /* no body */ }
 
-  // Auth: require system secret (called from cron or test)
+  // Auth: require system secret or service role key
+  // Test mode with test_email bypasses auth (only sends to specified email)
   const isTestMode = !!reqBody?.test_email;
-  const systemSecret = req.headers.get("x-system-secret") || req.headers.get("Authorization")?.replace("Bearer ", "");
+  const systemSecret = req.headers.get("x-system-secret");
+  const authHeader = req.headers.get("Authorization")?.replace("Bearer ", "") || "";
   const expectedSecret = Deno.env.get("SYNC_SECRET");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const isAuthed = expectedSecret && (systemSecret === expectedSecret || systemSecret === serviceRoleKey);
-  if (!isAuthed) {
+  const isAuthed = expectedSecret && (
+    systemSecret === expectedSecret ||
+    systemSecret === serviceRoleKey ||
+    authHeader === expectedSecret ||
+    authHeader === serviceRoleKey
+  );
+  if (!isAuthed && !isTestMode) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -280,7 +287,7 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
         `).join("");
 
-        const isFresh = ageMs < 3 * 24 * 60 * 60 * 1000; // <3 days old
+        const preheader = `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns today`;
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -295,7 +302,7 @@ serve(async (req: Request): Promise<Response> => {
     <h1 style="color:#fff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
   </td></tr>
   <tr><td style="background-color:#fff;padding:32px 30px;border-radius:0 0 8px 8px;">
-    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Weekly Domain Digest</h2>
+    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Daily Domain Digest</h2>
     <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern match${totalCount !== 1 ? "es" : ""} waiting for you.</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
       <tr style="background-color:#f9fafb;">
