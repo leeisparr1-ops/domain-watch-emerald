@@ -328,7 +328,7 @@ serve(async (req: Request): Promise<Response> => {
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [email],
-          subject: `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns this week`,
+          subject: `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns today`,
           html,
           text,
           headers: {
