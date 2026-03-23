@@ -226,7 +226,7 @@ serve(async (req: Request): Promise<Response> => {
         from: "ExpiredHawk <notifications@expiredhawk.com>",
         replyTo: "support@expiredhawk.com",
         to: [testEmail],
-        subject: "[TEST] Your Weekly Domain Digest",
+        subject: "[TEST] Your Daily Domain Digest",
         html,
         text: `TEST DIGEST\n\nSample matches:\n${sampleMatches.map(m => `- ${m.domain_name} ($${m.price}) - ${m.pattern_description}`).join("\n")}\n${trendingText}\n\nView matches: https://expiredhawk.com/dashboard`,
         headers: {
