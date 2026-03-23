@@ -314,16 +314,18 @@ serve(async (req: Request): Promise<Response> => {
     <h1 style="color:#fff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
   </td></tr>
   <tr><td style="background-color:#fff;padding:32px 30px;border-radius:0 0 8px 8px;">
-    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Daily Domain Digest</h2>
-    <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern match${totalCount !== 1 ? "es" : ""} waiting for you.</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
-      <tr style="background-color:#f9fafb;">
-        <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Domain</th>
-        <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Pattern</th>
-        <th style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Price</th>
-      </tr>
-      ${domainRows}
-    </table>
+     <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Daily Top Picks</h2>
+     <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern match${totalCount !== 1 ? "es" : ""} — here are your best deals, ranked by flip potential.</p>
+     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
+       <tr style="background-color:#f9fafb;">
+         <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Domain</th>
+         <th style="padding:10px 12px;text-align:left;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Pattern</th>
+         <th style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Price</th>
+         <th style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Est. Value</th>
+         <th style="padding:10px 12px;text-align:right;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Deal</th>
+       </tr>
+       ${domainRows}
+     </table>
     ${totalCount > 10 ? `<p style="color:#71717a;font-size:14px;font-style:italic;">...and ${totalCount - 10} more matches</p>` : ""}
     ${trendingSection}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
