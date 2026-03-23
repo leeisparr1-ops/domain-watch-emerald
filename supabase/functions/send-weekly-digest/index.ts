@@ -100,7 +100,7 @@ serve(async (req: Request): Promise<Response> => {
 
             trendingSection = `
               <div style="margin:24px 0 0 0;">
-                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Niches This Week</h3>
+                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Niches Today</h3>
                 <p style="color:#6b7280;font-size:13px;margin:0 0 12px 0;">AI-analyzed market trends based on real auction and search data.</p>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;">
                   <tr style="background-color:#f9fafb;">
