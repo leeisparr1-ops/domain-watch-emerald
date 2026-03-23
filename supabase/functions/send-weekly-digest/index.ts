@@ -270,6 +270,13 @@ serve(async (req: Request): Promise<Response> => {
 
         if (totalCount === 0) continue;
 
+        // Sort by best deal ratio (valuation / price) so top picks come first
+        rows.sort((a: any, b: any) => {
+          const ratioA = (a.valuation && a.price > 0) ? a.valuation / a.price : 0;
+          const ratioB = (b.valuation && b.price > 0) ? b.valuation / b.price : 0;
+          return ratioB - ratioA;
+        });
+
         // Get email
         let email = userSetting.notification_email;
         if (!email) {
