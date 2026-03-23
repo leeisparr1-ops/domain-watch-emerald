@@ -250,6 +250,45 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
             <Sparkles className="w-4 h-4" />
             Deep Analysis with AI Domain Advisor
           </Button>
+
+          {/* Action buttons - moved under AI Advisor */}
+          <div className="mt-3 space-y-2">
+            <a
+              href={
+                domain.inventorySource === 'namecheap'
+                  ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
+                  : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button className="w-full" size="lg">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View Auction
+              </Button>
+            </a>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={`https://web.archive.org/web/*/${domain.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" className="w-full" size="sm">
+                  Wayback Machine
+                </Button>
+              </a>
+              <a
+                href={`https://www.whois.com/whois/${domain.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" className="w-full" size="sm">
+                  WHOIS Lookup
+                </Button>
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Stats table */}
@@ -276,45 +315,6 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
               ))}
             </TableBody>
           </Table>
-        </div>
-
-        {/* Action buttons */}
-        <div className="pt-4 border-t border-border space-y-3">
-          <a
-            href={
-              domain.inventorySource === 'namecheap'
-                ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
-                : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            <Button className="w-full" size="lg">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              View Auction
-            </Button>
-          </a>
-          <div className="grid grid-cols-2 gap-2">
-            <a
-              href={`https://web.archive.org/web/*/${domain.domain}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" className="w-full" size="sm">
-                Wayback Machine
-              </Button>
-            </a>
-            <a
-              href={`https://www.whois.com/whois/${domain.domain}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" className="w-full" size="sm">
-                WHOIS Lookup
-              </Button>
-            </a>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
