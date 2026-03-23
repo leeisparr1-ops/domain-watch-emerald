@@ -280,7 +280,7 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
         `).join("");
 
-        const preheader = rows.slice(0, 3).map((m: any) => m.domain_name).join(", ");
+        const isFresh = ageMs < 3 * 24 * 60 * 60 * 1000; // <3 days old
 
         const html = `<!DOCTYPE html>
 <html lang="en">
