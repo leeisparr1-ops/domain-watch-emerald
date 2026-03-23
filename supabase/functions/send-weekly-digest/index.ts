@@ -322,7 +322,7 @@ serve(async (req: Request): Promise<Response> => {
 </table>
 </body></html>`;
 
-        const text = `Your Weekly Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}${trendingText}\n\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
+        const text = `Your Daily Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}${trendingText}\n\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
 
         await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
