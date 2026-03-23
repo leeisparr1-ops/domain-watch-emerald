@@ -341,7 +341,7 @@ serve(async (req: Request): Promise<Response> => {
         });
 
         sentCount++;
-        console.log(`Sent weekly digest to ${email} (${totalCount} matches)`);
+        console.log(`Sent daily digest to ${email} (${totalCount} matches)`);
       } catch (userError) {
         console.error(`Error processing user ${userSetting.user_id}:`, userError);
       }
