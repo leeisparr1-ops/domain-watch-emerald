@@ -280,7 +280,7 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
         `).join("");
 
-        const isFresh = ageMs < 3 * 24 * 60 * 60 * 1000; // <3 days old
+        const preheader = `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns today`;
 
         const html = `<!DOCTYPE html>
 <html lang="en">
