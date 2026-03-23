@@ -295,7 +295,7 @@ serve(async (req: Request): Promise<Response> => {
     <h1 style="color:#fff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
   </td></tr>
   <tr><td style="background-color:#fff;padding:32px 30px;border-radius:0 0 8px 8px;">
-    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Weekly Domain Digest</h2>
+    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Daily Domain Digest</h2>
     <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern match${totalCount !== 1 ? "es" : ""} waiting for you.</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
       <tr style="background-color:#f9fafb;">
