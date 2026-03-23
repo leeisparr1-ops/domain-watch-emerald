@@ -100,7 +100,7 @@ serve(async (req: Request): Promise<Response> => {
 
             trendingSection = `
               <div style="margin:24px 0 0 0;">
-                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Niches This Week</h3>
+                <h3 style="color:#18181b;margin:0 0 8px 0;font-size:17px;">Trending Niches Today</h3>
                 <p style="color:#6b7280;font-size:13px;margin:0 0 12px 0;">AI-analyzed market trends based on real auction and search data.</p>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;">
                   <tr style="background-color:#f9fafb;">
@@ -195,8 +195,8 @@ serve(async (req: Request): Promise<Response> => {
     <h1 style="color:#fff;margin:0;font-size:26px;font-weight:bold;">ExpiredHawk</h1>
   </td></tr>
   <tr><td style="background-color:#fff;padding:32px 30px;border-radius:0 0 8px 8px;">
-    <p style="background-color:#fef3c7;padding:8px 12px;border-radius:4px;font-size:12px;color:#92400e;margin:0 0 16px 0;"><strong>TEST EMAIL</strong> — This is a preview of the weekly digest template.</p>
-    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Weekly Domain Digest</h2>
+    <p style="background-color:#fef3c7;padding:8px 12px;border-radius:4px;font-size:12px;color:#92400e;margin:0 0 16px 0;"><strong>TEST EMAIL</strong> — This is a preview of the daily digest template.</p>
+    <h2 style="color:#18181b;margin:0 0 8px 0;font-size:22px;">Your Daily Domain Digest</h2>
     <p style="color:#3f3f46;font-size:15px;line-height:1.6;">You have <strong>${totalCount}</strong> active pattern matches waiting for you.</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e5e7eb;border-radius:6px;">
       <tr style="background-color:#f9fafb;">
@@ -226,7 +226,7 @@ serve(async (req: Request): Promise<Response> => {
         from: "ExpiredHawk <notifications@expiredhawk.com>",
         replyTo: "support@expiredhawk.com",
         to: [testEmail],
-        subject: "[TEST] Your Weekly Domain Digest",
+        subject: "[TEST] Your Daily Domain Digest",
         html,
         text: `TEST DIGEST\n\nSample matches:\n${sampleMatches.map(m => `- ${m.domain_name} ($${m.price}) - ${m.pattern_description}`).join("\n")}\n${trendingText}\n\nView matches: https://expiredhawk.com/dashboard`,
         headers: {
@@ -240,7 +240,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Processing weekly digest for ${users!.length} users`);
+    console.log(`Processing daily digest for ${users!.length} users`);
     let sentCount = 0;
 
     for (const userSetting of users) {
@@ -280,7 +280,7 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
         `).join("");
 
-        const preheader = rows.slice(0, 3).map((m: any) => m.domain_name).join(", ");
+        const isFresh = ageMs < 3 * 24 * 60 * 60 * 1000; // <3 days old
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -322,13 +322,13 @@ serve(async (req: Request): Promise<Response> => {
 </table>
 </body></html>`;
 
-        const text = `Your Weekly Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}${trendingText}\n\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
+        const text = `Your Daily Domain Digest\n\nYou have ${totalCount} active pattern match${totalCount !== 1 ? "es" : ""}.\n\n${rows.slice(0, 10).map((m: any) => `- ${m.domain_name} ($${Number(m.price).toLocaleString()}) - ${m.pattern_description || "Pattern"}`).join("\n")}\n${totalCount > 10 ? `\n...and ${totalCount - 10} more\n` : ""}${trendingText}\n\nView matches: https://expiredhawk.com/dashboard\n\n---\nExpiredHawk · United Kingdom`;
 
         await resend.emails.send({
           from: "ExpiredHawk <notifications@expiredhawk.com>",
           replyTo: "support@expiredhawk.com",
           to: [email],
-          subject: `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns this week`,
+          subject: `${totalCount} domain${totalCount !== 1 ? "s" : ""} matching your patterns today`,
           html,
           text,
           headers: {
@@ -336,12 +336,12 @@ serve(async (req: Request): Promise<Response> => {
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             "X-Entity-Ref-ID": crypto.randomUUID(),
             "Precedence": "bulk",
-            "Feedback-ID": "weekly_digest:expiredhawk",
+            "Feedback-ID": "daily_digest:expiredhawk",
           },
         });
 
         sentCount++;
-        console.log(`Sent weekly digest to ${email} (${totalCount} matches)`);
+        console.log(`Sent daily digest to ${email} (${totalCount} matches)`);
       } catch (userError) {
         console.error(`Error processing user ${userSetting.user_id}:`, userError);
       }
@@ -352,7 +352,7 @@ serve(async (req: Request): Promise<Response> => {
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error("Weekly digest error:", error);
+    console.error("Daily digest error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
