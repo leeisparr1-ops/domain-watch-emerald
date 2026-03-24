@@ -68,15 +68,27 @@ const PRICE_RANGES = [
 
 function getWordCount(domainName: string): number {
   const sld = domainName.split(".")[0].toLowerCase();
-  // Simple heuristic: split on hyphens, then try to detect camelCase/compound words
-  const parts = sld.split("-");
-  if (parts.length > 1) return parts.length;
-  // Count transitions from consonant to vowel as word boundaries (rough heuristic)
-  const words = sld.replace(/([a-z])([A-Z])/g, "$1 $2").split(/(?<=[aeiou])(?=[bcdfghjklmnpqrstvwxyz]{2})/i);
-  // Simplified: just count by common patterns
-  if (sld.length <= 5) return 1;
-  if (sld.length <= 10) return 2;
-  return 3;
+  
+  // Handle hyphenated domains first
+  const hyphenParts = sld.split("-").filter(Boolean);
+  if (hyphenParts.length > 1) return hyphenParts.length;
+  
+  // Use dictionary-based word segmentation for accurate detection
+  const isWord = (w: string) => COMMON_WORDS.has(w) || DICTIONARY_WORDS.has(w) || PREMIUM_KEYWORDS.has(w);
+  const words = splitIntoWords(sld);
+  const meaningfulWords = words.filter(w => w.length >= 2 && isWord(w));
+  
+  // If we found meaningful words that cover the domain, use that count
+  if (meaningfulWords.length > 0) {
+    const totalCoveredChars = meaningfulWords.reduce((sum, w) => sum + w.length, 0);
+    // Ensure words actually cover most of the SLD (at least 80%)
+    if (totalCoveredChars >= sld.length * 0.8) {
+      return meaningfulWords.length;
+    }
+  }
+  
+  // Fallback: single word or unrecognized
+  return 1;
 }
 
 function getSLD(domainName: string): string {
