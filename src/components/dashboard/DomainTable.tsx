@@ -176,7 +176,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Award className="w-2.5 h-2.5" />{stats.brandScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Brandability: {stats.brandScore}/100</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Brandability: {stats.brandScore}/100</p>
+          <p className="text-xs text-muted-foreground mt-0.5">How memorable, unique, and marketable this domain name is as a brand.</p>
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -184,7 +187,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Mic className="w-2.5 h-2.5" />{stats.pronounceScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Pronounceability: {stats.pronounceScore}/100</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Pronounceability: {stats.pronounceScore}/100</p>
+          <p className="text-xs text-muted-foreground mt-0.5">How easy the domain is to say aloud, spell from hearing, and share verbally.</p>
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -197,7 +203,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Trademark: {stats.tmDisplay.label}</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Trademark: {stats.tmDisplay.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Risk of trademark conflicts with known brands. Higher risk means potential legal issues.</p>
+        </TooltipContent>
       </Tooltip>
     </div>
   );

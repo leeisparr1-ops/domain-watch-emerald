@@ -89,6 +89,7 @@ const PATTERN_PRESETS: PatternPreset[] = [
   { label: "4-Letter (LLLL)", pattern: "^[a-z]{4}$", pattern_type: "structure", description: "Any 4-letter domain", category: "structure" },
   { label: "5-Letter (LLLLL)", pattern: "^[a-z]{5}$", pattern_type: "structure", description: "Any 5-letter domain", category: "structure" },
   { label: "6-Letter", pattern: "^[a-z]{6}$", pattern_type: "structure", description: "Any 6-letter domain", category: "structure" },
+  { label: "2-Word", pattern: "^[a-z]{4,}$", pattern_type: "words", description: "Two real dictionary words (e.g. cloudbank, dataflow)", category: "structure" },
   { label: "Word + Number", pattern: "^[a-z]+[0-9]+$", pattern_type: "structure", description: "Pattern like app2, cloud9", category: "structure" },
   { label: "Repeating Letters", pattern: "([a-z])\\1", pattern_type: "regex", description: "Has consecutive repeated letters", category: "structure" },
   // Pronounceable
