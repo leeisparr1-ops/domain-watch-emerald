@@ -128,6 +128,34 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
   const navigate = useNavigate();
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
   useBackClose(open, handleClose);
+
+  const [similarDomains, setSimilarDomains] = useState<SimilarDomain[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !domain) { setSimilarDomains([]); return; }
+    const sld = getDomainWithoutTld(domain.domain);
+    const keywords = extractKeywords(sld);
+    setSimilarLoading(true);
+
+    const fetchSimilar = async () => {
+      try {
+        // Build OR filter from keywords
+        const orFilter = keywords.map(k => `domain_name.ilike.%${k}%`).join(',');
+        const { data } = await supabase
+          .from('auctions')
+          .select('id, domain_name, price, valuation, tld, end_time')
+          .or(orFilter)
+          .neq('domain_name', domain.domain)
+          .gt('end_time', new Date().toISOString())
+          .order('gem_score', { ascending: false, nullsFirst: false })
+          .limit(8);
+        setSimilarDomains(data || []);
+      } catch { setSimilarDomains([]); }
+      setSimilarLoading(false);
+    };
+    fetchSimilar();
+  }, [open, domain?.domain]);
   
   if (!domain) return null;
 
