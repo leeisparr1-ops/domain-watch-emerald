@@ -86,6 +86,41 @@ function getDomainWithoutTld(domain: string): string {
   return domain;
 }
 
+/** Extract meaningful keyword fragments (3+ chars) from a domain SLD */
+function extractKeywords(sld: string): string[] {
+  const clean = sld.toLowerCase().replace(/[^a-z]/g, '');
+  if (clean.length <= 3) return [clean];
+  
+  const keywords: string[] = [];
+  // Common word boundaries in domain names
+  const common3 = ['app','web','net','dev','hub','lab','pro','pay','buy','get','top','max','one','bio','eco','fin','med','edu','biz','art','fit','bot','api','cloud','smart','fast','data','code','tech','cyber','green','blue','gold','star','fire','dark','moon','sun','home','farm','land','trade','craft','forge','flow','peak','core','link','dash','snap','flip','next','mega','meta','wave','mind','sync','nest','grid','pulse','base','dock','mint','node','open','swift','lite'];
+  
+  for (const word of common3) {
+    if (clean.includes(word) && word.length >= 3) {
+      keywords.push(word);
+    }
+  }
+  
+  // Also try splitting by length segments
+  if (keywords.length === 0 && clean.length >= 6) {
+    keywords.push(clean.substring(0, Math.ceil(clean.length / 2)));
+    keywords.push(clean.substring(Math.ceil(clean.length / 2)));
+  }
+  
+  if (keywords.length === 0) keywords.push(clean);
+  
+  return [...new Set(keywords)].slice(0, 4);
+}
+
+interface SimilarDomain {
+  id: string;
+  domain_name: string;
+  price: number;
+  valuation: number | null;
+  tld: string | null;
+  end_time: string | null;
+}
+
 export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavorite, externalToggleFavorite }: DomainDetailSheetProps) {
   const { isFavorite: localIsFavorite, toggleFavorite: localToggleFavorite } = useFavorites();
   const checkIsFavorite = externalIsFavorite ?? localIsFavorite;
