@@ -389,6 +389,50 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
             </TableBody>
           </Table>
         </div>
+        {/* Similar Domains */}
+        <div className="py-4 border-t border-border">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Similar Domains
+          </h3>
+          {similarLoading ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Finding similar domains…
+            </div>
+          ) : similarDomains.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No similar domains found in active auctions.</p>
+          ) : (
+            <div className="space-y-2">
+              {similarDomains.map((sd) => (
+                <div
+                  key={sd.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
+                  onClick={() => {
+                    onOpenChange(false);
+                    // Small delay to allow sheet close animation
+                    setTimeout(() => {
+                      window.dispatchEvent(new CustomEvent('open-domain-detail', { detail: sd }));
+                    }, 200);
+                  }}
+                >
+                  <div className="min-w-0">
+                    <div className="font-mono text-sm font-medium text-foreground truncate">{sd.domain_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {sd.end_time ? formatTimeRemaining(sd.end_time) + ' left' : 'No end time'}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <div className="text-sm font-semibold text-primary">${sd.price.toLocaleString()}</div>
+                    {sd.valuation && sd.valuation > 0 && (
+                      <div className="text-xs text-muted-foreground">Val: ${sd.valuation.toLocaleString()}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
     </TooltipProvider>
