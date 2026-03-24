@@ -1,6 +1,7 @@
 import * as React from "react";
-import { useCallback } from "react";
-import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,41 @@ function getDomainWithoutTld(domain: string): string {
   return domain;
 }
 
+/** Extract meaningful keyword fragments (3+ chars) from a domain SLD */
+function extractKeywords(sld: string): string[] {
+  const clean = sld.toLowerCase().replace(/[^a-z]/g, '');
+  if (clean.length <= 3) return [clean];
+  
+  const keywords: string[] = [];
+  // Common word boundaries in domain names
+  const common3 = ['app','web','net','dev','hub','lab','pro','pay','buy','get','top','max','one','bio','eco','fin','med','edu','biz','art','fit','bot','api','cloud','smart','fast','data','code','tech','cyber','green','blue','gold','star','fire','dark','moon','sun','home','farm','land','trade','craft','forge','flow','peak','core','link','dash','snap','flip','next','mega','meta','wave','mind','sync','nest','grid','pulse','base','dock','mint','node','open','swift','lite'];
+  
+  for (const word of common3) {
+    if (clean.includes(word) && word.length >= 3) {
+      keywords.push(word);
+    }
+  }
+  
+  // Also try splitting by length segments
+  if (keywords.length === 0 && clean.length >= 6) {
+    keywords.push(clean.substring(0, Math.ceil(clean.length / 2)));
+    keywords.push(clean.substring(Math.ceil(clean.length / 2)));
+  }
+  
+  if (keywords.length === 0) keywords.push(clean);
+  
+  return [...new Set(keywords)].slice(0, 4);
+}
+
+interface SimilarDomain {
+  id: string;
+  domain_name: string;
+  price: number;
+  valuation: number | null;
+  tld: string | null;
+  end_time: string | null;
+}
+
 export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavorite, externalToggleFavorite }: DomainDetailSheetProps) {
   const { isFavorite: localIsFavorite, toggleFavorite: localToggleFavorite } = useFavorites();
   const checkIsFavorite = externalIsFavorite ?? localIsFavorite;
@@ -92,6 +128,34 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
   const navigate = useNavigate();
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
   useBackClose(open, handleClose);
+
+  const [similarDomains, setSimilarDomains] = useState<SimilarDomain[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !domain) { setSimilarDomains([]); return; }
+    const sld = getDomainWithoutTld(domain.domain);
+    const keywords = extractKeywords(sld);
+    setSimilarLoading(true);
+
+    const fetchSimilar = async () => {
+      try {
+        // Build OR filter from keywords
+        const orFilter = keywords.map(k => `domain_name.ilike.%${k}%`).join(',');
+        const { data } = await supabase
+          .from('auctions')
+          .select('id, domain_name, price, valuation, tld, end_time')
+          .or(orFilter)
+          .neq('domain_name', domain.domain)
+          .gt('end_time', new Date().toISOString())
+          .order('gem_score', { ascending: false, nullsFirst: false })
+          .limit(8);
+        setSimilarDomains(data || []);
+      } catch { setSimilarDomains([]); }
+      setSimilarLoading(false);
+    };
+    fetchSimilar();
+  }, [open, domain?.domain]);
   
   if (!domain) return null;
 
@@ -324,6 +388,50 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
               ))}
             </TableBody>
           </Table>
+        </div>
+        {/* Similar Domains */}
+        <div className="py-4 border-t border-border">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Similar Domains
+          </h3>
+          {similarLoading ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Finding similar domains…
+            </div>
+          ) : similarDomains.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No similar domains found in active auctions.</p>
+          ) : (
+            <div className="space-y-2">
+              {similarDomains.map((sd) => (
+                <div
+                  key={sd.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
+                  onClick={() => {
+                    onOpenChange(false);
+                    // Small delay to allow sheet close animation
+                    setTimeout(() => {
+                      window.dispatchEvent(new CustomEvent('open-domain-detail', { detail: sd }));
+                    }, 200);
+                  }}
+                >
+                  <div className="min-w-0">
+                    <div className="font-mono text-sm font-medium text-foreground truncate">{sd.domain_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {sd.end_time ? formatTimeRemaining(sd.end_time) + ' left' : 'No end time'}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <div className="text-sm font-semibold text-primary">${sd.price.toLocaleString()}</div>
+                    {sd.valuation && sd.valuation > 0 && (
+                      <div className="text-xs text-muted-foreground">Val: ${sd.valuation.toLocaleString()}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
