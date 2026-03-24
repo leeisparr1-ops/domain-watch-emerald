@@ -187,7 +187,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Mic className="w-2.5 h-2.5" />{stats.pronounceScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Pronounceability: {stats.pronounceScore}/100</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Pronounceability: {stats.pronounceScore}/100</p>
+          <p className="text-xs text-muted-foreground mt-0.5">How easy the domain is to say aloud, spell from hearing, and share verbally.</p>
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
