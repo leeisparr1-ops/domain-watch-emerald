@@ -268,7 +268,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 View Auction
               </Button>
             </a>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <a
                 href={`https://web.archive.org/web/*/${domain.domain}`}
                 target="_blank"
@@ -285,6 +285,15 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
               >
                 <Button variant="outline" className="w-full" size="sm">
                   WHOIS Lookup
+                </Button>
+              </a>
+              <a
+                href={`https://openlinkprofiler.org/r/${domain.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" className="w-full" size="sm">
+                  Backlinks
                 </Button>
               </a>
             </div>
