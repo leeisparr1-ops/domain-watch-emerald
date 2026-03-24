@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Filter, X, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { splitIntoWords, DICTIONARY_WORDS, COMMON_WORDS, PREMIUM_KEYWORDS } from "@/lib/domainValuation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
