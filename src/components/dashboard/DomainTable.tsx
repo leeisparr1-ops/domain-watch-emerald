@@ -203,7 +203,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Trademark: {stats.tmDisplay.label}</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Trademark: {stats.tmDisplay.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Risk of trademark conflicts with known brands. Higher risk means potential legal issues.</p>
+        </TooltipContent>
       </Tooltip>
     </div>
   );
