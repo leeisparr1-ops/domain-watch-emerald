@@ -176,7 +176,10 @@ function MiniQuickStats({ domain, precomputed }: {
             <Award className="w-2.5 h-2.5" />{stats.brandScore}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom"><p>Brandability: {stats.brandScore}/100</p></TooltipContent>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="font-medium">Brandability: {stats.brandScore}/100</p>
+          <p className="text-xs text-muted-foreground mt-0.5">How memorable, unique, and marketable this domain name is as a brand.</p>
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
