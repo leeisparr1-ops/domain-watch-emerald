@@ -138,12 +138,26 @@ Weight keywords higher when MULTIPLE signals converge (e.g., trending in domain 
 
 For each keyword, your heat multiplier should reflect REAL observed momentum, not theoretical potential. A keyword at 2.0+ heat must have strong evidence from at least 2 independent signal sources.${groundingSection}`;
 
-    const currentDate = new Date().toLocaleDateString("en-US", {
+    const now = new Date();
+    const currentDate = now.toLocaleDateString("en-US", {
       month: "long",
       year: "numeric",
     });
+    const currentYear = now.getFullYear();
+    const currentMonth = now.toLocaleDateString("en-US", { month: "long" });
+    const currentQuarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`;
 
     const userPrompt = `Generate a comprehensive trend report for the domain aftermarket as of ${currentDate}.
+
+TODAY'S DATE: ${now.toISOString().slice(0, 10)}. The current year is ${currentYear}. The current month is ${currentMonth}. The current quarter is ${currentQuarter} ${currentYear}.
+
+CRITICAL DATE ACCURACY RULES:
+- ALL data points, statistics, and market signals MUST reference ${currentYear} or at minimum the last 90 days.
+- NEVER cite data from 2024 or earlier years — that is stale. If you only have older data, say "as of ${currentQuarter} ${currentYear}" and estimate current figures based on trajectory.
+- Market signals must describe what is happening NOW (${currentMonth} ${currentYear}), not what happened last year.
+- Example WRONG: ".ai domain registrations grew 89% in 2024" — this references last year.
+- Example RIGHT: ".ai domain registrations trending up 30% YTD in ${currentYear}" — this references the current year.
+- If you are uncertain about a ${currentYear} figure, use phrases like "estimated", "on track for", or "YTD" rather than citing old data.
 
 IMPORTANT: Ground your analysis in REAL signals you know about. Reference specific Reddit threads, HN discussions, Google Trends data, news events, and social media buzz. Do NOT hallucinate trends — if you're unsure about a keyword's momentum, give it a conservative heat score (1.0-1.3).
 
@@ -169,9 +183,9 @@ CRITICAL ACCURACY REQUIREMENTS FOR VOLUME ESTIMATES:
 
 3. hot_niches: Array of 6-10 objects: { niche, label, heat (1-100), emerging_keywords[], declining_keywords[] }. Heat should reflect REAL signals from Reddit/HN/news/Google Trends, not speculation. Include a brief "signal_source" note for each niche explaining WHY it's hot. IMPORTANT: Distribute heat scores — not every niche is 80+. Include some at 30-60 range for balance.
 
-4. market_signals: Array of 6-10 short strings describing key market movements. Each signal MUST reference a real data point (e.g. ".ai domains averaging $45k in Q1 2026 per NameBio data", "search interest for 'agentic' up 340% on Google Trends YoY").
+4. market_signals: Array of 6-10 short strings describing key market movements. Each signal MUST reference a CURRENT ${currentYear} data point — NEVER reference 2024 or older years. Examples: ".ai domains averaging $45k in ${currentQuarter} ${currentYear} per NameBio data", "search interest for 'agentic' up 340% on Google Trends YoY as of ${currentMonth} ${currentYear}".
 
-Be specific and data-driven. Every trend claim should be traceable to a real signal source.`;
+Be specific and data-driven. Every trend claim should be traceable to a real signal source. ALL statistics must be for ${currentYear} — no older data.`;
 
     // ── Step 3: Call Gemini with grounded prompt ──
     // Use JSON mode instead of tool calls — more reliable for large structured output
