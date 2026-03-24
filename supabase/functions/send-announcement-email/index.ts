@@ -204,7 +204,6 @@ ${preheaderHtml("Algo valuations, AI Advisor deep-links, keyword name generation
         totalUsers: users.length,
         successCount,
         failCount,
-        results
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
