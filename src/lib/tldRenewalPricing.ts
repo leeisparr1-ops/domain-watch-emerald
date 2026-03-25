@@ -1,6 +1,6 @@
 /**
  * Real-world TLD renewal pricing data (annual, USD).
- * Sources: ICANN registrar average pricing, major registrars (Namecheap, GoDaddy, Cloudflare, Porkbun).
+ * Sources: ICANN registrar average pricing, major registrars (GoDaddy, Cloudflare, Porkbun).
  * Prices reflect typical renewal costs (not promotional first-year pricing).
  * Last updated: 2026-02.
  */

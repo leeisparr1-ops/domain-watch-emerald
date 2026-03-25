@@ -62,6 +62,20 @@ interface Filters {
   inventorySource: string;
 }
 
+const ACTIVE_INVENTORY_SOURCES = [
+  "allListings",
+  "mostActive",
+  "fiveLetter",
+  "nonAdultListings2",
+  "listings2",
+  "recent",
+  "withPageviews",
+  "featured",
+  "auctionsEndingToday",
+  "endingTomorrow",
+  "auctionsEndingTomorrow",
+];
+
 function formatTimeRemaining(endTime: string): string {
   const end = new Date(endTime);
   const now = new Date();
@@ -196,7 +210,7 @@ export default function Dashboard() {
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
-    inventorySource: "godaddy",
+    inventorySource: "all",
   });
   const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "end_time_asc");
 
@@ -287,7 +301,7 @@ export default function Dashboard() {
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
-      if (filters.inventorySource === "godaddy") query = query.eq('inventory_source', 'godaddy');
+      query = query.in('inventory_source', ACTIVE_INVENTORY_SOURCES);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
 
@@ -352,7 +366,7 @@ export default function Dashboard() {
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
-      if (filters.inventorySource === "godaddy") query = query.eq('inventory_source', 'godaddy');
+      query = query.in('inventory_source', ACTIVE_INVENTORY_SOURCES);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to + 1).abortSignal(signal);
       

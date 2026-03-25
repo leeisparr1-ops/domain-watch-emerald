@@ -79,7 +79,7 @@ export function AddDomainDialog({ onAdd }: Props) {
             </div>
             <div>
               <Label>Source</Label>
-              <Input placeholder="GoDaddy, Namecheap..." value={form.purchase_source} onChange={(e) => setForm({ ...form, purchase_source: e.target.value })} />
+              <Input placeholder="GoDaddy, Afternic..." value={form.purchase_source} onChange={(e) => setForm({ ...form, purchase_source: e.target.value })} />
             </div>
             <div>
               <Label>Status</Label>
