@@ -61,6 +61,10 @@ export default function Portfolio() {
     setRefreshingAll(false);
   };
 
+  if (!isAllowed) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <>
       <Helmet>
