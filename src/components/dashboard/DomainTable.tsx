@@ -14,7 +14,7 @@ import {
   Award,
   Mic,
   Shield,
-  
+  Sparkles,
   Bird,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
