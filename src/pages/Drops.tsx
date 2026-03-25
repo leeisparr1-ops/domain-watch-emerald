@@ -98,7 +98,7 @@ const Drops = () => {
   const [totalResults, setTotalResults] = useState(0);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
-  const [sortKey, setSortKey] = useState<SortKey>("ai_score");
+  const [sortKey, setSortKey] = useState<SortKey>("drop_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [searchFilter, setSearchFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -114,7 +114,7 @@ const Drops = () => {
   const pageRef = useRef(0);
   const searchRef = useRef("");
   const categoryRef = useRef("all");
-  const sortKeyRef = useRef<SortKey>("ai_score");
+  const sortKeyRef = useRef<SortKey>("drop_date");
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
   const minValueRef = useRef(0);
