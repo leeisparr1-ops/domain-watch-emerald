@@ -16,14 +16,29 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require SYNC_SECRET or service_role key
+  // Auth: require SYNC_SECRET, service_role key, or valid admin JWT
   const syncSecret = Deno.env.get('SYNC_SECRET');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const authHeader = req.headers.get('Authorization');
   const providedToken = authHeader?.replace('Bearer ', '') || '';
-  const isAuthorized = 
+  let isAuthorized = 
     (syncSecret && providedToken === syncSecret) ||
     (serviceRoleKey && providedToken === serviceRoleKey);
+  
+  if (!isAuthorized && providedToken && providedToken !== anonKey) {
+    // Check if it's a valid admin user JWT
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${providedToken}` } },
+    });
+    const { data } = await authClient.auth.getUser(providedToken);
+    if (data?.user) {
+      const adminCheck = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
+      const { data: roles } = await adminCheck.from('user_roles').select('role').eq('user_id', data.user.id).eq('role', 'admin');
+      if (roles && roles.length > 0) isAuthorized = true;
+    }
+  }
+
   if (!isAuthorized) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
