@@ -1,0 +1,1 @@
+UPDATE drop_scans SET status = 'error', csv_data = NULL WHERE id IN ('e47f7062-d172-4151-aba9-98442d5964cd', '30dad264-0c4b-4ad3-b9ae-6aa94b4164e7') AND status NOT IN ('complete', 'error');
