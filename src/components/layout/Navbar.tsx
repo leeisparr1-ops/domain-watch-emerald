@@ -7,9 +7,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
+const ALLOWED_PORTFOLIO_USER = "6d33186f-d827-44cf-99e5-45a14f1c8c70";
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
+  const showPortfolio = user?.id === ALLOWED_PORTFOLIO_USER;
   const navigate = useNavigate();
 
   const handleLogout = async () => {
