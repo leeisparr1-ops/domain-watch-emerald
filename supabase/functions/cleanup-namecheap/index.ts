@@ -59,11 +59,11 @@ serve(async (req) => {
 
   try {
     for (let batch = 0; batch < MAX_BATCHES_PER_INVOCATION; batch++) {
-      // Find IDs to delete (avoids locking full table scan)
+      // Find IDs to delete in small batches
       const { data: rows, error: selectErr } = await supabase
         .from('auctions')
         .select('id')
-        .or('inventory_source.eq.namecheap,inventory_source.like.namecheap_%')
+        .eq('inventory_source', 'namecheap')
         .limit(BATCH_SIZE);
 
       if (selectErr) {
@@ -80,25 +80,37 @@ serve(async (req) => {
       let deleted = false;
 
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const { error: deleteErr } = await supabase
-          .from('auctions')
-          .delete()
-          .in('id', ids);
+        // Delete one-by-one in sub-batches of 50 to avoid URL length limits
+        let batchDeleted = 0;
+        let batchError: string | null = null;
+        
+        for (let s = 0; s < ids.length; s += 50) {
+          const subBatch = ids.slice(s, s + 50);
+          const { error: deleteErr } = await supabase
+            .from('auctions')
+            .delete()
+            .in('id', subBatch);
 
-        if (!deleteErr) {
-          totalDeleted += ids.length;
+          if (deleteErr) {
+            batchError = deleteErr.message || 'Unknown delete error';
+            break;
+          }
+          batchDeleted += subBatch.length;
+        }
+
+        if (!batchError) {
+          totalDeleted += batchDeleted;
           deleted = true;
           break;
         }
 
-        const msg = deleteErr.message || '';
-        const isRetryable = msg.includes('deadlock') || msg.includes('timeout') || msg.includes('lock');
+        const isRetryable = batchError.includes('deadlock') || batchError.includes('timeout') || batchError.includes('lock');
         
         if (isRetryable && attempt < MAX_RETRIES) {
-          console.warn(`Batch ${batch + 1} attempt ${attempt} failed (${msg}), retrying...`);
+          console.warn(`Batch ${batch + 1} attempt ${attempt} failed (${batchError}), retrying...`);
           await new Promise(r => setTimeout(r, 1000 * attempt));
         } else {
-          errors.push(`Batch ${batch + 1}: ${msg}`);
+          errors.push(`Batch ${batch + 1}: ${batchError}`);
           break;
         }
       }
