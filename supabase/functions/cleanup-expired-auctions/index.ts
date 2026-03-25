@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       MAX_BATCHES
     );
     // Source-aware cleanup: delete stale records by inventory_source + updated_at
-    const source = url.searchParams.get("source"); // e.g. "namecheap"
+    const source = url.searchParams.get("source");
     const staleDays = parseInt(url.searchParams.get("staleDays") || "3");
 
     let totalDeleted = 0;
