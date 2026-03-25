@@ -161,7 +161,8 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
 
   const domainWithoutTld = getDomainWithoutTld(domain.domain);
   const domainLength = domainWithoutTld.length;
-  const hasEnded = new Date(domain.auctionEndTime).getTime() < Date.now();
+  const isBuyNow = domain.auctionType === 'buy-now' || domain.inventorySource === 'namecheap';
+  const hasEnded = isBuyNow ? false : new Date(domain.auctionEndTime).getTime() < Date.now();
 
   const stats = [
     {
