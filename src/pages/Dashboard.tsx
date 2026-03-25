@@ -60,7 +60,20 @@ interface Filters {
   minPrice: number;
   maxPrice: number;
   inventorySource: string;
-}
+
+const ACTIVE_INVENTORY_SOURCES = [
+  "allListings",
+  "mostActive",
+  "fiveLetter",
+  "nonAdultListings2",
+  "listings2",
+  "recent",
+  "withPageviews",
+  "featured",
+  "auctionsEndingToday",
+  "endingTomorrow",
+  "auctionsEndingTomorrow",
+];
 
 function formatTimeRemaining(endTime: string): string {
   const end = new Date(endTime);
