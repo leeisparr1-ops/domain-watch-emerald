@@ -512,13 +512,9 @@ export function DomainTable({
                     <TableCell className="py-2">
                       <div className={cn(
                         "flex items-center gap-1 text-sm",
-                        isBuyNow ? "text-emerald-600 dark:text-emerald-400 font-medium" : getUrgencyStyles(timeInfo.urgency)
+                        getUrgencyStyles(timeInfo.urgency)
                       )}>
-                        {isBuyNow ? (
-                          <Sparkles className="w-3 h-3" />
-                        ) : (
-                          <Clock className="w-3 h-3" />
-                        )}
+                        <Clock className="w-3 h-3" />
                         <span className="whitespace-nowrap">{timeInfo.text}</span>
                         {timeInfo.urgency === "critical" && (
                           <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5 ml-0.5">HOT</Badge>
