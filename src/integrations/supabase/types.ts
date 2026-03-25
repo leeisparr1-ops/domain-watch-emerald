@@ -834,6 +834,7 @@ export type Database = {
         Args: { lock_duration_minutes?: number; lock_holder: string }
         Returns: boolean
       }
+      delete_namecheap_batch: { Args: { batch_size?: number }; Returns: number }
       find_hidden_gems: {
         Args: {
           p_limit?: number
