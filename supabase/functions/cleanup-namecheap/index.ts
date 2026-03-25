@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 2000;
-const MAX_BATCHES_PER_INVOCATION = 25; // ~50K rows per invocation
+const BATCH_SIZE = 200;
+const MAX_BATCHES_PER_INVOCATION = 50; // ~10K rows per invocation
 const BATCH_DELAY_MS = 500;
 const MAX_RETRIES = 3;
 
@@ -16,11 +16,30 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require SYNC_SECRET
+  // Auth: require SYNC_SECRET, service_role key, or valid admin JWT
   const syncSecret = Deno.env.get('SYNC_SECRET');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const authHeader = req.headers.get('Authorization');
   const providedToken = authHeader?.replace('Bearer ', '') || '';
-  if (!syncSecret || providedToken !== syncSecret) {
+  let isAuthorized = 
+    (syncSecret && providedToken === syncSecret) ||
+    (serviceRoleKey && providedToken === serviceRoleKey);
+  
+  if (!isAuthorized && providedToken && providedToken !== anonKey) {
+    // Check if it's a valid admin user JWT
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${providedToken}` } },
+    });
+    const { data } = await authClient.auth.getUser(providedToken);
+    if (data?.user) {
+      const adminCheck = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey!);
+      const { data: roles } = await adminCheck.from('user_roles').select('role').eq('user_id', data.user.id).eq('role', 'admin');
+      if (roles && roles.length > 0) isAuthorized = true;
+    }
+  }
+
+  if (!isAuthorized) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -40,11 +59,11 @@ serve(async (req) => {
 
   try {
     for (let batch = 0; batch < MAX_BATCHES_PER_INVOCATION; batch++) {
-      // Find IDs to delete (avoids locking full table scan)
+      // Find IDs to delete in small batches
       const { data: rows, error: selectErr } = await supabase
         .from('auctions')
         .select('id')
-        .or('inventory_source.eq.namecheap,inventory_source.like.namecheap_%')
+        .eq('inventory_source', 'namecheap')
         .limit(BATCH_SIZE);
 
       if (selectErr) {
@@ -61,25 +80,37 @@ serve(async (req) => {
       let deleted = false;
 
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        const { error: deleteErr } = await supabase
-          .from('auctions')
-          .delete()
-          .in('id', ids);
+        // Delete one-by-one in sub-batches of 50 to avoid URL length limits
+        let batchDeleted = 0;
+        let batchError: string | null = null;
+        
+        for (let s = 0; s < ids.length; s += 50) {
+          const subBatch = ids.slice(s, s + 50);
+          const { error: deleteErr } = await supabase
+            .from('auctions')
+            .delete()
+            .in('id', subBatch);
 
-        if (!deleteErr) {
-          totalDeleted += ids.length;
+          if (deleteErr) {
+            batchError = deleteErr.message || 'Unknown delete error';
+            break;
+          }
+          batchDeleted += subBatch.length;
+        }
+
+        if (!batchError) {
+          totalDeleted += batchDeleted;
           deleted = true;
           break;
         }
 
-        const msg = deleteErr.message || '';
-        const isRetryable = msg.includes('deadlock') || msg.includes('timeout') || msg.includes('lock');
+        const isRetryable = batchError.includes('deadlock') || batchError.includes('timeout') || batchError.includes('lock');
         
         if (isRetryable && attempt < MAX_RETRIES) {
-          console.warn(`Batch ${batch + 1} attempt ${attempt} failed (${msg}), retrying...`);
+          console.warn(`Batch ${batch + 1} attempt ${attempt} failed (${batchError}), retrying...`);
           await new Promise(r => setTimeout(r, 1000 * attempt));
         } else {
-          errors.push(`Batch ${batch + 1}: ${msg}`);
+          errors.push(`Batch ${batch + 1}: ${batchError}`);
           break;
         }
       }
