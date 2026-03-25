@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         if (filter.source && filter.staleCutoff) {
           query = query.eq("inventory_source", filter.source).lt("updated_at", filter.staleCutoff);
         } else if (filter.endTimeCutoff) {
-          query = query.lt("end_time", filter.endTimeCutoff).neq("inventory_source", "namecheap");
+          query = query.lt("end_time", filter.endTimeCutoff);
         }
 
         const { data: topAuctions, error: selectErr } = await query;
