@@ -60,6 +60,7 @@ interface Filters {
   minPrice: number;
   maxPrice: number;
   inventorySource: string;
+}
 
 const ACTIVE_INVENTORY_SOURCES = [
   "allListings",
