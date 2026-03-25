@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     const cutoffISO = cutoffDate.toISOString();
 
     console.log(
-      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago) — excluding namecheap`
+      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago)`
     );
 
     // Harvest top sales before deleting
