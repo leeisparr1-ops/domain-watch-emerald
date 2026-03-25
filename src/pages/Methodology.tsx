@@ -32,7 +32,7 @@ const Methodology = () => {
               url: "https://expiredhawk.com",
             },
             datePublished: "2026-02-23",
-            dateModified: "2026-03-19",
+            dateModified: "2026-03-25",
           })}
         </script>
       </Helmet>
@@ -77,7 +77,7 @@ const Methodology = () => {
               <div className="grid sm:grid-cols-3 gap-4 mb-8">
                 <Card className="border-border">
                   <CardContent className="p-5 text-center">
-                    <p className="text-3xl font-bold gradient-text mb-1">3,086+</p>
+                    <p className="text-3xl font-bold gradient-text mb-1">3,178+</p>
                     <p className="text-sm text-muted-foreground">Verified Sales</p>
                   </CardContent>
                 </Card>
@@ -256,7 +256,7 @@ const Methodology = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Scores are pre-computed on the backend and stored per domain. A periodic audit job 
                 re-verifies data every 4 hours, ensuring algorithm updates are consistently applied and 
-                maintaining high accuracy standards across 2.7M+ monitored auction rows.
+                maintaining high accuracy standards across 2.8M+ monitored auction rows.
               </p>
             </div>
           </section>
