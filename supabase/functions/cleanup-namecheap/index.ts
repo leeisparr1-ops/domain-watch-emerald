@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 2000;
-const MAX_BATCHES_PER_INVOCATION = 25; // ~50K rows per invocation
+const BATCH_SIZE = 200;
+const MAX_BATCHES_PER_INVOCATION = 50; // ~10K rows per invocation
 const BATCH_DELAY_MS = 500;
 const MAX_RETRIES = 3;
 
