@@ -98,8 +98,7 @@ serve(async (req) => {
     }
 
     // Get recently synced auctions (last 25h) — matches check-all-patterns logic.
-    // Using updated_at instead of end_time ensures we catch Namecheap Buy Now
-    // domains (null end_time) and all inventory sources.
+    // Using updated_at instead of end_time ensures we catch all inventory sources.
     const recentCutoff = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
     
     const allAuctions: Auction[] = [];

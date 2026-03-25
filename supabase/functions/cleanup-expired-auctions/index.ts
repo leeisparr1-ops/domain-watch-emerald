@@ -210,7 +210,6 @@ Deno.serve(async (req) => {
           .from("auctions")
           .select("id")
           .lt("end_time", cutoffISO)
-          .neq("inventory_source", "namecheap")
           .limit(BATCH_SIZE);
 
         if (selectError) {

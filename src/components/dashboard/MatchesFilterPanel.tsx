@@ -593,7 +593,7 @@ export function applyMatchesFilters(
     // Source filter
     if (filters.sources.length > 0) {
       const source = m.inventory_source || "unknown";
-      const sourceLabel = source === "namecheap" ? "Namecheap" : source === "godaddy" || source === "GoDaddy" ? "GoDaddy" : source.charAt(0).toUpperCase() + source.slice(1);
+      const sourceLabel = source === "godaddy" || source === "GoDaddy" ? "GoDaddy" : source.charAt(0).toUpperCase() + source.slice(1);
       if (!filters.sources.includes(sourceLabel)) return false;
     }
 

@@ -179,7 +179,7 @@ serve(async (req) => {
       }
     }
 
-    // Large inventory types (allListings, Namecheap) are handled by GitHub Actions scripts.
+    // Large inventory types (allListings) are handled by GitHub Actions scripts.
     // They are NOT synced here to prevent double-writing hundreds of thousands of rows.
 
     // IMPORTANT: Do expensive follow-up work ONCE per full sync run.
