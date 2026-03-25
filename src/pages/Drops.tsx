@@ -114,7 +114,7 @@ const Drops = () => {
   const pageRef = useRef(0);
   const searchRef = useRef("");
   const categoryRef = useRef("all");
-  const sortKeyRef = useRef<SortKey>("ai_score");
+  const sortKeyRef = useRef<SortKey>("drop_date");
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
   const minValueRef = useRef(0);
