@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
           sale_price: a.price,
           sale_date: a.end_time ? new Date(a.end_time).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
           tld: a.tld,
-          venue: `Wholesale - ${a.inventory_source === "namecheap" ? "Namecheap" : "GoDaddy"}`,
+          venue: `Wholesale - ${a.inventory_source || "GoDaddy"}`,
           notes: `Auto-harvested from expired auction. Final bid price.`,
         }));
 
