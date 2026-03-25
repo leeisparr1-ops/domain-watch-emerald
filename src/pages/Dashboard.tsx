@@ -345,11 +345,7 @@ export default function Dashboard() {
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk');
-      // Namecheap listings are buy-now inventory without live auction end times,
-      // so only apply the end_time filter for non-Namecheap sources
-      if (filters.inventorySource !== "namecheap") {
-        query = query.gte('end_time', endTimeFilter);
-      }
+      query = query.gte('end_time', endTimeFilter);
       if (debouncedSearch) query = query.ilike('domain_name', `%${debouncedSearch}%`);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
