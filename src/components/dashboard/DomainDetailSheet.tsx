@@ -257,9 +257,9 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 variant={hasEnded ? "destructive" : "secondary"} 
                 className="text-xs"
               >
-                {hasEnded ? "Ended" : domain.auctionType || "Auction"}
+                {hasEnded ? "Ended" : isBuyNow ? "Buy Now" : domain.auctionType || "Auction"}
               </Badge>
-              {!hasEnded && (
+              {!hasEnded && !isBuyNow && (
                 <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                   <Clock className="w-3 h-3 mr-1" />
                   {formatTimeRemaining(domain.auctionEndTime)}
