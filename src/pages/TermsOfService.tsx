@@ -33,7 +33,9 @@ const TermsOfService = () => {
                 <li><strong>Pattern Monitoring:</strong> Set up rules to match expiring domains from auction and closeout inventories.</li>
                 <li><strong>AI Domain Advisor:</strong> AI-powered investment analysis including buy/sell verdicts, flip scores, valuations, and conversational follow-up.</li>
                 <li><strong>Domain Tools:</strong> Brandability Scorer, Valuation Estimator, Pronounceability Scorer, AI Name Generator, Bulk Checker, TLD Comparison, Domain Report Card, and Hidden Gems Finder.</li>
-                <li><strong>Portfolio Tracker:</strong> Manage domain investments with purchase/sale tracking and P&L reporting.</li>
+                <li><strong>Portfolio Tracker:</strong> Manage domain investments with purchase/sale tracking, P&L reporting, auto-valuations, nameserver monitoring, and renewal cost forecasting.</li>
+                <li><strong>Daily Drop Scanner:</strong> AI-powered analysis of daily dropping domain lists, scoring each domain for brandability, keyword strength, and investment potential.</li>
+                <li><strong>Shared Reports:</strong> Generate and share domain analysis reports via unique links with expiration controls.</li>
                 <li><strong>Alerts:</strong> Push and email notifications for pattern matches.</li>
               </ul>
               <p className="text-muted-foreground mt-4">

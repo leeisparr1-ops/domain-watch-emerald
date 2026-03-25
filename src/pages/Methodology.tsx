@@ -256,7 +256,7 @@ const Methodology = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Scores are pre-computed on the backend and stored per domain. A periodic audit job 
                 re-verifies data every 4 hours, ensuring algorithm updates are consistently applied and 
-                maintaining high accuracy standards across 2.7M+ monitored auction rows.
+                maintaining high accuracy standards across 2.8M+ monitored auction rows.
               </p>
             </div>
           </section>

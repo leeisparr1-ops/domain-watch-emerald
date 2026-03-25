@@ -25,11 +25,12 @@ const PrivacyPolicy = () => {
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li><strong>Account Information:</strong> Email address and password when you create an account.</li>
                 <li><strong>Domain Patterns:</strong> Search patterns and preferences you configure for domain monitoring.</li>
-                <li><strong>Portfolio Data:</strong> Domain names, purchase prices, renewal costs, sale prices, and notes you enter in the Portfolio Tracker.</li>
+                <li><strong>Portfolio Data:</strong> Domain names, purchase prices, renewal costs, sale prices, tags, nameserver information, and notes you enter in the Portfolio Tracker.</li>
                 <li><strong>Payment Information:</strong> Payment details processed securely through Stripe. We do not store your full credit card numbers.</li>
                 <li><strong>Notification Preferences:</strong> Push notification tokens and email preferences for alerts.</li>
-                <li><strong>Usage Data:</strong> Information about how you use our service, including favorited domains, alert history, and tool usage.</li>
+                <li><strong>Usage Data:</strong> Information about how you use our service, including favorited domains, alert history, tool usage, and drop scan results.</li>
                 <li><strong>AI Interactions:</strong> Domain names and questions you submit to the AI Domain Advisor for analysis. These are processed in real time and not stored beyond the current session.</li>
+                <li><strong>Shared Reports:</strong> Domain analysis reports you choose to share are accessible via unique links and expire after 90 days by default.</li>
               </ul>
             </section>
 
