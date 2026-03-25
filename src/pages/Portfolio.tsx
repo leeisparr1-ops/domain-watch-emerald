@@ -25,11 +25,7 @@ export default function Portfolio() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshingAll, setRefreshingAll] = useState(false);
   const backfillRan = useRef(false);
-
-  // Restrict access to allowed user only
-  if (user && user.id !== ALLOWED_PORTFOLIO_USER) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const isAllowed = !user || user.id === ALLOWED_PORTFOLIO_USER;
 
   // Auto-backfill nameservers for domains that don't have them yet
   useEffect(() => {
