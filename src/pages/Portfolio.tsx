@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
+import { Navigate } from "react-router-dom";
 import { Briefcase, Filter, Search, RefreshCw } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,12 +16,16 @@ import { BulkImportDialog } from "@/components/portfolio/BulkImportDialog";
 import { NameserverChart } from "@/components/portfolio/NameserverChart";
 import { toast } from "sonner";
 
+const ALLOWED_PORTFOLIO_USER = "6d33186f-d827-44cf-99e5-45a14f1c8c70";
+
 export default function Portfolio() {
+  const { user } = useAuth();
   const { domains, loading, stats, addDomain, updateDomain, deleteDomain, deleteDomains, refreshValuation, bulkAddDomains, lookupNameservers } = usePortfolio();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshingAll, setRefreshingAll] = useState(false);
   const backfillRan = useRef(false);
+  const isAllowed = !user || user.id === ALLOWED_PORTFOLIO_USER;
 
   // Auto-backfill nameservers for domains that don't have them yet
   useEffect(() => {
@@ -54,6 +60,10 @@ export default function Portfolio() {
     toast.success(`${done} valuation${done !== 1 ? "s" : ""} refreshed`);
     setRefreshingAll(false);
   };
+
+  if (!isAllowed) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <>
