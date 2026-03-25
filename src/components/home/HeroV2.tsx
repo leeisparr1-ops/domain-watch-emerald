@@ -2,8 +2,30 @@ import { Link } from "react-router-dom";
 import { Bell, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M+`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K+`;
+  return `${n}+`;
+}
 
 export function HeroV2() {
+  const [domainCount, setDomainCount] = useState("2.7M+");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_auction_count");
+        if (!error && data && data > 100_000 && !cancelled) {
+          setDomainCount(formatCount(data));
+        }
+      } catch { /* keep default */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return (
     <section className="relative min-h-[55vh] lg:min-h-[65vh] flex items-center overflow-hidden pt-20 pb-16">
       {/* Subtle grid background */}
