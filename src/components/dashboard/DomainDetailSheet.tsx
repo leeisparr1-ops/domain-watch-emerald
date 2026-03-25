@@ -318,11 +318,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
           {/* Action buttons - moved under AI Advisor */}
           <div className="mt-3 space-y-2">
             <a
-              href={
-                domain.inventorySource === 'namecheap'
-                  ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
-                  : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
-              }
+              href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block"

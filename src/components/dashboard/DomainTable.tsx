@@ -565,11 +565,7 @@ export function DomainTable({
                           </Tooltip>
                         )}
                         <a
-                          href={
-                            d.inventorySource === 'namecheap'
-                              ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(d.domain.replace(/\.[^.]+$/, ''))}`
-                              : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
-                          }
+                          href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}

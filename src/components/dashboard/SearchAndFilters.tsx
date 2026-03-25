@@ -62,7 +62,6 @@ const AUCTION_TYPE_OPTIONS = [
 const SOURCE_OPTIONS = [
   { value: "all", label: "All Sources" },
   { value: "godaddy", label: "GoDaddy" },
-  { value: "namecheap", label: "Namecheap" },
 ];
 
 const PRICE_PRESETS = [
