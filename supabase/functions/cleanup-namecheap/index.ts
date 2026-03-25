@@ -16,11 +16,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: require SYNC_SECRET
+  // Auth: require SYNC_SECRET or service_role key
   const syncSecret = Deno.env.get('SYNC_SECRET');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authHeader = req.headers.get('Authorization');
   const providedToken = authHeader?.replace('Bearer ', '') || '';
-  if (!syncSecret || providedToken !== syncSecret) {
+  const isAuthorized = 
+    (syncSecret && providedToken === syncSecret) ||
+    (serviceRoleKey && providedToken === serviceRoleKey);
+  if (!isAuthorized) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
