@@ -142,8 +142,6 @@ function parseCSV(text: string): ParsedRow[] {
       detectedSource = "Spaceship";
     } else if (headerJoined.includes("dynadot")) {
       detectedSource = "Dynadot";
-    } else if (headerJoined.includes("namecheap")) {
-      detectedSource = "Namecheap";
     } else if (headerJoined.includes("epik")) {
       detectedSource = "Epik";
     }
