@@ -214,14 +214,14 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
     },
     {
       label: "End Time",
-      value: isBuyNow ? "Buy Now (no expiry)" : formatDate(domain.auctionEndTime),
+      value: formatDate(domain.auctionEndTime),
       icon: Clock,
     },
     {
       label: "Time Left",
-      value: isBuyNow ? "Available" : formatTimeRemaining(domain.auctionEndTime),
+      value: formatTimeRemaining(domain.auctionEndTime),
       icon: Timer,
-      highlight: isBuyNow || !hasEnded,
+      highlight: !hasEnded,
       warning: hasEnded,
     },
   ];
