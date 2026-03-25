@@ -300,7 +300,7 @@ export default function Dashboard() {
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
-      if (filters.inventorySource === "godaddy") query = query.eq('inventory_source', 'godaddy');
+      query = query.in('inventory_source', ACTIVE_INVENTORY_SOURCES);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
 
