@@ -46,10 +46,12 @@ export function Navbar() {
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
                   Dashboard
                 </Link>
-                <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                  <Briefcase className="w-4 h-4" />
-                  Portfolio
-                </Link>
+                {showPortfolio && (
+                  <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                    <Briefcase className="w-4 h-4" />
+                    Portfolio
+                  </Link>
+                )}
                 <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                   <Zap className="w-4 h-4" />
                   Drops
