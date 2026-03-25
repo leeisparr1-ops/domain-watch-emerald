@@ -161,7 +161,8 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
 
   const domainWithoutTld = getDomainWithoutTld(domain.domain);
   const domainLength = domainWithoutTld.length;
-  const hasEnded = new Date(domain.auctionEndTime).getTime() < Date.now();
+  const isBuyNow = domain.auctionType === 'buy-now' || domain.inventorySource === 'namecheap';
+  const hasEnded = isBuyNow ? false : new Date(domain.auctionEndTime).getTime() < Date.now();
 
   const stats = [
     {
@@ -214,14 +215,14 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
     },
     {
       label: "End Time",
-      value: formatDate(domain.auctionEndTime),
+      value: isBuyNow ? "Buy Now (no expiry)" : formatDate(domain.auctionEndTime),
       icon: Clock,
     },
     {
       label: "Time Left",
-      value: formatTimeRemaining(domain.auctionEndTime),
+      value: isBuyNow ? "Available" : formatTimeRemaining(domain.auctionEndTime),
       icon: Timer,
-      highlight: !hasEnded,
+      highlight: isBuyNow || !hasEnded,
       warning: hasEnded,
     },
   ];
@@ -256,9 +257,9 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 variant={hasEnded ? "destructive" : "secondary"} 
                 className="text-xs"
               >
-                {hasEnded ? "Ended" : domain.auctionType || "Auction"}
+                {hasEnded ? "Ended" : isBuyNow ? "Buy Now" : domain.auctionType || "Auction"}
               </Badge>
-              {!hasEnded && (
+              {!hasEnded && !isBuyNow && (
                 <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                   <Clock className="w-3 h-3 mr-1" />
                   {formatTimeRemaining(domain.auctionEndTime)}
