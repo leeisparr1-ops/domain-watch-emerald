@@ -339,10 +339,7 @@ export function DomainTable({
           </TableHeader>
             <TableBody>
               {domains.map((d, idx) => {
-                const isBuyNow = d.auctionType === 'buy-now' || d.inventorySource === 'namecheap';
-                const timeInfo = isBuyNow 
-                  ? { text: "Buy Now", urgent: false, ended: false, urgency: "normal" as UrgencyLevel }
-                  : formatTimeRemaining(d.auctionEndTime);
+                const timeInfo = formatTimeRemaining(d.auctionEndTime);
                 const domainWithoutTld = getDomainWithoutTld(d.domain);
                 const valueIndicator = getValueIndicator(d.price, d.valuation);
                 const isSelected = selectedRows?.has(d.id) ?? false;
