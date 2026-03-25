@@ -278,7 +278,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
 
           <TabsContent value="paste" className="space-y-3 mt-3">
             <Textarea
-              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,Namecheap`}
+              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,GoDaddy`}
               rows={8}
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setParsed([]); setResult(null); }}

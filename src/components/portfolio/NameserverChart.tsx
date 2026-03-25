@@ -8,7 +8,7 @@ import type { PortfolioDomain } from "@/hooks/usePortfolio";
 const NS_PROVIDERS: [string, RegExp][] = [
   ["Cloudflare", /cloudflare/i],
   ["GoDaddy", /domaincontrol\.com|godaddy/i],
-  ["Namecheap", /registrar-servers\.com|namecheaphosting/i],
+  
   ["AWS Route 53", /awsdns/i],
   ["Google", /googledomains|google\.com/i],
   ["Dynadot", /dynadot/i],
