@@ -121,10 +121,12 @@ export function Navbar() {
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsOpen(false)}>
                   Dashboard
                 </Link>
-                <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <Briefcase className="w-4 h-4" />
-                  Portfolio
-                </Link>
+                {showPortfolio && (
+                  <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                    <Briefcase className="w-4 h-4" />
+                    Portfolio
+                  </Link>
+                )}
                 <Link to="/drops" className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2" onClick={() => setIsOpen(false)}>
                   <Zap className="w-4 h-4" />
                   Drops
