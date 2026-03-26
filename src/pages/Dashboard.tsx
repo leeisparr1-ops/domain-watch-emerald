@@ -62,20 +62,6 @@ interface Filters {
   inventorySource: string;
 }
 
-const ACTIVE_INVENTORY_SOURCES = [
-  "allListings",
-  "mostActive",
-  "fiveLetter",
-  "nonAdultListings2",
-  "listings2",
-  "recent",
-  "withPageviews",
-  "featured",
-  "auctionsEndingToday",
-  "endingTomorrow",
-  "auctionsEndingTomorrow",
-];
-
 function formatTimeRemaining(endTime: string): string {
   const end = new Date(endTime);
   const now = new Date();
@@ -210,7 +196,7 @@ export default function Dashboard() {
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
-    inventorySource: "all",
+    inventorySource: "godaddy",
   });
   const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "end_time_asc");
 
@@ -301,7 +287,8 @@ export default function Dashboard() {
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
-      query = query.in('inventory_source', ACTIVE_INVENTORY_SOURCES);
+      if (filters.inventorySource === "namecheap") query = query.eq('inventory_source', 'namecheap');
+      else if (filters.inventorySource === "godaddy") query = query.neq('inventory_source', 'namecheap');
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
 
@@ -359,14 +346,19 @@ export default function Dashboard() {
       let query = supabase
         .from('auctions')
         .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk');
-      query = query.gte('end_time', endTimeFilter);
+      // Namecheap listings are buy-now inventory without live auction end times,
+      // so only apply the end_time filter for non-Namecheap sources
+      if (filters.inventorySource !== "namecheap") {
+        query = query.gte('end_time', endTimeFilter);
+      }
       if (debouncedSearch) query = query.ilike('domain_name', `%${debouncedSearch}%`);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
-      query = query.in('inventory_source', ACTIVE_INVENTORY_SOURCES);
+      if (filters.inventorySource === "namecheap") query = query.eq('inventory_source', 'namecheap');
+      else if (filters.inventorySource === "godaddy") query = query.neq('inventory_source', 'namecheap');
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to + 1).abortSignal(signal);
       

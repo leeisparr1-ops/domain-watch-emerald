@@ -1171,6 +1171,7 @@ export function NameGenerator() {
                             const registrars = [
                               { name: "Spaceship", url: `https://www.spaceship.com/domain/${encodeURIComponent(ts.domain)}` },
                               { name: "GoDaddy", url: `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(ts.domain)}` },
+                              { name: "Namecheap", url: `https://www.namecheap.com/domains/registration/results/?domain=${encodeURIComponent(ts.domain)}` },
                               { name: "Unstoppable", url: `https://unstoppabledomains.com/search?searchTerm=${encodeURIComponent(ts.domain.split(".")[0])}` },
                             ];
                             return (

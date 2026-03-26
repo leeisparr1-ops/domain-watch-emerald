@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       MAX_BATCHES
     );
     // Source-aware cleanup: delete stale records by inventory_source + updated_at
-    const source = url.searchParams.get("source");
+    const source = url.searchParams.get("source"); // e.g. "namecheap"
     const staleDays = parseInt(url.searchParams.get("staleDays") || "3");
 
     let totalDeleted = 0;
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         if (filter.source && filter.staleCutoff) {
           query = query.eq("inventory_source", filter.source).lt("updated_at", filter.staleCutoff);
         } else if (filter.endTimeCutoff) {
-          query = query.lt("end_time", filter.endTimeCutoff);
+          query = query.lt("end_time", filter.endTimeCutoff).neq("inventory_source", "namecheap");
         }
 
         const { data: topAuctions, error: selectErr } = await query;
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
           sale_price: a.price,
           sale_date: a.end_time ? new Date(a.end_time).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
           tld: a.tld,
-          venue: `Wholesale - ${a.inventory_source || "GoDaddy"}`,
+          venue: `Wholesale - ${a.inventory_source === "namecheap" ? "Namecheap" : "GoDaddy"}`,
           notes: `Auto-harvested from expired auction. Final bid price.`,
         }));
 
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     const cutoffISO = cutoffDate.toISOString();
 
     console.log(
-      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago)`
+      `Cleaning up auctions ended before ${cutoffISO} (${daysOld} days ago) — excluding namecheap`
     );
 
     // Harvest top sales before deleting
@@ -210,6 +210,7 @@ Deno.serve(async (req) => {
           .from("auctions")
           .select("id")
           .lt("end_time", cutoffISO)
+          .neq("inventory_source", "namecheap")
           .limit(BATCH_SIZE);
 
         if (selectError) {

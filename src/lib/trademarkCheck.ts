@@ -27,7 +27,7 @@ const KNOWN_BRANDS = new Set([
   "snowflake", "datadog", "cloudflare", "netlify", "vercel", "supabase", "firebase",
   "heroku", "twilio", "sendgrid", "mailchimp", "hubspot", "zendesk", "atlassian",
   "jira", "confluence", "trello", "asana", "notion", "figma", "canva", "sketch",
-  "wix", "godaddy", "cloudfront", "akamai",
+  "wix", "godaddy", "namecheap", "cloudfront", "akamai",
 
   // ─── AI/ML brands ───
   "gemini", "claude", "perplexity", "mistral", "cohere", "stability", "dall-e",

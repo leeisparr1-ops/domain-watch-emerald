@@ -142,6 +142,8 @@ function parseCSV(text: string): ParsedRow[] {
       detectedSource = "Spaceship";
     } else if (headerJoined.includes("dynadot")) {
       detectedSource = "Dynadot";
+    } else if (headerJoined.includes("namecheap")) {
+      detectedSource = "Namecheap";
     } else if (headerJoined.includes("epik")) {
       detectedSource = "Epik";
     }
@@ -278,7 +280,7 @@ export function BulkImportDialog({ onBulkAdd }: Props) {
 
           <TabsContent value="paste" className="space-y-3 mt-3">
             <Textarea
-              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,GoDaddy`}
+              placeholder={`Paste domains (one per line) or CSV:\n\ndomain,list_price,purchase_price,source\nexample.com,1500,0,Afternic\ntest.io,900,120,Namecheap`}
               rows={8}
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setParsed([]); setResult(null); }}

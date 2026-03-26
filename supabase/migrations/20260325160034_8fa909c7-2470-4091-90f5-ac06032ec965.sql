@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS idx_auctions_end_time_godaddy;

@@ -234,7 +234,7 @@ describe("Portfolio — pnl", () => {
 
 describe("Portfolio — CSV parser", () => {
   it("parses simple domain list with header", () => {
-    const csv = "domain,price,source\nexample.com,50,GoDaddy\ntest.io,120,Afternic";
+    const csv = "domain,price,source\nexample.com,50,GoDaddy\ntest.io,120,Namecheap";
     const rows = parseCSV(csv);
     expect(rows).toHaveLength(2);
     expect(rows[0].domain_name).toBe("example.com");

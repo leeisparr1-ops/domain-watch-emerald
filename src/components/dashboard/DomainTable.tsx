@@ -339,7 +339,10 @@ export function DomainTable({
           </TableHeader>
             <TableBody>
               {domains.map((d, idx) => {
-                const timeInfo = formatTimeRemaining(d.auctionEndTime);
+                const isBuyNow = d.auctionType === 'buy-now' || d.inventorySource === 'namecheap';
+                const timeInfo = isBuyNow 
+                  ? { text: "Buy Now", urgent: false, ended: false, urgency: "normal" as UrgencyLevel }
+                  : formatTimeRemaining(d.auctionEndTime);
                 const domainWithoutTld = getDomainWithoutTld(d.domain);
                 const valueIndicator = getValueIndicator(d.price, d.valuation);
                 const isSelected = selectedRows?.has(d.id) ?? false;
@@ -512,9 +515,13 @@ export function DomainTable({
                     <TableCell className="py-2">
                       <div className={cn(
                         "flex items-center gap-1 text-sm",
-                        getUrgencyStyles(timeInfo.urgency)
+                        isBuyNow ? "text-emerald-600 dark:text-emerald-400 font-medium" : getUrgencyStyles(timeInfo.urgency)
                       )}>
-                        <Clock className="w-3 h-3" />
+                        {isBuyNow ? (
+                          <Sparkles className="w-3 h-3" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
                         <span className="whitespace-nowrap">{timeInfo.text}</span>
                         {timeInfo.urgency === "critical" && (
                           <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5 ml-0.5">HOT</Badge>
@@ -565,7 +572,11 @@ export function DomainTable({
                           </Tooltip>
                         )}
                         <a
-                          href={`https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`}
+                          href={
+                            d.inventorySource === 'namecheap'
+                              ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(d.domain.replace(/\.[^.]+$/, ''))}`
+                              : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
