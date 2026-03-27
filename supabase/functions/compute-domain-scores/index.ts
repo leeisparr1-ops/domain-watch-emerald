@@ -921,8 +921,13 @@ Deno.serve(async (req) => {
         const brand = scoreBrandability(d.domain_name);
         const pron = scorePronounceability(d.domain_name);
         const tm = checkTrademarkRisk(d.domain_name);
+        // Compute server-side valuation using the new engine (tier-0, additive boost, EMD)
+        const { valueMin, valueMax } = computeServerValuation(d.domain_name);
+        const serverValuation = Math.round((valueMin + valueMax) / 2);
+        // Use server valuation if no existing valuation, or update if significantly different
+        const finalValuation = serverValuation > 0 ? serverValuation : d.valuation;
         const gem = computeGemScore(
-          d.domain_name, d.price, d.valuation,
+          d.domain_name, d.price, finalValuation,
           brand, pron, d.domain_age, d.bid_count, d.traffic_count, d.tld,
           trendData,
         );
@@ -931,6 +936,7 @@ Deno.serve(async (req) => {
           brandability_score: brand,
           pronounceability_score: pron,
           trademark_risk: tm,
+          valuation: finalValuation,
           gem_score: gem > 0 ? gem : null,
           scores_computed_at: now,
         };
