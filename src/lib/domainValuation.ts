@@ -2798,6 +2798,37 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
 
   // ─── SOFT FLOORS (confidence-weighted, not hard minimums) ───
   if (notPenalized) {
+    // ─── ULTRA-PREMIUM: 1-2 CHARACTER .COM DOMAINS ───
+    // These are among the most valuable domains on earth (X.com → $10M+, 42.com → $2M+)
+    // They transcend normal scoring — scarcity alone drives value
+    const isUltraPremiumShort = tld === "com" && name.length <= 2;
+    if (isUltraPremiumShort) {
+      const isLetter = /^[a-z]$/i.test(name);
+      const isTwoLetter = /^[a-z]{2}$/i.test(name);
+      const isNumeric = /^\d{1,2}$/.test(name);
+      const isAlphaNum = /^[a-z0-9]{1,2}$/i.test(name);
+
+      let ultraFloorMin: number, ultraFloorMax: number;
+      if (isLetter) {
+        // Single letter .com (A.com, X.com, Z.com) — only 26 exist
+        ultraFloorMin = 5000000; ultraFloorMax = 50000000;
+      } else if (isTwoLetter) {
+        // Two-letter .com (IO.com, AI.com, GO.com) — only 676 exist
+        ultraFloorMin = 1000000; ultraFloorMax = 15000000;
+      } else if (isNumeric) {
+        // Numeric 1-2 char .com (8.com, 42.com, 99.com) — only 110 exist
+        ultraFloorMin = 500000; ultraFloorMax = 10000000;
+      } else if (isAlphaNum) {
+        // Alphanumeric mix (A1.com, X2.com) — ~1,300 exist
+        ultraFloorMin = 200000; ultraFloorMax = 3000000;
+      } else {
+        ultraFloorMin = 100000; ultraFloorMax = 1000000;
+      }
+      // Ultra-premium: 95% floor weight, 5% algo
+      valueMin = Math.round(valueMin * 0.05 + ultraFloorMin * 0.95);
+      valueMax = Math.round(valueMax * 0.05 + ultraFloorMax * 0.95);
+    }
+
     // ─── TIER-0 ELITE DETECTION ───
     // Ultra-premium single-word .coms that command $500K+ in the real market
     const ELITE_WORDS = new Set([
@@ -2811,8 +2842,8 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     ]);
     const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
 
-    // Dictionary .com — soft floors
-    if (isDictWord && tld === "com") {
+    // Dictionary .com — soft floors (skip if already handled by ultra-premium)
+    if (isDictWord && tld === "com" && !isUltraPremiumShort) {
       let dictFloorMin: number, dictFloorMax: number;
       if (isEliteWord && name.length <= 4) {
         // Tier-0: elite short words → $1M-$10M floor
