@@ -2560,14 +2560,17 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   const isMediumJunk = !highCoverage && !isDictWord && name.length >= 8 && meaningfulWords.length === 0 && coverageRatio < 0.3;
   // Gibberish: long names where dictionary words cover less than 60%
   const isGibberish = !highCoverage && !isDictWord && name.length >= 10 && coverageRatio < 0.6;
+  // ─── SPAM DETECTION: too many words = spam, even if dictionary words ───
+  const isSpamMultiWord = meaningfulWords.length >= 4 && name.length >= 15;
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   const junkDrivers: ValueDrivers = { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0, liquidity: 0 };
-  if (isHopelessJunk || isMediumJunk) {
-    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, wholesaleMin: 0, wholesaleMax: 5, wholesaleBand: "$0 – $5", liquidityScore: 2, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
+  const junkSellability: SellabilityInsight = { strengths: [], weaknesses: ["Unsellable — no market demand"], buyerType: "Speculative", buyerPool: "Niche" };
+  if (isHopelessJunk || isMediumJunk || isSpamMultiWord) {
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, wholesaleMin: 0, wholesaleMax: 5, wholesaleBand: "$0 – $5", liquidityScore: 2, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low", confidencePct: 10, sellability: junkSellability };
   }
   if (isGibberish) {
-    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, wholesaleMin: 0, wholesaleMax: 10, wholesaleBand: "$0 – $10", liquidityScore: 5, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
+    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, wholesaleMin: 0, wholesaleMax: 10, wholesaleBand: "$0 – $10", liquidityScore: 5, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low", confidencePct: 12, sellability: junkSellability };
   }
 
   // ─── AUTO-STANCE DETECTION ───
