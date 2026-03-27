@@ -2456,6 +2456,13 @@ export interface ValueDrivers {
   liquidity: number;
 }
 
+export interface SellabilityInsight {
+  strengths: string[];
+  weaknesses: string[];
+  buyerType: "End-User" | "Startup" | "Investor" | "Enterprise" | "Local Business" | "Speculative";
+  buyerPool: "Large" | "Medium" | "Small" | "Niche";
+}
+
 export interface QuickValuationResult {
   band: string;
   score: number;
@@ -2470,6 +2477,60 @@ export interface QuickValuationResult {
   liquidityLabel: string;
   drivers: ValueDrivers;
   confidence: "High" | "Medium" | "Low";
+  /** Confidence as percentage 0-100 for granular display */
+  confidencePct: number;
+  /** Sellability insights: strengths, weaknesses, buyer type */
+  sellability: SellabilityInsight;
+}
+
+// ─── SELLABILITY INSIGHTS ───
+function computeSellability(
+  name: string, tld: string, isDictWord: boolean, isPronounceable: boolean,
+  meaningfulWords: string[], allMeaningful: boolean, premiumMatches: string[],
+  trends: string[], liquidityScore: number, trademark: TrademarkResult, stance: string,
+): SellabilityInsight {
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+
+  // Strengths
+  if (isDictWord && tld === "com") strengths.push("Single dictionary .com — evergreen demand");
+  else if (isDictWord) strengths.push("Single dictionary word — brandable & memorable");
+  if (tld === "com") strengths.push(".com TLD — highest liquidity");
+  if (name.length <= 5) strengths.push(`Ultra-short (${name.length} chars) — premium length`);
+  else if (name.length <= 7) strengths.push(`Short domain (${name.length} chars)`);
+  if (premiumMatches.length >= 2) strengths.push(`Multiple premium keywords: ${premiumMatches.join(", ")}`);
+  else if (premiumMatches.length === 1) strengths.push(`Premium keyword: ${premiumMatches[0]}`);
+  if (trends.length >= 1) strengths.push(`Trending keywords: ${trends.join(", ")}`);
+  if (allMeaningful && meaningfulWords.length === 2) strengths.push("Clean two-word compound");
+  if (isPronounceable && stance === "brandable") strengths.push("Highly pronounceable — strong brand potential");
+
+  // Weaknesses
+  if (meaningfulWords.length >= 3) weaknesses.push(`${meaningfulWords.length}-word domain — low buyer appeal`);
+  if (name.length >= 15) weaknesses.push("Too long — hard to remember or type");
+  if (tld !== "com" && tld !== "ai" && tld !== "io") weaknesses.push(`.${tld} has limited aftermarket demand`);
+  if (!isPronounceable && !isDictWord) weaknesses.push("Difficult to pronounce");
+  if (liquidityScore < 30) weaknesses.push("Very low liquidity — may take years to sell");
+  if (trademark.riskLevel === "high") weaknesses.push("High trademark risk — legal liability");
+  else if (trademark.riskLevel === "medium") weaknesses.push("Moderate trademark overlap");
+  if (trends.length >= 2 && meaningfulWords.length >= 3) weaknesses.push("Trend-dependent — value may decline");
+  if (!allMeaningful && !isDictWord && meaningfulWords.length <= 1) weaknesses.push("Low word clarity — perceived as random");
+
+  // Buyer type detection
+  let buyerType: SellabilityInsight["buyerType"] = "Investor";
+  if (isDictWord && name.length <= 6 && tld === "com") buyerType = "Enterprise";
+  else if (allMeaningful && meaningfulWords.length === 2 && premiumMatches.length >= 1) buyerType = "Startup";
+  else if (isDictWord || (isPronounceable && name.length <= 7)) buyerType = "End-User";
+  else if (meaningfulWords.length >= 3) buyerType = "Speculative";
+  else if (premiumMatches.length >= 1 && tld === "com") buyerType = "Startup";
+
+  // Buyer pool
+  let buyerPool: SellabilityInsight["buyerPool"] = "Medium";
+  if (liquidityScore >= 70) buyerPool = "Large";
+  else if (liquidityScore >= 40) buyerPool = "Medium";
+  else if (liquidityScore >= 20) buyerPool = "Small";
+  else buyerPool = "Niche";
+
+  return { strengths: strengths.slice(0, 5), weaknesses: weaknesses.slice(0, 5), buyerType, buyerPool };
 }
 
 // ─── LIQUIDITY SCORING ───
@@ -2549,14 +2610,17 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   const isMediumJunk = !highCoverage && !isDictWord && name.length >= 8 && meaningfulWords.length === 0 && coverageRatio < 0.3;
   // Gibberish: long names where dictionary words cover less than 60%
   const isGibberish = !highCoverage && !isDictWord && name.length >= 10 && coverageRatio < 0.6;
+  // ─── SPAM DETECTION: too many words = spam, even if dictionary words ───
+  const isSpamMultiWord = meaningfulWords.length >= 4 && name.length >= 15;
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
   const junkDrivers: ValueDrivers = { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0, liquidity: 0 };
-  if (isHopelessJunk || isMediumJunk) {
-    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, wholesaleMin: 0, wholesaleMax: 5, wholesaleBand: "$0 – $5", liquidityScore: 2, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
+  const junkSellability: SellabilityInsight = { strengths: [], weaknesses: ["Unsellable — no market demand"], buyerType: "Speculative", buyerPool: "Niche" };
+  if (isHopelessJunk || isMediumJunk || isSpamMultiWord) {
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, wholesaleMin: 0, wholesaleMax: 5, wholesaleBand: "$0 – $5", liquidityScore: 2, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low", confidencePct: 10, sellability: junkSellability };
   }
   if (isGibberish) {
-    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, wholesaleMin: 0, wholesaleMax: 10, wholesaleBand: "$0 – $10", liquidityScore: 5, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
+    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, wholesaleMin: 0, wholesaleMax: 10, wholesaleBand: "$0 – $10", liquidityScore: 5, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low", confidencePct: 12, sellability: junkSellability };
   }
 
   // ─── AUTO-STANCE DETECTION ───
@@ -2634,7 +2698,18 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   if (trademark.riskLevel === "high" && !isMultiWord) score = Math.min(score, 15);
   else if (trademark.riskLevel === "high" && isMultiWord) score = Math.round(score * 0.7);
   else if (trademark.riskLevel === "medium" && !isMultiWord) score = Math.round(score * 0.6);
-  // medium risk on multi-word → minimal penalty (brand is just a substring of compound)
+
+  // ─── #4 FIX: WORD-COUNT PENALTIES (conditional) ───
+  // EMD .com domains with high-CPC keywords get a softer penalty
+  const isHighValueEMD = tld === "com" && premiumMatches.length >= 2 && HIGH_CPC_KEYWORDS[name.toLowerCase()];
+  if (meaningfulWords.length >= 3 && !isHighValueEMD) {
+    // 3-word: moderate penalty (35%) — still recognizable domains like "CloudMetricsHub"
+    score = Math.round(score * 0.65);
+  }
+  if (meaningfulWords.length >= 3 && isHighValueEMD) {
+    // EMD 3-word: lighter penalty (20%) — "CarInsuranceQuotes" still has value
+    score = Math.round(score * 0.80);
+  }
 
   // Total max ~115, normalize to 100
   const normalizedTotal = Math.min(100, Math.round((score / 115) * 100));
@@ -2825,9 +2900,22 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     liquidity: liq.score,
   };
 
-  const confidence: QuickValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
+  // ─── #6 FIX: CONFIDENCE SCORE (data-quality based, not just score-based) ───
+  let confidencePct = 40; // base
+  if (isDictWord) confidencePct += 15;
+  if (tld === "com") confidencePct += 10;
+  if (allMeaningful && meaningfulWords.length <= 2) confidencePct += 10;
+  if (liq.score >= 60) confidencePct += 10;
+  if (meaningfulWords.length >= 3) confidencePct -= 15;
+  if (coverageRatio < 0.7 && !isDictWord) confidencePct -= 10;
+  if (isPronounceable) confidencePct += 5;
+  confidencePct = Math.max(10, Math.min(95, confidencePct));
+  const confidence: QuickValuationResult["confidence"] = confidencePct >= 70 ? "High" : confidencePct >= 45 ? "Medium" : "Low";
 
-  return { band, score: normalizedTotal, valueMin, valueMax, wholesaleMin, wholesaleMax, wholesaleBand, liquidityScore: liq.score, liquidityLabel: liq.label, drivers, confidence };
+  // ─── #5 FIX: SELLABILITY INSIGHTS ───
+  const sellability = computeSellability(name, tld, isDictWord, isPronounceable, meaningfulWords, allMeaningful, premiumMatches, trends, liq.score, trademark, stance);
+
+  return { band, score: normalizedTotal, valueMin, valueMax, wholesaleMin, wholesaleMax, wholesaleBand, liquidityScore: liq.score, liquidityLabel: liq.label, drivers, confidence, confidencePct, sellability };
 }
 
 // ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
@@ -2912,6 +3000,8 @@ export async function quickValuationEnriched(
     liquidityLabel: base.liquidityLabel,
     drivers: base.drivers,
     confidence: base.confidence,
+    confidencePct: base.confidencePct,
+    sellability: base.sellability,
     trendBoost: boost,
     trendFactors: factors,
     ageApplied: domainAge !== undefined && domainAge !== null && getAgeMultiplier(domainAge) > 1.0,

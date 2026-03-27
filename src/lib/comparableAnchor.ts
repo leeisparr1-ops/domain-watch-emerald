@@ -229,6 +229,8 @@ export async function anchorWithComps(
       liquidityLabel: baseVal.liquidityLabel || "Unknown",
       drivers: { ...(baseVal as any).drivers, comparable_sales: Math.min(100, scored.length * 10) },
       confidence: baseVal.confidence,
+      confidencePct: Math.min(95, (baseVal.confidencePct || 50) + scored.length * 3),
+      sellability: baseVal.sellability,
       compAnchored: true,
       compMedian: Math.round(compMedian),
       compCount: scored.length,
