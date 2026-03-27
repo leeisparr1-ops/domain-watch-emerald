@@ -2483,6 +2483,56 @@ export interface QuickValuationResult {
   sellability: SellabilityInsight;
 }
 
+// ─── SELLABILITY INSIGHTS ───
+function computeSellability(
+  name: string, tld: string, isDictWord: boolean, isPronounceable: boolean,
+  meaningfulWords: string[], allMeaningful: boolean, premiumMatches: string[],
+  trends: string[], liquidityScore: number, trademark: TrademarkResult, stance: string,
+): SellabilityInsight {
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+
+  // Strengths
+  if (isDictWord && tld === "com") strengths.push("Single dictionary .com — evergreen demand");
+  else if (isDictWord) strengths.push("Single dictionary word — brandable & memorable");
+  if (tld === "com") strengths.push(".com TLD — highest liquidity");
+  if (name.length <= 5) strengths.push(`Ultra-short (${name.length} chars) — premium length`);
+  else if (name.length <= 7) strengths.push(`Short domain (${name.length} chars)`);
+  if (premiumMatches.length >= 2) strengths.push(`Multiple premium keywords: ${premiumMatches.join(", ")}`);
+  else if (premiumMatches.length === 1) strengths.push(`Premium keyword: ${premiumMatches[0]}`);
+  if (trends.length >= 1) strengths.push(`Trending keywords: ${trends.join(", ")}`);
+  if (allMeaningful && meaningfulWords.length === 2) strengths.push("Clean two-word compound");
+  if (isPronounceable && stance === "brandable") strengths.push("Highly pronounceable — strong brand potential");
+
+  // Weaknesses
+  if (meaningfulWords.length >= 3) weaknesses.push(`${meaningfulWords.length}-word domain — low buyer appeal`);
+  if (name.length >= 15) weaknesses.push("Too long — hard to remember or type");
+  if (tld !== "com" && tld !== "ai" && tld !== "io") weaknesses.push(`.${tld} has limited aftermarket demand`);
+  if (!isPronounceable && !isDictWord) weaknesses.push("Difficult to pronounce");
+  if (liquidityScore < 30) weaknesses.push("Very low liquidity — may take years to sell");
+  if (trademark.riskLevel === "high") weaknesses.push("High trademark risk — legal liability");
+  else if (trademark.riskLevel === "medium") weaknesses.push("Moderate trademark overlap");
+  if (trends.length >= 2 && meaningfulWords.length >= 3) weaknesses.push("Trend-dependent — value may decline");
+  if (!allMeaningful && !isDictWord && meaningfulWords.length <= 1) weaknesses.push("Low word clarity — perceived as random");
+
+  // Buyer type detection
+  let buyerType: SellabilityInsight["buyerType"] = "Investor";
+  if (isDictWord && name.length <= 6 && tld === "com") buyerType = "Enterprise";
+  else if (allMeaningful && meaningfulWords.length === 2 && premiumMatches.length >= 1) buyerType = "Startup";
+  else if (isDictWord || (isPronounceable && name.length <= 7)) buyerType = "End-User";
+  else if (meaningfulWords.length >= 3) buyerType = "Speculative";
+  else if (premiumMatches.length >= 1 && tld === "com") buyerType = "Startup";
+
+  // Buyer pool
+  let buyerPool: SellabilityInsight["buyerPool"] = "Medium";
+  if (liquidityScore >= 70) buyerPool = "Large";
+  else if (liquidityScore >= 40) buyerPool = "Medium";
+  else if (liquidityScore >= 20) buyerPool = "Small";
+  else buyerPool = "Niche";
+
+  return { strengths: strengths.slice(0, 5), weaknesses: weaknesses.slice(0, 5), buyerType, buyerPool };
+}
+
 // ─── LIQUIDITY SCORING ───
 function computeLiquidity(
   name: string,
