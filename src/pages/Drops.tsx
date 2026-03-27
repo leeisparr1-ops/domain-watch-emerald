@@ -503,6 +503,26 @@ const Drops = () => {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {totalResults.toLocaleString()} results
                   </span>
+                  {isAdmin && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleCsvUpload}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading || isProcessing}
+                      >
+                        <Upload className={`w-4 h-4 mr-1 ${uploading ? "animate-spin" : ""}`} />
+                        {uploading ? "Uploading..." : "Upload CSV"}
+                      </Button>
+                    </>
+                  )}
                   {!isProcessing && user && (
                     <Button variant="outline" size="sm" onClick={rerunScan} disabled={rerunning}>
                       <RefreshCw className={`w-4 h-4 mr-1 ${rerunning ? "animate-spin" : ""}`} /> Re-run
