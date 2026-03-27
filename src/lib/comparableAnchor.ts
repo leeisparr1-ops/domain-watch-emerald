@@ -199,8 +199,8 @@ export async function anchorWithComps(
     // Calculate the midpoint of the algo band
     const algoMid = (baseVal.valueMin + baseVal.valueMax) / 2;
 
-    // Blend: 60% algo, 40% comp anchor (conservative)
-    const blendedMid = algoMid * 0.6 + compMedian * 0.4;
+    // Blend: 30% algo, 70% comp anchor (comp-favoring per domainer feedback)
+    const blendedMid = algoMid * 0.3 + compMedian * 0.7;
     const adjustment = blendedMid / algoMid;
 
     // Clamp adjustment to avoid wild swings (0.5x to 3x)
@@ -210,14 +210,23 @@ export async function anchorWithComps(
     const newMax = Math.round(baseVal.valueMax * clampedAdj);
 
     // Tighten band
-    const maxSpread = newMin >= 100000 ? 5 : 3;
+    const maxSpread = newMin >= 100000 ? 4 : 3;
     const finalMax = newMax > newMin * maxSpread ? Math.round(newMin * maxSpread) : newMax;
+
+    // Adjust wholesale proportionally
+    const wsMin = Math.round((baseVal.wholesaleMin || 0) * clampedAdj);
+    const wsMax = Math.round((baseVal.wholesaleMax || 0) * clampedAdj);
 
     return {
       band: `$${newMin.toLocaleString()} – $${finalMax.toLocaleString()}`,
       score: baseVal.score,
       valueMin: newMin,
       valueMax: finalMax,
+      wholesaleMin: wsMin,
+      wholesaleMax: wsMax,
+      wholesaleBand: `$${wsMin.toLocaleString()} – $${wsMax.toLocaleString()}`,
+      liquidityScore: baseVal.liquidityScore || 0,
+      liquidityLabel: baseVal.liquidityLabel || "Unknown",
       drivers: { ...(baseVal as any).drivers, comparable_sales: Math.min(100, scored.length * 10) },
       confidence: baseVal.confidence,
       compAnchored: true,
