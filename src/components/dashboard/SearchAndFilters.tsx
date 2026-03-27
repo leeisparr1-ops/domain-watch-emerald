@@ -299,6 +299,7 @@ export function SearchAndFilters({
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
           )}
+        </div>
       </div>
 
       {/* Chip-based Filter Panel */}
