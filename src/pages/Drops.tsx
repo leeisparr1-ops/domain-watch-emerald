@@ -111,6 +111,9 @@ const Drops = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rerunning, setRerunning] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pageRef = useRef(0);
   const searchRef = useRef("");
@@ -119,6 +122,45 @@ const Drops = () => {
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
   const minValueRef = useRef(0);
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
+
+  // Admin CSV upload handler
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      // Upload to storage bucket (overwrite daily-drops.csv)
+      const { error: uploadErr } = await supabase.storage
+        .from("drops-csv")
+        .upload("daily-drops.csv", file, { upsert: true, contentType: "text/csv" });
+      if (uploadErr) throw uploadErr;
+
+      toast.success("CSV uploaded! Starting evaluation...");
+
+      // Auto-trigger evaluation via cron-evaluate-drops
+      const { error: invokeErr } = await supabase.functions.invoke("cron-evaluate-drops");
+      if (invokeErr) {
+        console.error("Auto-trigger failed:", invokeErr);
+        toast.error("CSV uploaded but auto-evaluation failed. Try Re-run.");
+      } else {
+        // Reload to pick up new scan
+        setTimeout(() => loadLatestScan(), 2000);
+      }
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   // Keep refs in sync
   useEffect(() => { pageRef.current = page; }, [page]);
