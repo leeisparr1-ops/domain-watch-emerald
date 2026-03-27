@@ -11,7 +11,7 @@ import { scoreBrandability } from "@/lib/brandability";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
-import { quickValuation } from "@/lib/domainValuation";
+import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
 import { estimateSEOVolume, fetchKeywordVolumes, type SEOVolumeResult } from "@/lib/seoVolume";
 import { SEOVolumeSparkline } from "./SEOVolumeSparkline";
 import { scoreDomainAge } from "@/lib/domainAge";
