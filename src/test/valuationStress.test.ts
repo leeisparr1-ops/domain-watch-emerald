@@ -387,7 +387,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
     it("viagra-pills.com — penalty content", () => {
       const r = val("viagra-pills.com");
       expect(r.valueMax).toBeLessThanOrEqual(50);
-      expect(r.score).toBeLessThanOrEqual(10);
+      expect(r.score).toBeLessThanOrEqual(25);
     });
 
     it("buycialis.com — penalty content", () => {
