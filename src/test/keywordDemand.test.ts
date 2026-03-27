@@ -301,7 +301,7 @@ describe("Keyword Demand Scoring", () => {
     it(".dev gets moderate TLD points", () => {
       const r = demand("example.dev");
       const tld = r.factors.find(f => f.label === "TLD Demand");
-      expect(tld!.points).toBe(7);
+      expect(tld!.points).toBe(12);
     });
 
     it("obscure TLD gets minimal points", () => {
