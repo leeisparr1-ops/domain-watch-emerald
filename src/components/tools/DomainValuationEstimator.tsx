@@ -738,15 +738,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </>
                 ) : (
                   <>
-                    {(() => {
-                      const parts = result.estimatedValue.match(/[\d,]+/g);
-                      if (parts && parts.length >= 2) {
-                        const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
-                        const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
-                        return <p className="text-xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
-                      }
-                      return <p className="text-xl font-bold text-foreground">N/A</p>;
-                    })()}
+                    <p className="text-xl font-bold text-foreground">
+                      {quickVal ? quickVal.wholesaleBand : "N/A"}
+                    </p>
                     <p className="text-[10px] text-muted-foreground mt-1">What a domainer would pay today</p>
                     <Tooltip>
                       <TooltipTrigger>
