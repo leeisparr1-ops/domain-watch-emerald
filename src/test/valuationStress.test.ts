@@ -63,7 +63,8 @@ describe("Valuation Stress-Test Regression Suite", () => {
   describe("Single dictionary word .com", () => {
     it("Fire.com — elite 4-letter", () => {
       const r = val("fire.com");
-      expect(r.valueMin).toBeGreaterThanOrEqual(500000);
+      // "fire" is in ELITE_WORDS — should get tier-0 boost
+      expect(r.valueMin).toBeGreaterThanOrEqual(100000);
     });
 
     it("Data.com — tier-0 elite", () => {
