@@ -7,6 +7,7 @@ interface ValueDrivers {
   brandability: number;
   niche_demand: number;
   comparable_sales: number;
+  liquidity?: number;
 }
 
 interface ValueDriverRadarChartProps {
