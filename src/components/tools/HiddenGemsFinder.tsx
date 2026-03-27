@@ -14,8 +14,14 @@ import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Diamond, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp,
-  Award, Users, Scale, Shield, RefreshCw, Heart, SlidersHorizontal, ChevronDown, Flame, Info,
+  Award, Users, Scale, Shield, RefreshCw, Heart, SlidersHorizontal, ChevronDown, Flame, Info, Download,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { useFavorites } from "@/hooks/useFavorites";
+import { fetchTrendEnrichment, type TrendEnrichment } from "@/lib/trendEnrichment";
+import { downloadCsv } from "@/lib/csvExport";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
