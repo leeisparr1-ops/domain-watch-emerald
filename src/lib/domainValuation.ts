@@ -2997,6 +2997,8 @@ export async function quickValuationEnriched(
     liquidityLabel: base.liquidityLabel,
     drivers: base.drivers,
     confidence: base.confidence,
+    confidencePct: base.confidencePct,
+    sellability: base.sellability,
     trendBoost: boost,
     trendFactors: factors,
     ageApplied: domainAge !== undefined && domainAge !== null && getAgeMultiplier(domainAge) > 1.0,
