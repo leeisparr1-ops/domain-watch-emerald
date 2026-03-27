@@ -483,6 +483,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     updateStep(0, "running");
     await new Promise(r => setTimeout(r, 200));
     const baseResult = estimateValue(domainWithTld, niche || undefined);
+    // Also compute quickValuation for wholesale/sellability/confidence data
+    const qv = quickValuation(domainWithTld);
+    setQuickVal(qv);
     updateStep(0, "done");
 
     // Step 2: Brandability & pronounceability
