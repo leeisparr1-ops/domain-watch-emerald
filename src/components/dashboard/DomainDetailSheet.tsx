@@ -362,6 +362,40 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 </Button>
               </a>
             </div>
+
+            {/* Backorder Links */}
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-1.5 font-medium">Backorder this domain</p>
+              <div className="grid grid-cols-3 gap-2">
+                <a
+                  href={`https://www.dropcatch.com/domain/${encodeURIComponent(domain.domain)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="secondary" className="w-full text-xs" size="sm">
+                    DropCatch
+                  </Button>
+                </a>
+                <a
+                  href={`https://www.namejet.com/Pages/Auctions/BackOrder.aspx?domain=${encodeURIComponent(domain.domain)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="secondary" className="w-full text-xs" size="sm">
+                    NameJet
+                  </Button>
+                </a>
+                <a
+                  href={`https://www.dynadot.com/market/auction/${encodeURIComponent(domain.domain)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="secondary" className="w-full text-xs" size="sm">
+                    Dynadot
+                  </Button>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 

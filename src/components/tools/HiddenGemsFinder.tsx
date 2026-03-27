@@ -14,12 +14,14 @@ import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Diamond, ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, Clock, TrendingUp,
-  Award, Users, Scale, Shield, RefreshCw, Heart, SlidersHorizontal, ChevronDown, Flame, Info,
+  Award, Users, Scale, Shield, RefreshCw, Heart, SlidersHorizontal, ChevronDown, Flame, Info, Download,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
 import { fetchTrendEnrichment, type TrendEnrichment } from "@/lib/trendEnrichment";
+import { downloadCsv } from "@/lib/csvExport";
+import { toast } from "sonner";
 
 interface GemResult {
   total_count: number;
@@ -248,6 +250,27 @@ export function HiddenGemsFinder() {
     setPage(0);
   }, []);
 
+  const handleExportGems = useCallback(() => {
+    if (!data || data.length === 0) { toast.error("No gems to export"); return; }
+    const rows = data.map(g => ({
+      domain: g.domain_name,
+      gem_score: g.gem_score,
+      price: Number(g.price),
+      valuation: Number(g.valuation),
+      deal_ratio: Number(g.deal_ratio),
+      brandability: g.brandability_score ?? "",
+      pronounceability: g.pronounceability_score ?? "",
+      traffic: g.traffic_count,
+      age: g.domain_age ?? "",
+      tld: g.tld ?? "",
+      auction_type: g.auction_type ?? "",
+      source: g.inventory_source ?? "",
+      end_time: g.end_time ?? "",
+    }));
+    downloadCsv(rows, `expiredhawk-gems-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast.success(`Exported ${rows.length} gems to CSV`);
+  }, [data]);
+
   const hasActiveAdvanced = filters.minBrandability > 0 || filters.minPronounceability > 0 || filters.maxLength < 20 || filters.nicheFilter !== null;
 
   return (
@@ -312,6 +335,16 @@ export function HiddenGemsFinder() {
               className="h-8 w-8"
             >
               <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportGems}
+              disabled={!data || data.length === 0}
+              className="h-8 gap-1"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">CSV</span>
             </Button>
           </div>
         </div>
