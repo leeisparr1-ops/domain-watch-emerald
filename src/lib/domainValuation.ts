@@ -2639,163 +2639,181 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   // Total max ~115, normalize to 100
   const normalizedTotal = Math.min(100, Math.round((score / 115) * 100));
 
-  // Value bands (same tiers as full estimator)
+  // ─── RETAIL VALUE BANDS (lowered ~40% to align with market reality) ───
   let valueMin: number, valueMax: number;
   if ((hasPenaltyWord) || (trademark.riskLevel === "high" && !isMultiWord)) {
     valueMin = 5; valueMax = 50;
   } else if (normalizedTotal >= 97) {
-    valueMin = 500000; valueMax = 2000000;
+    valueMin = 250000; valueMax = 1000000;
   } else if (normalizedTotal >= 92) {
-    valueMin = 200000; valueMax = 750000;
+    valueMin = 80000; valueMax = 350000;
   } else if (normalizedTotal >= 85) {
-    valueMin = 75000; valueMax = 250000;
-  } else if (normalizedTotal >= 78) {
     valueMin = 25000; valueMax = 100000;
+  } else if (normalizedTotal >= 78) {
+    valueMin = 8000; valueMax = 40000;
   } else if (normalizedTotal >= 70) {
-    valueMin = 8000; valueMax = 35000;
+    valueMin = 3000; valueMax = 15000;
   } else if (normalizedTotal >= 62) {
-    valueMin = 2500; valueMax = 12000;
+    valueMin = 1000; valueMax = 5000;
   } else if (normalizedTotal >= 55) {
-    valueMin = 800; valueMax = 4000;
+    valueMin = 300; valueMax = 1500;
   } else if (normalizedTotal >= 45) {
-    valueMin = 200; valueMax = 1200;
+    valueMin = 75; valueMax = 500;
   } else if (normalizedTotal >= 35) {
-    valueMin = 50; valueMax = 400;
+    valueMin = 20; valueMax = 150;
   } else {
-    valueMin = 5; valueMax = 100;
+    valueMin = 5; valueMax = 50;
   }
 
-  // Trending multiplier
-  if (trendMult > 1.0 && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    valueMin = Math.round(valueMin * trendMult);
-    valueMax = Math.round(valueMax * trendMult);
-  }
+  // ─── ADDITIVE BOOST MODEL (replaces multiplicative stacking) ───
+  // Collect all boosts as additive percentages, cap total at +200% (3x max)
+  let totalBoostPct = 0;
+  const notPenalized = !hasPenaltyWord && trademark.riskLevel !== "high";
 
-  // Semantic synergy bonus for related compound words
-  if (meaningfulWords.length === 2 && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
-    if (synergyBonus > 1.0) {
-      valueMin = Math.round(valueMin * synergyBonus);
-      valueMax = Math.round(valueMax * synergyBonus);
+  if (notPenalized) {
+    // Trending boost: conditional on domain quality
+    if (trendMult > 1.0) {
+      // Dampen: only give full boost to short, clean domains
+      const trendQualityFactor = (name.length <= 8 && (isDictWord || allMeaningful)) ? 1.0
+        : (name.length <= 10 && meaningfulWords.length >= 1) ? 0.5
+        : 0.2; // long/junk domains get minimal trend benefit
+      const trendPct = (trendMult - 1.0) * 100 * trendQualityFactor;
+      totalBoostPct += Math.min(60, trendPct); // cap trend at +60%
+    }
+
+    // Semantic synergy boost
+    if (meaningfulWords.length === 2) {
+      const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
+      if (synergyBonus > 1.0) {
+        totalBoostPct += Math.min(25, (synergyBonus - 1.0) * 100);
+      }
+    }
+
+    // Niche boost
+    const { niche } = computeTrendScore(meaningfulWords, tld);
+    if (niche.multiplier > 1.0 && niche.confidence !== "Low") {
+      totalBoostPct += Math.min(30, (niche.multiplier - 1.0) * 50);
+    }
+
+    // Domain age boost (additive instead of multiplicative)
+    if (domainAge !== undefined && domainAge !== null) {
+      const ageMult = getAgeMultiplier(domainAge);
+      if (ageMult > 1.0) {
+        totalBoostPct += Math.min(25, (ageMult - 1.0) * 100);
+      }
+    }
+
+    // Short .com length premium (additive, capped)
+    if (!isDictWord && tld === "com") {
+      if (name.length <= 2) totalBoostPct += 80;
+      else if (name.length === 3) totalBoostPct += 60;
+      else if (name.length === 4) totalBoostPct += 35;
+      else if (name.length === 5) totalBoostPct += 15;
     }
   }
 
-  // Niche multiplier (match full estimator logic)
-  const { niche } = computeTrendScore(meaningfulWords, tld);
-  if (niche.multiplier > 1.0 && niche.confidence !== "Low" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const nicheBoost = 1 + (niche.multiplier - 1) * 0.5;
-    valueMin = Math.round(valueMin * nicheBoost);
-    valueMax = Math.round(valueMax * nicheBoost);
-  }
+  // CAP total boost at 200% (so max multiplier is 3x)
+  totalBoostPct = Math.min(200, totalBoostPct);
+  const totalMultiplier = 1 + totalBoostPct / 100;
+  
+  valueMin = Math.round(valueMin * totalMultiplier);
+  valueMax = Math.round(valueMax * totalMultiplier);
 
-  // ─── Domain Age multiplier ───
-  if (domainAge !== undefined && domainAge !== null && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const ageMult = getAgeMultiplier(domainAge);
-    if (ageMult > 1.0) {
-      valueMin = Math.round(valueMin * ageMult);
-      valueMax = Math.round(valueMax * ageMult);
+  // ─── SOFT FLOORS (confidence-weighted, not hard minimums) ───
+  if (notPenalized) {
+    // Dictionary .com — soft floors (reduced ~50% from previous hard floors)
+    if (isDictWord && tld === "com") {
+      const dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+      const dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+      // Soft: blend toward floor rather than hard Math.max
+      valueMin = Math.round(valueMin * 0.3 + dictFloorMin * 0.7);
+      valueMax = Math.round(valueMax * 0.3 + dictFloorMax * 0.7);
     }
-  }
 
-  // Dictionary .com bonus — single dictionary words on .com are ultra-premium
-  if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const dictFloorMin = name.length <= 3 ? 2000000 : name.length <= 4 ? 500000 : name.length <= 5 ? 200000 : name.length <= 6 ? 100000 : name.length <= 8 ? 50000 : 25000;
-    const dictFloorMax = name.length <= 3 ? 10000000 : name.length <= 4 ? 2500000 : name.length <= 5 ? 1000000 : name.length <= 6 ? 500000 : name.length <= 8 ? 250000 : 100000;
-    valueMin = Math.max(valueMin, dictFloorMin);
-    valueMax = Math.max(valueMax, dictFloorMax);
-  }
-
-  // EMD (Exact Match Domain) premium — domains that ARE a high-CPC keyword
-  if (!hasPenaltyWord && trademark.riskLevel !== "high") {
+    // EMD premium (reduced)
     const emdKey = name.toLowerCase();
     const cpcMult = HIGH_CPC_KEYWORDS[emdKey];
     if (cpcMult && tld === "com") {
-      // High-CPC exact match .com — massive premium
-      valueMin = Math.max(valueMin, Math.round(50000 * cpcMult));
-      valueMax = Math.max(valueMax, Math.round(500000 * cpcMult));
+      valueMin = Math.max(valueMin, Math.round(15000 * cpcMult));
+      valueMax = Math.max(valueMax, Math.round(150000 * cpcMult));
     } else if (cpcMult && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10) {
-      // High-CPC exact match on other premium TLDs
-      const tldDiscount = tld === "ai" ? 0.5 : tld === "io" ? 0.3 : 0.2;
-      valueMin = Math.max(valueMin, Math.round(50000 * cpcMult * tldDiscount));
-      valueMax = Math.max(valueMax, Math.round(500000 * cpcMult * tldDiscount));
+      const tldDiscount = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : 0.15;
+      valueMin = Math.max(valueMin, Math.round(15000 * cpcMult * tldDiscount));
+      valueMax = Math.max(valueMax, Math.round(150000 * cpcMult * tldDiscount));
+    }
+
+    // Two-word .com soft floors (reduced ~50%)
+    if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com") {
+      const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
+      const hasPremium = premiumMatches.length >= 1;
+      const hasTrending = trends.length >= 1;
+      const bothShort = meaningfulWords.every(w => w.length <= 6);
+
+      let floorMin: number, floorMax: number;
+      if (bothDictionary && hasPremium && hasTrending) {
+        floorMin = 8000; floorMax = 35000;
+      } else if (bothDictionary && (hasPremium || hasTrending)) {
+        floorMin = 5000; floorMax = 25000;
+      } else if (bothDictionary && bothShort) {
+        floorMin = 3000; floorMax = 15000;
+      } else if (bothDictionary) {
+        floorMin = 2000; floorMax = 10000;
+      } else if (hasPremium) {
+        floorMin = 1500; floorMax = 8000;
+      } else {
+        floorMin = 500; floorMax = 3000;
+      }
+      // Soft blend
+      valueMin = Math.round(Math.max(valueMin, valueMin * 0.4 + floorMin * 0.6));
+      valueMax = Math.round(Math.max(valueMax, valueMax * 0.4 + floorMax * 0.6));
+    }
+
+    // Two-word on other premium TLDs (reduced)
+    if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10) {
+      const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
+      const hasPremium = premiumMatches.length >= 1;
+      const tldFactor = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : tld === "gg" ? 0.2 : 0.15;
+
+      let altFloor: number;
+      if (bothDictionary && hasPremium) altFloor = Math.round(5000 * tldFactor);
+      else if (bothDictionary) altFloor = Math.round(2500 * tldFactor);
+      else if (hasPremium) altFloor = Math.round(1500 * tldFactor);
+      else altFloor = Math.round(500 * tldFactor);
+      valueMin = Math.max(valueMin, altFloor);
+      valueMax = Math.max(valueMax, Math.round(altFloor * 3));
     }
   }
 
-  // Length-based exponential multiplier for non-dictionary short domains
-  if (!isDictWord && !hasPenaltyWord && trademark.riskLevel !== "high" && tld === "com") {
-    let lengthMult = 1.0;
-    if (name.length <= 2) lengthMult = 8.0;
-    else if (name.length === 3) lengthMult = 5.0;
-    else if (name.length === 4) lengthMult = 3.0;
-    else if (name.length === 5) lengthMult = 1.8;
-    // Only apply if it would boost (not reduce)
-    if (lengthMult > 1.0) {
-      valueMin = Math.round(valueMin * lengthMult);
-      valueMax = Math.round(valueMax * lengthMult);
-    }
-  }
-
-  // Two-word brandable .com bonus — tiered by word quality
-  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
-    const hasPremium = premiumMatches.length >= 1;
-    const hasTrending = trends.length >= 1;
-    const bothShort = meaningfulWords.every(w => w.length <= 6);
-
-    let twoWordFloorMin: number, twoWordFloorMax: number;
-
-    if (bothDictionary && hasPremium && hasTrending) {
-      twoWordFloorMin = 25000; twoWordFloorMax = 100000;
-    } else if (bothDictionary && (hasPremium || hasTrending)) {
-      twoWordFloorMin = 15000; twoWordFloorMax = 75000;
-    } else if (bothDictionary && bothShort) {
-      twoWordFloorMin = 10000; twoWordFloorMax = 50000;
-    } else if (bothDictionary) {
-      twoWordFloorMin = 8000; twoWordFloorMax = 35000;
-    } else if (hasPremium) {
-      twoWordFloorMin = 5000; twoWordFloorMax = 25000;
-    } else {
-      twoWordFloorMin = 2000; twoWordFloorMax = 10000;
-    }
-
-    valueMin = Math.max(valueMin, twoWordFloorMin);
-    valueMax = Math.max(valueMax, twoWordFloorMax);
-  }
-
-  // Two-word brandable on other premium TLDs
-  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
-    const hasPremium = premiumMatches.length >= 1;
-    const tldFactor = tld === "ai" ? 0.6 : tld === "io" ? 0.4 : tld === "gg" ? 0.35 : 0.3;
-
-    let altFloorMin: number, altFloorMax: number;
-    if (bothDictionary && hasPremium) {
-      altFloorMin = Math.round(10000 * tldFactor); altFloorMax = Math.round(50000 * tldFactor);
-    } else if (bothDictionary) {
-      altFloorMin = Math.round(5000 * tldFactor); altFloorMax = Math.round(25000 * tldFactor);
-    } else if (hasPremium) {
-      altFloorMin = Math.round(3000 * tldFactor); altFloorMax = Math.round(15000 * tldFactor);
-    } else {
-      altFloorMin = Math.round(1000 * tldFactor); altFloorMax = Math.round(5000 * tldFactor);
-    }
-    valueMin = Math.max(valueMin, altFloorMin);
-    valueMax = Math.max(valueMax, altFloorMax);
-  }
-
-  // Tighten band (allow wider spread for premium domains)
-  const maxSpread = valueMin >= 100000 ? 5 : 3;
+  // Tighten band
+  const maxSpread = valueMin >= 100000 ? 4 : 3;
   if (valueMax > valueMin * maxSpread) {
     valueMax = Math.round(valueMin * maxSpread);
   }
 
+  // ─── WHOLESALE (INVESTOR) VALUE ───
+  // Typically 15-35% of retail, depending on liquidity
+  const liq = computeLiquidity(name, tld, isDictWord, isPronounceable, meaningfulWords, allMeaningful);
+  const wholesaleFactor = liq.score >= 80 ? 0.35 : liq.score >= 60 ? 0.25 : liq.score >= 40 ? 0.18 : liq.score >= 20 ? 0.12 : 0.08;
+  let wholesaleMin = Math.round(valueMin * wholesaleFactor);
+  let wholesaleMax = Math.round(valueMax * (wholesaleFactor + 0.1));
+  // Wholesale can't exceed retail
+  wholesaleMax = Math.min(wholesaleMax, valueMax);
+  
+  // Cap wholesale for low-liquidity domains
+  if (liq.score < 30) {
+    wholesaleMax = Math.min(wholesaleMax, 2000);
+  }
+
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
+  const wholesaleBand = `$${wholesaleMin.toLocaleString()} – $${wholesaleMax.toLocaleString()}`;
 
   // Compute value drivers (normalized to 0-100)
   const lengthDriver = name.length <= 2 ? 100 : name.length === 3 ? 95 : name.length === 4 ? 85 : name.length === 5 ? 70 : name.length === 6 ? 55 : name.length <= 8 ? 40 : name.length <= 10 ? 25 : name.length <= 14 ? 10 : 5;
   const tldDriver = Math.min(100, (PREMIUM_TLDS[tld] || 3) * 4);
   const keywordDriver = hasPenaltyWord ? 0 : isDictWord ? 100 : premiumMatches.length >= 2 ? 90 : premiumMatches.length === 1 ? 70 : meaningfulWords.length >= 2 ? 55 : meaningfulWords.length === 1 ? 35 : 5;
   const brandDriver = hasPenaltyWord ? 0 : isDictWord && name.length <= 8 ? 100 : isPronounceable && meaningfulWords.length >= 1 && name.length <= 8 ? 90 : isPronounceable && meaningfulWords.length >= 1 ? 70 : isPronounceable ? 50 : 20;
-  const nicheDriver = niche.multiplier > 1.0 && niche.confidence !== "Low" ? Math.min(100, Math.round((niche.multiplier - 1) * 200)) : trends.length > 0 ? Math.min(100, Math.round((trendMult - 1) * 150)) : 10;
+  const { niche: nicheForDrivers } = computeTrendScore(meaningfulWords, tld);
+  const nicheDriver = nicheForDrivers.multiplier > 1.0 && nicheForDrivers.confidence !== "Low" ? Math.min(100, Math.round((nicheForDrivers.multiplier - 1) * 200)) : trends.length > 0 ? Math.min(100, Math.round((trendMult - 1) * 150)) : 10;
 
   const drivers: ValueDrivers = {
     domain_length: lengthDriver,
@@ -2803,12 +2821,13 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     tld: tldDriver,
     brandability: brandDriver,
     niche_demand: nicheDriver,
-    comparable_sales: 0, // populated by comp anchoring
+    comparable_sales: 0,
+    liquidity: liq.score,
   };
 
   const confidence: QuickValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
 
-  return { band, score: normalizedTotal, valueMin, valueMax, drivers, confidence };
+  return { band, score: normalizedTotal, valueMin, valueMax, wholesaleMin, wholesaleMax, wholesaleBand, liquidityScore: liq.score, liquidityLabel: liq.label, drivers, confidence };
 }
 
 // ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
