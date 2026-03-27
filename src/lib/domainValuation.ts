@@ -2551,12 +2551,12 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   const isGibberish = !highCoverage && !isDictWord && name.length >= 10 && coverageRatio < 0.6;
 
   // ─── EARLY EXIT: Junk domains are essentially worthless ───
+  const junkDrivers: ValueDrivers = { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0, liquidity: 0 };
   if (isHopelessJunk || isMediumJunk) {
-    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
+    return { band: "$5 – $15", score: 2, valueMin: 5, valueMax: 15, wholesaleMin: 0, wholesaleMax: 5, wholesaleBand: "$0 – $5", liquidityScore: 2, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
   }
   if (isGibberish) {
-    // Slightly better than hopeless junk but still near-worthless
-    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, drivers: { domain_length: 5, keywords: 0, tld: 0, brandability: 0, niche_demand: 0, comparable_sales: 0 }, confidence: "Low" };
+    return { band: "$5 – $50", score: 5, valueMin: 5, valueMax: 50, wholesaleMin: 0, wholesaleMax: 10, wholesaleBand: "$0 – $10", liquidityScore: 5, liquidityLabel: "Very Low", drivers: junkDrivers, confidence: "Low" };
   }
 
   // ─── AUTO-STANCE DETECTION ───
