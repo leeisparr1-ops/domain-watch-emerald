@@ -8,10 +8,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Download, Loader2, Search, TrendingUp, Star, Clock, Filter, RotateCcw, X, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, Search, TrendingUp, Star, Clock, Filter, RotateCcw, X, RefreshCw, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface ScanResult {
   id: string;
@@ -110,6 +111,9 @@ const Drops = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rerunning, setRerunning] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pageRef = useRef(0);
   const searchRef = useRef("");
@@ -118,6 +122,70 @@ const Drops = () => {
   const sortDirRef = useRef<"asc" | "desc">("desc");
   const minScoreRef = useRef(0);
   const minValueRef = useRef(0);
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
+
+  // Admin CSV upload handler
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      // Upload to storage bucket (overwrite daily-drops.csv)
+      const { error: uploadErr } = await supabase.storage
+        .from("drops-csv")
+        .upload("daily-drops.csv", file, { upsert: true, contentType: "text/csv" });
+      if (uploadErr) throw uploadErr;
+
+      toast.success("CSV uploaded! Starting evaluation...");
+
+      // Create a new scan entry
+      const { data: newScan, error: insertErr } = await supabase
+        .from("drop_scans")
+        .insert({
+          user_id: user.id,
+          filename: file.name,
+          status: "processing",
+          total_domains: 0,
+          filtered_domains: 0,
+          evaluated_domains: 0,
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newScan) throw new Error("Failed to create scan");
+
+      // Get the public URL for the uploaded CSV
+      const { data: urlData } = supabase.storage.from("drops-csv").getPublicUrl("daily-drops.csv");
+      const csvUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+
+      // Trigger evaluate-drops directly (accepts user JWT)
+      const { error: invokeErr } = await supabase.functions.invoke("evaluate-drops", {
+        body: { scanId: newScan.id, csvUrl },
+      });
+
+      if (invokeErr) {
+        console.error("Auto-trigger failed:", invokeErr);
+        toast.error("CSV uploaded but evaluation failed. Try Re-run.");
+      } else {
+        setCurrentScan(newScan as Scan);
+        setResults([]);
+        setTotalResults(0);
+        startPolling(newScan.id);
+      }
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   // Keep refs in sync
   useEffect(() => { pageRef.current = page; }, [page]);
@@ -460,7 +528,27 @@ const Drops = () => {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {totalResults.toLocaleString()} results
                   </span>
-                  {!isProcessing && user && (
+                  {isAdmin && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleCsvUpload}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading || isProcessing}
+                      >
+                        <Upload className={`w-4 h-4 mr-1 ${uploading ? "animate-spin" : ""}`} />
+                        {uploading ? "Uploading..." : "Upload CSV"}
+                      </Button>
+                    </>
+                  )}
+                  {!isProcessing && isAdmin && (
                     <Button variant="outline" size="sm" onClick={rerunScan} disabled={rerunning}>
                       <RefreshCw className={`w-4 h-4 mr-1 ${rerunning ? "animate-spin" : ""}`} /> Re-run
                     </Button>
