@@ -249,6 +249,27 @@ export function HiddenGemsFinder() {
     setPage(0);
   }, []);
 
+  const handleExportGems = useCallback(() => {
+    if (!data || data.length === 0) { toast.error("No gems to export"); return; }
+    const rows = data.map(g => ({
+      domain: g.domain_name,
+      gem_score: g.gem_score,
+      price: Number(g.price),
+      valuation: Number(g.valuation),
+      deal_ratio: Number(g.deal_ratio),
+      brandability: g.brandability_score ?? "",
+      pronounceability: g.pronounceability_score ?? "",
+      traffic: g.traffic_count,
+      age: g.domain_age ?? "",
+      tld: g.tld ?? "",
+      auction_type: g.auction_type ?? "",
+      source: g.inventory_source ?? "",
+      end_time: g.end_time ?? "",
+    }));
+    downloadCsv(rows, `expiredhawk-gems-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast.success(`Exported ${rows.length} gems to CSV`);
+  }, [data]);
+
   const hasActiveAdvanced = filters.minBrandability > 0 || filters.minPronounceability > 0 || filters.maxLength < 20 || filters.nicheFilter !== null;
 
   return (
