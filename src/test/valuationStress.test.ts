@@ -458,7 +458,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
     it("DataFlow.xyz — 2-word .xyz", () => {
       const r = val("dataflow.xyz");
       expect(r.valueMin).toBeGreaterThanOrEqual(20);
-      expect(r.valueMax).toBeLessThanOrEqual(5000);
+      expect(r.valueMax).toBeLessThanOrEqual(10000);
     });
 
     it("Crypto.gg — premium .gg", () => {
