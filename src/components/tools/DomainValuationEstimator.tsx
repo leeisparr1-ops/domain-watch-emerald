@@ -356,15 +356,48 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
   valueMin = Math.round(valueMin * totalMult);
   valueMax = Math.round(valueMax * totalMult);
 
-  // Soft dictionary .com floors (reduced)
+  // ─── TIER-0 ELITE + SOFT FLOORS ───
+  const ELITE_WORDS = new Set([
+    "data", "cloud", "auto", "money", "cash", "pay", "shop", "game", "home", "travel",
+    "health", "food", "deal", "trade", "hotel", "loan", "credit", "fund", "energy", "solar",
+    "crypto", "tech", "code", "web", "bet", "buy", "sell", "store", "market", "bank",
+    "law", "tax", "car", "job", "pet", "wine", "beer", "gold", "oil", "gas",
+    "vote", "news", "art", "book", "film", "sport", "poker", "diet", "yoga",
+    "safe", "lock", "rent", "lead", "plan", "risk", "claim",
+  ]);
+  const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
+
   if (isDictWord && tld === "com" && notPenalized) {
-    const dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
-    const dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
-    valueMin = Math.round(valueMin * 0.3 + dictFloorMin * 0.7);
-    valueMax = Math.round(valueMax * 0.3 + dictFloorMax * 0.7);
+    let dictFloorMin: number, dictFloorMax: number;
+    if (isEliteWord && name.length <= 4) {
+      dictFloorMin = 1000000; dictFloorMax = 10000000;
+    } else if (isEliteWord) {
+      dictFloorMin = 500000; dictFloorMax = 5000000;
+    } else {
+      dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+      dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+    }
+    const algoWeight = isEliteWord ? 0.1 : 0.3;
+    valueMin = Math.round(valueMin * algoWeight + dictFloorMin * (1 - algoWeight));
+    valueMax = Math.round(valueMax * algoWeight + dictFloorMax * (1 - algoWeight));
   }
 
-  // Soft two-word .com floors (reduced)
+  // Multi-word EMD floors
+  const highCpcWord = meaningfulWords.find(w => HIGH_CPC_KEYWORDS[w]);
+  const bestCpc = highCpcWord ? HIGH_CPC_KEYWORDS[highCpcWord] : 0;
+  const singleCpc = HIGH_CPC_KEYWORDS[name.toLowerCase()] || 0;
+  const effectiveCpc = singleCpc || bestCpc;
+  if (effectiveCpc >= 1.5 && tld === "com" && notPenalized) {
+    const wordDiscount = meaningfulWords.length >= 3 ? 0.4 : meaningfulWords.length === 2 ? 0.7 : 1.0;
+    valueMin = Math.max(valueMin, Math.round(15000 * effectiveCpc * wordDiscount));
+    valueMax = Math.max(valueMax, Math.round(150000 * effectiveCpc * wordDiscount));
+  } else if (effectiveCpc >= 1.5 && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && notPenalized) {
+    const tldFactor = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : 0.15;
+    valueMin = Math.max(valueMin, Math.round(15000 * effectiveCpc * tldFactor));
+    valueMax = Math.max(valueMax, Math.round(150000 * effectiveCpc * tldFactor));
+  }
+
+  // Soft two-word .com floors
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
@@ -382,7 +415,7 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
     valueMax = Math.round(Math.max(valueMax, valueMax * 0.4 + floorMax * 0.6));
   }
 
-  // Two-word on premium TLDs (reduced)
+  // Two-word on premium TLDs
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
