@@ -830,6 +830,81 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
               )}
             </div>
 
+            {/* ─── Sellability Insights + Confidence ─── */}
+            {quickVal && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Sellability Insights */}
+                <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Sellability Insights</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-xs">{quickVal.sellability.buyerType} buyer</Badge>
+                    <Badge variant="outline" className="text-xs">{quickVal.sellability.buyerPool} pool</Badge>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className={`text-xs ${
+                          quickVal.liquidityScore >= 60 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : quickVal.liquidityScore >= 30 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                        }`}>
+                          💧 {quickVal.liquidityScore}/100 {quickVal.liquidityLabel}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">Liquidity measures how quickly this domain could sell. Based on TLD, length, clarity, and buyer demand.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  {quickVal.sellability.strengths.length > 0 && (
+                    <div className="space-y-1">
+                      {quickVal.sellability.strengths.map((s, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>{s}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {quickVal.sellability.weaknesses.length > 0 && (
+                    <div className="space-y-1">
+                      {quickVal.sellability.weaknesses.map((w, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
+                          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>{w}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confidence Score */}
+                <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Appraisal Confidence</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-3xl font-bold ${
+                      quickVal.confidencePct >= 70 ? "text-emerald-600 dark:text-emerald-400"
+                      : quickVal.confidencePct >= 45 ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-600 dark:text-red-400"
+                    }`}>{quickVal.confidencePct}%</span>
+                    <span className="text-sm text-muted-foreground">{quickVal.confidence}</span>
+                  </div>
+                  <Progress value={quickVal.confidencePct} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {quickVal.confidencePct >= 70
+                      ? "Strong data signals — valuation is well-supported by comps and market indicators."
+                      : quickVal.confidencePct >= 45
+                      ? "Moderate data quality — valuation is directional but actual price may vary ±40%."
+                      : "Limited data — treat as speculative. Actual value could differ significantly."}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* SEO Volume Insight */}
             {seoData && (
               <div className="p-4 rounded-xl bg-secondary/30 border border-border/50">
