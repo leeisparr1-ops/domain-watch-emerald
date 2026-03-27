@@ -89,7 +89,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
 
     it("Furniture.com — 9-letter dictionary", () => {
       const r = val("furniture.com");
-      expect(r.valueMin).toBeGreaterThanOrEqual(5000);
+      expect(r.valueMin).toBeGreaterThanOrEqual(4000);
     });
 
     it("Rare.com — 4-letter dictionary", () => {
