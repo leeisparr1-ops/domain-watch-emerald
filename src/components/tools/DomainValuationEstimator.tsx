@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database, Search, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
+import { HIGH_CPC_KEYWORDS } from "@/lib/semanticSimilarity";
 import { scoreBrandability } from "@/lib/brandability";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
