@@ -2699,13 +2699,16 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (trademark.riskLevel === "high" && isMultiWord) score = Math.round(score * 0.7);
   else if (trademark.riskLevel === "medium" && !isMultiWord) score = Math.round(score * 0.6);
 
-  // ─── #4 FIX: AGGRESSIVE WORD-COUNT PENALTIES ───
-  // 3+ word domains are dramatically harder to sell and should be severely penalized
-  if (meaningfulWords.length >= 3) {
-    score = Math.round(score * 0.55); // 45% penalty for 3-word domains
+  // ─── #4 FIX: WORD-COUNT PENALTIES (conditional) ───
+  // EMD .com domains with high-CPC keywords get a softer penalty
+  const isHighValueEMD = tld === "com" && premiumMatches.length >= 2 && HIGH_CPC_KEYWORDS[name.toLowerCase()];
+  if (meaningfulWords.length >= 3 && !isHighValueEMD) {
+    // 3-word: moderate penalty (35%) — still recognizable domains like "CloudMetricsHub"
+    score = Math.round(score * 0.65);
   }
-  if (meaningfulWords.length >= 4) {
-    score = Math.round(score * 0.4); // additional 60% penalty for 4+ word domains
+  if (meaningfulWords.length >= 3 && isHighValueEMD) {
+    // EMD 3-word: lighter penalty (20%) — "CarInsuranceQuotes" still has value
+    score = Math.round(score * 0.80);
   }
 
   // Total max ~115, normalize to 100
