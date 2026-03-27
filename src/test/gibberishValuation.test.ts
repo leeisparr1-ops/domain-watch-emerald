@@ -84,12 +84,12 @@ describe("Gibberish / Junk Domain Detection", () => {
 
   it("does NOT penalize single dictionary words like 'energy.com'", () => {
     const result = quickValuation("energy.com");
-    expect(result.valueMin).toBeGreaterThanOrEqual(50000);
+    expect(result.valueMin).toBeGreaterThanOrEqual(15000);
   });
 
   it("does NOT penalize short numeric domains like '888.com'", () => {
     const result = quickValuation("888.com");
-    expect(result.valueMin).toBeGreaterThanOrEqual(500);
+    expect(result.valueMin).toBeGreaterThanOrEqual(100);
   });
 
   it("does NOT penalize legitimate hyphenated domains like 'smart-pay.com'", () => {

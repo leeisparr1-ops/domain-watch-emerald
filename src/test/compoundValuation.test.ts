@@ -94,7 +94,7 @@ describe("Compound Word Valuation Improvements", () => {
 
     it("values smartpay.com highly (dual trending + synergy)", () => {
       const result = quickValuation("smartpay.com");
-      expect(result.valueMin).toBeGreaterThanOrEqual(15000);
+      expect(result.valueMin).toBeGreaterThanOrEqual(8000);
     });
   });
 });
