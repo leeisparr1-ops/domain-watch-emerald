@@ -454,6 +454,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [domain, setDomain] = useState(initialDomain || "");
   const [nicheOverride, setNicheOverride] = useState<string>("");
   const [result, setResult] = useState<ValuationResult | null>(null);
+  const [quickVal, setQuickVal] = useState<QuickValuationResult | null>(null);
   const [aiEndUserValue, setAiEndUserValue] = useState<string | null>(null);
   const [aiAcquisitionPrice, setAiAcquisitionPrice] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
