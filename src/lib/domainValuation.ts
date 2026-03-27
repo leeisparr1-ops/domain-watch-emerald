@@ -2648,7 +2648,15 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   if (trademark.riskLevel === "high" && !isMultiWord) score = Math.min(score, 15);
   else if (trademark.riskLevel === "high" && isMultiWord) score = Math.round(score * 0.7);
   else if (trademark.riskLevel === "medium" && !isMultiWord) score = Math.round(score * 0.6);
-  // medium risk on multi-word → minimal penalty (brand is just a substring of compound)
+
+  // ─── #4 FIX: AGGRESSIVE WORD-COUNT PENALTIES ───
+  // 3+ word domains are dramatically harder to sell and should be severely penalized
+  if (meaningfulWords.length >= 3) {
+    score = Math.round(score * 0.55); // 45% penalty for 3-word domains
+  }
+  if (meaningfulWords.length >= 4) {
+    score = Math.round(score * 0.4); // additional 60% penalty for 4+ word domains
+  }
 
   // Total max ~115, normalize to 100
   const normalizedTotal = Math.min(100, Math.round((score / 115) * 100));
