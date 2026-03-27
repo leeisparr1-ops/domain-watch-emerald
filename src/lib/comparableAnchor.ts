@@ -158,7 +158,7 @@ export async function anchorWithComps(
     compMedian: null,
     compCount: 0,
     anchorAdjustment: 1.0,
-  };
+  } as AnchoredValuation;
 
   try {
     const allComps = await getAllComps();

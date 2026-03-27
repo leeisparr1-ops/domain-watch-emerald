@@ -2880,28 +2880,36 @@ export async function quickValuationEnriched(
 
   const { boost, factors } = computeTrendBoost(meaningfulWords, nicheKey, enrichment);
 
-  let { valueMin, valueMax, score } = base;
+  let { valueMin, valueMax, score, wholesaleMin, wholesaleMax } = base;
 
   // Apply trend boost as a value multiplier (each boost point ≈ 2% adjustment)
   if (boost !== 0) {
     const boostMult = 1 + boost * 0.02; // e.g. +15 → 1.30x, -10 → 0.80x
     valueMin = Math.round(valueMin * boostMult);
     valueMax = Math.round(valueMax * boostMult);
+    wholesaleMin = Math.round(wholesaleMin * boostMult);
+    wholesaleMax = Math.round(wholesaleMax * boostMult);
   }
 
   // Re-tighten band
-  const maxSpread = valueMin >= 100000 ? 5 : 3;
+  const maxSpread = valueMin >= 100000 ? 4 : 3;
   if (valueMax > valueMin * maxSpread) {
     valueMax = Math.round(valueMin * maxSpread);
   }
 
   const band = `$${valueMin.toLocaleString()} – $${valueMax.toLocaleString()}`;
+  const wholesaleBand = `$${wholesaleMin.toLocaleString()} – $${wholesaleMax.toLocaleString()}`;
 
   return {
     band,
     score,
     valueMin,
     valueMax,
+    wholesaleMin,
+    wholesaleMax,
+    wholesaleBand,
+    liquidityScore: base.liquidityScore,
+    liquidityLabel: base.liquidityLabel,
     drivers: base.drivers,
     confidence: base.confidence,
     trendBoost: boost,
