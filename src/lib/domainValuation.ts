@@ -2847,9 +2847,22 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
     liquidity: liq.score,
   };
 
-  const confidence: QuickValuationResult["confidence"] = normalizedTotal >= 75 ? "High" : normalizedTotal >= 50 ? "Medium" : "Low";
+  // ─── #6 FIX: CONFIDENCE SCORE (data-quality based, not just score-based) ───
+  let confidencePct = 40; // base
+  if (isDictWord) confidencePct += 15;
+  if (tld === "com") confidencePct += 10;
+  if (allMeaningful && meaningfulWords.length <= 2) confidencePct += 10;
+  if (liq.score >= 60) confidencePct += 10;
+  if (meaningfulWords.length >= 3) confidencePct -= 15;
+  if (coverageRatio < 0.7 && !isDictWord) confidencePct -= 10;
+  if (isPronounceable) confidencePct += 5;
+  confidencePct = Math.max(10, Math.min(95, confidencePct));
+  const confidence: QuickValuationResult["confidence"] = confidencePct >= 70 ? "High" : confidencePct >= 45 ? "Medium" : "Low";
 
-  return { band, score: normalizedTotal, valueMin, valueMax, wholesaleMin, wholesaleMax, wholesaleBand, liquidityScore: liq.score, liquidityLabel: liq.label, drivers, confidence };
+  // ─── #5 FIX: SELLABILITY INSIGHTS ───
+  const sellability = computeSellability(name, tld, isDictWord, isPronounceable, meaningfulWords, allMeaningful, premiumMatches, trends, liq.score, trademark, stance);
+
+  return { band, score: normalizedTotal, valueMin, valueMax, wholesaleMin, wholesaleMax, wholesaleBand, liquidityScore: liq.score, liquidityLabel: liq.label, drivers, confidence, confidencePct, sellability };
 }
 
 // ─── ENRICHED QUICK VALUATION (async — adds trend enrichment + domain age) ───
