@@ -742,9 +742,9 @@ export default function Dashboard() {
               onResetFilters={resetFilters}
               onPageReset={() => setCurrentPage(1)}
               isSearching={!!debouncedSearch && (loading || isFetchingAuctions)}
-              searchInputRef={searchInputRef}
-              
-            />
+               searchInputRef={searchInputRef}
+               onExportCsv={handleExportCsv}
+             />
           )}
 
           {/* Pattern Controls - Hidden in matches view */}
