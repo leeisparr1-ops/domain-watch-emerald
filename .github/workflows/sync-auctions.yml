@@ -2,8 +2,12 @@ name: Sync Auctions
 
 on:
   schedule:
-    # Run once daily at 3 AM UTC - off-peak to avoid user traffic
+    # Run at 3 AM UTC (11 PM ET) - off-peak full sync
     - cron: '0 3 * * *'
+    # Run at 4 PM UTC (12 PM ET) - catch Namecheap 11 AM ET auction endings
+    - cron: '0 16 * * *'
+    # Run at 7 PM UTC (3 PM ET) - catch DropCatch 2 PM ET daily drops
+    - cron: '0 19 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 # Prevent overlapping runs from saturating the database
