@@ -584,11 +584,35 @@ function computeServerValuation(domain: string): { valueMin: number; valueMax: n
   valueMin = Math.round(valueMin * totalMultiplier);
   valueMax = Math.round(valueMax * totalMultiplier);
 
-  // Soft floors for dictionary .com & tier-0 elite
+  // Soft floors for ultra-premium, dictionary .com & tier-0 elite
   if (notPenalized) {
+    // ─── ULTRA-PREMIUM: 1-2 CHARACTER .COM DOMAINS ───
+    const isUltraPremiumShort = tld === "com" && name.length <= 2;
+    if (isUltraPremiumShort) {
+      const isLetter = /^[a-z]$/i.test(name);
+      const isTwoLetter = /^[a-z]{2}$/i.test(name);
+      const isNumeric = /^\d{1,2}$/.test(name);
+      const isAlphaNum = /^[a-z0-9]{1,2}$/i.test(name);
+
+      let ultraFloorMin: number, ultraFloorMax: number;
+      if (isLetter) {
+        ultraFloorMin = 5000000; ultraFloorMax = 50000000;
+      } else if (isTwoLetter) {
+        ultraFloorMin = 1000000; ultraFloorMax = 15000000;
+      } else if (isNumeric) {
+        ultraFloorMin = 500000; ultraFloorMax = 10000000;
+      } else if (isAlphaNum) {
+        ultraFloorMin = 200000; ultraFloorMax = 3000000;
+      } else {
+        ultraFloorMin = 100000; ultraFloorMax = 1000000;
+      }
+      valueMin = Math.round(valueMin * 0.05 + ultraFloorMin * 0.95);
+      valueMax = Math.round(valueMax * 0.05 + ultraFloorMax * 0.95);
+    }
+
     const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
 
-    if (isDictWord && tld === "com") {
+    if (isDictWord && tld === "com" && !isUltraPremiumShort) {
       let dictFloorMin: number, dictFloorMax: number;
       if (isEliteWord && name.length <= 4) {
         dictFloorMin = 1000000; dictFloorMax = 10000000;
