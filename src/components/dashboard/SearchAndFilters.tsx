@@ -293,7 +293,12 @@ export function SearchAndFilters({
               </PopoverContent>
             </Popover>
           )}
-        </div>
+          {onExportCsv && (
+            <Button variant="outline" size="sm" className="flex-shrink-0 gap-1" onClick={onExportCsv}>
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </Button>
+          )}
       </div>
 
       {/* Chip-based Filter Panel */}
