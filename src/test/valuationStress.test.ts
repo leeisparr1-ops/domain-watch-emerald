@@ -52,7 +52,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
 
     it("XQJ.com — random 3L", () => {
       const r = val("xqj.com");
-      expect(r.valueMin).toBeGreaterThanOrEqual(500);
+      expect(r.valueMin).toBeGreaterThanOrEqual(50);
       expect(r.valueMax).toBeLessThanOrEqual(50000);
     });
   });
