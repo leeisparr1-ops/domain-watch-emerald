@@ -144,14 +144,39 @@ const Drops = () => {
 
       toast.success("CSV uploaded! Starting evaluation...");
 
-      // Auto-trigger evaluation via cron-evaluate-drops
-      const { error: invokeErr } = await supabase.functions.invoke("cron-evaluate-drops");
+      // Create a new scan entry
+      const { data: newScan, error: insertErr } = await supabase
+        .from("drop_scans")
+        .insert({
+          user_id: user.id,
+          filename: file.name,
+          status: "processing",
+          total_domains: 0,
+          filtered_domains: 0,
+          evaluated_domains: 0,
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newScan) throw new Error("Failed to create scan");
+
+      // Get the public URL for the uploaded CSV
+      const { data: urlData } = supabase.storage.from("drops-csv").getPublicUrl("daily-drops.csv");
+      const csvUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+
+      // Trigger evaluate-drops directly (accepts user JWT)
+      const { error: invokeErr } = await supabase.functions.invoke("evaluate-drops", {
+        body: { scanId: newScan.id, csvUrl },
+      });
+
       if (invokeErr) {
         console.error("Auto-trigger failed:", invokeErr);
-        toast.error("CSV uploaded but auto-evaluation failed. Try Re-run.");
+        toast.error("CSV uploaded but evaluation failed. Try Re-run.");
       } else {
-        // Reload to pick up new scan
-        setTimeout(() => loadLatestScan(), 2000);
+        setCurrentScan(newScan as Scan);
+        setResults([]);
+        setTotalResults(0);
+        startPolling(newScan.id);
       }
     } catch (err: any) {
       console.error("Upload failed:", err);
