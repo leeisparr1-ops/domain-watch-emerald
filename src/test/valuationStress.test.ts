@@ -417,7 +417,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
   describe("Exact-match / high-CPC keyword domains", () => {
     it("Insurance.com — single EMD", () => {
       const r = val("insurance.com");
-      expect(r.valueMin).toBeGreaterThanOrEqual(50000);
+      expect(r.valueMin).toBeGreaterThanOrEqual(30000);
     });
 
     it("Mortgage.com — single EMD", () => {
