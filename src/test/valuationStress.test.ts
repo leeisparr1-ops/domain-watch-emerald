@@ -18,23 +18,62 @@ describe("Valuation Stress-Test Regression Suite", () => {
   // ══════════════════════════════════════════════
   //  TIER 1: ULTRA-SHORT .COM (2-3 letters)
   // ══════════════════════════════════════════════
-  describe("2-letter .com", () => {
+  describe("1-char .com (ultra-premium)", () => {
+    it("A.com — single letter, only 26 exist", () => {
+      const r = val("a.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(4000000);
+    });
+
+    it("X.com — single letter", () => {
+      const r = val("x.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(4000000);
+    });
+
+    it("Z.com — single letter", () => {
+      const r = val("z.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(4000000);
+    });
+  });
+
+  describe("2-letter .com (ultra-premium)", () => {
     it("AI.com — ultra-premium 2L", () => {
       const r = val("ai.com");
-      // 2-letter non-dictionary .com — short .com length premium applies
-      expect(r.valueMin).toBeGreaterThanOrEqual(5000);
+      expect(r.valueMin).toBeGreaterThanOrEqual(500000);
       expect(r.score).toBeGreaterThanOrEqual(60);
     });
 
     it("QZ.com — non-dictionary 2L", () => {
       const r = val("qz.com");
-      // Short .com length premium gives boost but not a dictionary word
-      expect(r.valueMin).toBeGreaterThanOrEqual(100);
+      expect(r.valueMin).toBeGreaterThanOrEqual(500000);
     });
 
-    it("IO.com — dictionary 2L", () => {
+    it("IO.com — 2L .com", () => {
       const r = val("io.com");
-      // "io" is not in dictionary — treated as 2-char non-dict
+      expect(r.valueMin).toBeGreaterThanOrEqual(500000);
+    });
+  });
+
+  describe("numeric 1-2 char .com", () => {
+    it("8.com — single digit", () => {
+      const r = val("8.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(400000);
+    });
+
+    it("42.com — two digit", () => {
+      const r = val("42.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(400000);
+    });
+
+    it("99.com — two digit", () => {
+      const r = val("99.com");
+      expect(r.valueMin).toBeGreaterThanOrEqual(400000);
+    });
+  });
+
+  describe("888.com — 3-digit numeric", () => {
+    it("888.com — triple repeat digit", () => {
+      const r = val("888.com");
+      // 3 chars, not ultra-premium tier but still short .com
       expect(r.valueMin).toBeGreaterThanOrEqual(100);
     });
   });
