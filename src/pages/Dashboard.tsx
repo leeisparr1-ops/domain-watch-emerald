@@ -653,6 +653,23 @@ export default function Dashboard() {
     toast.success(`Removed ${domainsToRemove.length} domains from favorites`);
   }, [selectedRows, filtered, isFavorite, toggleFavorite]);
 
+  const handleExportCsv = useCallback(() => {
+    if (filtered.length === 0) { toast.error("No domains to export"); return; }
+    const rows = filtered.map(d => ({
+      domain: d.domain,
+      price: d.price,
+      valuation: d.valuation ?? "",
+      bids: d.numberOfBids,
+      traffic: d.traffic,
+      age: d.domainAge,
+      tld: d.tld,
+      type: d.auctionType,
+      source: d.inventorySource || "",
+      ends: d.auctionEndTime,
+    }));
+    downloadCsv(rows, `expiredhawk-${viewMode}-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast.success(`Exported ${rows.length} domains to CSV`);
+  }, [filtered, viewMode]);
 
   // Keyboard shortcuts
   useDashboardKeyboardShortcuts({
