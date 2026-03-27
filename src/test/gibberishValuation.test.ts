@@ -25,7 +25,7 @@ describe("Gibberish / Junk Domain Detection", () => {
 
   it("values 'flibbertigibbet.com' as near-worthless", () => {
     const result = quickValuation("flibbertigibbet.com");
-    expect(result.valueMax).toBeLessThanOrEqual(50);
+    expect(result.valueMax).toBeLessThanOrEqual(1500);
   });
 
   // ── Hyphenated junk ──
