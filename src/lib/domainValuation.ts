@@ -2700,15 +2700,17 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
   else if (trademark.riskLevel === "medium" && !isMultiWord) score = Math.round(score * 0.6);
 
   // ─── #4 FIX: WORD-COUNT PENALTIES (conditional) ───
-  // EMD .com domains with high-CPC keywords get a softer penalty
-  const isHighValueEMD = tld === "com" && premiumMatches.length >= 2 && HIGH_CPC_KEYWORDS[name.toLowerCase()];
+  // Multi-word EMD detection: check if ANY meaningful word is a high-CPC keyword
+  const highCpcWord = meaningfulWords.find(w => HIGH_CPC_KEYWORDS[w]);
+  const bestCpcMult = highCpcWord ? HIGH_CPC_KEYWORDS[highCpcWord] : 0;
+  const isHighValueEMD = tld === "com" && premiumMatches.length >= 2 && bestCpcMult >= 2.0;
   if (meaningfulWords.length >= 3 && !isHighValueEMD) {
     // 3-word: moderate penalty (35%) — still recognizable domains like "CloudMetricsHub"
     score = Math.round(score * 0.65);
   }
   if (meaningfulWords.length >= 3 && isHighValueEMD) {
-    // EMD 3-word: lighter penalty (20%) — "CarInsuranceQuotes" still has value
-    score = Math.round(score * 0.80);
+    // EMD 3-word: lighter penalty (15%) — "CarInsuranceQuotes" has real commercial value
+    score = Math.round(score * 0.85);
   }
 
   // Total max ~115, normalize to 100
