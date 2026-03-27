@@ -336,6 +336,16 @@ export function HiddenGemsFinder() {
             >
               <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportGems}
+              disabled={!data || data.length === 0}
+              className="h-8 gap-1"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">CSV</span>
+            </Button>
           </div>
         </div>
 
