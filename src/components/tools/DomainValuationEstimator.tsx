@@ -690,10 +690,10 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
         {result && (
           <div className="space-y-5 animate-fade-in">
             {/* ─── Top-line: Value + Score + Trend Score ─── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* End-User Value */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Retail (End-User) Value */}
               <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
-                <span className="text-xs text-muted-foreground block mb-1">End-User Value</span>
+                <span className="text-xs text-muted-foreground block mb-1">🏷️ Retail Value</span>
                 {aiLoading ? (
                   <div className="flex items-center gap-2 mt-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -701,7 +701,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </div>
                 ) : aiEndUserValue ? (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{aiEndUserValue}</p>
+                    <p className="text-xl font-bold text-foreground">{aiEndUserValue}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
                     <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
                       <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
@@ -709,8 +709,8 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </>
                 ) : (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
+                    <p className="text-xl font-bold text-foreground">{result.estimatedValue}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">End-user / brand asking price</p>
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       <Badge variant="outline" className={`text-xs ${confidenceColor(result.confidence)}`}>
                         {result.confidence} Confidence
@@ -732,9 +732,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 )}
               </div>
 
-              {/* Max Acquisition Price */}
+              {/* Wholesale (Investor) Value */}
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                <span className="text-xs text-muted-foreground block mb-1">Max Acquisition Price</span>
+                <span className="text-xs text-muted-foreground block mb-1">💰 Wholesale Value</span>
                 {aiLoading ? (
                   <div className="flex items-center gap-2 mt-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -742,7 +742,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </div>
                 ) : aiAcquisitionPrice ? (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{aiAcquisitionPrice}</p>
+                    <p className="text-xl font-bold text-foreground">{aiAcquisitionPrice}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
                     <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
                       <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
@@ -755,38 +755,49 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                       if (parts && parts.length >= 2) {
                         const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
                         const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
-                        return <p className="text-2xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
+                        return <p className="text-xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
                       }
-                      return <p className="text-2xl font-bold text-foreground">N/A</p>;
+                      return <p className="text-xl font-bold text-foreground">N/A</p>;
                     })()}
-                    <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">What a domainer would pay today</p>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className="text-xs mt-2 bg-muted text-muted-foreground">
+                          Investor pricing
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">Wholesale value reflects what an experienced domain investor would pay, factoring in liquidity, flip potential, and holding costs. Typically 15-35% of retail value.</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </>
                 )}
               </div>
 
-              {/* Overall Score */}
-              <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
-                <span className="text-xs text-muted-foreground block mb-1">Quality Score</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-foreground">{result.overallScore}</span>
-                  <span className="text-sm text-muted-foreground">/ 100</span>
+              {/* Quality Score + Trend Score stacked */}
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
+                  <span className="text-xs text-muted-foreground block mb-1">Quality Score</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-foreground">{result.overallScore}</span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <Progress value={result.overallScore} className="h-2 mt-2" />
                 </div>
-                <Progress value={result.overallScore} className="h-2 mt-2" />
-              </div>
 
-              {/* Trend Score */}
-              <div className={`p-4 rounded-xl border ${getTrendScoreBg(result.trendScore)}`}>
-                <span className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5" />
-                  Trend Score
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-bold ${getTrendScoreColor(result.trendScore)}`}>{result.trendScore}</span>
-                  <span className="text-sm text-muted-foreground">/ 100</span>
+                <div className={`p-4 rounded-xl border ${getTrendScoreBg(result.trendScore)}`}>
+                  <span className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5" />
+                    Trend Score
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-xl font-bold ${getTrendScoreColor(result.trendScore)}`}>{result.trendScore}</span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <span className={`text-xs font-medium mt-1 block ${getTrendScoreColor(result.trendScore)}`}>
+                    {result.trendLabel}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium mt-1 block ${getTrendScoreColor(result.trendScore)}`}>
-                  {result.trendLabel}
-                </span>
               </div>
             </div>
 
