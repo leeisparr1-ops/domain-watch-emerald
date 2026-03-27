@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
 import { fetchTrendEnrichment, type TrendEnrichment } from "@/lib/trendEnrichment";
 import { downloadCsv } from "@/lib/csvExport";
+import { toast } from "sonner";
 
 interface GemResult {
   total_count: number;
