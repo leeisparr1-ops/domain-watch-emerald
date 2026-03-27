@@ -1182,15 +1182,49 @@ function fullHeuristicScore(
   if (len <= 4 && isSingleRealWord) detectedCategory = "short";
   else if (isSingleRealWord && finalScore >= 70) detectedCategory = "premium";
 
+  // ─── REALISTIC FLIP-VALUE ESTIMATION ───
+  // Pending delete domains are reg-fee acquisitions. Values reflect
+  // realistic wholesale/flip prices, NOT fantasy end-user appraisals.
+  // Tiers: Junk $0-20 | Low $20-150 | Decent $150-1000 | Strong $1k-5k | Premium $5k-15k (rare)
   let estimatedValue = 0;
-  if (finalScore >= 85) estimatedValue = isSingleRealWord ? 15000 + (finalScore - 85) * 2000 : 8000 + (finalScore - 85) * 1000;
-  else if (finalScore >= 75) estimatedValue = isSingleRealWord ? 3000 + (finalScore - 75) * 500 : 1500 + (finalScore - 75) * 300;
-  else if (finalScore >= 65) estimatedValue = 500 + (finalScore - 65) * 80;
-  else if (finalScore >= 55) estimatedValue = 150 + (finalScore - 55) * 30;
-  else estimatedValue = 50 + finalScore;
+  if (finalScore >= 95) {
+    // Premium tier — only single real dictionary words or exceptional compounds
+    estimatedValue = isSingleRealWord
+      ? 5000 + (finalScore - 95) * 1500   // $5k–$12.5k for real words
+      : 2500 + (finalScore - 95) * 500;   // $2.5k–$5k for compounds
+  } else if (finalScore >= 85) {
+    estimatedValue = isSingleRealWord
+      ? 1500 + (finalScore - 85) * 350    // $1.5k–$5k
+      : 800 + (finalScore - 85) * 170;    // $800–$2.5k
+  } else if (finalScore >= 75) {
+    estimatedValue = isSingleRealWord
+      ? 500 + (finalScore - 75) * 100     // $500–$1.5k
+      : 250 + (finalScore - 75) * 55;     // $250–$800
+  } else if (finalScore >= 65) {
+    estimatedValue = 100 + (finalScore - 65) * 15;  // $100–$250
+  } else if (finalScore >= 55) {
+    estimatedValue = 30 + (finalScore - 55) * 7;    // $30–$100
+  } else {
+    estimatedValue = Math.max(0, finalScore);         // $0–$55
+  }
 
-  if (bestLiquidity >= 8) estimatedValue = Math.round(estimatedValue * 1.3);
-  else if (bestLiquidity <= 3) estimatedValue = Math.round(estimatedValue * 0.6);
+  // Liquidity adjustment (modest — not a 1.3x inflator)
+  if (bestLiquidity >= 8) estimatedValue = Math.round(estimatedValue * 1.15);
+  else if (bestLiquidity >= 7) estimatedValue = Math.round(estimatedValue * 1.08);
+  else if (bestLiquidity <= 3) estimatedValue = Math.round(estimatedValue * 0.5);
+  else if (bestLiquidity <= 4) estimatedValue = Math.round(estimatedValue * 0.7);
+
+  // Spam suffix penalty — "xyz", "hub", "app", "tool" compounds get capped
+  const SPAM_SUFFIXES = ["xyz","hub","app","tool","bot","zone","spot","pro","now","go","io","hq","ly"];
+  const lastWord = words.length > 0 ? words[words.length - 1] : "";
+  if (SPAM_SUFFIXES.includes(lastWord) && words.length >= 2) {
+    estimatedValue = Math.min(estimatedValue, 300);
+  }
+
+  // Hard ceiling: pending-delete compound domains rarely exceed $5k flip value
+  if (!isSingleRealWord && words.length >= 2) {
+    estimatedValue = Math.min(estimatedValue, 5000);
+  }
 
   const summaryParts: string[] = [];
   if (isSingleRealWord) summaryParts.push(`Real word "${realWords[0]}"`);
