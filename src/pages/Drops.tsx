@@ -523,7 +523,7 @@ const Drops = () => {
                       </Button>
                     </>
                   )}
-                  {!isProcessing && user && (
+                  {!isProcessing && isAdmin && (
                     <Button variant="outline" size="sm" onClick={rerunScan} disabled={rerunning}>
                       <RefreshCw className={`w-4 h-4 mr-1 ${rerunning ? "animate-spin" : ""}`} /> Re-run
                     </Button>
