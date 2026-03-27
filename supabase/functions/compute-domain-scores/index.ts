@@ -406,6 +406,241 @@ function detectNiche(domainName: string): string {
   return bestScore >= 1 ? bestNiche : "general";
 }
 
+// ─── HIGH-CPC KEYWORDS (for EMD detection) ───
+const HIGH_CPC_KEYWORDS: Record<string, number> = {
+  insurance: 3.0, mortgage: 2.8, loan: 2.5, credit: 2.5, attorney: 2.5,
+  lawyer: 2.5, hosting: 2.2, trading: 2.2, degree: 2.2, recovery: 2.0,
+  rehab: 2.0, dental: 2.0, solar: 1.8, plumber: 1.8, roofing: 1.8,
+  hvac: 1.8, claims: 1.8, injury: 1.8, mesothelioma: 3.5,
+};
+
+// ─── ELITE WORDS for tier-0 detection ───
+const ELITE_WORDS = new Set([
+  "data","cloud","auto","money","cash","pay","shop","game","home","travel",
+  "health","food","deal","trade","hotel","loan","credit","fund","energy","solar",
+  "crypto","tech","code","web","bet","buy","sell","store","market","bank",
+  "law","tax","car","job","pet","wine","beer","gold","oil","gas",
+  "vote","news","art","book","film","sport","poker","diet","yoga",
+  "safe","lock","rent","lead","plan","risk","claim",
+]);
+
+// ─── PREMIUM TLD SCORES ───
+const PREMIUM_TLDS: Record<string, number> = {
+  com: 25, net: 14, org: 13, io: 16, ai: 18, co: 14, app: 12, dev: 11, gg: 13, me: 9, xyz: 5, info: 4, biz: 3,
+};
+
+// ─── SINGLE DICTIONARY WORD CHECK ───
+function isSingleDictionaryWord(name: string): boolean {
+  return DICT_WORDS.has(name.toLowerCase());
+}
+
+// ─── IS FULLY COVERED BY WORDS ───
+function isFullyCoveredByWords(name: string, words: string[]): boolean {
+  if (words.length === 0) return false;
+  const totalChars = words.reduce((s, w) => s + w.length, 0);
+  return totalChars >= name.length * 0.85;
+}
+
+// ─── SERVER-SIDE VALUATION (mirrors client quickValuation) ───
+function computeServerValuation(domain: string): { valueMin: number; valueMax: number } {
+  const parts = domain.toLowerCase().replace(/^www\./, "").split(".");
+  const name = parts[0].replace(/[^a-z0-9]/g, "");
+  const tld = parts[1] || "com";
+
+  if (!name || name.length === 0) return { valueMin: 5, valueMax: 15 };
+
+  const wordParts = splitIntoWords(name);
+  const meaningfulWords = wordParts.filter(w => w.length >= 2 && isKnownWord(w));
+  const junkChars = wordParts.filter(w => w.length === 1 && !isKnownWord(w)).length;
+  const premiumMatches = meaningfulWords.filter(w => PREMIUM_KEYWORDS.has(w));
+  const isDictWord = isSingleDictionaryWord(name);
+  const allMeaningful = meaningfulWords.length >= 1 && junkChars === 0 && isFullyCoveredByWords(name, meaningfulWords);
+
+  const hasPenaltyWord = [...OFFENSIVE_WORDS].some(kw => name.includes(kw));
+
+  // Junk detection
+  const meaningfulChars = meaningfulWords.reduce((sum, w) => sum + w.length, 0);
+  const coverageRatio = name.length > 0 ? meaningfulChars / name.length : 0;
+  const isSpamMultiWord = meaningfulWords.length >= 4 && name.length >= 15;
+  const isHopelessJunk = !isDictWord && name.length >= 12 && coverageRatio < 0.5;
+  const isMediumJunk = !isDictWord && name.length >= 8 && meaningfulWords.length === 0 && coverageRatio < 0.3;
+  const isGibberish = !isDictWord && name.length >= 10 && coverageRatio < 0.6;
+
+  if (isHopelessJunk || isMediumJunk || isSpamMultiWord) return { valueMin: 5, valueMax: 15 };
+  if (isGibberish) return { valueMin: 5, valueMax: 50 };
+  if (hasPenaltyWord) return { valueMin: 5, valueMax: 50 };
+
+  // Trademark check
+  const tmRisk = checkTrademarkRisk(domain);
+  const isMultiWord = meaningfulWords.length >= 2;
+
+  // Scoring (mirrors client logic)
+  const vowelCount = [...name].filter(c => "aeiouy".includes(c)).length;
+  const ratio = vowelCount / name.length;
+  const isPronounceable = ratio >= 0.25 && ratio <= 0.6 && !/[bcdfghjklmnpqrstvwxz]{4,}/i.test(name);
+
+  let score = 0;
+
+  // Length (max 20)
+  if (name.length <= 2) score += 20;
+  else if (name.length === 3) score += 19;
+  else if (name.length === 4) score += 17;
+  else if (name.length === 5) score += 14;
+  else if (name.length === 6) score += 11;
+  else if (name.length <= 8) score += 8;
+  else if (name.length <= 10) score += 5;
+  else if (name.length <= 14) score += 2;
+  else score += 1;
+
+  // TLD (max 25)
+  score += PREMIUM_TLDS[tld] || 3;
+
+  // Word quality (max 25)
+  if (isDictWord) score += 25;
+  else if (allMeaningful && meaningfulWords.length >= 2) score += premiumMatches.length >= 1 ? 22 : 18;
+  else if (meaningfulWords.length >= 2 && junkChars <= 1) score += premiumMatches.length >= 1 ? 18 : 14;
+  else if (meaningfulWords.length === 1 && junkChars === 0 && name.length <= 8) score += premiumMatches.length >= 1 ? 16 : 12;
+  else if (meaningfulWords.length >= 1) score += 6 + Math.min(4, premiumMatches.length * 2);
+  else score += 2;
+
+  // Brandability (max 15)
+  if (isDictWord && name.length <= 8) score += 15;
+  else if (isPronounceable && meaningfulWords.length >= 1 && junkChars <= 1 && name.length <= 8) score += 15;
+  else if (isPronounceable && meaningfulWords.length >= 1) score += 11;
+  else if (isPronounceable) score += 7;
+  else score += 3;
+
+  // Character mix (max 10)
+  const isAlpha = /^[a-z]+$/.test(name);
+  score += isAlpha ? 10 : /^\d+$/.test(name) && name.length <= 4 ? 7 : /[-_]/.test(parts[0]) ? 2 : /\d/.test(name) ? 4 : 5;
+
+  // Trending (max 15) — check premium keywords as proxy
+  if (premiumMatches.length >= 2) score += 15;
+  else if (premiumMatches.length === 1) score += 10;
+  else if (isDictWord) score += 8;
+  else score += 2;
+
+  // TM penalty
+  if (tmRisk === "high" && !isMultiWord) score = Math.min(score, 15);
+  else if (tmRisk === "high" && isMultiWord) score = Math.round(score * 0.7);
+  else if (tmRisk === "medium" && !isMultiWord) score = Math.round(score * 0.6);
+
+  // Word-count penalties with EMD detection
+  const highCpcWord = meaningfulWords.find(w => HIGH_CPC_KEYWORDS[w]);
+  const bestCpcMult = highCpcWord ? HIGH_CPC_KEYWORDS[highCpcWord] : 0;
+  const isHighValueEMD = tld === "com" && premiumMatches.length >= 2 && bestCpcMult >= 2.0;
+  if (meaningfulWords.length >= 3 && !isHighValueEMD) {
+    score = Math.round(score * 0.65);
+  }
+  if (meaningfulWords.length >= 3 && isHighValueEMD) {
+    score = Math.round(score * 0.85);
+  }
+
+  // Normalize
+  const normalizedTotal = Math.min(100, Math.round((score / 115) * 100));
+
+  // Value bands (same as client)
+  let valueMin: number, valueMax: number;
+  if (tmRisk === "high" && !isMultiWord) {
+    valueMin = 5; valueMax = 50;
+  } else if (normalizedTotal >= 97) {
+    valueMin = 250000; valueMax = 1000000;
+  } else if (normalizedTotal >= 92) {
+    valueMin = 80000; valueMax = 350000;
+  } else if (normalizedTotal >= 85) {
+    valueMin = 25000; valueMax = 100000;
+  } else if (normalizedTotal >= 78) {
+    valueMin = 8000; valueMax = 40000;
+  } else if (normalizedTotal >= 70) {
+    valueMin = 3000; valueMax = 15000;
+  } else if (normalizedTotal >= 62) {
+    valueMin = 1000; valueMax = 5000;
+  } else if (normalizedTotal >= 55) {
+    valueMin = 300; valueMax = 1500;
+  } else if (normalizedTotal >= 45) {
+    valueMin = 75; valueMax = 500;
+  } else if (normalizedTotal >= 35) {
+    valueMin = 20; valueMax = 150;
+  } else {
+    valueMin = 5; valueMax = 50;
+  }
+
+  // Additive boost model (capped at 200% / 3x)
+  let totalBoostPct = 0;
+  const notPenalized = !hasPenaltyWord && tmRisk !== "high";
+
+  if (notPenalized) {
+    // Short .com length premium
+    if (!isDictWord && tld === "com") {
+      if (name.length <= 2) totalBoostPct += 80;
+      else if (name.length === 3) totalBoostPct += 60;
+      else if (name.length === 4) totalBoostPct += 35;
+      else if (name.length === 5) totalBoostPct += 15;
+    }
+  }
+
+  totalBoostPct = Math.min(200, totalBoostPct);
+  const totalMultiplier = 1 + totalBoostPct / 100;
+  valueMin = Math.round(valueMin * totalMultiplier);
+  valueMax = Math.round(valueMax * totalMultiplier);
+
+  // Soft floors for dictionary .com & tier-0 elite
+  if (notPenalized) {
+    const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
+
+    if (isDictWord && tld === "com") {
+      let dictFloorMin: number, dictFloorMax: number;
+      if (isEliteWord && name.length <= 4) {
+        dictFloorMin = 1000000; dictFloorMax = 10000000;
+      } else if (isEliteWord) {
+        dictFloorMin = 500000; dictFloorMax = 5000000;
+      } else {
+        dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+        dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+      }
+      const algoWeight = isEliteWord ? 0.1 : 0.3;
+      valueMin = Math.round(valueMin * algoWeight + dictFloorMin * (1 - algoWeight));
+      valueMax = Math.round(valueMax * algoWeight + dictFloorMax * (1 - algoWeight));
+    }
+
+    // EMD premium (multi-word support)
+    const singleWordCpc = HIGH_CPC_KEYWORDS[name.toLowerCase()];
+    const cpcMult = singleWordCpc || bestCpcMult || 0;
+    if (cpcMult >= 1.5 && tld === "com") {
+      const wordCountDiscount = meaningfulWords.length >= 3 ? 0.4 : meaningfulWords.length === 2 ? 0.7 : 1.0;
+      valueMin = Math.max(valueMin, Math.round(15000 * cpcMult * wordCountDiscount));
+      valueMax = Math.max(valueMax, Math.round(150000 * cpcMult * wordCountDiscount));
+    }
+
+    // Two-word .com soft floors
+    if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com") {
+      const bothDictionary = meaningfulWords.every(w => DICT_WORDS.has(w));
+      const hasPremium = premiumMatches.length >= 1;
+      let floorMin: number, floorMax: number;
+      if (bothDictionary && hasPremium) {
+        floorMin = 5000; floorMax = 25000;
+      } else if (bothDictionary) {
+        floorMin = 2000; floorMax = 10000;
+      } else if (hasPremium) {
+        floorMin = 1500; floorMax = 8000;
+      } else {
+        floorMin = 500; floorMax = 3000;
+      }
+      valueMin = Math.round(Math.max(valueMin, valueMin * 0.4 + floorMin * 0.6));
+      valueMax = Math.round(Math.max(valueMax, valueMax * 0.4 + floorMax * 0.6));
+    }
+  }
+
+  // Tighten band
+  const maxSpread = valueMin >= 100000 ? 4 : 3;
+  if (valueMax > valueMin * maxSpread) {
+    valueMax = Math.round(valueMin * maxSpread);
+  }
+
+  // Return midpoint as the stored valuation
+  return { valueMin, valueMax };
+}
+
 // ─── Gem score computation ───
 
 /** Classify domain word quality for flip potential */
@@ -418,31 +653,26 @@ function classifyWordQuality(domain: string): { type: string; score: number } {
   const realWords = words.filter(w => isKnownWord(w));
   const hasPremium = words.some(w => PREMIUM_KEYWORDS.has(w));
 
-  // Single real dictionary word (EMD gold): "yoder", "accredited", "finstream"
   if (coverage >= 0.95 && realWords.length === 1 && name.length >= 3 && name.length <= 12) {
     if (hasPremium) return { type: "premium-emd", score: 100 };
     return { type: "single-word", score: 95 };
   }
 
-  // Two-word keyword combo: "forwardwealth", "shopfestival", "pinklemon"
   if (realWords.length === 2 && coverage >= 0.85) {
     if (hasPremium) return { type: "keyword-combo-premium", score: 95 };
     if (realWords.every(w => w.length >= 3)) return { type: "keyword-combo", score: 85 };
     return { type: "keyword-combo-weak", score: 70 };
   }
 
-  // Strong single word but longer
   if (coverage >= 0.95 && realWords.length === 1) {
     return { type: "long-word", score: 75 };
   }
 
-  // Three real words (still decent)
   if (realWords.length === 3 && coverage >= 0.8) {
     if (hasPremium) return { type: "three-word-premium", score: 65 };
     return { type: "three-word", score: 50 };
   }
 
-  // Partial keyword match
   if (hasPremium && coverage >= 0.5) return { type: "partial-keyword", score: 55 };
   if (coverage >= 0.7) return { type: "partial-word", score: 45 };
   if (coverage >= 0.4) return { type: "low-coverage", score: 25 };
@@ -452,7 +682,7 @@ function classifyWordQuality(domain: string): { type: string; score: number } {
 
 // ─── Trend data types ───
 interface TrendData {
-  keywords: Record<string, number>;  // keyword → heat multiplier (1.0-2.5)
+  keywords: Record<string, number>;
   hotNiches: { niche: string; label: string; heat: number }[];
 }
 
@@ -464,7 +694,6 @@ function computeTrendBoost(
   if (!trend) return 0;
   let boost = 0;
 
-  // 1. Keyword heat: best match among domain words
   let bestHeat = 0;
   for (const word of domainWords) {
     const heat = trend.keywords[word];
@@ -474,7 +703,6 @@ function computeTrendBoost(
   else if (bestHeat >= 1.5) boost += 5;
   else if (bestHeat >= 1.2) boost += 2;
 
-  // 2. Hot niche alignment
   if (nicheKey !== "general") {
     const nicheMatch = trend.hotNiches.find(n =>
       n.niche.toLowerCase().replace(/[\s/]/g, "_") === nicheKey ||
@@ -486,7 +714,6 @@ function computeTrendBoost(
     }
   }
 
-  // Cap the trend boost at 8 points on the 0-100 gem scale
   return Math.min(8, boost);
 }
 
@@ -509,36 +736,22 @@ function computeGemScore(
   const words = splitIntoWords(name);
   const nicheKey = detectNiche(domain);
 
-  // ── Word Quality / Flip Potential (25%) ── EMDs, single words, keyword+word
   const wq = classifyWordQuality(domain);
   const wordPts = wq.score * 25 / 100;
-
-  // ── Deal score (20%): undervalued domains
   const dealPts = Math.min(100, dealRatio * 10) * 20 / 100;
-
-  // ── Brandability (15%)
   const brandPts = brandabilityScore * 15 / 100;
 
-  // ── TLD Premium (10%): .com is king for flipping
   const normalizedTld = (tld || "").replace(/^\./, "").toLowerCase();
   const tldScore = normalizedTld === "com" ? 100 : normalizedTld === "ai" ? 85 : normalizedTld === "io" ? 60
     : ["co","app","dev"].includes(normalizedTld) ? 40
     : ["net","org"].includes(normalizedTld) ? 30 : 5;
   const tldPts = tldScore * 10 / 100;
 
-  // ── Short length (10%)
   const lenPts = Math.max(0, Math.min(100, (15 - name.length) * 8)) * 10 / 100;
-
-  // ── Traffic signal (10%)
   const trafficPts = Math.min(100, trafficCount > 0 ? Math.min(100, Math.log10(trafficCount + 1) * 30) : 0) * 10 / 100;
-
-  // ── Low competition (5%): fewer bids = less noticed
   const compPts = Math.max(0, Math.min(100, (10 - bidCount) * 10)) * 5 / 100;
-
-  // ── Domain age (5%)
   const agePts = Math.min(100, (domainAge || 0) * 5) * 5 / 100;
 
-  // ── Trend boost (additive, up to +8 points)
   const trendBoost = computeTrendBoost(words, nicheKey, trendData);
 
   const baseScore = wordPts + dealPts + brandPts + tldPts + lenPts + trafficPts + compPts + agePts;
