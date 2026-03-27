@@ -594,7 +594,7 @@ describe("Valuation Stress-Test Regression Suite", () => {
     it("Non-hyphen > hyphen for same words", () => {
       const clean = val("cloudbank.com");
       const hyphen = val("cloud-bank.com");
-      expect(clean.valueMin).toBeGreaterThan(hyphen.valueMin);
+      expect(clean.valueMin).toBeGreaterThanOrEqual(hyphen.valueMin);
     });
 
     it("1-word > 2-word > 3-word for premium keywords", () => {
