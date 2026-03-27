@@ -2798,22 +2798,49 @@ export function quickValuation(domain: string, pronounceScore?: number, domainAg
 
   // ─── SOFT FLOORS (confidence-weighted, not hard minimums) ───
   if (notPenalized) {
-    // Dictionary .com — soft floors (reduced ~50% from previous hard floors)
+    // ─── TIER-0 ELITE DETECTION ───
+    // Ultra-premium single-word .coms that command $500K+ in the real market
+    const ELITE_WORDS = new Set([
+      // Generic commercial superstars (all sold $1M+ historically)
+      "data", "cloud", "auto", "money", "cash", "pay", "shop", "game", "home", "travel",
+      "health", "food", "deal", "trade", "hotel", "loan", "credit", "fund", "energy", "solar",
+      "crypto", "tech", "code", "web", "bet", "buy", "sell", "store", "market", "bank",
+      "law", "tax", "car", "job", "pet", "wine", "beer", "gold", "oil", "gas",
+      "vote", "news", "art", "book", "film", "sport", "poker", "diet", "yoga",
+      "safe", "lock", "rent", "lead", "plan", "risk", "claim",
+    ]);
+    const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
+
+    // Dictionary .com — soft floors
     if (isDictWord && tld === "com") {
-      const dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
-      const dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+      let dictFloorMin: number, dictFloorMax: number;
+      if (isEliteWord && name.length <= 4) {
+        // Tier-0: elite short words → $1M-$10M floor
+        dictFloorMin = 1000000; dictFloorMax = 10000000;
+      } else if (isEliteWord) {
+        // Tier-0: elite longer words → $500K-$5M floor
+        dictFloorMin = 500000; dictFloorMax = 5000000;
+      } else {
+        dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+        dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+      }
       // Soft: blend toward floor rather than hard Math.max
-      valueMin = Math.round(valueMin * 0.3 + dictFloorMin * 0.7);
-      valueMax = Math.round(valueMax * 0.3 + dictFloorMax * 0.7);
+      const algoWeight = isEliteWord ? 0.1 : 0.3; // Elite words heavily favor floor
+      valueMin = Math.round(valueMin * algoWeight + dictFloorMin * (1 - algoWeight));
+      valueMax = Math.round(valueMax * algoWeight + dictFloorMax * (1 - algoWeight));
     }
 
-    // EMD premium (reduced)
-    const emdKey = name.toLowerCase();
-    const cpcMult = HIGH_CPC_KEYWORDS[emdKey];
-    if (cpcMult && tld === "com") {
-      valueMin = Math.max(valueMin, Math.round(15000 * cpcMult));
-      valueMax = Math.max(valueMax, Math.round(150000 * cpcMult));
-    } else if (cpcMult && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10) {
+    // EMD premium — now supports multi-word domains (e.g., "carinsurancequotes")
+    // Check individual words for CPC match, not just full concatenated name
+    const singleWordCpc = HIGH_CPC_KEYWORDS[name.toLowerCase()];
+    const multiWordCpc = bestCpcMult; // from word-count penalty section above
+    const cpcMult = singleWordCpc || multiWordCpc || 0;
+    if (cpcMult >= 1.5 && tld === "com") {
+      // Multi-word EMD floor scales with word count (3-word gets less than 1-word)
+      const wordCountDiscount = meaningfulWords.length >= 3 ? 0.4 : meaningfulWords.length === 2 ? 0.7 : 1.0;
+      valueMin = Math.max(valueMin, Math.round(15000 * cpcMult * wordCountDiscount));
+      valueMax = Math.max(valueMax, Math.round(150000 * cpcMult * wordCountDiscount));
+    } else if (cpcMult >= 1.5 && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10) {
       const tldDiscount = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : 0.15;
       valueMin = Math.max(valueMin, Math.round(15000 * cpcMult * tldDiscount));
       valueMax = Math.max(valueMax, Math.round(150000 * cpcMult * tldDiscount));
