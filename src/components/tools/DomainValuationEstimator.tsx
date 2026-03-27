@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database, Search } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Minus, ShieldAlert, ShieldCheck, Flame, BarChart3, Target, Loader2, BrainCircuit, Database, Search, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { anchorWithComps, type AnchoredValuation } from "@/lib/comparableAnchor";
+import { HIGH_CPC_KEYWORDS } from "@/lib/semanticSimilarity";
 import { scoreBrandability } from "@/lib/brandability";
 import { scorePronounceability } from "@/lib/pronounceability";
 import { scoreKeywordDemand } from "@/lib/keywordDemand";
 import { fetchTrendEnrichment } from "@/lib/trendEnrichment";
-import { quickValuation } from "@/lib/domainValuation";
+import { quickValuation, type QuickValuationResult } from "@/lib/domainValuation";
 import { estimateSEOVolume, fetchKeywordVolumes, type SEOVolumeResult } from "@/lib/seoVolume";
 import { SEOVolumeSparkline } from "./SEOVolumeSparkline";
 import { scoreDomainAge } from "@/lib/domainAge";
@@ -356,15 +357,48 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
   valueMin = Math.round(valueMin * totalMult);
   valueMax = Math.round(valueMax * totalMult);
 
-  // Soft dictionary .com floors (reduced)
+  // ─── TIER-0 ELITE + SOFT FLOORS ───
+  const ELITE_WORDS = new Set([
+    "data", "cloud", "auto", "money", "cash", "pay", "shop", "game", "home", "travel",
+    "health", "food", "deal", "trade", "hotel", "loan", "credit", "fund", "energy", "solar",
+    "crypto", "tech", "code", "web", "bet", "buy", "sell", "store", "market", "bank",
+    "law", "tax", "car", "job", "pet", "wine", "beer", "gold", "oil", "gas",
+    "vote", "news", "art", "book", "film", "sport", "poker", "diet", "yoga",
+    "safe", "lock", "rent", "lead", "plan", "risk", "claim",
+  ]);
+  const isEliteWord = isDictWord && tld === "com" && ELITE_WORDS.has(name.toLowerCase());
+
   if (isDictWord && tld === "com" && notPenalized) {
-    const dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
-    const dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
-    valueMin = Math.round(valueMin * 0.3 + dictFloorMin * 0.7);
-    valueMax = Math.round(valueMax * 0.3 + dictFloorMax * 0.7);
+    let dictFloorMin: number, dictFloorMax: number;
+    if (isEliteWord && name.length <= 4) {
+      dictFloorMin = 1000000; dictFloorMax = 10000000;
+    } else if (isEliteWord) {
+      dictFloorMin = 500000; dictFloorMax = 5000000;
+    } else {
+      dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+      dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+    }
+    const algoWeight = isEliteWord ? 0.1 : 0.3;
+    valueMin = Math.round(valueMin * algoWeight + dictFloorMin * (1 - algoWeight));
+    valueMax = Math.round(valueMax * algoWeight + dictFloorMax * (1 - algoWeight));
   }
 
-  // Soft two-word .com floors (reduced)
+  // Multi-word EMD floors
+  const highCpcWord = meaningfulWords.find(w => HIGH_CPC_KEYWORDS[w]);
+  const bestCpc = highCpcWord ? HIGH_CPC_KEYWORDS[highCpcWord] : 0;
+  const singleCpc = HIGH_CPC_KEYWORDS[name.toLowerCase()] || 0;
+  const effectiveCpc = singleCpc || bestCpc;
+  if (effectiveCpc >= 1.5 && tld === "com" && notPenalized) {
+    const wordDiscount = meaningfulWords.length >= 3 ? 0.4 : meaningfulWords.length === 2 ? 0.7 : 1.0;
+    valueMin = Math.max(valueMin, Math.round(15000 * effectiveCpc * wordDiscount));
+    valueMax = Math.max(valueMax, Math.round(150000 * effectiveCpc * wordDiscount));
+  } else if (effectiveCpc >= 1.5 && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && notPenalized) {
+    const tldFactor = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : 0.15;
+    valueMin = Math.max(valueMin, Math.round(15000 * effectiveCpc * tldFactor));
+    valueMax = Math.max(valueMax, Math.round(150000 * effectiveCpc * tldFactor));
+  }
+
+  // Soft two-word .com floors
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
@@ -382,7 +416,7 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
     valueMax = Math.round(Math.max(valueMax, valueMax * 0.4 + floorMax * 0.6));
   }
 
-  // Two-word on premium TLDs (reduced)
+  // Two-word on premium TLDs
   if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
@@ -454,6 +488,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
   const [domain, setDomain] = useState(initialDomain || "");
   const [nicheOverride, setNicheOverride] = useState<string>("");
   const [result, setResult] = useState<ValuationResult | null>(null);
+  const [quickVal, setQuickVal] = useState<QuickValuationResult | null>(null);
   const [aiEndUserValue, setAiEndUserValue] = useState<string | null>(null);
   const [aiAcquisitionPrice, setAiAcquisitionPrice] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -472,6 +507,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     setAnalysisSteps(steps);
     setAnalysisRunning(true);
     setResult(null);
+    setQuickVal(null);
     setCompAnchor(null);
     setSeoData(null);
     setAiEndUserValue(null);
@@ -481,6 +517,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     updateStep(0, "running");
     await new Promise(r => setTimeout(r, 200));
     const baseResult = estimateValue(domainWithTld, niche || undefined);
+    // Also compute quickValuation for wholesale/sellability/confidence data
+    const qv = quickValuation(domainWithTld);
+    setQuickVal(qv);
     updateStep(0, "done");
 
     // Step 2: Brandability & pronounceability
@@ -733,15 +772,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </>
                 ) : (
                   <>
-                    {(() => {
-                      const parts = result.estimatedValue.match(/[\d,]+/g);
-                      if (parts && parts.length >= 2) {
-                        const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
-                        const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
-                        return <p className="text-xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
-                      }
-                      return <p className="text-xl font-bold text-foreground">N/A</p>;
-                    })()}
+                    <p className="text-xl font-bold text-foreground">
+                      {quickVal ? quickVal.wholesaleBand : "N/A"}
+                    </p>
                     <p className="text-[10px] text-muted-foreground mt-1">What a domainer would pay today</p>
                     <Tooltip>
                       <TooltipTrigger>
@@ -830,6 +863,81 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 </p>
               )}
             </div>
+
+            {/* ─── Sellability Insights + Confidence ─── */}
+            {quickVal && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Sellability Insights */}
+                <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Sellability Insights</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-xs">{quickVal.sellability.buyerType} buyer</Badge>
+                    <Badge variant="outline" className="text-xs">{quickVal.sellability.buyerPool} pool</Badge>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className={`text-xs ${
+                          quickVal.liquidityScore >= 60 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : quickVal.liquidityScore >= 30 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                        }`}>
+                          💧 {quickVal.liquidityScore}/100 {quickVal.liquidityLabel}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">Liquidity measures how quickly this domain could sell. Based on TLD, length, clarity, and buyer demand.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  {quickVal.sellability.strengths.length > 0 && (
+                    <div className="space-y-1">
+                      {quickVal.sellability.strengths.map((s, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>{s}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {quickVal.sellability.weaknesses.length > 0 && (
+                    <div className="space-y-1">
+                      {quickVal.sellability.weaknesses.map((w, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
+                          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>{w}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confidence Score */}
+                <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Appraisal Confidence</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-3xl font-bold ${
+                      quickVal.confidencePct >= 70 ? "text-emerald-600 dark:text-emerald-400"
+                      : quickVal.confidencePct >= 45 ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-600 dark:text-red-400"
+                    }`}>{quickVal.confidencePct}%</span>
+                    <span className="text-sm text-muted-foreground">{quickVal.confidence}</span>
+                  </div>
+                  <Progress value={quickVal.confidencePct} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {quickVal.confidencePct >= 70
+                      ? "Strong data signals — valuation is well-supported by comps and market indicators."
+                      : quickVal.confidencePct >= 45
+                      ? "Moderate data quality — valuation is directional but actual price may vary ±40%."
+                      : "Limited data — treat as speculative. Actual value could differ significantly."}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* SEO Volume Insight */}
             {seoData && (

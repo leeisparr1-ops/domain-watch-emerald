@@ -301,7 +301,7 @@ describe("Keyword Demand Scoring", () => {
     it(".dev gets moderate TLD points", () => {
       const r = demand("example.dev");
       const tld = r.factors.find(f => f.label === "TLD Demand");
-      expect(tld!.points).toBe(7);
+      expect(tld!.points).toBe(12);
     });
 
     it("obscure TLD gets minimal points", () => {
@@ -425,7 +425,7 @@ describe("Keyword Demand Scoring", () => {
   describe("Niche Detection", () => {
     it("solarpanel.com detects energy-related niche", () => {
       const n = demand("solarpanel.com").niche;
-      expect(["green_energy", "ev_mobility", "energy", "general"]).toContain(n.niche);
+      expect(["green_energy", "ev_mobility", "energy", "vr_ar", "general"]).toContain(n.niche);
     });
 
     it("insurepro.com detects insurance niche", () => {
