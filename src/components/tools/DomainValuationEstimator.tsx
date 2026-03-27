@@ -473,6 +473,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
     setAnalysisSteps(steps);
     setAnalysisRunning(true);
     setResult(null);
+    setQuickVal(null);
     setCompAnchor(null);
     setSeoData(null);
     setAiEndUserValue(null);
