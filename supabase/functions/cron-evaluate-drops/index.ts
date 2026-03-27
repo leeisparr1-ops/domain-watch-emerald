@@ -69,6 +69,29 @@ serve(async (req) => {
       }).eq("id", active.id);
     }
 
+    // Determine CSV URL - prefer storage bucket, fallback to static file
+    let csvUrl: string;
+
+    // Check if there's a CSV in the drops-csv storage bucket
+    const { data: files } = await adminClient.storage
+      .from("drops-csv")
+      .list("", { limit: 1, sortBy: { column: "created_at", order: "desc" } });
+
+    if (files && files.length > 0) {
+      // Use the latest uploaded CSV from storage
+      const latestFile = files[0];
+      const { data: urlData } = adminClient.storage
+        .from("drops-csv")
+        .getPublicUrl(latestFile.name);
+      csvUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+      console.log(`Using storage CSV: ${latestFile.name}`);
+    } else {
+      // Fallback to the static file in the repo
+      const appUrl = "https://expiredhawk.lovable.app";
+      csvUrl = `${appUrl}/store/daily-drops.csv?v=${Date.now()}`;
+      console.log(`No storage CSV found, using static fallback`);
+    }
+
     // Create a new shared scan record
     const scanId = crypto.randomUUID();
     const { error: insertErr } = await adminClient.from("drop_scans").insert({
@@ -86,13 +109,9 @@ serve(async (req) => {
       throw new Error(`Failed to create scan record: ${insertErr.message}`);
     }
 
-    console.log(`Created daily drop scan: ${scanId}`);
+    console.log(`Created daily drop scan: ${scanId}, CSV: ${csvUrl}`);
 
-    // Use the shared static CSV with a cache-busting query to avoid stale CDN copies
-    const appUrl = "https://expiredhawk.lovable.app";
-    const sharedCsvUrl = `${appUrl}/store/daily-drops.csv?v=${Date.now()}`;
-
-    // Trigger evaluate-drops with the shared CSV URL
+    // Trigger evaluate-drops with the CSV URL
     const evalUrl = `${supabaseUrl}/functions/v1/evaluate-drops`;
     const evalResp = await fetch(evalUrl, {
       method: "POST",
@@ -102,7 +121,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         scanId,
-        csvUrl: sharedCsvUrl,
+        csvUrl,
       }),
     });
 
@@ -112,6 +131,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       scanId,
+      csvUrl: csvUrl.split("?")[0], // strip cache-buster for logging
       evalResult,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
