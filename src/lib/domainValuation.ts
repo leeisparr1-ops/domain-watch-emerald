@@ -2456,6 +2456,13 @@ export interface ValueDrivers {
   liquidity: number;
 }
 
+export interface SellabilityInsight {
+  strengths: string[];
+  weaknesses: string[];
+  buyerType: "End-User" | "Startup" | "Investor" | "Enterprise" | "Local Business" | "Speculative";
+  buyerPool: "Large" | "Medium" | "Small" | "Niche";
+}
+
 export interface QuickValuationResult {
   band: string;
   score: number;
@@ -2470,6 +2477,10 @@ export interface QuickValuationResult {
   liquidityLabel: string;
   drivers: ValueDrivers;
   confidence: "High" | "Medium" | "Low";
+  /** Confidence as percentage 0-100 for granular display */
+  confidencePct: number;
+  /** Sellability insights: strengths, weaknesses, buyer type */
+  sellability: SellabilityInsight;
 }
 
 // ─── LIQUIDITY SCORING ───
