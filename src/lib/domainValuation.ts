@@ -2453,6 +2453,7 @@ export interface ValueDrivers {
   brandability: number;
   niche_demand: number;
   comparable_sales: number;
+  liquidity: number;
 }
 
 export interface QuickValuationResult {
@@ -2460,8 +2461,63 @@ export interface QuickValuationResult {
   score: number;
   valueMin: number;
   valueMax: number;
+  /** Wholesale (investor) value — what a domainer would pay */
+  wholesaleMin: number;
+  wholesaleMax: number;
+  wholesaleBand: string;
+  /** Liquidity score 0-100: how quickly/easily this domain can sell */
+  liquidityScore: number;
+  liquidityLabel: string;
   drivers: ValueDrivers;
   confidence: "High" | "Medium" | "Low";
+}
+
+// ─── LIQUIDITY SCORING ───
+function computeLiquidity(
+  name: string,
+  tld: string,
+  isDictWord: boolean,
+  isPronounceable: boolean,
+  meaningfulWords: string[],
+  allMeaningful: boolean,
+): { score: number; label: string } {
+  let score = 0;
+
+  // TLD liquidity: .com is king
+  if (tld === "com") score += 35;
+  else if (tld === "ai") score += 18;
+  else if (tld === "io") score += 15;
+  else if (tld === "co" || tld === "net") score += 12;
+  else if (tld === "org") score += 10;
+  else if (tld === "gg" || tld === "app" || tld === "dev") score += 8;
+  else score += 3;
+
+  // Length: shorter = more liquid
+  if (name.length <= 3) score += 25;
+  else if (name.length <= 5) score += 20;
+  else if (name.length <= 7) score += 15;
+  else if (name.length <= 10) score += 8;
+  else if (name.length <= 14) score += 3;
+  else score += 0;
+
+  // Clarity: dictionary words and clean compounds are liquid
+  if (isDictWord) score += 25;
+  else if (allMeaningful && meaningfulWords.length === 2) score += 18;
+  else if (allMeaningful && meaningfulWords.length === 1) score += 12;
+  else if (meaningfulWords.length >= 1) score += 6;
+  else score += 0;
+
+  // Pronounceability bonus
+  if (isPronounceable) score += 8;
+
+  // Word count penalty: 3+ words dramatically reduce liquidity
+  if (meaningfulWords.length >= 3) score -= 15;
+  if (meaningfulWords.length >= 4) score -= 20;
+
+  score = Math.max(0, Math.min(100, score));
+
+  const label = score >= 80 ? "Very High" : score >= 60 ? "High" : score >= 40 ? "Moderate" : score >= 20 ? "Low" : "Very Low";
+  return { score, label };
 }
 
 export function quickValuation(domain: string, pronounceScore?: number, domainAge?: number | null): QuickValuationResult {
