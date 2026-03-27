@@ -309,112 +309,95 @@ function estimateValue(domain: string, nicheOverride?: string): ValuationResult 
   if ((hasPenaltyWord) || (trademark.riskLevel === "high" && !isMultiWord)) {
     valueMin = 5; valueMax = 50;
   } else if (normalizedTotal >= 97) {
-    valueMin = 500000; valueMax = 2000000;
+    valueMin = 250000; valueMax = 1000000;
   } else if (normalizedTotal >= 92) {
-    valueMin = 200000; valueMax = 750000;
+    valueMin = 80000; valueMax = 350000;
   } else if (normalizedTotal >= 85) {
-    valueMin = 75000; valueMax = 250000;
-  } else if (normalizedTotal >= 78) {
     valueMin = 25000; valueMax = 100000;
+  } else if (normalizedTotal >= 78) {
+    valueMin = 8000; valueMax = 40000;
   } else if (normalizedTotal >= 70) {
-    valueMin = 8000; valueMax = 35000;
+    valueMin = 3000; valueMax = 15000;
   } else if (normalizedTotal >= 62) {
-    valueMin = 2500; valueMax = 12000;
+    valueMin = 1000; valueMax = 5000;
   } else if (normalizedTotal >= 55) {
-    valueMin = 800; valueMax = 4000;
+    valueMin = 300; valueMax = 1500;
   } else if (normalizedTotal >= 45) {
-    valueMin = 200; valueMax = 1200;
+    valueMin = 75; valueMax = 500;
   } else if (normalizedTotal >= 35) {
-    valueMin = 50; valueMax = 400;
+    valueMin = 20; valueMax = 150;
   } else {
-    valueMin = 5; valueMax = 100;
+    valueMin = 5; valueMax = 50;
   }
 
-  // Apply trending multiplier
-  if (trendMult > 1.0 && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    valueMin = Math.round(valueMin * trendMult);
-    valueMax = Math.round(valueMax * trendMult);
-  }
+  // ─── ADDITIVE BOOST MODEL (capped at 3x) ───
+  let totalBoostPct = 0;
+  const notPenalized = !hasPenaltyWord && trademark.riskLevel !== "high";
 
-  // Semantic synergy bonus for related compound words
-  if (meaningfulWords.length === 2 && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
-    if (synergyBonus > 1.0) {
-      valueMin = Math.round(valueMin * synergyBonus);
-      valueMax = Math.round(valueMax * synergyBonus);
+  if (notPenalized) {
+    // Trending: conditional on quality
+    if (trendMult > 1.0) {
+      const trendQuality = (name.length <= 8 && (isDictWord || allMeaningful)) ? 1.0
+        : (name.length <= 10 && meaningfulWords.length >= 1) ? 0.5 : 0.2;
+      totalBoostPct += Math.min(60, (trendMult - 1.0) * 100 * trendQuality);
+    }
+    // Synergy
+    if (meaningfulWords.length === 2) {
+      const { bonus: synergyBonus } = getSemanticSynergyBonus(meaningfulWords);
+      if (synergyBonus > 1.0) totalBoostPct += Math.min(25, (synergyBonus - 1.0) * 100);
+    }
+    // Niche
+    if (niche.multiplier > 1.0 && niche.confidence !== "Low") {
+      totalBoostPct += Math.min(30, (niche.multiplier - 1.0) * 50);
     }
   }
+  totalBoostPct = Math.min(200, totalBoostPct);
+  const totalMult = 1 + totalBoostPct / 100;
+  valueMin = Math.round(valueMin * totalMult);
+  valueMax = Math.round(valueMax * totalMult);
 
-  // Apply niche multiplier on top (if niche detected with reasonable confidence)
-  if (niche.multiplier > 1.0 && niche.confidence !== "Low" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const nicheBoost = 1 + (niche.multiplier - 1) * 0.5; // dampen to avoid double-counting with trend
-    valueMin = Math.round(valueMin * nicheBoost);
-    valueMax = Math.round(valueMax * nicheBoost);
+  // Soft dictionary .com floors (reduced)
+  if (isDictWord && tld === "com" && notPenalized) {
+    const dictFloorMin = name.length <= 3 ? 500000 : name.length <= 4 ? 150000 : name.length <= 5 ? 50000 : name.length <= 6 ? 25000 : name.length <= 8 ? 12000 : 5000;
+    const dictFloorMax = name.length <= 3 ? 3000000 : name.length <= 4 ? 800000 : name.length <= 5 ? 250000 : name.length <= 6 ? 120000 : name.length <= 8 ? 60000 : 25000;
+    valueMin = Math.round(valueMin * 0.3 + dictFloorMin * 0.7);
+    valueMax = Math.round(valueMax * 0.3 + dictFloorMax * 0.7);
   }
 
-  // Dictionary word on .com bonus — single dictionary words on .com are ultra-premium
-  if (isDictWord && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
-    const dictFloorMin = name.length <= 3 ? 2000000 : name.length <= 4 ? 500000 : name.length <= 5 ? 200000 : name.length <= 6 ? 100000 : name.length <= 8 ? 50000 : 25000;
-    const dictFloorMax = name.length <= 3 ? 10000000 : name.length <= 4 ? 2500000 : name.length <= 5 ? 1000000 : name.length <= 6 ? 500000 : name.length <= 8 ? 250000 : 100000;
-    valueMin = Math.max(valueMin, dictFloorMin);
-    valueMax = Math.max(valueMax, dictFloorMax);
-  }
-
-  // Two-word brandable .com bonus — tiered by word quality
-  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && !hasPenaltyWord && trademark.riskLevel !== "high") {
+  // Soft two-word .com floors (reduced)
+  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld === "com" && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
     const hasTrending = trends.length >= 1;
     const bothShort = meaningfulWords.every(w => w.length <= 6);
 
-    let twoWordFloorMin: number, twoWordFloorMax: number;
-
-    if (bothDictionary && hasPremium && hasTrending) {
-      // Premium trending combo: "CloudBank", "SmartHome", "PayWall"
-      twoWordFloorMin = 25000; twoWordFloorMax = 100000;
-    } else if (bothDictionary && (hasPremium || hasTrending)) {
-      // Premium or trending combo: "DataFlow", "HealthHub"
-      twoWordFloorMin = 15000; twoWordFloorMax = 75000;
-    } else if (bothDictionary && bothShort) {
-      // Two short dictionary words: "MoonLight", "WildFire", "TrueNorth"
-      twoWordFloorMin = 10000; twoWordFloorMax = 50000;
-    } else if (bothDictionary) {
-      // Two dictionary words, longer: "MountainView", "SilverStream"
-      twoWordFloorMin = 8000; twoWordFloorMax = 35000;
-    } else if (hasPremium) {
-      // One premium keyword + one meaningful: "TechZone", "PayNow"
-      twoWordFloorMin = 5000; twoWordFloorMax = 25000;
-    } else {
-      // Generic two meaningful words
-      twoWordFloorMin = 2000; twoWordFloorMax = 10000;
-    }
-
-    valueMin = Math.max(valueMin, twoWordFloorMin);
-    valueMax = Math.max(valueMax, twoWordFloorMax);
+    let floorMin: number, floorMax: number;
+    if (bothDictionary && hasPremium && hasTrending) { floorMin = 8000; floorMax = 35000; }
+    else if (bothDictionary && (hasPremium || hasTrending)) { floorMin = 5000; floorMax = 25000; }
+    else if (bothDictionary && bothShort) { floorMin = 3000; floorMax = 15000; }
+    else if (bothDictionary) { floorMin = 2000; floorMax = 10000; }
+    else if (hasPremium) { floorMin = 1500; floorMax = 8000; }
+    else { floorMin = 500; floorMax = 3000; }
+    valueMin = Math.round(Math.max(valueMin, valueMin * 0.4 + floorMin * 0.6));
+    valueMax = Math.round(Math.max(valueMax, valueMax * 0.4 + floorMax * 0.6));
   }
 
-  // Two-word brandable on other premium TLDs (.io, .ai, .co, .app, .dev)
-  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && !hasPenaltyWord && trademark.riskLevel !== "high") {
+  // Two-word on premium TLDs (reduced)
+  if (!isDictWord && allMeaningful && meaningfulWords.length === 2 && tld !== "com" && PREMIUM_TLDS[tld] && PREMIUM_TLDS[tld] >= 10 && notPenalized) {
     const bothDictionary = meaningfulWords.every(w => DICTIONARY_WORDS.has(w));
     const hasPremium = premiumMatches.length >= 1;
-    const tldFactor = tld === "ai" ? 0.6 : tld === "io" ? 0.4 : 0.3;
-
-    let altFloorMin: number, altFloorMax: number;
-    if (bothDictionary && hasPremium) {
-      altFloorMin = Math.round(10000 * tldFactor); altFloorMax = Math.round(50000 * tldFactor);
-    } else if (bothDictionary) {
-      altFloorMin = Math.round(5000 * tldFactor); altFloorMax = Math.round(25000 * tldFactor);
-    } else if (hasPremium) {
-      altFloorMin = Math.round(3000 * tldFactor); altFloorMax = Math.round(15000 * tldFactor);
-    } else {
-      altFloorMin = Math.round(1000 * tldFactor); altFloorMax = Math.round(5000 * tldFactor);
-    }
-    valueMin = Math.max(valueMin, altFloorMin);
-    valueMax = Math.max(valueMax, altFloorMax);
+    const tldFactor = tld === "ai" ? 0.4 : tld === "io" ? 0.25 : 0.15;
+    let altFloor: number;
+    if (bothDictionary && hasPremium) altFloor = Math.round(5000 * tldFactor);
+    else if (bothDictionary) altFloor = Math.round(2500 * tldFactor);
+    else if (hasPremium) altFloor = Math.round(1500 * tldFactor);
+    else altFloor = Math.round(500 * tldFactor);
+    valueMin = Math.max(valueMin, altFloor);
+    valueMax = Math.max(valueMax, Math.round(altFloor * 3));
   }
 
-   // Tighten band (allow wider spread for premium domains)
-  const maxSpread = valueMin >= 100000 ? 5 : 3;
+  // Tighten band
+  const maxSpread = valueMin >= 100000 ? 4 : 3;
   if (valueMax > valueMin * maxSpread) {
     valueMax = Math.round(valueMin * maxSpread);
   }
@@ -690,10 +673,10 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
         {result && (
           <div className="space-y-5 animate-fade-in">
             {/* ─── Top-line: Value + Score + Trend Score ─── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* End-User Value */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Retail (End-User) Value */}
               <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
-                <span className="text-xs text-muted-foreground block mb-1">End-User Value</span>
+                <span className="text-xs text-muted-foreground block mb-1">🏷️ Retail Value</span>
                 {aiLoading ? (
                   <div className="flex items-center gap-2 mt-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -701,7 +684,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </div>
                 ) : aiEndUserValue ? (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{aiEndUserValue}</p>
+                    <p className="text-xl font-bold text-foreground">{aiEndUserValue}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
                     <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
                       <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
@@ -709,8 +692,8 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </>
                 ) : (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{result.estimatedValue}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">What a brand/startup would pay</p>
+                    <p className="text-xl font-bold text-foreground">{result.estimatedValue}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">End-user / brand asking price</p>
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       <Badge variant="outline" className={`text-xs ${confidenceColor(result.confidence)}`}>
                         {result.confidence} Confidence
@@ -732,9 +715,9 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                 )}
               </div>
 
-              {/* Max Acquisition Price */}
+              {/* Wholesale (Investor) Value */}
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                <span className="text-xs text-muted-foreground block mb-1">Max Acquisition Price</span>
+                <span className="text-xs text-muted-foreground block mb-1">💰 Wholesale Value</span>
                 {aiLoading ? (
                   <div className="flex items-center gap-2 mt-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -742,7 +725,7 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                   </div>
                 ) : aiAcquisitionPrice ? (
                   <>
-                    <p className="text-2xl font-bold text-foreground">{aiAcquisitionPrice}</p>
+                    <p className="text-xl font-bold text-foreground">{aiAcquisitionPrice}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
                     <Badge variant="outline" className="text-xs mt-2 bg-primary/10 text-primary border-primary/30">
                       <BrainCircuit className="w-3 h-3 mr-1" /> AI-Powered
@@ -755,38 +738,49 @@ export function DomainValuationEstimator({ initialDomain }: { initialDomain?: st
                       if (parts && parts.length >= 2) {
                         const min = Math.round(parseInt(parts[0].replace(/,/g, "")) * 0.15);
                         const max = Math.round(parseInt(parts[1].replace(/,/g, "")) * 0.35);
-                        return <p className="text-2xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
+                        return <p className="text-xl font-bold text-foreground">${min.toLocaleString()} – ${max.toLocaleString()}</p>;
                       }
-                      return <p className="text-2xl font-bold text-foreground">N/A</p>;
+                      return <p className="text-xl font-bold text-foreground">N/A</p>;
                     })()}
-                    <p className="text-[10px] text-muted-foreground mt-1">Max an investor should pay</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">What a domainer would pay today</p>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className="text-xs mt-2 bg-muted text-muted-foreground">
+                          Investor pricing
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-xs">Wholesale value reflects what an experienced domain investor would pay, factoring in liquidity, flip potential, and holding costs. Typically 15-35% of retail value.</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </>
                 )}
               </div>
 
-              {/* Overall Score */}
-              <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
-                <span className="text-xs text-muted-foreground block mb-1">Quality Score</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-foreground">{result.overallScore}</span>
-                  <span className="text-sm text-muted-foreground">/ 100</span>
+              {/* Quality Score + Trend Score stacked */}
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-secondary/50 border border-border/50">
+                  <span className="text-xs text-muted-foreground block mb-1">Quality Score</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-foreground">{result.overallScore}</span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <Progress value={result.overallScore} className="h-2 mt-2" />
                 </div>
-                <Progress value={result.overallScore} className="h-2 mt-2" />
-              </div>
 
-              {/* Trend Score */}
-              <div className={`p-4 rounded-xl border ${getTrendScoreBg(result.trendScore)}`}>
-                <span className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5" />
-                  Trend Score
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-2xl font-bold ${getTrendScoreColor(result.trendScore)}`}>{result.trendScore}</span>
-                  <span className="text-sm text-muted-foreground">/ 100</span>
+                <div className={`p-4 rounded-xl border ${getTrendScoreBg(result.trendScore)}`}>
+                  <span className="text-xs text-muted-foreground block mb-1 flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5" />
+                    Trend Score
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-xl font-bold ${getTrendScoreColor(result.trendScore)}`}>{result.trendScore}</span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <span className={`text-xs font-medium mt-1 block ${getTrendScoreColor(result.trendScore)}`}>
+                    {result.trendLabel}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium mt-1 block ${getTrendScoreColor(result.trendScore)}`}>
-                  {result.trendLabel}
-                </span>
               </div>
             </div>
 

@@ -7,19 +7,21 @@ interface ValueDrivers {
   brandability: number;
   niche_demand: number;
   comparable_sales: number;
+  liquidity?: number;
 }
 
 interface ValueDriverRadarChartProps {
   drivers: ValueDrivers;
 }
 
-const DRIVER_LABELS: Record<keyof ValueDrivers, string> = {
+const DRIVER_LABELS: Record<string, string> = {
   keywords: "Keywords",
   tld: "TLD",
   brandability: "Brand",
   niche_demand: "Demand",
   domain_length: "Length",
   comparable_sales: "Comps",
+  liquidity: "Liquidity",
 };
 
 export function ValueDriverRadarChart({ drivers }: ValueDriverRadarChartProps) {
