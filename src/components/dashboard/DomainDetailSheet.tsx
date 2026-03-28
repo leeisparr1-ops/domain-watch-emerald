@@ -138,14 +138,13 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
   const [backlinkLoading, setBacklinkLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !domain) { setSimilarDomains([]); return; }
+    if (!open || !domain) { setSimilarDomains([]); setBacklinkData(null); return; }
     const sld = getDomainWithoutTld(domain.domain);
     const keywords = extractKeywords(sld);
     setSimilarLoading(true);
 
     const fetchSimilar = async () => {
       try {
-        // Build OR filter from keywords
         const orFilter = keywords.map(k => `domain_name.ilike.%${k}%`).join(',');
         const { data } = await supabase
           .from('auctions')
@@ -160,6 +159,19 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
       setSimilarLoading(false);
     };
     fetchSimilar();
+
+    // Fetch backlink metrics
+    setBacklinkLoading(true);
+    const fetchBacklinks = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-backlink-summary', {
+          body: { domain: domain.domain },
+        });
+        if (!error && data) setBacklinkData(data);
+      } catch { /* ignore */ }
+      setBacklinkLoading(false);
+    };
+    fetchBacklinks();
   }, [open, domain?.domain]);
   
   if (!domain) return null;
