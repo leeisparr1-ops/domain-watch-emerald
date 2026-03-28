@@ -100,25 +100,42 @@ serve(async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const syncSecret = Deno.env.get("SYNC_SECRET");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: EmailNotificationRequest = await req.json();
-    console.log("Email notification request:", payload);
 
-    let recipientEmail = payload.email;
-    let userId = payload.userId;
+    // --- Authentication: require either a valid user JWT or SYNC_SECRET ---
+    const authHeader = req.headers.get("Authorization");
+    const systemSecret = req.headers.get("x-system-secret");
+    const isSystemCall = !!(systemSecret && syncSecret && systemSecret === syncSecret);
 
-    // Try to get user from auth header if not provided
-    if (!userId) {
-      const authHeader = req.headers.get("Authorization");
-      if (authHeader) {
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-          userId = user.id;
-        }
+    let userId: string | undefined = undefined;
+
+    if (isSystemCall) {
+      // Internal system call — trust the userId from the payload
+      userId = payload.userId;
+    } else if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
+      // Authenticated users can only send emails to themselves
+      userId = user.id;
+    } else {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
+
+    let recipientEmail: string | undefined = isSystemCall ? undefined : undefined;
+
+    console.log("Email notification request:", { type: payload.type, userId });
 
     // If userId provided, fetch email from user settings or auth
     if (userId && !recipientEmail) {
