@@ -378,42 +378,50 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                   Backlinks
                 </Button>
               </a>
-            </div>
+          </div>
+        </div>
 
-            {/* Backorder Links */}
-            <div className="mt-3">
-              <p className="text-xs text-muted-foreground mb-1.5 font-medium">Backorder this domain</p>
-              <div className="grid grid-cols-3 gap-2">
-                <a
-                  href={`https://www.dropcatch.com/domain/${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    DropCatch
-                  </Button>
-                </a>
-                <a
-                  href={`https://www.namejet.com/Pages/Auctions/BackOrder.aspx?domain=${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    NameJet
-                  </Button>
-                </a>
-                <a
-                  href={`https://www.dynadot.com/market/auction/${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    Dynadot
-                  </Button>
-                </a>
+        {/* Backlink Metrics */}
+        <div className="py-4 border-b border-border">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <Link2 className="w-4 h-4" />
+            Backlink Profile
+          </h3>
+          {backlinkLoading ? (
+            <div className="flex items-center justify-center py-4 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Loading backlink data…
+            </div>
+          ) : backlinkData ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.rank > 0 ? backlinkData.rank.toLocaleString() : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Domain Rank</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.backlinks > 0 ? formatCompact(backlinkData.backlinks) : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Backlinks</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.referring_domains > 0 ? formatCompact(backlinkData.referring_domains) : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Ref. Domains</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.dofollow)}</div>
+                <div className="text-[9px] text-muted-foreground">Dofollow</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.nofollow)}</div>
+                <div className="text-[9px] text-muted-foreground">Nofollow</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.referring_ips)}</div>
+                <div className="text-[9px] text-muted-foreground">Ref. IPs</div>
               </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-2">No backlink data available.</p>
+          )}
         </div>
 
         {/* Stats table */}
