@@ -378,6 +378,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                   Backlinks
                 </Button>
               </a>
+            </div>
           </div>
         </div>
 
