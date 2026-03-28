@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles, Loader2 } from "lucide-react";
+import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles, Loader2, Link2, Server } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
