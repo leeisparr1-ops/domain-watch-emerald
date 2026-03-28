@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles, Loader2 } from "lucide-react";
+import { ExternalLink, Clock, Gavel, TrendingUp, Calendar, Globe, DollarSign, Users, BarChart3, Hash, Timer, Shield, Sparkles, Loader2, Link2, Server } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,12 @@ function getDomainWithoutTld(domain: string): string {
   return domain;
 }
 
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return n.toLocaleString();
+}
+
 /** Extract meaningful keyword fragments (3+ chars) from a domain SLD */
 function extractKeywords(sld: string): string[] {
   const clean = sld.toLowerCase().replace(/[^a-z]/g, '');
@@ -131,16 +137,20 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
 
   const [similarDomains, setSimilarDomains] = useState<SimilarDomain[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [backlinkData, setBacklinkData] = useState<{
+    rank: number; backlinks: number; referring_domains: number;
+    dofollow: number; nofollow: number; referring_ips: number;
+  } | null>(null);
+  const [backlinkLoading, setBacklinkLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !domain) { setSimilarDomains([]); return; }
+    if (!open || !domain) { setSimilarDomains([]); setBacklinkData(null); return; }
     const sld = getDomainWithoutTld(domain.domain);
     const keywords = extractKeywords(sld);
     setSimilarLoading(true);
 
     const fetchSimilar = async () => {
       try {
-        // Build OR filter from keywords
         const orFilter = keywords.map(k => `domain_name.ilike.%${k}%`).join(',');
         const { data } = await supabase
           .from('auctions')
@@ -155,6 +165,19 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
       setSimilarLoading(false);
     };
     fetchSimilar();
+
+    // Fetch backlink metrics
+    setBacklinkLoading(true);
+    const fetchBacklinks = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-backlink-summary', {
+          body: { domain: domain.domain },
+        });
+        if (!error && data) setBacklinkData(data);
+      } catch { /* ignore */ }
+      setBacklinkLoading(false);
+    };
+    fetchBacklinks();
   }, [open, domain?.domain]);
   
   if (!domain) return null;
@@ -362,41 +385,50 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 </Button>
               </a>
             </div>
+          </div>
+        </div>
 
-            {/* Backorder Links */}
-            <div className="mt-3">
-              <p className="text-xs text-muted-foreground mb-1.5 font-medium">Backorder this domain</p>
-              <div className="grid grid-cols-3 gap-2">
-                <a
-                  href={`https://www.dropcatch.com/domain/${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    DropCatch
-                  </Button>
-                </a>
-                <a
-                  href={`https://www.namejet.com/Pages/Auctions/BackOrder.aspx?domain=${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    NameJet
-                  </Button>
-                </a>
-                <a
-                  href={`https://www.dynadot.com/market/auction/${encodeURIComponent(domain.domain)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="secondary" className="w-full text-xs" size="sm">
-                    Dynadot
-                  </Button>
-                </a>
+        {/* Backlink Metrics */}
+        <div className="py-4 border-b border-border">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <Link2 className="w-4 h-4" />
+            Backlink Profile
+          </h3>
+          {backlinkLoading ? (
+            <div className="flex items-center justify-center py-4 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Loading backlink data…
+            </div>
+          ) : backlinkData ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.rank > 0 ? backlinkData.rank.toLocaleString() : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Domain Rank</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.backlinks > 0 ? formatCompact(backlinkData.backlinks) : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Backlinks</div>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
+                <div className="text-lg font-bold text-foreground">{backlinkData.referring_domains > 0 ? formatCompact(backlinkData.referring_domains) : '—'}</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Ref. Domains</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.dofollow)}</div>
+                <div className="text-[9px] text-muted-foreground">Dofollow</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.nofollow)}</div>
+                <div className="text-[9px] text-muted-foreground">Nofollow</div>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/50 text-center">
+                <div className="text-sm font-semibold text-foreground">{formatCompact(backlinkData.referring_ips)}</div>
+                <div className="text-[9px] text-muted-foreground">Ref. IPs</div>
               </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-2">No backlink data available.</p>
+          )}
         </div>
 
         {/* Stats table */}
