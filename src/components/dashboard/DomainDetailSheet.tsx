@@ -86,6 +86,12 @@ function getDomainWithoutTld(domain: string): string {
   return domain;
 }
 
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return n.toLocaleString();
+}
+
 /** Extract meaningful keyword fragments (3+ chars) from a domain SLD */
 function extractKeywords(sld: string): string[] {
   const clean = sld.toLowerCase().replace(/[^a-z]/g, '');
