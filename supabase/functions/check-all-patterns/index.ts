@@ -332,7 +332,7 @@ serve(async (req) => {
       try {
         await fetch(`${supabaseUrl}/functions/v1/send-email-notification`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-system-secret": Deno.env.get("SYNC_SECRET") || "" },
           body: JSON.stringify({
             type: "pattern_match",
             userId: userId,
