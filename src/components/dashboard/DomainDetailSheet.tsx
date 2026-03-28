@@ -131,6 +131,11 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
 
   const [similarDomains, setSimilarDomains] = useState<SimilarDomain[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [backlinkData, setBacklinkData] = useState<{
+    rank: number; backlinks: number; referring_domains: number;
+    dofollow: number; nofollow: number; referring_ips: number;
+  } | null>(null);
+  const [backlinkLoading, setBacklinkLoading] = useState(false);
 
   useEffect(() => {
     if (!open || !domain) { setSimilarDomains([]); return; }
