@@ -513,10 +513,12 @@ export function DomainTable({
                       <span className="text-muted-foreground">{domainWithoutTld.length}</span>
                     </TableCell>
 
-                    {/* Traffic */}
+                    {/* Demand (GoDaddy pageviews) */}
                     <TableCell className="py-2 text-sm">
                       {d.traffic > 0 ? (
-                        <span className="text-muted-foreground">{d.traffic.toLocaleString()}</span>
+                        <Badge variant={d.traffic >= 100 ? "default" : d.traffic >= 20 ? "secondary" : "outline"} className={cn("text-xs font-medium", d.traffic >= 100 && "bg-primary/90")}>
+                          {d.traffic >= 1000 ? `${(d.traffic / 1000).toFixed(1)}K` : d.traffic.toLocaleString()}
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground/50">-</span>
                       )}
