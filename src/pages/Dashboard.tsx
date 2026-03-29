@@ -331,7 +331,9 @@ export default function Dashboard() {
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
       if (err instanceof Error && err.name === 'AbortError') {
-        setError('The server is under heavy load. Please tap Retry or wait a moment.');
+        if (!hasLoadedOnceRef.current) {
+          setError('The server is under heavy load. Please tap Retry or wait a moment.');
+        }
         return;
       }
       console.error('Error fetching favorite auctions:', err);
@@ -424,8 +426,8 @@ export default function Dashboard() {
 
       // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
       if (filters.inventorySource === "all") {
-        const mergeProbeFloor = isMobile ? itemsPerPage * 2 : itemsPerPage * 3;
-        const mergeProbeCap = isMobile ? 300 : 500;
+        const mergeProbeFloor = isMobile ? itemsPerPage * 2 : Math.ceil(itemsPerPage * 2.5);
+        const mergeProbeCap = isMobile ? 220 : 380;
         const mergeProbeSize = Math.min(Math.max((to + 1) * 2, mergeProbeFloor), mergeProbeCap);
 
         const namecheapQuery = applyCommonFilters(
@@ -509,16 +511,20 @@ export default function Dashboard() {
     } catch (err) {
       if (seq !== activeFetchSeqRef.current) return;
       const errCode = (typeof err === 'object' && err !== null && 'code' in err) ? (err as { code: string }).code : '';
+      const errName = (typeof err === 'object' && err !== null && 'name' in err) ? String((err as { name: unknown }).name) : '';
       const errMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? (err as { message: string }).message : String(err);
-      const isTimeoutError = (err instanceof Error && err.name === 'AbortError') || errCode === '57014';
+      const isAbortLikeError =
+        errName === 'AbortError' ||
+        errCode === '57014' ||
+        /aborterror|aborted|signal is aborted/i.test(errMsg);
 
-      if (!isTimeoutError || retryCount >= MAX_RETRIES) toast.error(`Query error: ${errMsg}`);
-      if (isTimeoutError && retryCount < MAX_RETRIES) {
+      if (isAbortLikeError && retryCount < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
-      } else if (isTimeoutError) {
+      } else if (isAbortLikeError) {
         setError('The server is under heavy load. Please tap Retry or wait a moment.');
       } else {
+        toast.error(`Query error: ${errMsg}`);
         console.error('Error fetching auctions:', err);
         setError('Unable to load domains right now. Please tap Retry.');
       }
@@ -556,6 +562,13 @@ export default function Dashboard() {
       lastFetchRef.current = now;
       wasHiddenRef.current = false;
       const showLoadingSpinner = !hasLoadedOnceRef.current;
+      const trimmedSearch = debouncedSearch.trim();
+      if (trimmedSearch.length === 1 && viewMode === "all") {
+        if (showLoadingSpinner) setLoading(false);
+        else setIsFetchingAuctions(false);
+        return;
+      }
+
       if (viewMode === "favorites") fetchFavoriteAuctions(showLoadingSpinner);
       else if (viewMode === "all") fetchAuctionsFromDb(showLoadingSpinner);
     }, 150);
