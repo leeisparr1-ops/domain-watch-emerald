@@ -26,7 +26,7 @@ jobs:
           curl -s -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
             --max-time 300 || true
           echo "✅ Expired auction cleanup pass 1 done"
 
@@ -46,7 +46,7 @@ jobs:
           curl -s -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=1&maxBatches=500" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
             --max-time 300 || true
           echo "✅ Stale Namecheap cleanup done"
 
