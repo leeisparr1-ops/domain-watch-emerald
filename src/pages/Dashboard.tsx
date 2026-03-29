@@ -522,11 +522,17 @@ export default function Dashboard() {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
       } else if (isAbortLikeError) {
-        setError('The server is under heavy load. Please tap Retry or wait a moment.');
+        // Only show the heavy-load banner if we have no data at all
+        if (!hasLoadedOnceRef.current) {
+          setError('The server is under heavy load. Please tap Retry or wait a moment.');
+        }
+        // If we already have data, silently fail — user can still browse what's loaded
       } else {
         toast.error(`Query error: ${errMsg}`);
         console.error('Error fetching auctions:', err);
-        setError('Unable to load domains right now. Please tap Retry.');
+        if (!hasLoadedOnceRef.current) {
+          setError('Unable to load domains right now. Please tap Retry.');
+        }
       }
     } finally {
       if (seq === activeFetchSeqRef.current) {
