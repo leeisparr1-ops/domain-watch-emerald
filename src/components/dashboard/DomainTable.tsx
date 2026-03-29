@@ -333,12 +333,21 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Deal</TableHead>
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
-              <SortableHeader 
-                column="traffic" 
-                label="Demand" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <SortableHeader 
+                      column="traffic" 
+                      label="Demand" 
+                      currentSort={sortBy}
+                      onSort={onSortChange}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  GoDaddy auction pageviews — a proxy for buyer interest. Higher = more eyeballs on this domain.
+                </TooltipContent>
+              </Tooltip>
               <SortableHeader 
                 column="end_time" 
                 label="Ends" 
@@ -521,7 +530,7 @@ export function DomainTable({
                           {d.traffic >= 1000 ? `${(d.traffic / 1000).toFixed(1)}K` : d.traffic.toLocaleString()}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground/50">-</span>
+                        <span className="text-muted-foreground/40 text-xs">0</span>
                       )}
                     </TableCell>
 
