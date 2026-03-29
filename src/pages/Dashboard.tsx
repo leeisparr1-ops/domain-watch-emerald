@@ -432,72 +432,13 @@ export default function Dashboard() {
         setAuctions(mapped);
 
         const hasMore = merged.length > to + 1 || (namecheapRows?.length === mergeProbeSize) || (godaddyRows?.length === mergeProbeSize);
-        setTotalCount(hasMore ? Math.max(from + mapped.length + 1, totalCount) : (from + mapped.length));
+        setTotalCount(prev => hasMore ? Math.max(prev, from + mapped.length + 1) : (from + mapped.length));
         setLastRefresh(new Date());
         hasLoadedOnceRef.current = true;
         return;
       }
-
-      let query = supabase.from('auctions').select(baseSelect);
-
-      if (filters.inventorySource === "namecheap") {
-        query = query.eq('inventory_source', 'namecheap');
-      } else if (filters.inventorySource === "godaddy") {
-        query = query.neq('inventory_source', 'namecheap').gte('end_time', endTimeFilter);
-      } else {
-        query = query.or(`end_time.gte.${endTimeFilter},inventory_source.eq.namecheap`);
-      }
-
-      query = applyCommonFilters(query);
-      query = query.order(currentSort.column, { ascending: currentSort.ascending });
-      query = query.range(from, to + 1).abortSignal(signal);
-
-      const { data, error: queryError } = await query;
-      if (queryError) throw queryError;
-
-      if (data) {
-        const hasMore = data.length > itemsPerPage;
-        const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
-        const mapped = mapRows(resultsToShow as any[]);
-        if (seq !== activeFetchSeqRef.current) return;
-
-        setAuctions(mapped);
-        if (hasMore) {
-          if (totalDomainCount && filters.tld === "all" && filters.auctionType === "all" && filters.inventorySource === "all" && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
-            setTotalCount(totalDomainCount);
-          } else {
-            const newEstimate = from + itemsPerPage * 1000;
-            setTotalCount(prev => Math.max(prev, newEstimate));
-          }
-        } else {
-          setTotalCount(from + mapped.length);
-        }
-        setLastRefresh(new Date());
-        hasLoadedOnceRef.current = true;
-      }
-    } catch (err) {
-      if (seq !== activeFetchSeqRef.current) return;
-      const errCode = (typeof err === 'object' && err !== null && 'code' in err) ? (err as { code: string }).code : '';
-      const errMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? (err as { message: string }).message : String(err);
-      const isTimeoutError = (err instanceof Error && err.name === 'AbortError') || errCode === '57014';
-
-      if (!isTimeoutError || retryCount >= MAX_RETRIES) toast.error(`Query error: ${errMsg}`);
-      if (isTimeoutError && retryCount < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
-      } else if (isTimeoutError) {
-        setError('The server is under heavy load. Please tap Retry or wait a moment.');
-      } else {
-        console.error('Error fetching auctions:', err);
-        setError('Unable to load domains right now. Please tap Retry.');
-      }
-    } finally {
-      if (seq === activeFetchSeqRef.current) {
-        if (showLoadingSpinner) setLoading(false);
-        else setIsFetchingAuctions(false);
-      }
-    }
-  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch, totalCount, totalDomainCount]);
+...
+  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch, totalDomainCount]);
   
   function resetFilters() {
     setFilters({ tld: "all", auctionType: "all", minPrice: 0, maxPrice: 1000000, inventorySource: "all" });
