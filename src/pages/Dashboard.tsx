@@ -332,60 +332,135 @@ export default function Dashboard() {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500;
     const { seq, signal } = beginNewFetch();
-    
-    try {
-      if (seq === activeFetchSeqRef.current) {
-        if (showLoadingSpinner) setLoading(true);
-        else setIsFetchingAuctions(true);
-        setError(null);
-      }
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
-      const endTimeFilter = new Date().toISOString();
-      
-      let query = supabase
-        .from('auctions')
-        .select('id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk');
-      // Apply end_time + source filters based on inventory source selection
-      // Namecheap listings are buy-now without auction end times
-      if (filters.inventorySource === "namecheap") {
-        query = query.eq('inventory_source', 'namecheap');
-      } else if (filters.inventorySource === "godaddy") {
-        query = query.neq('inventory_source', 'namecheap').gte('end_time', endTimeFilter);
-      } else {
-        // "all" — include active GoDaddy auctions OR Namecheap buy-now listings
-        query = query.or(`end_time.gte.${endTimeFilter},inventory_source.eq.namecheap`);
-      }
+
+    const mapRows = (rows: any[]): AuctionDomain[] => rows.map(a => ({
+      id: a.id,
+      domain: a.domain_name,
+      auctionEndTime: a.end_time || '',
+      price: Number(a.price) || 0,
+      numberOfBids: a.bid_count || 0,
+      traffic: a.traffic_count || 0,
+      domainAge: a.domain_age || 0,
+      auctionType: a.auction_type || 'auction',
+      tld: a.tld || '',
+      valuation: a.valuation || undefined,
+      inventorySource: a.inventory_source || undefined,
+      brandabilityScore: (a as any).brandability_score ?? null,
+      pronounceabilityScore: (a as any).pronounceability_score ?? null,
+      trademarkRisk: (a as any).trademark_risk ?? null,
+    }));
+
+    const applyCommonFilters = (query: any) => {
       if (debouncedSearch) query = query.ilike('domain_name', `%${debouncedSearch}%`);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
+      return query;
+    };
+
+    try {
+      if (seq === activeFetchSeqRef.current) {
+        if (showLoadingSpinner) setLoading(true);
+        else setIsFetchingAuctions(true);
+        setError(null);
+      }
+
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+      const endTimeFilter = new Date().toISOString();
+      const baseSelect = 'id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk';
+
+      // Critical optimization: avoid wide OR query for ALL+price sort on 2M+ rows
+      if (filters.inventorySource === "all" && (sortBy === "price_desc" || sortBy === "price_asc")) {
+        const mergeProbeSize = Math.min(Math.max((to + 1) * 2, itemsPerPage * 3), 400);
+
+        const namecheapQuery = applyCommonFilters(
+          supabase
+            .from('auctions')
+            .select(baseSelect)
+            .eq('inventory_source', 'namecheap')
+        )
+          .order(currentSort.column, { ascending: currentSort.ascending })
+          .range(0, mergeProbeSize - 1)
+          .abortSignal(signal);
+
+        const godaddyQuery = applyCommonFilters(
+          supabase
+            .from('auctions')
+            .select(baseSelect)
+            .neq('inventory_source', 'namecheap')
+            .gte('end_time', endTimeFilter)
+        )
+          .order(currentSort.column, { ascending: currentSort.ascending })
+          .range(0, mergeProbeSize - 1)
+          .abortSignal(signal);
+
+        const [{ data: namecheapRows, error: namecheapErr }, { data: godaddyRows, error: godaddyErr }] = await Promise.all([
+          namecheapQuery,
+          godaddyQuery,
+        ]);
+
+        if (namecheapErr) throw namecheapErr;
+        if (godaddyErr) throw godaddyErr;
+
+        const merged = [
+          ...((namecheapRows || []) as any[]),
+          ...((godaddyRows || []) as any[]),
+        ].sort((a, b) => {
+          const av = (a as any)[currentSort.column];
+          const bv = (b as any)[currentSort.column];
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+
+          if (typeof av === 'number' && typeof bv === 'number') {
+            return currentSort.ascending ? av - bv : bv - av;
+          }
+
+          const aStr = String(av);
+          const bStr = String(bv);
+          return currentSort.ascending ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+        });
+
+        const pageRows = merged.slice(from, to + 1);
+        const mapped = mapRows(pageRows);
+
+        if (seq !== activeFetchSeqRef.current) return;
+        setAuctions(mapped);
+
+        const hasMore = merged.length > to + 1 || (namecheapRows?.length === mergeProbeSize) || (godaddyRows?.length === mergeProbeSize);
+        setTotalCount(hasMore ? Math.max(from + mapped.length + 1, totalCount) : (from + mapped.length));
+        setLastRefresh(new Date());
+        hasLoadedOnceRef.current = true;
+        return;
+      }
+
+      let query = supabase.from('auctions').select(baseSelect);
+
+      if (filters.inventorySource === "namecheap") {
+        query = query.eq('inventory_source', 'namecheap');
+      } else if (filters.inventorySource === "godaddy") {
+        query = query.neq('inventory_source', 'namecheap').gte('end_time', endTimeFilter);
+      } else {
+        query = query.or(`end_time.gte.${endTimeFilter},inventory_source.eq.namecheap`);
+      }
+
+      query = applyCommonFilters(query);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to + 1).abortSignal(signal);
-      
+
       const { data, error: queryError } = await query;
-      if (filters.inventorySource !== "all") {
-        console.log('[Dashboard]', `Source=${filters.inventorySource} Sort=${sortBy} Rows=${data?.length ?? 0} Err=${queryError?.message ?? 'none'}`);
-      }
       if (queryError) throw queryError;
-      
+
       if (data) {
         const hasMore = data.length > itemsPerPage;
         const resultsToShow = hasMore ? data.slice(0, itemsPerPage) : data;
-        const mapped: AuctionDomain[] = resultsToShow.map(a => ({
-          id: a.id, domain: a.domain_name, auctionEndTime: a.end_time || '',
-          price: Number(a.price) || 0, numberOfBids: a.bid_count || 0,
-          traffic: a.traffic_count || 0, domainAge: a.domain_age || 0,
-          auctionType: a.auction_type || 'auction', tld: a.tld || '',
-          valuation: a.valuation || undefined, inventorySource: a.inventory_source || undefined,
-          brandabilityScore: (a as any).brandability_score ?? null,
-          pronounceabilityScore: (a as any).pronounceability_score ?? null,
-          trademarkRisk: (a as any).trademark_risk ?? null,
-        }));
+        const mapped = mapRows(resultsToShow as any[]);
         if (seq !== activeFetchSeqRef.current) return;
+
         setAuctions(mapped);
         if (hasMore) {
           if (totalDomainCount && filters.tld === "all" && filters.auctionType === "all" && filters.inventorySource === "all" && filters.minPrice === 0 && filters.maxPrice >= 1000000) {
@@ -405,9 +480,9 @@ export default function Dashboard() {
       const errCode = (typeof err === 'object' && err !== null && 'code' in err) ? (err as { code: string }).code : '';
       const errMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? (err as { message: string }).message : String(err);
       const isTimeoutError = (err instanceof Error && err.name === 'AbortError') || errCode === '57014';
+
       if (!isTimeoutError || retryCount >= MAX_RETRIES) toast.error(`Query error: ${errMsg}`);
       if (isTimeoutError && retryCount < MAX_RETRIES) {
-        console.log(`Database timeout, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchAuctionsFromDb(showLoadingSpinner, retryCount + 1);
       } else if (isTimeoutError) {
@@ -422,7 +497,7 @@ export default function Dashboard() {
         else setIsFetchingAuctions(false);
       }
     }
-  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch]);
+  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch, totalCount, totalDomainCount]);
   
   function resetFilters() {
     setFilters({ tld: "all", auctionType: "all", minPrice: 0, maxPrice: 1000000, inventorySource: "all" });
