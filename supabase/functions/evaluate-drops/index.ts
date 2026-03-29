@@ -1177,10 +1177,25 @@ function fullHeuristicScore(
   else if (bestLiquidity <= 3) score -= 8;
   else if (bestLiquidity <= 4) score -= 4;
 
-  const finalScore = Math.max(0, Math.min(100, score));
+  let finalScore = Math.max(0, Math.min(100, score));
+
+  // Guardrail: prevent trend-keyword inflation on weak/gibberish strings
+  const weakLexicalQuality = realWords.length === 0 || realCoverage < 0.45;
+  const lowStructureQuality = words.length >= 3 || (len >= 11 && realCoverage < 0.6);
+
+  if (weakLexicalQuality && !isCVCVC(lower)) {
+    finalScore = Math.min(finalScore, 74);
+    keywordStrengthRaw = Math.min(keywordStrengthRaw, 55);
+    brandabilityRaw = Math.min(brandabilityRaw, 60);
+  }
+
+  if (lowStructureQuality) {
+    finalScore = Math.min(finalScore, 68);
+  }
 
   if (len <= 4 && isSingleRealWord) detectedCategory = "short";
   else if (isSingleRealWord && finalScore >= 70) detectedCategory = "premium";
+  else if (weakLexicalQuality && finalScore < 70 && detectedCategory !== "short" && detectedCategory !== "premium") detectedCategory = "weak";
 
   // ─── REALISTIC FLIP-VALUE ESTIMATION ───
   // Pending delete domains are reg-fee acquisitions. Values reflect

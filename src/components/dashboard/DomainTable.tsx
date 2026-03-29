@@ -38,9 +38,7 @@ import {
 import { useFavorites } from "@/hooks/useFavorites";
 import { SpamRiskBadge } from "./SpamRiskBadge";
 import { cn } from "@/lib/utils";
-import { scoreBrandability } from "@/lib/brandability";
-import { scorePronounceability } from "@/lib/pronounceability";
-import { checkTrademarkRisk, getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+import { getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
 
 interface DomainData {
   id: string;
@@ -157,57 +155,65 @@ function MiniQuickStats({ domain, precomputed }: {
   precomputed?: { brandability?: number | null; pronounceability?: number | null; trademark?: string | null };
 }) {
   const stats = useMemo(() => {
-    // Use pre-computed scores from DB if available, otherwise fall back to client-side
-    const hasPrecomputed = precomputed?.brandability != null;
-    
-    const brandScore = hasPrecomputed ? precomputed.brandability! : scoreBrandability(domain).overall;
-    const pronounceScore = precomputed?.pronounceability != null ? precomputed.pronounceability : scorePronounceability(domain).score;
-    const tmRisk = (precomputed?.trademark || checkTrademarkRisk(domain).riskLevel) as "none" | "low" | "medium" | "high";
-    const tmDisplay = getTrademarkRiskDisplay(tmRisk);
+    // Dashboard list must rely on precomputed backend scores only
+    const brandScore = typeof precomputed?.brandability === "number" ? precomputed.brandability : null;
+    const pronounceScore = typeof precomputed?.pronounceability === "number" ? precomputed.pronounceability : null;
+    const tmRisk = (precomputed?.trademark ?? null) as "none" | "low" | "medium" | "high" | null;
+    const tmDisplay = tmRisk ? getTrademarkRiskDisplay(tmRisk) : null;
     
     return { brandScore, pronounceScore, tmRisk, tmDisplay };
   }, [domain, precomputed?.brandability, precomputed?.pronounceability, precomputed?.trademark]);
 
+  if (stats.brandScore == null && stats.pronounceScore == null && stats.tmRisk == null) {
+    return null;
+  }
+
   return (
     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.brandScore))}>
-            <Award className="w-2.5 h-2.5" />{stats.brandScore}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[220px]">
-          <p className="font-medium">Brandability: {stats.brandScore}/100</p>
-          <p className="text-xs text-muted-foreground mt-0.5">How memorable, unique, and marketable this domain name is as a brand.</p>
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.pronounceScore))}>
-            <Mic className="w-2.5 h-2.5" />{stats.pronounceScore}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[220px]">
-          <p className="font-medium">Pronounceability: {stats.pronounceScore}/100</p>
-          <p className="text-xs text-muted-foreground mt-0.5">How easy the domain is to say aloud, spell from hearing, and share verbally.</p>
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={cn(
-            "text-[10px] font-medium flex items-center gap-0.5",
-            stats.tmRisk === "none" ? "text-emerald-600 dark:text-emerald-400" :
-            stats.tmRisk === "low" ? "text-amber-600 dark:text-amber-400" :
-            "text-red-600 dark:text-red-400"
-          )}>
-            <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[220px]">
-          <p className="font-medium">Trademark: {stats.tmDisplay.label}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Risk of trademark conflicts with known brands. Higher risk means potential legal issues.</p>
-        </TooltipContent>
-      </Tooltip>
+      {stats.brandScore != null && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.brandScore))}>
+              <Award className="w-2.5 h-2.5" />{stats.brandScore}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px]">
+            <p className="font-medium">Brandability: {stats.brandScore}/100</p>
+            <p className="text-xs text-muted-foreground mt-0.5">How memorable, unique, and marketable this domain name is as a brand.</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+      {stats.pronounceScore != null && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn("text-[10px] font-medium flex items-center gap-0.5", getQuickScoreColor(stats.pronounceScore))}>
+              <Mic className="w-2.5 h-2.5" />{stats.pronounceScore}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px]">
+            <p className="font-medium">Pronounceability: {stats.pronounceScore}/100</p>
+            <p className="text-xs text-muted-foreground mt-0.5">How easy the domain is to say aloud, spell from hearing, and share verbally.</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+      {stats.tmRisk != null && stats.tmDisplay && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn(
+              "text-[10px] font-medium flex items-center gap-0.5",
+              stats.tmRisk === "none" ? "text-emerald-600 dark:text-emerald-400" :
+              stats.tmRisk === "low" ? "text-amber-600 dark:text-amber-400" :
+              "text-red-600 dark:text-red-400"
+            )}>
+              <Shield className="w-2.5 h-2.5" />{stats.tmDisplay.label}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[220px]">
+            <p className="font-medium">Trademark: {stats.tmDisplay.label}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Risk of trademark conflicts with known brands. Higher risk means potential legal issues.</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   );
 }

@@ -63,6 +63,16 @@ interface Filters {
   inventorySource: string;
 }
 
+const GODADDY_SOURCES = [
+  'allListings',
+  'mostActive',
+  'fiveLetter',
+  'nonAdultListings2',
+  'listings2',
+  'recent',
+  'withPageviews',
+] as const;
+
 function formatTimeRemaining(endTime: string): string {
   const end = new Date(endTime);
   const now = new Date();
@@ -289,7 +299,7 @@ export default function Dashboard() {
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
       if (filters.inventorySource === "namecheap") query = query.eq('inventory_source', 'namecheap');
-      else if (filters.inventorySource === "godaddy") query = query.neq('inventory_source', 'namecheap');
+      else if (filters.inventorySource === "godaddy") query = query.in('inventory_source', [...GODADDY_SOURCES]);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
 
@@ -332,6 +342,7 @@ export default function Dashboard() {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500;
     const { seq, signal } = beginNewFetch();
+    const endTimeFilter = new Date().toISOString();
 
     const mapRows = (rows: any[]): AuctionDomain[] => rows.map(a => ({
       id: a.id,
@@ -360,6 +371,38 @@ export default function Dashboard() {
       return query;
     };
 
+    const applyInventorySourceFilter = (query: any) => {
+      if (filters.inventorySource === "namecheap") {
+        return query.eq('inventory_source', 'namecheap');
+      }
+      if (filters.inventorySource === "godaddy") {
+        return query
+          .in('inventory_source', [...GODADDY_SOURCES])
+          .gte('end_time', endTimeFilter);
+      }
+      return query;
+    };
+
+    const compareSortValues = (av: unknown, bv: unknown, ascending: boolean) => {
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return ascending ? av - bv : bv - av;
+      }
+
+      const aDate = Date.parse(String(av));
+      const bDate = Date.parse(String(bv));
+      if (!Number.isNaN(aDate) && !Number.isNaN(bDate)) {
+        return ascending ? aDate - bDate : bDate - aDate;
+      }
+
+      const aStr = String(av);
+      const bStr = String(bv);
+      return ascending ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    };
+
     try {
       if (seq === activeFetchSeqRef.current) {
         if (showLoadingSpinner) setLoading(true);
@@ -370,12 +413,11 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
-      const endTimeFilter = new Date().toISOString();
       const baseSelect = 'id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk';
 
-      // Critical optimization: avoid wide OR query for ALL+price sort on 2M+ rows
-      if (filters.inventorySource === "all" && (sortBy === "price_desc" || sortBy === "price_asc")) {
-        const mergeProbeSize = Math.min(Math.max((to + 1) * 2, itemsPerPage * 3), 400);
+      // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
+      if (filters.inventorySource === "all") {
+        const mergeProbeSize = Math.min(Math.max((to + 1) * 3, itemsPerPage * 6), 1200);
 
         const namecheapQuery = applyCommonFilters(
           supabase
@@ -391,7 +433,7 @@ export default function Dashboard() {
           supabase
             .from('auctions')
             .select(baseSelect)
-            .neq('inventory_source', 'namecheap')
+            .in('inventory_source', [...GODADDY_SOURCES])
             .gte('end_time', endTimeFilter)
         )
           .order(currentSort.column, { ascending: currentSort.ascending })
@@ -409,21 +451,7 @@ export default function Dashboard() {
         const merged = [
           ...((namecheapRows || []) as any[]),
           ...((godaddyRows || []) as any[]),
-        ].sort((a, b) => {
-          const av = (a as any)[currentSort.column];
-          const bv = (b as any)[currentSort.column];
-          if (av == null && bv == null) return 0;
-          if (av == null) return 1;
-          if (bv == null) return -1;
-
-          if (typeof av === 'number' && typeof bv === 'number') {
-            return currentSort.ascending ? av - bv : bv - av;
-          }
-
-          const aStr = String(av);
-          const bStr = String(bv);
-          return currentSort.ascending ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
-        });
+        ].sort((a, b) => compareSortValues((a as any)[currentSort.column], (b as any)[currentSort.column], currentSort.ascending));
 
         const pageRows = merged.slice(from, to + 1);
         const mapped = mapRows(pageRows);
@@ -440,13 +468,7 @@ export default function Dashboard() {
 
       let query = supabase.from('auctions').select(baseSelect);
 
-      if (filters.inventorySource === "namecheap") {
-        query = query.eq('inventory_source', 'namecheap');
-      } else if (filters.inventorySource === "godaddy") {
-        query = query.neq('inventory_source', 'namecheap').gte('end_time', endTimeFilter);
-      } else {
-        query = query.or(`end_time.gte.${endTimeFilter},inventory_source.eq.namecheap`);
-      }
+      query = applyInventorySourceFilter(query);
 
       query = applyCommonFilters(query);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
