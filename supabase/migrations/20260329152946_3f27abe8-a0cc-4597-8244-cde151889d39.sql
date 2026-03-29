@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS idx_auctions_gd_traffic ON public.auctions (traffic_count DESC) WHERE inventory_source IN ('godaddy', 'godaddy_closeout', 'godaddy_expired');
+CREATE INDEX IF NOT EXISTS idx_auctions_nc_traffic ON public.auctions (traffic_count DESC) WHERE inventory_source = 'namecheap';
