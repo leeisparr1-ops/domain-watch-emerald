@@ -333,12 +333,21 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Deal</TableHead>
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
-              <SortableHeader 
-                column="traffic" 
-                label="Demand" 
-                currentSort={sortBy}
-                onSort={onSortChange}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <SortableHeader 
+                      column="traffic" 
+                      label="Demand" 
+                      currentSort={sortBy}
+                      onSort={onSortChange}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  GoDaddy auction pageviews — a proxy for buyer interest. Higher = more eyeballs on this domain.
+                </TooltipContent>
+              </Tooltip>
               <SortableHeader 
                 column="end_time" 
                 label="Ends" 
