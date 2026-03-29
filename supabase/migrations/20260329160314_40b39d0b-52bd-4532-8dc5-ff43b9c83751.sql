@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_auctions_source_traffic ON public.auctions (inventory_source, traffic_count DESC);
