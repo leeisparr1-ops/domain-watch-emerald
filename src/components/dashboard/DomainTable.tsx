@@ -332,12 +332,12 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Deal</TableHead>
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
-              <TableHead className="whitespace-nowrap">
-                <span className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  Demand
-                </span>
-              </TableHead>
+              <SortableHeader 
+                column="traffic" 
+                label="Demand" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <SortableHeader 
                 column="end_time" 
                 label="Ends" 
