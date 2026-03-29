@@ -1177,25 +1177,50 @@ function fullHeuristicScore(
   else if (bestLiquidity <= 3) score -= 8;
   else if (bestLiquidity <= 4) score -= 4;
 
-  let finalScore = Math.max(0, Math.min(100, score));
+  // ─── NORMALIZE score: realistic max for a great 2-word domain is ~120pts ───
+  // A perfect single dictionary word (.com, short, trending, high-liquidity niche)
+  // scores roughly 140. We normalize against 140 so only truly elite domains hit 95+.
+  const REALISTIC_MAX = 140;
+  let finalScore = Math.max(0, Math.min(100, Math.round((score / REALISTIC_MAX) * 100)));
 
-  // Guardrail: prevent trend-keyword inflation on weak/gibberish strings
+  // ─── STRUCTURAL GUARDRAILS ───
   const weakLexicalQuality = realWords.length === 0 || realCoverage < 0.45;
   const lowStructureQuality = words.length >= 3 || (len >= 11 && realCoverage < 0.6);
+  const partialCoverageOnly = realCoverage >= 0.3 && realCoverage < 0.85 && !isSingleRealWord;
 
+  // Non-dictionary domains can't score high
   if (weakLexicalQuality && !isCVCVC(lower)) {
-    finalScore = Math.min(finalScore, 74);
-    keywordStrengthRaw = Math.min(keywordStrengthRaw, 55);
-    brandabilityRaw = Math.min(brandabilityRaw, 60);
+    finalScore = Math.min(finalScore, 62);
+    keywordStrengthRaw = Math.min(keywordStrengthRaw, 45);
+    brandabilityRaw = Math.min(brandabilityRaw, 50);
   }
 
+  // 3-word domains and long weak-coverage domains are capped
   if (lowStructureQuality) {
-    finalScore = Math.min(finalScore, 68);
+    finalScore = Math.min(finalScore, 58);
+  }
+
+  // Partial-coverage compounds (e.g. "autokton" = "auto" + junk) are capped
+  if (partialCoverageOnly && words.length <= 2) {
+    finalScore = Math.min(finalScore, 72);
+  }
+
+  // Only single real dictionary words or clean 2-word compounds can score 90+
+  const isCleanTwoWord = words.length === 2 && realWords.length === 2 && realWords.every(w => w.length >= 3);
+  if (finalScore >= 90 && !isSingleRealWord && !isCleanTwoWord) {
+    finalScore = Math.min(finalScore, 85);
+  }
+
+  // Only single real dictionary words can score 95+
+  if (finalScore >= 95 && !isSingleRealWord) {
+    finalScore = Math.min(finalScore, 92);
   }
 
   if (len <= 4 && isSingleRealWord) detectedCategory = "short";
   else if (isSingleRealWord && finalScore >= 70) detectedCategory = "premium";
-  else if (weakLexicalQuality && finalScore < 70 && detectedCategory !== "short" && detectedCategory !== "premium") detectedCategory = "weak";
+  else if (isCleanTwoWord && finalScore >= 65) detectedCategory = "compound";
+  else if (weakLexicalQuality && detectedCategory !== "short" && detectedCategory !== "premium") detectedCategory = "weak";
+  else if (partialCoverageOnly && detectedCategory !== "keyword") detectedCategory = "partial";
 
   // ─── REALISTIC FLIP-VALUE ESTIMATION ───
   // Pending delete domains are reg-fee acquisitions. Values reflect
