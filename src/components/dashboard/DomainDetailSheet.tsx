@@ -376,7 +376,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
                 </Button>
               </a>
               <a
-                href={`https://openlinkprofiler.org/r/${domain.domain}`}
+                href="https://openlinkprofiler.org/"
                 target="_blank"
                 rel="noopener noreferrer"
               >

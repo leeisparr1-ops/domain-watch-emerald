@@ -37,6 +37,7 @@ import { PaginationControls } from "@/components/dashboard/PaginationControls";
 import { useDashboardKeyboardShortcuts } from "@/hooks/useDashboardKeyboardShortcuts";
 import { useDismissedDomains } from "@/hooks/useDismissedDomains";
 import { TrendingKeywords } from "@/components/dashboard/TrendingKeywords";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AuctionDomain {
   id: string;
@@ -182,6 +183,7 @@ export default function Dashboard() {
   const [loadingMatches, setLoadingMatches] = useState(false);
   // Persistent filters from localStorage
   const STORAGE_KEY = "eh_dashboard_prefs";
+  const isMobile = useIsMobile();
   const savedPrefs = useMemo(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -200,7 +202,11 @@ export default function Dashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"all" | "favorites" | "matches">(savedPrefs?.viewMode || "all");
-  const [itemsPerPage, setItemsPerPage] = useState(savedPrefs?.itemsPerPage || 50);
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    if (savedPrefs?.itemsPerPage) return savedPrefs.itemsPerPage;
+    if (typeof window !== "undefined") return window.innerWidth < 768 ? 25 : 50;
+    return 50;
+  });
   const [jumpToPage, setJumpToPage] = useState("");
   const [filters, setFilters] = useState<Filters>(savedPrefs?.filters || {
     tld: "all",
@@ -362,7 +368,8 @@ export default function Dashboard() {
     }));
 
     const applyCommonFilters = (query: any) => {
-      if (debouncedSearch) query = query.ilike('domain_name', `%${debouncedSearch}%`);
+      const searchTerm = debouncedSearch.trim();
+      if (searchTerm.length >= 2) query = query.ilike('domain_name', `%${searchTerm}%`);
       if (filters.minPrice > 0) query = query.gte('price', filters.minPrice);
       if (filters.maxPrice < 1000000) query = query.lte('price', filters.maxPrice);
       if (filters.tld !== "all") query = query.ilike('tld', filters.tld);
@@ -417,7 +424,9 @@ export default function Dashboard() {
 
       // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
       if (filters.inventorySource === "all") {
-        const mergeProbeSize = Math.min(Math.max((to + 1) * 2, itemsPerPage * 3), 600);
+        const mergeProbeFloor = isMobile ? itemsPerPage * 2 : itemsPerPage * 3;
+        const mergeProbeCap = isMobile ? 300 : 500;
+        const mergeProbeSize = Math.min(Math.max((to + 1) * 2, mergeProbeFloor), mergeProbeCap);
 
         const namecheapQuery = applyCommonFilters(
           supabase
@@ -519,7 +528,7 @@ export default function Dashboard() {
         else setIsFetchingAuctions(false);
       }
     }
-  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch, totalDomainCount]);
+  }, [beginNewFetch, currentPage, sortBy, filters, itemsPerPage, debouncedSearch, totalDomainCount, isMobile]);
   
   function resetFilters() {
     setFilters({ tld: "all", auctionType: "all", minPrice: 0, maxPrice: 1000000, inventorySource: "all" });
