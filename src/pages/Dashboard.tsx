@@ -148,7 +148,7 @@ export default function Dashboard() {
     }
     const controller = new AbortController();
     activeFetchControllerRef.current = controller;
-    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 25000);
+    activeFetchTimeoutRef.current = window.setTimeout(() => controller.abort(), 35000);
     return { seq, signal: controller.signal };
   }, []);
 
