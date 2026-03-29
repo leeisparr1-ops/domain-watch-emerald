@@ -342,6 +342,7 @@ export default function Dashboard() {
     const MAX_RETRIES = 2;
     const RETRY_DELAY = 1500;
     const { seq, signal } = beginNewFetch();
+    const endTimeFilter = new Date().toISOString();
 
     const mapRows = (rows: any[]): AuctionDomain[] => rows.map(a => ({
       id: a.id,
@@ -412,7 +413,6 @@ export default function Dashboard() {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
-      const endTimeFilter = new Date().toISOString();
       const baseSelect = 'id,domain_name,end_time,price,bid_count,traffic_count,domain_age,auction_type,tld,valuation,inventory_source,brandability_score,pronounceability_score,trademark_risk';
 
       // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
