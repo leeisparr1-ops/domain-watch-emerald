@@ -197,7 +197,7 @@ export default function Dashboard() {
     auctionType: "all",
     minPrice: 0,
     maxPrice: 1000000,
-    inventorySource: "godaddy",
+    inventorySource: "all",
   });
   const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "end_time_asc");
 

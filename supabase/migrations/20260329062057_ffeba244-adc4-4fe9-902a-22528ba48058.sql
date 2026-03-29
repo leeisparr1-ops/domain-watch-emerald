@@ -1,0 +1,1 @@
+UPDATE drop_scans SET status = 'error', updated_at = now() WHERE id = '837ba160-42a6-4f7c-a60f-d7fce4e57c9b' AND status = 'processing';
