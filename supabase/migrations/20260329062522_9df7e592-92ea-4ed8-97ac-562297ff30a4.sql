@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_auctions_source_endtime ON auctions (inventory_source, end_time DESC NULLS LAST);
