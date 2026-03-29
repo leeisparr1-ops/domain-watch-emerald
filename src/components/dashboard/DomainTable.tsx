@@ -225,6 +225,7 @@ const COLUMN_SORT_MAP: Record<SortableColumn, { asc: string; desc: string }> = {
   bid_count: { asc: "bid_count_asc", desc: "bid_count_desc" },
   domain_age: { asc: "domain_age_asc", desc: "domain_age_desc" },
   valuation: { asc: "valuation_asc", desc: "valuation_desc" },
+  traffic: { asc: "traffic_asc", desc: "traffic_desc" },
 };
 
 function SortableHeader({ 
