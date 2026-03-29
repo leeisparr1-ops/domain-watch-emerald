@@ -417,7 +417,7 @@ export default function Dashboard() {
 
       // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
       if (filters.inventorySource === "all") {
-        const mergeProbeSize = Math.min(Math.max((to + 1) * 3, itemsPerPage * 6), 1200);
+        const mergeProbeSize = Math.min(Math.max((to + 1) * 2, itemsPerPage * 3), 600);
 
         const namecheapQuery = applyCommonFilters(
           supabase

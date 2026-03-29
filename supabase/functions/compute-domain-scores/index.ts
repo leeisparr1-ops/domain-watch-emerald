@@ -948,8 +948,9 @@ Deno.serve(async (req) => {
         // Compute server-side valuation using the new engine (tier-0, additive boost, EMD)
         const { valueMin, valueMax } = computeServerValuation(d.domain_name);
         const serverValuation = Math.round((valueMin + valueMax) / 2);
-        // Use server valuation if no existing valuation, or update if significantly different
-        const finalValuation = serverValuation > 0 ? serverValuation : d.valuation;
+        // Only use server valuation if domain has no existing valuation
+        // This prevents overwriting potentially more accurate sync-time valuations
+        const finalValuation = (d.valuation && d.valuation > 0) ? d.valuation : (serverValuation > 0 ? serverValuation : d.valuation);
         const gem = computeGemScore(
           d.domain_name, d.price, finalValuation,
           brand, pron, d.domain_age, d.bid_count, d.traffic_count, d.tld,
