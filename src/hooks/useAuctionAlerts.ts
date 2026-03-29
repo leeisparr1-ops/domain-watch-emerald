@@ -4,12 +4,34 @@ import { useAuth } from './useAuth';
 import { useNotificationSettings } from './useNotificationSettings';
 import { toast } from 'sonner';
 
+const CHECK_INTERVAL = 2 * 60 * 1000; // 2 min
+const INITIAL_CHECK_DELAY = 12000; // keep initial dashboard load fast
+const REQUEST_TIMEOUT_MS = 8000;
+const PRICE_UPDATE_BATCH_SIZE = 20;
+
+type FavoriteRow = {
+  id: string;
+  domain_name: string;
+  auction_id: string | null;
+  last_known_price: number | null;
+};
+
+type AuctionRow = {
+  id: string;
+  domain_name: string;
+  end_time: string | null;
+  price: number | null;
+};
+
+function chunk<T>(items: T[], size: number): T[] {
+  return items.slice(0, size);
+}
+
 export function useAuctionAlerts() {
   const { user } = useAuth();
   const { settings } = useNotificationSettings();
   const alertedDomainsRef = useRef<Map<string, number>>(new Map());
   const priceDropAlertedRef = useRef<Map<string, number>>(new Map());
-  const CHECK_INTERVAL = 60 * 1000; // Check every minute
 
   const sendNotification = useCallback((title: string, body: string, tag: string) => {
     if (!settings.enabled) return;
@@ -36,50 +58,97 @@ export function useAuctionAlerts() {
 
   const checkFavoriteAuctions = useCallback(async () => {
     if (!user || !settings.enabled) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 
     try {
+      const favoritesController = new AbortController();
+      const favoritesTimeout = setTimeout(() => favoritesController.abort(), REQUEST_TIMEOUT_MS);
+
       const { data: favorites, error: favError } = await supabase
         .from('favorites')
         .select('id, domain_name, auction_id, last_known_price')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .abortSignal(favoritesController.signal);
+
+      clearTimeout(favoritesTimeout);
 
       if (favError || !favorites?.length) return;
 
-      const domainNames = favorites.map(f => f.domain_name);
+      const favoriteRows = favorites as FavoriteRow[];
+      const favoriteById = favoriteRows.filter((f) => !!f.auction_id);
+      const favoriteByDomain = favoriteRows.filter((f) => !f.auction_id);
 
-      const { data: auctions, error: auctionError } = await supabase
-        .from('auctions')
-        .select('domain_name, end_time, price')
-        .in('domain_name', domainNames);
+      const auctionsById = new Map<string, AuctionRow>();
+      const auctionsByDomain = new Map<string, AuctionRow>();
 
-      if (auctionError || !auctions) return;
+      // Fast path: PK lookup by auction_id (avoids large text IN() scans)
+      if (favoriteById.length > 0) {
+        const auctionIds = favoriteById
+          .map((f) => f.auction_id)
+          .filter((id): id is string => !!id);
 
-      const auctionMap = new Map(auctions.map(a => [a.domain_name, a]));
+        const auctionsByIdController = new AbortController();
+        const auctionsByIdTimeout = setTimeout(() => auctionsByIdController.abort(), REQUEST_TIMEOUT_MS);
+
+        const { data: byIdRows, error: byIdError } = await supabase
+          .from('auctions')
+          .select('id, domain_name, end_time, price')
+          .in('id', auctionIds)
+          .abortSignal(auctionsByIdController.signal);
+
+        clearTimeout(auctionsByIdTimeout);
+
+        if (byIdError) throw byIdError;
+        for (const row of (byIdRows || []) as AuctionRow[]) {
+          auctionsById.set(row.id, row);
+          auctionsByDomain.set(row.domain_name, row);
+        }
+      }
+
+      // Fallback path: only unresolved favorites without auction_id (usually tiny)
+      if (favoriteByDomain.length > 0) {
+        const domainNames = favoriteByDomain.map((f) => f.domain_name).filter(Boolean);
+        const smallDomainBatch = chunk(domainNames, 30);
+
+        if (smallDomainBatch.length > 0) {
+          const auctionsByDomainController = new AbortController();
+          const auctionsByDomainTimeout = setTimeout(() => auctionsByDomainController.abort(), REQUEST_TIMEOUT_MS);
+
+          const { data: byDomainRows, error: byDomainError } = await supabase
+            .from('auctions')
+            .select('id, domain_name, end_time, price')
+            .in('domain_name', smallDomainBatch)
+            .abortSignal(auctionsByDomainController.signal);
+
+          clearTimeout(auctionsByDomainTimeout);
+
+          if (byDomainError) throw byDomainError;
+          for (const row of (byDomainRows || []) as AuctionRow[]) {
+            auctionsByDomain.set(row.domain_name, row);
+          }
+        }
+      }
+
       const now = Date.now();
       const thresholdMs = settings.alertThresholdMinutes * 60 * 1000;
-
-      // Price drop detection + price tracking updates
       const priceUpdates: { id: string; price: number }[] = [];
 
-      for (const fav of favorites) {
-        const auction = auctionMap.get(fav.domain_name);
+      for (const fav of favoriteRows) {
+        const auction = (fav.auction_id ? auctionsById.get(fav.auction_id) : undefined) || auctionsByDomain.get(fav.domain_name);
         if (!auction) continue;
 
         const currentPrice = Number(auction.price);
         const lastKnown = fav.last_known_price != null ? Number(fav.last_known_price) : null;
 
-        // Track price for future comparison
-        if (lastKnown === null || lastKnown !== currentPrice) {
+        if (Number.isFinite(currentPrice) && (lastKnown === null || lastKnown !== currentPrice)) {
           priceUpdates.push({ id: fav.id, price: currentPrice });
         }
 
-        // Notify on price DROP (only if we had a previous price)
-        if (lastKnown !== null && currentPrice < lastKnown) {
+        if (lastKnown !== null && Number.isFinite(currentPrice) && currentPrice < lastKnown) {
           const dropAmount = lastKnown - currentPrice;
           const dropPct = Math.round((dropAmount / lastKnown) * 100);
           const lastDropAlert = priceDropAlertedRef.current.get(fav.domain_name);
 
-          // Throttle: once per hour per domain
           if (!lastDropAlert || (now - lastDropAlert) > 60 * 60 * 1000) {
             sendNotification(
               '📉 Price Drop!',
@@ -90,7 +159,6 @@ export function useAuctionAlerts() {
           }
         }
 
-        // Ending-soon alerts
         if (auction.end_time) {
           const endTime = new Date(auction.end_time).getTime();
           const timeRemaining = endTime - now;
@@ -115,10 +183,11 @@ export function useAuctionAlerts() {
         }
       }
 
-      // Batch update last_known_price for changed prices
-      if (priceUpdates.length > 0) {
+      // Keep write-load bounded so dashboard reads stay responsive
+      const boundedUpdates = chunk(priceUpdates, PRICE_UPDATE_BATCH_SIZE);
+      if (boundedUpdates.length > 0) {
         await Promise.all(
-          priceUpdates.map(({ id, price }) =>
+          boundedUpdates.map(({ id, price }) =>
             supabase
               .from('favorites')
               .update({ last_known_price: price } as any)
@@ -127,7 +196,6 @@ export function useAuctionAlerts() {
         );
       }
 
-      // Clean up old entries
       const twoHoursAgo = now - 2 * 60 * 60 * 1000;
       alertedDomainsRef.current.forEach((timestamp, domain) => {
         if (timestamp < twoHoursAgo) alertedDomainsRef.current.delete(domain);
@@ -135,8 +203,10 @@ export function useAuctionAlerts() {
       priceDropAlertedRef.current.forEach((timestamp, domain) => {
         if (timestamp < twoHoursAgo) priceDropAlertedRef.current.delete(domain);
       });
-
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error('Error checking favorite auctions:', error);
     }
   }, [user, settings.enabled, settings.alertThresholdMinutes, sendNotification]);
@@ -144,11 +214,19 @@ export function useAuctionAlerts() {
   useEffect(() => {
     if (!user || !settings.enabled) return;
 
-    checkFavoriteAuctions();
-    const interval = setInterval(checkFavoriteAuctions, CHECK_INTERVAL);
+    const initialTimeout = setTimeout(() => {
+      void checkFavoriteAuctions();
+    }, INITIAL_CHECK_DELAY);
 
-    return () => clearInterval(interval);
-  }, [user, settings.enabled, checkFavoriteAuctions, CHECK_INTERVAL]);
+    const interval = setInterval(() => {
+      void checkFavoriteAuctions();
+    }, CHECK_INTERVAL);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [user, settings.enabled, checkFavoriteAuctions]);
 
   const requestPermission = useCallback(async () => {
     if (!('Notification' in window)) {
