@@ -530,7 +530,7 @@ export function DomainTable({
                           {d.traffic >= 1000 ? `${(d.traffic / 1000).toFixed(1)}K` : d.traffic.toLocaleString()}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground/50">-</span>
+                        <span className="text-muted-foreground/40 text-xs">0</span>
                       )}
                     </TableCell>
 
