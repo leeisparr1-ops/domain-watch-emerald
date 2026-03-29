@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_auctions_traffic_desc ON public.auctions (traffic_count DESC) WHERE traffic_count > 0;
