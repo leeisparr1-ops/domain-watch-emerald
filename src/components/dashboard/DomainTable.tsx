@@ -141,7 +141,7 @@ function getDealScore(price: number, valuation?: number): { score: number; label
   return { score: 1, label: `${ratio.toFixed(1)}x`, color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" };
 }
 
-type SortableColumn = "domain_name" | "price" | "end_time" | "bid_count" | "domain_age" | "valuation";
+type SortableColumn = "domain_name" | "price" | "end_time" | "bid_count" | "domain_age" | "valuation" | "traffic";
 
 function getQuickScoreColor(score: number) {
   if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
@@ -225,6 +225,7 @@ const COLUMN_SORT_MAP: Record<SortableColumn, { asc: string; desc: string }> = {
   bid_count: { asc: "bid_count_asc", desc: "bid_count_desc" },
   domain_age: { asc: "domain_age_asc", desc: "domain_age_desc" },
   valuation: { asc: "valuation_asc", desc: "valuation_desc" },
+  traffic: { asc: "traffic_asc", desc: "traffic_desc" },
 };
 
 function SortableHeader({ 
@@ -332,7 +333,12 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">Deal</TableHead>
               <TableHead className="whitespace-nowrap">Age</TableHead>
               <TableHead className="whitespace-nowrap">Len</TableHead>
-              <TableHead className="whitespace-nowrap">Traffic</TableHead>
+              <SortableHeader 
+                column="traffic" 
+                label="Demand" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+              />
               <SortableHeader 
                 column="end_time" 
                 label="Ends" 
@@ -508,10 +514,12 @@ export function DomainTable({
                       <span className="text-muted-foreground">{domainWithoutTld.length}</span>
                     </TableCell>
 
-                    {/* Traffic */}
+                    {/* Demand (GoDaddy pageviews) */}
                     <TableCell className="py-2 text-sm">
                       {d.traffic > 0 ? (
-                        <span className="text-muted-foreground">{d.traffic.toLocaleString()}</span>
+                        <Badge variant={d.traffic >= 100 ? "default" : d.traffic >= 20 ? "secondary" : "outline"} className={cn("text-xs font-medium", d.traffic >= 100 && "bg-primary/90")}>
+                          {d.traffic >= 1000 ? `${(d.traffic / 1000).toFixed(1)}K` : d.traffic.toLocaleString()}
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground/50">-</span>
                       )}
