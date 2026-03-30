@@ -834,6 +834,7 @@ export type Database = {
         Args: { lock_duration_minutes?: number; lock_holder: string }
         Returns: boolean
       }
+      check_cleanup_and_resume_sync: { Args: never; Returns: undefined }
       delete_ended_auctions_batch: {
         Args: { batch_limit?: number; older_than_hours?: number }
         Returns: {
