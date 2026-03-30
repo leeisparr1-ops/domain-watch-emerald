@@ -29,12 +29,26 @@ export default function Login() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  const isTransientAuthError = (message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("timed out") ||
+      normalized.includes("timeout") ||
+      normalized.includes("heavy load") ||
+      normalized.includes("temporarily unavailable") ||
+      normalized.includes("failed to fetch") ||
+      normalized.includes("network") ||
+      normalized.includes("unexpected_failure") ||
+      normalized.includes("context deadline exceeded")
+    );
+  };
 
   // Redirect to dashboard if already authenticated (e.g. after OAuth return)
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
-  }, [user, navigate]);
+    if (!authLoading && user) navigate("/dashboard", { replace: true });
+  }, [authLoading, user, navigate]);
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -70,7 +84,20 @@ export default function Login() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      let data = null;
+      let error = null;
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const result = await supabase.auth.signInWithPassword({ email, password });
+        data = result.data;
+        error = result.error;
+
+        if (!error || !isTransientAuthError(error.message) || attempt === 3) {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, attempt * 900));
+      }
 
       if (error) {
         const msg = error.message.toLowerCase();
