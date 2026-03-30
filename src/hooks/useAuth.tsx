@@ -1,7 +1,6 @@
 import { useEffect, useState, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { flushDiagnostics } from "@/lib/oauthCallback";
 
 interface AuthContextType {
@@ -21,73 +20,109 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const setAuthState = (nextSession: Session | null, nextUser: User | null = nextSession?.user ?? null) => {
+    setSession(nextSession);
+    setUser(nextUser);
+  };
+
+  const clearPersistedSessionToken = () => {
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          localStorage.removeItem(key);
+          break;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
+    let hydrating = true;
+
+    const maybeApplyNonPersistentSessionPolicy = (nextSession: Session | null) => {
+      if (sessionStorage.getItem("eh_non_persistent_session") === "1" && nextSession) {
+        clearPersistedSessionToken();
+      }
+    };
 
     // Set up auth state listener FIRST (Supabase best practice)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         if (!mounted) return;
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
+        setAuthState(newSession);
+        maybeApplyNonPersistentSessionPolicy(newSession);
 
-        // If user opted out of "Remember me", clear localStorage token
-        // so session doesn't persist across browser restarts
-        if (sessionStorage.getItem("eh_non_persistent_session") === "1" && newSession) {
-          try {
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key?.startsWith("sb-") && key.endsWith("-auth-token")) {
-                localStorage.removeItem(key);
-                break;
-              }
-            }
-          } catch {
-            // ignore
-          }
+        // Avoid ending loading state before initial getSession() hydration completes.
+        if (!hydrating) {
+          setLoading(false);
         }
       }
     );
 
     // Then get initial session and VALIDATE it
-    supabase.auth.getSession().then(async (result) => {
-      if (!mounted) return;
+    void (async () => {
+      try {
+        // Flush any OAuth diagnostic messages now that React is mounted
+        flushDiagnostics();
 
-      // Flush any OAuth diagnostic messages now that React is mounted
-      flushDiagnostics();
+        const result = await supabase.auth.getSession();
+        if (!mounted) return;
 
-      const currentSession = result.data.session;
-      console.log("[auth] getSession:", currentSession ? "found" : "none");
+        const currentSession = result.data.session;
+        console.log("[auth] getSession:", currentSession ? "found" : "none");
 
-      if (currentSession) {
-        // Validate the stored session is actually accepted by the server.
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          console.warn("[auth] Stored session invalid, clearing:", userError.message);
-          await supabase.auth.signOut({ scope: 'local' });
-          if (!mounted) return;
-          setSession(null);
-          setUser(null);
-          setLoading(false);
+        if (!currentSession) {
+          setAuthState(null);
           return;
         }
+
+        // Validate the stored session with the auth service.
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!mounted) return;
+
+        if (userError) {
+          const msg = userError.message.toLowerCase();
+          const definitelyInvalidSession =
+            msg.includes("invalid jwt") ||
+            msg.includes("refresh token") ||
+            msg.includes("session from session_id claim in jwt does not exist") ||
+            msg.includes("user from sub claim in jwt does not exist");
+
+          if (definitelyInvalidSession) {
+            console.warn("[auth] Stored session invalid, clearing:", userError.message);
+            await supabase.auth.signOut({ scope: "local" });
+            if (!mounted) return;
+            setAuthState(null);
+            return;
+          }
+
+          // Transient backend overload/timeouts should not force sign-out.
+          console.warn("[auth] Session validation temporarily unavailable, preserving session:", userError.message);
+          setAuthState(currentSession);
+          maybeApplyNonPersistentSessionPolicy(currentSession);
+          return;
+        }
+
         console.log("[auth] Session validated for user:", userData.user?.email);
+        setAuthState(currentSession, userData.user ?? currentSession.user ?? null);
+        maybeApplyNonPersistentSessionPolicy(currentSession);
+      } catch (error) {
+        console.error("[auth] Initial session hydration failed:", error);
+      } finally {
+        hydrating = false;
+        if (mounted) {
+          setLoading(false);
+        }
       }
-
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setLoading(false);
-    });
-
-    // Safety timeout - never block UI for more than 3 seconds
-    const safetyTimeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 3000);
+    })();
 
     return () => {
       mounted = false;
-      clearTimeout(safetyTimeout);
+      hydrating = false;
       subscription.unsubscribe();
     };
   }, []);
