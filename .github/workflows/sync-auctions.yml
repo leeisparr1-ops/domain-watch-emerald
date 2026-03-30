@@ -1,162 +1,17 @@
 name: Sync Auctions
 
 on:
-  schedule:
-    # Run at 3 AM UTC (11 PM ET) - off-peak full sync
-    - cron: '0 3 * * *'
-    # Run at 4 PM UTC (12 PM ET) - catch Namecheap 11 AM ET auction endings
-    - cron: '0 16 * * *'
-    # Run at 7 PM UTC (3 PM ET) - catch DropCatch 2 PM ET daily drops
-    - cron: '0 19 * * *'
-  workflow_dispatch: # Allow manual trigger from GitHub UI
+  workflow_dispatch:
 
-# Prevent overlapping runs from saturating the database
 concurrency:
   group: sync-auctions
   cancel-in-progress: false
 
 jobs:
-  # Job 0: Clean up stale/expired auctions BEFORE syncing new data
-  cleanup-stale-auctions:
+  workflow-disabled:
     runs-on: ubuntu-latest
     steps:
-      - name: Clean up expired GoDaddy auctions (by end_time)
+      - name: Sync workflow temporarily disabled
         run: |
-          echo "Cleaning up expired auctions (pass 1)..."
-          curl -s -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            --max-time 300 || true
-          echo "✅ Expired auction cleanup pass 1 done"
-
-      - name: Clean up expired GoDaddy auctions (pass 2)
-        run: |
-          echo "Running high-throughput backlog cleanup..."
-          curl -s -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/backlog-cleanup?older_than_hours=0&batch_size=1000&max_seconds=120" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            --max-time 300 || true
-          echo "✅ Backlog cleanup triggered (self-chains if needed)"
-
-      - name: Clean up stale Namecheap listings (not updated in 1 day)
-        run: |
-          echo "Cleaning up stale Namecheap auctions..."
-          curl -s -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=1&maxBatches=500" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            --max-time 300 || true
-          echo "✅ Stale Namecheap cleanup done"
-
-  # Job 1: Trigger edge function for smaller inventory types
-  trigger-small-sync:
-    runs-on: ubuntu-latest
-    needs: cleanup-stale-auctions
-    steps:
-      - name: Trigger small inventory sync via edge function
-        run: |
-          echo "Triggering small inventory sync..."
-          
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/cron-sync-auctions" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            --max-time 300 || true)
-          
-          echo "Response: $response"
-          echo "✅ Small inventory sync triggered"
-
-  # Job 2: Run Node.js script for large GoDaddy inventory files
-  # This bypasses edge function timeout/memory limits
-  # Timeout set to 6 hours to handle 780k+ records with network variability
-  sync-large-inventory:
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
-    needs: trigger-small-sync
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install adm-zip
-
-      - name: Run large inventory sync
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: node .github/scripts/sync-large-inventory.cjs
-
-      - name: Log completion
-        run: echo "GoDaddy auction sync completed at $(date)"
-
-  # Job 3: Sync Namecheap inventory via direct CSV download
-  # Downloads the ~197MB CSV export from CloudFront and syncs ~1.09M records
-  # No browser automation needed - the CSV is publicly accessible
-  sync-namecheap-inventory:
-    runs-on: ubuntu-latest
-    timeout-minutes: 480
-    needs: sync-large-inventory
-    env:
-      NAMECHEAP_PAUSED_UNTIL: '2026-03-31T14:00:00Z'
-    steps:
-      - name: Check temporary Namecheap pause window
-        id: pause_window
-        run: |
-          now=$(date -u +%s)
-          pause_until=$(date -u -d "$NAMECHEAP_PAUSED_UNTIL" +%s)
-          if [ "$now" -lt "$pause_until" ]; then
-            echo "paused=true" >> "$GITHUB_OUTPUT"
-            echo "⏸️ Namecheap sync paused until $NAMECHEAP_PAUSED_UNTIL to protect authentication."
-          else
-            echo "paused=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout repository
-        if: steps.pause_window.outputs.paused != 'true'
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        if: steps.pause_window.outputs.paused != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Run Namecheap inventory sync
-        if: steps.pause_window.outputs.paused != 'true'
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: node .github/scripts/sync-namecheap-inventory.cjs
-
-      - name: Log temporary pause
-        if: steps.pause_window.outputs.paused == 'true'
-        run: echo "Skipped Namecheap inventory sync during temporary auth recovery window"
-
-      - name: Log completion
-        if: steps.pause_window.outputs.paused != 'true'
-        run: echo "Namecheap auction sync completed at $(date)"
-
-  # Final summary job
-  sync-summary:
-    runs-on: ubuntu-latest
-    needs: [cleanup-stale-auctions, trigger-small-sync, sync-large-inventory, sync-namecheap-inventory]
-    if: always()
-    steps:
-      - name: Sync Summary
-        run: |
-          echo "=========================================="
-          echo "Full Auction Sync Completed"
-          echo "=========================================="
-          echo "Time: $(date)"
-          echo "Cleanup status: ${{ needs.cleanup-stale-auctions.result }}"
-          echo "Small sync status: ${{ needs.trigger-small-sync.result }}"
-          echo "GoDaddy sync status: ${{ needs.sync-large-inventory.result }}"
-          echo "Namecheap sync status: ${{ needs.sync-namecheap-inventory.result }}"
-          echo "=========================================="
+          echo "⏸️ All GitHub sync jobs are disabled during database recovery."
+          echo "Use direct backend cleanup only until auth is stable again."
