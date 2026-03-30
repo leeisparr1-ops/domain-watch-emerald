@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, ReactNode } from "react";
+import { useEffect, useState, createContext, useContext, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { flushDiagnostics } from "@/lib/oauthCallback";
@@ -19,8 +19,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const latestSessionRef = useRef<Session | null>(null);
+  const authEventVersionRef = useRef(0);
 
   const setAuthState = (nextSession: Session | null, nextUser: User | null = nextSession?.user ?? null) => {
+    latestSessionRef.current = nextSession;
     setSession(nextSession);
     setUser(nextUser);
   };
@@ -53,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         if (!mounted) return;
+        authEventVersionRef.current += 1;
         setAuthState(newSession);
         maybeApplyNonPersistentSessionPolicy(newSession);
 
@@ -69,10 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Flush any OAuth diagnostic messages now that React is mounted
         flushDiagnostics();
 
+        const hydrationVersion = authEventVersionRef.current;
         const result = await supabase.auth.getSession();
         if (!mounted) return;
 
-        const currentSession = result.data.session;
+        const currentSession = authEventVersionRef.current > hydrationVersion
+          ? latestSessionRef.current
+          : (latestSessionRef.current ?? result.data.session);
+
         console.log("[auth] getSession:", currentSession ? "found" : "none");
 
         if (!currentSession) {
@@ -80,35 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Validate the stored session with the auth service.
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (!mounted) return;
-
-        if (userError) {
-          const msg = userError.message.toLowerCase();
-          const definitelyInvalidSession =
-            msg.includes("invalid jwt") ||
-            msg.includes("refresh token") ||
-            msg.includes("session from session_id claim in jwt does not exist") ||
-            msg.includes("user from sub claim in jwt does not exist");
-
-          if (definitelyInvalidSession) {
-            console.warn("[auth] Stored session invalid, clearing:", userError.message);
-            await supabase.auth.signOut({ scope: "local" });
-            if (!mounted) return;
-            setAuthState(null);
-            return;
-          }
-
-          // Transient backend overload/timeouts should not force sign-out.
-          console.warn("[auth] Session validation temporarily unavailable, preserving session:", userError.message);
-          setAuthState(currentSession);
-          maybeApplyNonPersistentSessionPolicy(currentSession);
-          return;
-        }
-
-        console.log("[auth] Session validated for user:", userData.user?.email);
-        setAuthState(currentSession, userData.user ?? currentSession.user ?? null);
+        setAuthState(currentSession, currentSession.user ?? null);
         maybeApplyNonPersistentSessionPolicy(currentSession);
       } catch (error) {
         console.error("[auth] Initial session hydration failed:", error);

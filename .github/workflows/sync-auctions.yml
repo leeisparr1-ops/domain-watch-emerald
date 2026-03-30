@@ -103,22 +103,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 480
     needs: sync-large-inventory
+    env:
+      NAMECHEAP_PAUSED_UNTIL: '2026-03-31T14:00:00Z'
     steps:
+      - name: Check temporary Namecheap pause window
+        id: pause_window
+        run: |
+          now=$(date -u +%s)
+          pause_until=$(date -u -d "$NAMECHEAP_PAUSED_UNTIL" +%s)
+          if [ "$now" -lt "$pause_until" ]; then
+            echo "paused=true" >> "$GITHUB_OUTPUT"
+            echo "⏸️ Namecheap sync paused until $NAMECHEAP_PAUSED_UNTIL to protect authentication."
+          else
+            echo "paused=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.pause_window.outputs.paused != 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: steps.pause_window.outputs.paused != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Run Namecheap inventory sync
+        if: steps.pause_window.outputs.paused != 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
+      - name: Log temporary pause
+        if: steps.pause_window.outputs.paused == 'true'
+        run: echo "Skipped Namecheap inventory sync during temporary auth recovery window"
+
       - name: Log completion
+        if: steps.pause_window.outputs.paused != 'true'
         run: echo "Namecheap auction sync completed at $(date)"
 
   # Final summary job
