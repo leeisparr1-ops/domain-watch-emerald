@@ -1421,8 +1421,8 @@ serve(async (req) => {
           throw new Error("Shared CSV URL must use http or https");
         }
 
-        if (!parsedCsvUrl.pathname.endsWith("/store/daily-drops.csv")) {
-          throw new Error("Shared CSV URL must point to /store/daily-drops.csv");
+        if (!parsedCsvUrl.pathname.endsWith("/store/daily-drops.csv") && !parsedCsvUrl.pathname.includes("/drops-csv/")) {
+          throw new Error("Shared CSV URL must point to /store/daily-drops.csv or drops-csv bucket");
         }
 
         const csvResponse = await fetch(parsedCsvUrl.toString());
