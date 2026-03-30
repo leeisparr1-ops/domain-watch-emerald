@@ -36,10 +36,30 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useFavorites } from "@/hooks/useFavorites";
 import { SpamRiskBadge } from "./SpamRiskBadge";
 import { cn } from "@/lib/utils";
 import { getTrademarkRiskDisplay } from "@/lib/trademarkCheck";
+
+function InfoPopover({ text }: { text: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="inline-flex items-center justify-center" aria-label="Info">
+          <Info className="w-3 h-3 text-muted-foreground/60 hover:text-muted-foreground transition-colors" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="max-w-[220px] text-xs p-2" onClick={(e) => e.stopPropagation()}>
+        {text}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface DomainData {
   id: string;
