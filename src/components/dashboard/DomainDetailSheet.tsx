@@ -217,7 +217,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
       icon: Users,
     },
     {
-      label: "Demand (GD Views)",
+      label: "Traffic (GD Views)",
       value: domain.traffic > 0 ? domain.traffic.toLocaleString() : "-",
       icon: BarChart3,
       highlight: domain.traffic >= 20,

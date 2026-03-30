@@ -603,7 +603,7 @@ export function DomainTable({
                       <span className="text-muted-foreground">{domainWithoutTld.length}</span>
                     </TableCell>
 
-                    {/* Demand (GoDaddy pageviews) */}
+                    {/* Traffic (GoDaddy pageviews) */}
                     <TableCell className="py-2 text-sm">
                       {d.traffic > 0 ? (
                         <Badge variant={d.traffic >= 100 ? "default" : d.traffic >= 20 ? "secondary" : "outline"} className={cn("text-xs font-medium", d.traffic >= 100 && "bg-primary/90")}>

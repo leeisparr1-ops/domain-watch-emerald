@@ -78,8 +78,8 @@ export const SORT_OPTIONS: SortOption[] = [
   { value: "end_time_desc", label: "Ending Last", column: "end_time", ascending: false },
   { value: "price_asc", label: "Price: Low to High", column: "price", ascending: true },
   { value: "price_desc", label: "Price: High to Low", column: "price", ascending: false },
-  { value: "traffic_desc", label: "Demand: High to Low", column: "traffic_count", ascending: false },
-  { value: "traffic_asc", label: "Demand: Low to High", column: "traffic_count", ascending: true },
+  { value: "traffic_desc", label: "Traffic: High to Low", column: "traffic_count", ascending: false },
+  { value: "traffic_asc", label: "Traffic: Low to High", column: "traffic_count", ascending: true },
 ];
 
 interface SearchAndFiltersProps {
