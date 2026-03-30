@@ -27,7 +27,9 @@ const CSV_URL = 'https://d3ry1h4w5036x1.cloudfront.net/reports/Namecheap_Market_
 // SAFE Configuration - Serial processing to prevent DB saturation
 const BATCH_SIZE = 500;
 const PARALLEL_REQUESTS = 1;
-const BATCH_DELAY_MS = 2000;
+const BATCH_DELAY_MS = 1500;
+const REQUEST_TIMEOUT_MS = 120000;
+const MAX_BATCH_RETRIES = 3;
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
 const DOWNLOAD_TIMEOUT_MS = 600000; // 10 minutes
 
@@ -240,10 +242,13 @@ function parseNamecheapRecord(record) {
 /**
  * Send a single batch to the edge function
  */
-async function sendBatch(batch, inventorySource) {
+async function sendBatch(batch, inventorySource, attempt = 1) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-sync-secret': SYNC_SECRET,
@@ -251,12 +256,13 @@ async function sendBatch(batch, inventorySource) {
       body: JSON.stringify({
         auctions: batch,
         inventory_source: inventorySource,
+        skip_scoring: true,
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      return { success: false, error: error.substring(0, 200), count: 0 };
+      throw new Error(error.substring(0, 200) || `HTTP ${response.status}`);
     }
 
     const result = await response.json();
@@ -266,7 +272,19 @@ async function sendBatch(batch, inventorySource) {
       errors: result.errors || 0,
     };
   } catch (err) {
-    return { success: false, error: err.message, count: 0 };
+    const message = err?.name === 'AbortError'
+      ? `request timeout after ${REQUEST_TIMEOUT_MS}ms`
+      : (err?.message || 'unknown error');
+
+    if (attempt < MAX_BATCH_RETRIES) {
+      const backoffMs = Math.min(2000 * attempt, 8000);
+      await sleep(backoffMs);
+      return sendBatch(batch, inventorySource, attempt + 1);
+    }
+
+    return { success: false, error: message, count: 0 };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
