@@ -340,28 +340,14 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">
                 <div className="flex items-center gap-1">
                   <span>Domain</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[220px] text-xs">
-                      The full domain name including TLD, with brandability, pronounceability, and trademark scores.
-                    </TooltipContent>
-                  </Tooltip>
+                  <InfoPopover text="The full domain name including TLD, with brandability, pronounceability, and trademark scores." />
                 </div>
               </TableHead>
               {showPatternColumn && (
                 <TableHead className="whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <span>Pattern</span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="w-3 h-3 text-muted-foreground/60" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[220px] text-xs">
-                        The saved pattern or alert rule that matched this domain.
-                      </TooltipContent>
-                    </Tooltip>
+                    <InfoPopover text="The saved pattern or alert rule that matched this domain." />
                   </div>
                 </TableHead>
               )}
@@ -375,14 +361,7 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">
                 <div className="flex items-center gap-1">
                   <span>Bids</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[220px] text-xs">
-                      Number of bids placed on this auction. More bids = more competition.
-                    </TooltipContent>
-                  </Tooltip>
+                  <InfoPopover text="Number of bids placed on this auction. More bids = more competition." />
                 </div>
               </TableHead>
               <SortableHeader 
@@ -395,40 +374,19 @@ export function DomainTable({
               <TableHead className="whitespace-nowrap">
                 <div className="flex items-center gap-1">
                   <span>Deal</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[220px] text-xs">
-                      Ratio of algo valuation to asking price. Higher multiples (e.g. 10x) suggest better deals.
-                    </TooltipContent>
-                  </Tooltip>
+                  <InfoPopover text="Ratio of algo valuation to asking price. Higher multiples (e.g. 10x) suggest better deals." />
                 </div>
               </TableHead>
               <TableHead className="whitespace-nowrap">
                 <div className="flex items-center gap-1">
                   <span>Age</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[220px] text-xs">
-                      Domain age in years since first registration. Older domains often carry more SEO authority.
-                    </TooltipContent>
-                  </Tooltip>
+                  <InfoPopover text="Domain age in years since first registration. Older domains often carry more SEO authority." />
                 </div>
               </TableHead>
               <TableHead className="whitespace-nowrap">
                 <div className="flex items-center gap-1">
                   <span>Len</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[220px] text-xs">
-                      Character length of the domain name (excluding TLD). Shorter = generally more valuable.
-                    </TooltipContent>
-                  </Tooltip>
+                  <InfoPopover text="Character length of the domain name (excluding TLD). Shorter = generally more valuable." />
                 </div>
               </TableHead>
               <SortableHeader 
