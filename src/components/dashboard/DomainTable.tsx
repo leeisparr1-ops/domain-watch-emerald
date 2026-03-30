@@ -16,6 +16,7 @@ import {
   Shield,
   Sparkles,
   Bird,
+  Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
