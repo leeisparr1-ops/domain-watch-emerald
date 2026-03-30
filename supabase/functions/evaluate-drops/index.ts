@@ -1394,7 +1394,7 @@ serve(async (req) => {
       let initialCsvText = csvText as string | undefined;
       let userId: string | null = null;
 
-      const isSharedCsv = csvUrl && csvUrl.includes("/store/daily-drops.csv");
+      const isSharedCsv = csvUrl && (csvUrl.includes("/store/daily-drops.csv") || csvUrl.includes("/drops-csv/"));
 
       if (!isSharedCsv) {
         const authHeader = req.headers.get("Authorization");
