@@ -16,6 +16,7 @@ import {
   Shield,
   Sparkles,
   Bird,
+  Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -233,13 +234,15 @@ function SortableHeader({
   label, 
   currentSort, 
   onSort,
-  className
+  className,
+  tooltip,
 }: { 
   column: SortableColumn; 
   label: string; 
   currentSort?: string;
   onSort?: (sortKey: string) => void;
   className?: string;
+  tooltip?: string;
 }) {
   const sortConfig = COLUMN_SORT_MAP[column];
   const isAsc = currentSort === sortConfig.asc;
@@ -270,6 +273,16 @@ function SortableHeader({
           isAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
         ) : (
           <ArrowUpDown className="w-3 h-3 opacity-50" />
+        )}
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Info className="w-3 h-3 text-muted-foreground/60" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px] text-xs">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </TableHead>
@@ -313,46 +326,113 @@ export function DomainTable({
                   />
                 </TableHead>
               )}
-              <TableHead className="whitespace-nowrap">Domain</TableHead>
+              <TableHead className="whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  <span>Domain</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs">
+                      The full domain name including TLD, with brandability, pronounceability, and trademark scores.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableHead>
               {showPatternColumn && (
-                <TableHead className="whitespace-nowrap">Pattern</TableHead>
+                <TableHead className="whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    <span>Pattern</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-3 h-3 text-muted-foreground/60" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[220px] text-xs">
+                        The saved pattern or alert rule that matched this domain.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableHead>
               )}
               <SortableHeader 
                 column="price" 
                 label="Price" 
                 currentSort={sortBy}
                 onSort={onSortChange}
+                tooltip="Current auction price or buy-now price in USD."
               />
-              <TableHead className="whitespace-nowrap">Bids</TableHead>
+              <TableHead className="whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  <span>Bids</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs">
+                      Number of bids placed on this auction. More bids = more competition.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableHead>
               <SortableHeader 
                 column="valuation" 
                 label="Algo Val." 
                 currentSort={sortBy}
                 onSort={onSortChange}
+                tooltip="Algorithmic valuation estimate based on length, keywords, TLD, age, and comparable sales."
               />
-              <TableHead className="whitespace-nowrap">Deal</TableHead>
-              <TableHead className="whitespace-nowrap">Age</TableHead>
-              <TableHead className="whitespace-nowrap">Len</TableHead>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <SortableHeader 
-                      column="traffic" 
-                      label="Demand" 
-                      currentSort={sortBy}
-                      onSort={onSortChange}
-                    />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[220px] text-xs">
-                  GoDaddy auction pageviews — a proxy for buyer interest. Higher = more eyeballs on this domain.
-                </TooltipContent>
-              </Tooltip>
+              <TableHead className="whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  <span>Deal</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs">
+                      Ratio of algo valuation to asking price. Higher multiples (e.g. 10x) suggest better deals.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableHead>
+              <TableHead className="whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  <span>Age</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs">
+                      Domain age in years since first registration. Older domains often carry more SEO authority.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableHead>
+              <TableHead className="whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  <span>Len</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs">
+                      Character length of the domain name (excluding TLD). Shorter = generally more valuable.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableHead>
+              <SortableHeader 
+                column="traffic" 
+                label="Traffic" 
+                currentSort={sortBy}
+                onSort={onSortChange}
+                tooltip="GoDaddy auction pageviews — a proxy for buyer interest and demand. Same metric as ExpiredDomains.net 'Traffic' column."
+              />
               <SortableHeader 
                 column="end_time" 
                 label="Ends" 
                 currentSort={sortBy}
                 onSort={onSortChange}
+                tooltip="Time remaining until the auction closes. HOT = under 1 hour, SOON = under 6 hours."
               />
               <TableHead>Actions</TableHead>
               <TableHead className="w-8"></TableHead>
@@ -523,7 +603,7 @@ export function DomainTable({
                       <span className="text-muted-foreground">{domainWithoutTld.length}</span>
                     </TableCell>
 
-                    {/* Demand (GoDaddy pageviews) */}
+                    {/* Traffic (GoDaddy pageviews) */}
                     <TableCell className="py-2 text-sm">
                       {d.traffic > 0 ? (
                         <Badge variant={d.traffic >= 100 ? "default" : d.traffic >= 20 ? "secondary" : "outline"} className={cn("text-xs font-medium", d.traffic >= 100 && "bg-primary/90")}>
