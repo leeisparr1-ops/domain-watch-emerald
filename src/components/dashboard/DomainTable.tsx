@@ -234,13 +234,15 @@ function SortableHeader({
   label, 
   currentSort, 
   onSort,
-  className
+  className,
+  tooltip,
 }: { 
   column: SortableColumn; 
   label: string; 
   currentSort?: string;
   onSort?: (sortKey: string) => void;
   className?: string;
+  tooltip?: string;
 }) {
   const sortConfig = COLUMN_SORT_MAP[column];
   const isAsc = currentSort === sortConfig.asc;
@@ -271,6 +273,16 @@ function SortableHeader({
           isAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
         ) : (
           <ArrowUpDown className="w-3 h-3 opacity-50" />
+        )}
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Info className="w-3 h-3 text-muted-foreground/60" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px] text-xs">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </TableHead>
