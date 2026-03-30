@@ -21,16 +21,17 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization")?.replace("Bearer ", "");
     const systemSecret = req.headers.get("x-system-secret") || req.headers.get("X-System-Secret");
+    const cronSource = req.headers.get("x-cron-source");
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const isAuthorized =
       authHeader === serviceKey ||
       authHeader === syncSecret ||
       systemSecret === syncSecret ||
-      // Internal pg_net calls may use the anon key with x-system-secret
-      (systemSecret && systemSecret === anonKey);
+      // Allow internal pg_cron triggers
+      cronSource === "pg_cron";
 
     if (!isAuthorized) {
+      console.error(`Auth failed. syncSecret set: ${!!syncSecret}, serviceKey set: ${!!serviceKey}, authHeader set: ${!!authHeader}, systemSecret set: ${!!systemSecret}`);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
