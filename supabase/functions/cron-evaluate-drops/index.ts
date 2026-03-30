@@ -31,6 +31,7 @@ serve(async (req) => {
       (systemSecret && systemSecret === anonKey);
 
     if (!isAuthorized) {
+      console.error(`Auth failed. syncSecret set: ${!!syncSecret}, serviceKey set: ${!!serviceKey}, authHeader set: ${!!authHeader}, systemSecret set: ${!!systemSecret}`);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
