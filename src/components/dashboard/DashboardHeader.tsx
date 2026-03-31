@@ -31,7 +31,7 @@ export function DashboardHeader({ totalDomainCount, lastRefresh, loading, onRefr
           </button>
           <p className="text-sm sm:text-base text-muted-foreground">
             {totalDomainCount !== null ? (
-              <>Tracking <span className="font-semibold text-foreground">{totalDomainCount.toLocaleString()}</span> domains across all marketplaces</>
+              <>Tracking <span className="font-semibold text-foreground">{totalDomainCount.toLocaleString()}</span> active domains across all marketplaces</>
             ) : (
               <>Browse and filter domain auctions</>
             )}
