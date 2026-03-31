@@ -31,7 +31,7 @@ jobs:
           echo "Estimated auction count: $RESPONSE"
           
           # If count > 2M, skip sync to let cleanup finish
-          if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 2000000 ] 2>/dev/null; then
+          if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 2500000 ] 2>/dev/null; then
             echo "healthy=false" >> $GITHUB_OUTPUT
             echo "⏸️ Database still recovering, skipping sync"
           else
