@@ -56,6 +56,23 @@ jobs:
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
+  sync-sedo:
+    needs: check-db-health
+    if: needs.check-db-health.outputs.healthy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install @supabase/supabase-js node-fetch
+      - name: Run Sedo auction sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: node .github/scripts/sync-sedo-inventory.cjs
+
   sync-large-inventory:
     needs: check-db-health
     if: needs.check-db-health.outputs.healthy == 'true'

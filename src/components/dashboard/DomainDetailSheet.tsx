@@ -185,6 +185,7 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
   const domainWithoutTld = getDomainWithoutTld(domain.domain);
   const domainLength = domainWithoutTld.length;
   const isBuyNow = domain.auctionType === 'buy-now' || domain.inventorySource === 'namecheap';
+  const isSedo = domain.inventorySource === 'sedo';
   const hasEnded = isBuyNow ? false : new Date(domain.auctionEndTime).getTime() < Date.now();
 
   const stats = [
@@ -346,6 +347,8 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
               href={
                 domain.inventorySource === 'namecheap'
                   ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
+                  : isSedo
+                  ? `https://sedo.com/search/details/?domain=${encodeURIComponent(domain.domain)}`
                   : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
               }
               target="_blank"
