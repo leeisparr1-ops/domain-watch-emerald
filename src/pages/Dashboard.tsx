@@ -182,7 +182,7 @@ export default function Dashboard() {
   const [hideEndedMatches, setHideEndedMatches] = useState(true);
   const [loadingMatches, setLoadingMatches] = useState(false);
   // Persistent filters from localStorage
-  const STORAGE_KEY = "eh_dashboard_prefs";
+  const STORAGE_KEY = "eh_dashboard_prefs_v2";
   const isMobile = useIsMobile();
   const savedPrefs = useMemo(() => {
     try {
