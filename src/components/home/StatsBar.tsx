@@ -28,7 +28,7 @@ export function StatsBar() {
   }, []);
 
   const stats = [
-    { icon: Database, value: domainCount, label: "Domains Tracked" },
+    { icon: Database, value: domainCount, label: "Active Domains" },
     { icon: Clock, value: "6hr", label: "Sync Frequency" },
     { icon: Globe2, value: "45+", label: "TLDs Tracked" },
     { icon: Zap, value: "<1min", label: "Match Time" },
