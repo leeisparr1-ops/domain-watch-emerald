@@ -347,6 +347,8 @@ export function DomainDetailSheet({ domain, open, onOpenChange, externalIsFavori
               href={
                 domain.inventorySource === 'namecheap'
                   ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(domain.domain.replace(/\.[^.]+$/, ''))}`
+                  : isSedo
+                  ? `https://sedo.com/search/details/?domain=${encodeURIComponent(domain.domain)}`
                   : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(domain.domain)}`
               }
               target="_blank"

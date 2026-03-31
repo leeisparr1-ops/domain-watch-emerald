@@ -385,6 +385,9 @@ export default function Dashboard() {
       if (filters.inventorySource === "namecheap") {
         return query.eq('inventory_source', 'namecheap');
       }
+      if (filters.inventorySource === "sedo") {
+        return query.eq('inventory_source', 'sedo');
+      }
       if (filters.inventorySource === "godaddy") {
         return query
           .in('inventory_source', [...GODADDY_SOURCES])

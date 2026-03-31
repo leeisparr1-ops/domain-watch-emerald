@@ -648,6 +648,8 @@ export function DomainTable({
                           href={
                             d.inventorySource === 'namecheap'
                               ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(d.domain.replace(/\.[^.]+$/, ''))}`
+                              : d.inventorySource === 'sedo'
+                              ? `https://sedo.com/search/details/?domain=${encodeURIComponent(d.domain)}`
                               : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
                           }
                           target="_blank"
