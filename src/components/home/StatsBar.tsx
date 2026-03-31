@@ -10,7 +10,7 @@ function formatCount(n: number): string {
 }
 
 export function StatsBar() {
-  const [domainCount, setDomainCount] = useState<string>("2.7M+");
+  const [domainCount, setDomainCount] = useState<string>("1.1M+");
 
   useEffect(() => {
     let cancelled = false;
