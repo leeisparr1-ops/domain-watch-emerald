@@ -215,7 +215,7 @@ export default function Dashboard() {
     maxPrice: 1000000,
     inventorySource: "all",
   });
-  const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "end_time_asc");
+  const [sortBy, setSortBy] = useState(savedPrefs?.sortBy || "price_desc");
 
   // Persist filter/sort preferences
   useEffect(() => {
