@@ -410,6 +410,7 @@ export function DomainTable({
             <TableBody>
               {domains.map((d, idx) => {
                 const isBuyNow = d.auctionType === 'buy-now' || d.inventorySource === 'namecheap';
+                const isSedo = d.inventorySource === 'sedo';
                 const timeInfo = isBuyNow 
                   ? { text: "Buy Now", urgent: false, ended: false, urgency: "normal" as UrgencyLevel }
                   : formatTimeRemaining(d.auctionEndTime);
