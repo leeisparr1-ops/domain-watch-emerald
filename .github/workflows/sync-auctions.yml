@@ -53,15 +53,9 @@ jobs:
     steps:
       - name: Validate required GitHub secrets
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: |
           missing=0
-
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::error::Missing GitHub secret: SUPABASE_SERVICE_ROLE_KEY"
-            missing=1
-          fi
 
           if [ -z "$SYNC_SECRET" ]; then
             echo "::error::Missing GitHub secret: SYNC_SECRET"
@@ -87,7 +81,6 @@ jobs:
       - name: Run Namecheap sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
@@ -104,7 +97,6 @@ jobs:
       - name: Run Sedo auction sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-sedo-inventory.cjs
 
@@ -117,10 +109,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install @supabase/supabase-js node-fetch
+      - run: npm install @supabase/supabase-js node-fetch adm-zip
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
