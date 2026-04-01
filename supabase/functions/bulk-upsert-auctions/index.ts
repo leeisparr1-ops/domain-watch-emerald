@@ -19,6 +19,19 @@ interface AuctionData {
   domain_age: number;
 }
 
+interface ExistingAuctionData {
+  domain_name: string;
+  price: number | null;
+  bid_count: number | null;
+  traffic_count: number | null;
+  end_time: string | null;
+  inventory_source: string | null;
+  tld: string | null;
+  auction_type: string | null;
+  valuation: number | null;
+  domain_age: number | null;
+}
+
 interface SyncRequest {
   auctions?: AuctionData[];
   inventory_source?: string;
@@ -31,6 +44,47 @@ interface SyncRequest {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const HIGH_VOLUME_SOURCES = new Set(["namecheap", "allListings"]);
+
+const normalizeText = (value: string | null | undefined) => (typeof value === "string" ? value.trim() : "");
+const normalizeNumeric = (value: number | null | undefined) => Number(value ?? 0);
+const normalizeIsoDate = (value: string | null | undefined) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+};
+
+const toComparableAuction = (
+  row: Partial<AuctionData> | ExistingAuctionData,
+  fallbackSource = "",
+): AuctionData => ({
+  domain_name: normalizeText(row.domain_name).toLowerCase(),
+  price: normalizeNumeric(row.price),
+  bid_count: normalizeNumeric(row.bid_count),
+  traffic_count: normalizeNumeric(row.traffic_count),
+  end_time: normalizeIsoDate(row.end_time),
+  inventory_source: (normalizeText(row.inventory_source) || fallbackSource).toLowerCase(),
+  tld: normalizeText(row.tld).toLowerCase(),
+  auction_type: normalizeText(row.auction_type),
+  valuation: normalizeNumeric(row.valuation),
+  domain_age: normalizeNumeric(row.domain_age),
+});
+
+const auctionsMatch = (incoming: AuctionData, existing?: AuctionData) => {
+  if (!existing) return false;
+
+  return (
+    incoming.price === existing.price &&
+    incoming.bid_count === existing.bid_count &&
+    incoming.traffic_count === existing.traffic_count &&
+    incoming.end_time === existing.end_time &&
+    incoming.inventory_source === existing.inventory_source &&
+    incoming.tld === existing.tld &&
+    incoming.auction_type === existing.auction_type &&
+    incoming.valuation === existing.valuation &&
+    incoming.domain_age === existing.domain_age
+  );
+};
 
 const isRetryableDbError = (message: string) => {
   const msg = message.toLowerCase();
@@ -111,7 +165,61 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Received ${auctions.length} auctions for ${inventory_source}`);
+    const dedupedAuctions = Array.from(
+      new Map(
+        auctions
+          .map((auction) => toComparableAuction(auction, inventory_source))
+          .filter((auction) => auction.domain_name)
+          .map((auction) => [auction.domain_name, auction]),
+      ).values(),
+    );
+
+    if (dedupedAuctions.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No valid auctions provided" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Received ${dedupedAuctions.length} auctions for ${inventory_source}`);
+
+    const { data: existingRows, error: existingRowsError } = await supabase
+      .from("auctions")
+      .select("domain_name, price, bid_count, traffic_count, end_time, inventory_source, tld, auction_type, valuation, domain_age")
+      .in("domain_name", dedupedAuctions.map((auction) => auction.domain_name));
+
+    if (existingRowsError) {
+      throw existingRowsError;
+    }
+
+    const existingByDomain = new Map(
+      ((existingRows || []) as ExistingAuctionData[]).map((row) => {
+        const normalized = toComparableAuction(row);
+        return [normalized.domain_name, normalized] as const;
+      }),
+    );
+
+    const auctionsToUpsert = dedupedAuctions.filter(
+      (auction) => !auctionsMatch(auction, existingByDomain.get(auction.domain_name)),
+    );
+    const skippedUnchanged = dedupedAuctions.length - auctionsToUpsert.length;
+
+    if (skippedUnchanged > 0) {
+      console.log(`Skipped ${skippedUnchanged} unchanged auctions for ${inventory_source}`);
+    }
+
+    if (auctionsToUpsert.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          inserted: 0,
+          errors: 0,
+          skipped: skippedUnchanged,
+          inventory_source,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Timeout-safe upsert strategy: split and retry only when necessary.
     const BATCH_SIZE = 200;
@@ -160,8 +268,8 @@ Deno.serve(async (req) => {
       return { inserted: 0, failed: rows.length };
     };
 
-    for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
-      const batch = auctions.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < auctionsToUpsert.length; i += BATCH_SIZE) {
+      const batch = auctionsToUpsert.slice(i, i + BATCH_SIZE);
 
       const result = await upsertWithSplitRetry(batch);
       inserted += result.inserted;
@@ -180,24 +288,23 @@ Deno.serve(async (req) => {
       }
       
       // Always pause between batches to allow auth/other queries to complete
-      if (i + BATCH_SIZE < auctions.length) {
+      if (i + BATCH_SIZE < auctionsToUpsert.length) {
         await sleep(BATCH_DELAY_MS);
       }
     }
 
-    console.log(`Upserted ${inserted} auctions, ${errors} failed rows`);
+    console.log(`Upserted ${inserted} auctions, skipped ${skippedUnchanged} unchanged, ${errors} failed rows`);
 
     // Avoid score-trigger storm on high-volume sources to keep auth responsive.
-    const highVolumeSources = new Set(["namecheap", "allListings"]);
     const shouldTriggerScores =
       !body.skip_scoring &&
-      !highVolumeSources.has(inventory_source) &&
+      !HIGH_VOLUME_SOURCES.has(inventory_source) &&
       inserted > 0 &&
-      auctions.length <= 1000;
+      auctionsToUpsert.length <= 1000;
 
     if (shouldTriggerScores) {
       try {
-        const domainNames = auctions.map((a) => a.domain_name);
+        const domainNames = auctionsToUpsert.map((a) => a.domain_name);
         const scoreUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/compute-domain-scores`;
         fetch(scoreUrl, {
           method: "POST",
@@ -219,6 +326,8 @@ Deno.serve(async (req) => {
         success: true,
         inserted,
         errors,
+          skipped: skippedUnchanged,
+          received: dedupedAuctions.length,
         inventory_source,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
