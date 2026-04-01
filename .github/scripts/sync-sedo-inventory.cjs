@@ -1,20 +1,39 @@
+#!/usr/bin/env node
+
 /**
- * Sedo Auction Sync — fetches Sedo's public auction text feeds
+ * Sedo Auction Sync — fetches Sedo's public auction text feed
  * and upserts into the auctions table via bulk-upsert-auctions edge function.
+ *
+ * Required secrets:
+ * - SUPABASE_URL
+ * - SYNC_SECRET
  *
  * Feed format: domain;start_unix;end_unix;price;currency;bid_count;
  * Currency: $US, EUR, &#163; (GBP)
  */
 
-const { createClient } = require('@supabase/supabase-js');
+const fetch = global.fetch;
+if (typeof fetch !== 'function') {
+  console.error('❌ This script requires Node.js 18+ (global fetch missing).');
+  process.exit(1);
+}
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SYNC_SECRET = process.env.SYNC_SECRET;
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
+const SYNC_SECRET = (process.env.SYNC_SECRET || '').trim();
 
 const SEDO_FEED_URL = 'https://sedo.com/txt/auctions_us.txt';
 const BATCH_SIZE = 500;
 const BATCH_DELAY_MS = 400;
+
+if (!SUPABASE_URL || !SYNC_SECRET) {
+  console.error('❌ Missing required environment variables: SUPABASE_URL, SYNC_SECRET');
+  process.exit(1);
+}
+
+if (!SUPABASE_URL.startsWith('https://')) {
+  console.error('❌ SUPABASE_URL must start with "https://"');
+  process.exit(1);
+}
 
 // Approximate conversion rates (updated periodically)
 const CURRENCY_TO_USD = {
@@ -75,10 +94,11 @@ async function upsertBatch(auctions) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'x-sync-secret': SYNC_SECRET,
     },
     body: JSON.stringify({
       auctions,
+      inventory_source: 'sedo',
       skip_scoring: true,
     }),
   });
@@ -89,7 +109,34 @@ async function upsertBatch(auctions) {
   return res.json();
 }
 
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function recordSyncHistory(auctionsCount, success, durationMs, errorMessage = null) {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-sync-secret': SYNC_SECRET,
+      },
+      body: JSON.stringify({
+        record_sync_history: true,
+        inventory_source: 'sedo',
+        auctions_count: auctionsCount,
+        success,
+        duration_ms: durationMs,
+        error_message: errorMessage,
+      }),
+    });
+  } catch (error) {
+    console.error('⚠️ Failed to record sync history:', getErrorMessage(error));
+  }
+}
+
 async function main() {
+  const startTime = Date.now();
   console.log('🔄 Fetching Sedo auction feed...');
   const response = await fetch(SEDO_FEED_URL);
   if (!response.ok) {
@@ -131,19 +178,19 @@ async function main() {
     }
   }
 
-  // Log to sync_history
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  await supabase.from('sync_history').insert({
-    inventory_source: 'sedo',
-    success: errors === 0,
-    auctions_count: totalUpserted,
-    error_message: errors > 0 ? `${errors} batch errors` : null,
-  });
+  const durationMs = Date.now() - startTime;
+  await recordSyncHistory(
+    totalUpserted,
+    errors === 0,
+    durationMs,
+    errors > 0 ? `${errors} batch errors` : null,
+  );
 
   console.log(`\n🏁 Sedo sync complete: ${totalUpserted} auctions synced, ${errors} errors`);
 }
 
-main().catch(err => {
-  console.error('❌ Sedo sync failed:', err);
+main().catch(async (error) => {
+  await recordSyncHistory(0, false, 0, getErrorMessage(error));
+  console.error('❌ Sedo sync failed:', error);
   process.exit(1);
 });
