@@ -24,6 +24,14 @@ const SYNC_SECRET = (process.env.SYNC_SECRET || '').trim();
 const SEDO_FEED_URL = 'https://sedo.com/txt/auctions_us.txt';
 const BATCH_SIZE = 500;
 const BATCH_DELAY_MS = 400;
+const FEED_TIMEOUT_MS = 60000;
+const SEDO_REQUEST_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  Accept: 'text/plain,*/*;q=0.9',
+  'Accept-Language': 'en-US,en;q=0.9',
+  Referer: 'https://sedo.com/',
+  Connection: 'keep-alive',
+};
 
 if (!SUPABASE_URL || !SYNC_SECRET) {
   console.error('❌ Missing required environment variables: SUPABASE_URL, SYNC_SECRET');
@@ -88,6 +96,29 @@ function parseSedoLine(line) {
   };
 }
 
+async function fetchSedoFeedText() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(SEDO_FEED_URL, {
+      headers: SEDO_REQUEST_HEADERS,
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      const snippet = body ? ` ${body.replace(/\s+/g, ' ').slice(0, 160)}` : '';
+      throw new Error(`Failed to fetch Sedo feed: ${response.status}${snippet}`);
+    }
+
+    return await response.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function upsertBatch(auctions) {
   const url = `${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`;
   const res = await fetch(url, {
@@ -138,12 +169,7 @@ async function recordSyncHistory(auctionsCount, success, durationMs, errorMessag
 async function main() {
   const startTime = Date.now();
   console.log('🔄 Fetching Sedo auction feed...');
-  const response = await fetch(SEDO_FEED_URL);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch Sedo feed: ${response.status}`);
-  }
-
-  const text = await response.text();
+  const text = await fetchSedoFeedText();
   const lines = text.split('\n').filter(l => l.trim());
   console.log(`📋 Got ${lines.length} lines from Sedo feed`);
 
