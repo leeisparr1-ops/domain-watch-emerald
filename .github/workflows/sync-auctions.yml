@@ -11,6 +11,10 @@ concurrency:
   group: sync-auctions
   cancel-in-progress: false
 
+env:
+  PROJECT_SUPABASE_URL: https://zzigibfdsitbvczozlsg.supabase.co
+  PROJECT_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6aWdpYmZkc2l0YnZjem96bHNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNDA3NTIsImV4cCI6MjA4NTYxNjc1Mn0.BRewTYU_AwowwuupwH9cNGBKqjtb01RelkLlqLunCmM
+
 jobs:
   check-db-health:
     runs-on: ubuntu-latest
@@ -20,28 +24,59 @@ jobs:
       - name: Check if cleanup is still running
         id: check
         run: |
-          # Query the estimated auction count via Supabase REST
-          RESPONSE=$(curl -sf \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          RESPONSE=$(curl -sfL --retry 3 --retry-delay 2 \
+            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
+            -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{}' || echo "error")
-          
+
           echo "Estimated auction count: $RESPONSE"
-          
-          # If count > 2M, skip sync to let cleanup finish
-          if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 5000000 ] 2>/dev/null; then
-            echo "healthy=false" >> $GITHUB_OUTPUT
+
+          COUNT=$(echo "$RESPONSE" | tr -d '\"[:space:]')
+          HEALTHY=true
+
+          if [ "$RESPONSE" = "error" ] || ! [[ "$COUNT" =~ ^[0-9]+$ ]] || [ "$COUNT" -gt 5000000 ]; then
+            HEALTHY=false
+          fi
+
+          echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
+
+          if [ "$HEALTHY" = "false" ]; then
             echo "⏸️ Database still recovering, skipping sync"
           else
-            echo "healthy=true" >> $GITHUB_OUTPUT
             echo "✅ Database healthy, proceeding with sync"
           fi
 
+  validate-sync-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required GitHub secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: |
+          missing=0
+
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Missing GitHub secret: SUPABASE_SERVICE_ROLE_KEY"
+            missing=1
+          fi
+
+          if [ -z "$SYNC_SECRET" ]; then
+            echo "::error::Missing GitHub secret: SYNC_SECRET"
+            missing=1
+          fi
+
+          if [ "$missing" -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "✅ Required sync secrets are present"
+
   sync-namecheap:
-    needs: check-db-health
-    if: needs.check-db-health.outputs.healthy == 'true'
+    needs: [check-db-health, validate-sync-config]
+    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,14 +86,14 @@ jobs:
       - run: npm install @supabase/supabase-js node-fetch
       - name: Run Namecheap sync
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
   sync-sedo:
-    needs: check-db-health
-    if: needs.check-db-health.outputs.healthy == 'true'
+    needs: [check-db-health, validate-sync-config]
+    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,14 +103,14 @@ jobs:
       - run: npm install @supabase/supabase-js node-fetch
       - name: Run Sedo auction sync
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-sedo-inventory.cjs
 
   sync-large-inventory:
-    needs: check-db-health
-    if: needs.check-db-health.outputs.healthy == 'true'
+    needs: [check-db-health, validate-sync-config]
+    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +120,7 @@ jobs:
       - run: npm install @supabase/supabase-js node-fetch
       - name: Run large inventory sync
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
