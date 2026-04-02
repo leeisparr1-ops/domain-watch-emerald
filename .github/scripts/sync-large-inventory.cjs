@@ -518,6 +518,30 @@ async function main() {
     }
   }
   
+  // Record sync history for GoDaddy
+  const syncDuration = Date.now() - Date.parse(new Date().toISOString().replace(/\.\d+Z$/, 'Z'));
+  for (const r of results) {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/bulk-upsert-auctions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-sync-secret': SYNC_SECRET,
+        },
+        body: JSON.stringify({
+          record_sync_history: true,
+          inventory_source: `godaddy_${r.type}`,
+          auctions_count: r.count || 0,
+          success: r.success,
+          duration_ms: r.duration || 0,
+          error_message: r.error || null,
+        }),
+      });
+    } catch (err) {
+      console.error(`   ⚠️ Failed to record sync history for ${r.type}:`, err.message);
+    }
+  }
+
   // Trigger pattern checking for all users after successful sync
   if (totalCount > 0) {
     await triggerPatternCheck();
