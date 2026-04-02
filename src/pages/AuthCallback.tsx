@@ -1,37 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { consumePostAuthRedirect } from "@/lib/postAuthRedirect";
-
-const AUTH_ERROR_STORAGE_KEY = "eh_auth_error";
-
-function getReadableAuthError(error: unknown) {
-  const message = error instanceof Error ? error.message.trim() : "";
-  const normalized = message.toLowerCase();
-
-  if (!message || message === "{}" || normalized === "[object object]") {
-    return "Sign-in failed. Please try again.";
-  }
-
-  if (normalized.includes("cancel")) {
-    return "Sign-in was cancelled.";
-  }
-
-  if (
-    normalized.includes("unrecognized jwt kid") ||
-    normalized.includes("bad_jwt") ||
-    normalized.includes("invalid jwt") ||
-    normalized.includes("unable to establish")
-  ) {
-    return "Sign-in failed. Please try again.";
-  }
-
-  return message;
-}
+import { toast } from "sonner";
 
 function getSupabaseAuthTokenStorageKey(): string | null {
   try {
-    for (let i = 0; i < localStorage.length; i += 1) {
+    for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
       if (key.startsWith("sb-") && key.endsWith("-auth-token")) return key;
@@ -39,119 +14,80 @@ function getSupabaseAuthTokenStorageKey(): string | null {
   } catch {
     // ignore
   }
-
   return null;
 }
 
-function clearPersistedSession() {
-  const storageKey = getSupabaseAuthTokenStorageKey();
-  if (storageKey) {
-    localStorage.removeItem(storageKey);
-  }
-}
-
-function getSafeRedirectPath(url: URL) {
-  const nextParam = url.searchParams.get("next");
-
-  if (nextParam?.startsWith("/")) {
-    return nextParam;
-  }
-
-  return consumePostAuthRedirect() ?? "/dashboard";
-}
-
 export default function AuthCallback() {
-  const [showStatus, setShowStatus] = useState(false);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => setShowStatus(true), 400);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
+  const navigate = useNavigate();
+  const [message, setMessage] = useState("Finishing sign-in…");
 
   useEffect(() => {
     let mounted = true;
 
-    const redirect = (path: string) => {
-      const currentUrl = new URL(window.location.href);
-      const destinationUrl = new URL(path, currentUrl.origin);
-      const previewToken = currentUrl.searchParams.get("__lovable_token");
-
-      if (previewToken && !destinationUrl.searchParams.has("__lovable_token")) {
-        destinationUrl.searchParams.set("__lovable_token", previewToken);
-      }
-
-      window.location.replace(destinationUrl.toString());
-    };
-
-    const finalizeRedirect = (path: string) => {
-      if (!mounted) return;
-      redirect(path);
-    };
-
     const run = async () => {
       try {
         const url = new URL(window.location.href);
-        const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-        const next = getSafeRedirectPath(url);
+        const next = url.searchParams.get("next") || "/dashboard";
         const code = url.searchParams.get("code");
-        const callbackError =
-          url.searchParams.get("error_description") ??
-          url.searchParams.get("error") ??
-          hashParams.get("error_description") ??
-          hashParams.get("error");
 
-        if (callbackError) {
-          throw new Error(callbackError);
+        // If the user chose a non-persistent session, ensure we keep localStorage cleared.
+        const isNonPersistent = sessionStorage.getItem("eh_non_persistent_session") === "1";
+
+        // If we already have a session, just continue.
+        const existing = await supabase.auth.getSession();
+        if (existing.data.session) {
+          if (isNonPersistent) {
+            const key = getSupabaseAuthTokenStorageKey();
+            if (key) localStorage.removeItem(key);
+          }
+          if (!mounted) return;
+          navigate(next, { replace: true });
+          return;
         }
 
         // Newer confirmation / recovery links use PKCE ?code=...
         if (code) {
-          clearPersistedSession();
-
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          setMessage("Verifying link…");
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
 
-          if (!data.session) {
-            throw new Error("Unable to complete sign-in.");
+          if (isNonPersistent) {
+            const key = getSupabaseAuthTokenStorageKey();
+            if (key) localStorage.removeItem(key);
           }
 
-          finalizeRedirect(next);
+          if (!mounted) return;
+          navigate(next, { replace: true });
           return;
         }
 
-        // Redirect-based social auth can return tokens in either the hash or query string.
-        const access_token =
-          hashParams.get("access_token") ?? url.searchParams.get("access_token") ?? undefined;
-        const refresh_token =
-          hashParams.get("refresh_token") ?? url.searchParams.get("refresh_token") ?? undefined;
+        // Older-style links may include #access_token / #refresh_token
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const access_token = hash.get("access_token") || undefined;
+        const refresh_token = hash.get("refresh_token") || undefined;
 
         if (access_token && refresh_token) {
-          clearPersistedSession();
-
-          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+          setMessage("Starting session…");
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) throw error;
 
-          if (!data.session) {
-            throw new Error("Unable to complete sign-in.");
+          if (isNonPersistent) {
+            const key = getSupabaseAuthTokenStorageKey();
+            if (key) localStorage.removeItem(key);
           }
 
-          finalizeRedirect(next);
+          if (!mounted) return;
+          navigate(next, { replace: true });
           return;
         }
 
-        // Nothing usable in the URL — just go to the target (session may have been set by the managed library already)
-        const freshSession = await supabase.auth.getSession();
-        if (freshSession.data.session) {
-          finalizeRedirect(next);
-        } else {
-          redirect("/login");
-        }
+        // Nothing usable in the URL.
+        toast.error("This link is missing required authentication data. Please request a new email and try again.");
+        navigate("/login", { replace: true });
       } catch (err) {
         console.error("AuthCallback error:", err);
-        clearPersistedSession();
-        sessionStorage.setItem(AUTH_ERROR_STORAGE_KEY, getReadableAuthError(err));
-        redirect("/login");
+        toast.error(err instanceof Error ? err.message : "Unable to complete authentication");
+        navigate("/login", { replace: true });
       }
     };
 
@@ -160,18 +96,14 @@ export default function AuthCallback() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      {showStatus ? (
-        <div className="flex items-center gap-3 text-muted-foreground" aria-live="polite">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Signing you in…</span>
-        </div>
-      ) : (
-        <span className="sr-only">Signing you in…</span>
-      )}
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="text-sm">{message}</span>
+      </div>
     </div>
   );
 }

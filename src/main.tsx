@@ -1,10 +1,13 @@
 import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
 import "./index.css";
 
-const APP_SHELL_VERSION = "2026-04-02-oauth-redirect-fix-2";
-const PREVIEW_RELOAD_KEY = "sw-preview-reloaded";
-const VERSION_STORAGE_KEY = "eh_app_shell_version";
-const VERSION_RELOAD_KEY = "eh_app_shell_version_reload";
+// Eagerly initialize the Lovable Cloud auth library so it can process
+// OAuth callback tokens on ANY page the user lands on after redirect.
+import "@/integrations/lovable/index";
+
+// OAuth callback handler kept as safety net for any redirect-based tokens
+import { handleOAuthCallback } from "@/lib/oauthCallback";
 
 // Service worker is registered via index.html for PWABuilder detection
 // No duplicate registration needed here
@@ -19,84 +22,39 @@ const isPreviewOrDev =
   host.includes("localhost") ||
   host.includes("127.0.0.1");
 
-async function clearServiceWorkerState() {
-  let hadState = false;
-
-  if ("serviceWorker" in navigator) {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    hadState ||= regs.length > 0;
-    await Promise.all(regs.map((r) => r.unregister()));
-  }
-
-  if ("caches" in window) {
-    const names = await caches.keys();
-    hadState ||= names.length > 0;
-    await Promise.all(names.map((n) => caches.delete(n)));
-  }
-
-  return hadState;
-}
-
 async function cleanupServiceWorkerInPreview() {
-  if (!isPreviewOrDev) return true;
-  if (!("serviceWorker" in navigator)) return true;
+  if (!isPreviewOrDev) return;
+  if (!("serviceWorker" in navigator)) return;
 
-  try {
-    const wasControlled = !!navigator.serviceWorker.controller;
-    const hadState = await clearServiceWorkerState();
-    const didReload = sessionStorage.getItem(PREVIEW_RELOAD_KEY) === "1";
+  // Run after 'load' because index.html registers the SW on load.
+  window.addEventListener("load", async () => {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
 
-    if ((wasControlled || hadState) && !didReload) {
-      sessionStorage.setItem(PREVIEW_RELOAD_KEY, "1");
-      window.location.reload();
-      return false;
-    }
-
-    sessionStorage.removeItem(PREVIEW_RELOAD_KEY);
-  } catch (e) {
-    console.warn("[preview] SW cleanup failed:", e);
-  }
-
-  return true;
-}
-
-async function refreshPublishedServiceWorkerOnVersionChange() {
-  if (isPreviewOrDev) return true;
-  if (!("serviceWorker" in navigator)) return true;
-
-  try {
-    const previousVersion = localStorage.getItem(VERSION_STORAGE_KEY);
-    const didReload = sessionStorage.getItem(VERSION_RELOAD_KEY) === APP_SHELL_VERSION;
-
-    if (previousVersion !== APP_SHELL_VERSION) {
-      localStorage.setItem(VERSION_STORAGE_KEY, APP_SHELL_VERSION);
-      const hadState = await clearServiceWorkerState();
-
-      if (hadState && !didReload) {
-        sessionStorage.setItem(VERSION_RELOAD_KEY, APP_SHELL_VERSION);
-        window.location.reload();
-        return false;
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
       }
+
+      // If this page load was controlled by an existing SW, do a one-time reload
+      // to ensure we boot without any SW interception.
+      const wasControlled = !!navigator.serviceWorker.controller;
+      const didReload = sessionStorage.getItem("sw-preview-reloaded") === "1";
+      if (wasControlled && !didReload) {
+        sessionStorage.setItem("sw-preview-reloaded", "1");
+        window.location.reload();
+      }
+    } catch (e) {
+      // Never block app startup
+      console.warn("[preview] SW cleanup failed:", e);
     }
-
-    sessionStorage.removeItem(VERSION_RELOAD_KEY);
-  } catch (e) {
-    console.warn("[app] SW version refresh failed:", e);
-  }
-
-  return true;
+  });
 }
 
-async function bootstrap() {
-  const previewReady = await cleanupServiceWorkerInPreview();
-  if (!previewReady) return;
+cleanupServiceWorkerInPreview();
 
-  const publishedReady = await refreshPublishedServiceWorkerOnVersionChange();
-  if (!publishedReady) return;
-
-  const { default: App } = await import("./App.tsx");
-
+// Handle OAuth callback first, then render the app
+handleOAuthCallback().finally(() => {
   createRoot(document.getElementById("root")!).render(<App />);
-}
-
-void bootstrap();
+});

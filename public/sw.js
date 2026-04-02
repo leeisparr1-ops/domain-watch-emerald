@@ -1,7 +1,7 @@
 // Service Worker for Web Push Notifications and Offline Support
 
 // Bump this to force clients to refresh cached assets after a deploy
-const CACHE_NAME = 'expiredhawk-v11';
+const CACHE_NAME = 'expiredhawk-v9';
 const OFFLINE_URL = '/';
 
 // IMPORTANT: In preview/dev, this service worker can interfere with Vite's module loading
@@ -70,39 +70,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const requestUrl = new URL(event.request.url);
-
   // Skip cross-origin requests
-  if (requestUrl.origin !== self.location.origin) {
+  if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
   // NEVER intercept OAuth callback – must always hit the network
-  if (requestUrl.pathname.startsWith('/~oauth')) {
+  if (new URL(event.request.url).pathname.startsWith('/~oauth')) {
     return;
   }
 
   // In preview/dev, never intercept requests.
   if (IS_PREVIEW_OR_DEV) {
-    return;
-  }
-
-  // Built app chunks must stay fresh on mobile; stale cached route bundles can
-  // break auth callbacks after a deploy. Use network-first for /assets.
-  if (requestUrl.pathname.startsWith('/assets/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(event.request))
-    );
     return;
   }
 
