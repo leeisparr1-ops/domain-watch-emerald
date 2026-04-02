@@ -6,9 +6,6 @@ import "./index.css";
 // OAuth callback tokens on ANY page the user lands on after redirect.
 import "@/integrations/lovable/index";
 
-// OAuth callback handler kept as safety net for any redirect-based tokens
-import { handleOAuthCallback } from "@/lib/oauthCallback";
-
 // Service worker is registered via index.html for PWABuilder detection
 // No duplicate registration needed here
 
@@ -26,7 +23,6 @@ async function cleanupServiceWorkerInPreview() {
   if (!isPreviewOrDev) return;
   if (!("serviceWorker" in navigator)) return;
 
-  // Run after 'load' because index.html registers the SW on load.
   window.addEventListener("load", async () => {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -37,8 +33,6 @@ async function cleanupServiceWorkerInPreview() {
         await Promise.all(names.map((n) => caches.delete(n)));
       }
 
-      // If this page load was controlled by an existing SW, do a one-time reload
-      // to ensure we boot without any SW interception.
       const wasControlled = !!navigator.serviceWorker.controller;
       const didReload = sessionStorage.getItem("sw-preview-reloaded") === "1";
       if (wasControlled && !didReload) {
@@ -46,7 +40,6 @@ async function cleanupServiceWorkerInPreview() {
         window.location.reload();
       }
     } catch (e) {
-      // Never block app startup
       console.warn("[preview] SW cleanup failed:", e);
     }
   });
@@ -54,7 +47,6 @@ async function cleanupServiceWorkerInPreview() {
 
 cleanupServiceWorkerInPreview();
 
-// Handle OAuth callback first, then render the app
-handleOAuthCallback().finally(() => {
-  createRoot(document.getElementById("root")!).render(<App />);
-});
+// The Lovable Cloud auth library (imported above) handles OAuth callbacks
+// automatically — no legacy handler needed.
+createRoot(document.getElementById("root")!).render(<App />);
