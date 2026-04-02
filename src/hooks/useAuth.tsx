@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { flushDiagnostics } from "@/lib/oauthCallback";
+
 
 interface AuthContextType {
   user: User | null;
@@ -92,8 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then get initial session and VALIDATE it
     void (async () => {
       try {
-        // Flush any OAuth diagnostic messages now that React is mounted
-        flushDiagnostics();
 
         const hydrationVersion = authEventVersionRef.current;
         let result: { data: { session: Session | null }; error: any } | null = null;
