@@ -52,35 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const isTransientError = (err: unknown): boolean => {
-      const msg = String(err).toLowerCase();
-      return (
-        msg.includes("timeout") ||
-        msg.includes("timed out") ||
-        msg.includes("deadline exceeded") ||
-        msg.includes("failed to fetch") ||
-        msg.includes("network") ||
-        msg.includes("503") ||
-        msg.includes("504")
-      );
-    };
-
     // Set up auth state listener FIRST (Supabase best practice)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         if (!mounted) return;
         authEventVersionRef.current += 1;
-
-        // If the event clears the session but we suspect it's a transient backend
-        // issue (e.g. refresh token timeout), keep the existing session in state
-        // so users aren't kicked out of protected routes during brief outages.
-        if (!newSession && latestSessionRef.current && _event !== "SIGNED_OUT") {
-          console.warn("[auth] onAuthStateChange sent null session during non-signout event, preserving current session");
-        } else {
-          setAuthState(newSession);
-        }
-
-        maybeApplyNonPersistentSessionPolicy(newSession ?? latestSessionRef.current);
+        setAuthState(newSession);
+        maybeApplyNonPersistentSessionPolicy(newSession);
 
         // Avoid ending loading state before initial getSession() hydration completes.
         if (!hydrating) {
@@ -96,24 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         flushDiagnostics();
 
         const hydrationVersion = authEventVersionRef.current;
-        let result: { data: { session: Session | null }; error: any } | null = null;
-
-        // Retry getSession up to 2 times on transient backend errors
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          try {
-            result = await supabase.auth.getSession();
-            break;
-          } catch (err) {
-            if (attempt < 2 && isTransientError(err)) {
-              console.warn(`[auth] getSession attempt ${attempt} failed (transient), retrying…`);
-              await new Promise(r => setTimeout(r, attempt * 1500));
-            } else {
-              throw err;
-            }
-          }
-        }
-
-        if (!mounted || !result) return;
+        const result = await supabase.auth.getSession();
+        if (!mounted) return;
 
         const currentSession = authEventVersionRef.current > hydrationVersion
           ? latestSessionRef.current
@@ -130,10 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         maybeApplyNonPersistentSessionPolicy(currentSession);
       } catch (error) {
         console.error("[auth] Initial session hydration failed:", error);
-        // On transient errors, don't wipe an existing local session
-        if (isTransientError(error) && latestSessionRef.current) {
-          console.warn("[auth] Keeping existing session despite hydration error");
-        }
       } finally {
         hydrating = false;
         if (mounted) {
