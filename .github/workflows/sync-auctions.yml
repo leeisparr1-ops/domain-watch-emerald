@@ -24,19 +24,26 @@ jobs:
       - name: Check if cleanup is still running
         id: check
         run: |
-          RESPONSE=$(curl -sfL --retry 3 --retry-delay 2 \
-            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
+          HEADERS=$(mktemp)
+          STATUS=$(curl -sS -o /dev/null -D "$HEADERS" -w "%{http_code}" --retry 3 --retry-delay 2 \
+            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/auctions?select=domain_name&limit=1" \
             -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{}' || echo "error")
+            -H "Prefer: count=planned" \
+            -H "Range: 0-0" || echo "error")
 
-          echo "Estimated auction count: $RESPONSE"
+          CONTENT_RANGE=$(grep -i '^content-range:' "$HEADERS" | tail -n 1 | tr -d '\r')
+          COUNT=$(echo "$CONTENT_RANGE" | sed -E 's#.*\/([0-9]+)$#\1#')
+          rm -f "$HEADERS"
 
-          COUNT=$(echo "$RESPONSE" | tr -d '\"[:space:]')
+          echo "Health status: $STATUS"
+          echo "Estimated auction count header: ${CONTENT_RANGE:-missing}"
+
           HEALTHY=true
 
-          if [ "$RESPONSE" = "error" ] || ! [[ "$COUNT" =~ ^[0-9]+$ ]] || [ "$COUNT" -gt 5000000 ]; then
+          if [ "$STATUS" = "error" ] || [ "$STATUS" -ge 500 ]; then
+            HEALTHY=false
+          elif [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
             HEALTHY=false
           fi
 
