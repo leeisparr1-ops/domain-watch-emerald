@@ -29,20 +29,6 @@ function getReadableAuthError(error: unknown) {
   return message;
 }
 
-function isBrokerSignedJwt(jwt: string | undefined): boolean {
-  if (!jwt) return false;
-
-  try {
-    const parts = jwt.split(".");
-    if (parts.length !== 3) return false;
-
-    const header = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
-    return Boolean(header.kid && header.kid.includes("-") && header.kid.length > 30);
-  } catch {
-    return false;
-  }
-}
-
 function getSupabaseAuthTokenStorageKey(): string | null {
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
@@ -61,32 +47,6 @@ function clearPersistedSession() {
   const storageKey = getSupabaseAuthTokenStorageKey();
   if (storageKey) {
     localStorage.removeItem(storageKey);
-  }
-}
-
-async function exchangeBrokerTokenForSession(accessToken: string) {
-  const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke(
-    "exchange-oauth-token",
-    {
-      body: { access_token: accessToken },
-    }
-  );
-
-  if (exchangeError) {
-    throw exchangeError;
-  }
-
-  if (!exchangeData?.hashed_token) {
-    throw new Error(exchangeData?.error || "Token exchange returned no session");
-  }
-
-  const { error: otpError } = await supabase.auth.verifyOtp({
-    token_hash: exchangeData.hashed_token,
-    type: "magiclink",
-  });
-
-  if (otpError) {
-    throw otpError;
   }
 }
 
@@ -169,15 +129,11 @@ export default function AuthCallback() {
         if (access_token && refresh_token) {
           clearPersistedSession();
 
-          if (isBrokerSignedJwt(access_token)) {
-            await exchangeBrokerTokenForSession(access_token);
-          } else {
-            const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
-            if (error) throw error;
+          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (error) throw error;
 
-            if (!data.session) {
-              throw new Error("Unable to complete sign-in.");
-            }
+          if (!data.session) {
+            throw new Error("Unable to complete sign-in.");
           }
 
           finalizeRedirect(next);
