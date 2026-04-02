@@ -18,11 +18,8 @@ env:
 jobs:
   check-db-health:
     runs-on: ubuntu-latest
-    outputs:
-      healthy: ${{ steps.check.outputs.healthy }}
     steps:
       - name: Check if cleanup is still running
-        id: check
         run: |
           HEADERS=$(mktemp)
           STATUS=$(curl -sS -o /dev/null -D "$HEADERS" -w "%{http_code}" --retry 3 --retry-delay 2 \
@@ -41,21 +38,21 @@ jobs:
 
           HEALTHY=true
 
-          if [ "$STATUS" = "error" ] || [ "$STATUS" -ge 500 ]; then
+          if [ "$STATUS" = "error" ] || [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
             HEALTHY=false
           elif [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
             HEALTHY=false
           fi
 
-          echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
-
           if [ "$HEALTHY" = "false" ]; then
-            echo "⏸️ Database still recovering, skipping sync"
-          else
-            echo "✅ Database healthy, proceeding with sync"
+            echo "❌ Database health check failed, stopping sync"
+            exit 1
           fi
 
+          echo "✅ Database healthy, proceeding with sync"
+
   validate-sync-config:
+    needs: [check-db-health]
     runs-on: ubuntu-latest
     steps:
       - name: Validate required GitHub secrets
@@ -76,8 +73,7 @@ jobs:
           echo "✅ Required sync secrets are present"
 
   sync-namecheap:
-    needs: [check-db-health, validate-sync-config]
-    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
+    needs: [sync-large-inventory]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +88,7 @@ jobs:
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
   sync-sedo:
-    needs: [check-db-health, validate-sync-config]
-    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
+    needs: [sync-namecheap]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,8 +103,8 @@ jobs:
         run: node .github/scripts/sync-sedo-inventory.cjs
 
   sync-large-inventory:
-    needs: [check-db-health, validate-sync-config]
-    if: needs.check-db-health.outputs.healthy == 'true' && needs.validate-sync-config.result == 'success'
+    name: sync-godaddy
+    needs: [validate-sync-config]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
