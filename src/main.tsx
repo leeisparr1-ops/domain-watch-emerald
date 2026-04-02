@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { stashAuthCallbackPayloadFromUrl } from "@/lib/authCallbackBootstrap";
 
 // Service worker is registered via index.html for PWABuilder detection
 // No duplicate registration needed here
@@ -44,14 +43,12 @@ async function cleanupServiceWorkerInPreview() {
 cleanupServiceWorkerInPreview();
 
 async function bootstrap() {
-  stashAuthCallbackPayloadFromUrl();
-
-  const [{ handleOAuthCallback }, { default: App }] = await Promise.all([
-    import("@/lib/oauthCallback"),
+  // Import the lovable auth module early so it can detect OAuth callback tokens
+  // on redirect return before the app renders
+  const [, { default: App }] = await Promise.all([
+    import("@/integrations/lovable/index"),
     import("./App.tsx"),
   ]);
-
-  await handleOAuthCallback();
 
   createRoot(document.getElementById("root")!).render(<App />);
 }
