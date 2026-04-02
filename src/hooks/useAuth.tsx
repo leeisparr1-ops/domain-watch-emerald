@@ -2,7 +2,6 @@ import { useEffect, useState, createContext, useContext, ReactNode, useRef } fro
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -14,6 +13,26 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
 });
+
+/**
+ * Detect broker-signed JWTs that GoTrue will reject.
+ * These have a kid that doesn't belong to the project's signing keys.
+ */
+function isBrokerToken(jwt: string | undefined): boolean {
+  if (!jwt) return false;
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) return false;
+    const header = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
+    // The Lovable broker uses kid "b2d25ab4-..." which GoTrue doesn't recognise
+    if (header.kid && header.kid.includes("-") && header.kid.length > 30) {
+      return true;
+    }
+  } catch {
+    // Not a valid JWT — let the normal flow handle it
+  }
+  return false;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -42,9 +61,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * If the stored session contains a broker-signed JWT (kid mismatch),
+   * clear it immediately so it doesn't cause repeated 403s from GoTrue.
+   */
+  const clearBrokerTokensFromStorage = () => {
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          const accessToken = parsed?.access_token ?? parsed?.currentSession?.access_token;
+          if (isBrokerToken(accessToken)) {
+            console.warn("[auth] Clearing stale broker token from localStorage");
+            localStorage.removeItem(key);
+            return true;
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  };
+
   useEffect(() => {
     let mounted = true;
     let hydrating = true;
+
+    // Pre-flight: clear any stale broker tokens BEFORE Supabase tries to use them
+    const hadBrokerToken = clearBrokerTokensFromStorage();
 
     const maybeApplyNonPersistentSessionPolicy = (nextSession: Session | null) => {
       if (sessionStorage.getItem("eh_non_persistent_session") === "1" && nextSession) {
@@ -63,6 +111,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         msg.includes("503") ||
         msg.includes("504")
       );
+    };
+
+    const isBadJwtError = (err: unknown): boolean => {
+      const msg = String(err).toLowerCase();
+      return msg.includes("bad_jwt") || msg.includes("invalid jwt") || msg.includes("unrecognized jwt kid");
     };
 
     // Set up auth state listener FIRST (Supabase best practice)
@@ -92,6 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then get initial session and VALIDATE it
     void (async () => {
       try {
+        // If we cleared a broker token, skip getSession — there's no valid session
+        if (hadBrokerToken) {
+          console.log("[auth] Skipped getSession — broker token was cleared");
+          setAuthState(null);
+          return;
+        }
 
         const hydrationVersion = authEventVersionRef.current;
         let result: { data: { session: Session | null }; error: any } | null = null;
@@ -113,6 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!mounted || !result) return;
 
+        // If getSession returned an error about bad JWT, clear the stored session
+        if (result.error && isBadJwtError(result.error)) {
+          console.warn("[auth] getSession returned bad JWT error — clearing stored session");
+          clearPersistedSessionToken();
+          setAuthState(null);
+          return;
+        }
+
         const currentSession = authEventVersionRef.current > hydrationVersion
           ? latestSessionRef.current
           : (latestSessionRef.current ?? result.data.session);
@@ -124,12 +191,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Final safety check: if the restored session has a broker token, discard it
+        if (isBrokerToken(currentSession.access_token)) {
+          console.warn("[auth] Restored session has broker token — discarding");
+          clearPersistedSessionToken();
+          setAuthState(null);
+          return;
+        }
+
         setAuthState(currentSession, currentSession.user ?? null);
         maybeApplyNonPersistentSessionPolicy(currentSession);
       } catch (error) {
         console.error("[auth] Initial session hydration failed:", error);
-        // On transient errors, don't wipe an existing local session
-        if (isTransientError(error) && latestSessionRef.current) {
+
+        // If the error is about an invalid JWT, clear the poisoned session
+        if (isBadJwtError(error)) {
+          console.warn("[auth] Clearing poisoned session from storage");
+          clearPersistedSessionToken();
+          setAuthState(null);
+        } else if (isTransientError(error) && latestSessionRef.current) {
           console.warn("[auth] Keeping existing session despite hydration error");
         }
       } finally {
