@@ -11,6 +11,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
 import { clearStoredAuthCallbackPayload } from "@/lib/authCallbackBootstrap";
+import { clearPostAuthRedirect, stashPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -135,6 +136,8 @@ export default function Login() {
       } else {
         sessionStorage.removeItem("eh_non_persistent_session");
       }
+
+      clearPostAuthRedirect();
       
       toast.success("Welcome back!");
       navigate("/dashboard");
@@ -172,10 +175,11 @@ export default function Login() {
     }
   };
 
-  const oauthRedirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
+  const oauthRedirectUri = window.location.origin;
 
   const prepareSocialSignIn = () => {
     clearStoredAuthCallbackPayload();
+    stashPostAuthRedirect("/dashboard");
 
     try {
       localStorage.setItem("eh_remember_me", rememberMe ? "1" : "0");
@@ -208,18 +212,25 @@ export default function Login() {
     setSocialLoading("google");
     prepareSocialSignIn();
 
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: oauthRedirectUri,
-    });
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: oauthRedirectUri,
+      });
 
-    if (result.error) {
-      setSocialLoading(null);
-      toast.error(getSocialErrorMessage("Google", result.error.message));
-      return;
-    }
+      if (result.error) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
+        toast.error(getSocialErrorMessage("Google", result.error.message));
+        return;
+      }
 
-    if (!result.redirected) {
+      if (!result.redirected) {
+        setSocialLoading(null);
+      }
+    } catch (error) {
+      clearPostAuthRedirect();
       setSocialLoading(null);
+      toast.error(getSocialErrorMessage("Google", error instanceof Error ? error.message : ""));
     }
   };
 
@@ -227,13 +238,20 @@ export default function Login() {
     setSocialLoading("apple");
     prepareSocialSignIn();
 
-    const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: oauthRedirectUri,
-    });
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: oauthRedirectUri,
+      });
 
-    if (result.error) {
+      if (result.error) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
+        toast.error(getSocialErrorMessage("Apple", result.error.message));
+      }
+    } catch (error) {
+      clearPostAuthRedirect();
       setSocialLoading(null);
-      toast.error(getSocialErrorMessage("Apple", result.error.message));
+      toast.error(getSocialErrorMessage("Apple", error instanceof Error ? error.message : ""));
     }
   };
 

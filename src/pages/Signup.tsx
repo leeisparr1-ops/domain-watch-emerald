@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
 import { clearStoredAuthCallbackPayload } from "@/lib/authCallbackBootstrap";
+import { clearPostAuthRedirect, stashPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -93,10 +94,11 @@ export default function Signup() {
     }
   };
 
-  const oauthRedirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
+  const oauthRedirectUri = window.location.origin;
 
   const prepareSocialSignIn = () => {
     clearStoredAuthCallbackPayload();
+    stashPostAuthRedirect("/dashboard");
     sessionStorage.removeItem("eh_non_persistent_session");
   };
 
@@ -118,18 +120,25 @@ export default function Signup() {
     setSocialLoading("google");
     prepareSocialSignIn();
 
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: oauthRedirectUri,
-    });
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: oauthRedirectUri,
+      });
 
-    if (result.error) {
-      setSocialLoading(null);
-      toast.error(getSocialErrorMessage("Google", result.error.message));
-      return;
-    }
+      if (result.error) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
+        toast.error(getSocialErrorMessage("Google", result.error.message));
+        return;
+      }
 
-    if (!result.redirected) {
+      if (!result.redirected) {
+        setSocialLoading(null);
+      }
+    } catch (error) {
+      clearPostAuthRedirect();
       setSocialLoading(null);
+      toast.error(getSocialErrorMessage("Google", error instanceof Error ? error.message : ""));
     }
   };
 
@@ -137,13 +146,20 @@ export default function Signup() {
     setSocialLoading("apple");
     prepareSocialSignIn();
 
-    const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: oauthRedirectUri,
-    });
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: oauthRedirectUri,
+      });
 
-    if (result.error) {
+      if (result.error) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
+        toast.error(getSocialErrorMessage("Apple", result.error.message));
+      }
+    } catch (error) {
+      clearPostAuthRedirect();
       setSocialLoading(null);
-      toast.error(getSocialErrorMessage("Apple", result.error.message));
+      toast.error(getSocialErrorMessage("Apple", error instanceof Error ? error.message : ""));
     }
   };
 
