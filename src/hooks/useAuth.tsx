@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { flushDiagnostics } from "@/lib/oauthCallback";
+
 
 interface AuthContextType {
   user: User | null;
