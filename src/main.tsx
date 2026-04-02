@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { handleOAuthCallback } from "@/lib/oauthCallback";
 import { stashAuthCallbackPayloadFromUrl } from "@/lib/authCallbackBootstrap";
 
 // Service worker is registered via index.html for PWABuilder detection
@@ -45,10 +44,14 @@ async function cleanupServiceWorkerInPreview() {
 cleanupServiceWorkerInPreview();
 
 async function bootstrap() {
-  await handleOAuthCallback();
   stashAuthCallbackPayloadFromUrl();
 
-  const { default: App } = await import("./App.tsx");
+  const [{ handleOAuthCallback }, { default: App }] = await Promise.all([
+    import("@/lib/oauthCallback"),
+    import("./App.tsx"),
+  ]);
+
+  await handleOAuthCallback();
 
   createRoot(document.getElementById("root")!).render(<App />);
 }

@@ -6,19 +6,13 @@
  * session on first hydration.
  */
 import { supabase } from "@/integrations/supabase/client";
+import {
+  consumeStoredAuthCallbackPayload,
+  type StoredAuthCallbackPayload,
+} from "@/lib/authCallbackBootstrap";
 import { clearPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 const AUTH_ERROR_STORAGE_KEY = "eh_auth_error";
-const AUTH_PARAM_NAMES = new Set([
-  "access_token",
-  "refresh_token",
-  "expires_at",
-  "expires_in",
-  "provider_token",
-  "provider_refresh_token",
-  "token_type",
-  "state",
-]);
 
 function isBrokerSignedJwt(jwt: string | undefined): boolean {
   if (!jwt) return false;
@@ -58,30 +52,27 @@ function getReadableAuthError(error: unknown) {
   return message;
 }
 
-function preserveNonAuthParams(params: URLSearchParams) {
-  const nextParams = new URLSearchParams();
-
-  params.forEach((value, key) => {
-    if (!AUTH_PARAM_NAMES.has(key)) {
-      nextParams.append(key, value);
+function getSupabaseAuthTokenStorageKey(): string | null {
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        return key;
+      }
     }
-  });
+  } catch {
+    // ignore
+  }
 
-  return nextParams;
+  return null;
 }
 
-function cleanupOAuthUrl(url: URL) {
-  const cleanUrl = new URL(url.pathname, url.origin);
-  const preservedSearch = preserveNonAuthParams(url.searchParams);
-  const preservedHash = preserveNonAuthParams(new URLSearchParams(url.hash.replace(/^#/, "")));
-
-  const search = preservedSearch.toString();
-  const hash = preservedHash.toString();
-
-  cleanUrl.search = search ? `?${search}` : "";
-  cleanUrl.hash = hash ? `#${hash}` : "";
-
-  window.history.replaceState({}, "", cleanUrl.toString());
+function clearPersistedSession() {
+  const storageKey = getSupabaseAuthTokenStorageKey();
+  if (storageKey) {
+    localStorage.removeItem(storageKey);
+  }
 }
 
 function redirectToLogin(url: URL) {
@@ -95,9 +86,23 @@ function redirectToLogin(url: URL) {
   window.location.replace(loginUrl.toString());
 }
 
-function extractTokens(): { access_token: string; refresh_token: string } | null {
-  if (window.location.hash && window.location.hash.length > 1) {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+function buildCallbackUrl(storedPayload: StoredAuthCallbackPayload | null) {
+  const currentUrl = new URL(window.location.href);
+
+  if (!storedPayload) {
+    return currentUrl;
+  }
+
+  const callbackUrl = new URL(storedPayload.pathname || currentUrl.pathname, currentUrl.origin);
+  callbackUrl.search = storedPayload.search;
+  callbackUrl.hash = storedPayload.hash;
+
+  return callbackUrl;
+}
+
+function extractTokens(url: URL): { access_token: string; refresh_token: string } | null {
+  if (url.hash && url.hash.length > 1) {
+    const hashParams = new URLSearchParams(url.hash.substring(1));
     const access = hashParams.get("access_token");
     const refresh = hashParams.get("refresh_token");
 
@@ -106,7 +111,7 @@ function extractTokens(): { access_token: string; refresh_token: string } | null
     }
   }
 
-  const queryParams = new URLSearchParams(window.location.search);
+  const queryParams = new URLSearchParams(url.search);
   const access = queryParams.get("access_token");
   const refresh = queryParams.get("refresh_token");
 
@@ -117,46 +122,66 @@ function extractTokens(): { access_token: string; refresh_token: string } | null
   return null;
 }
 
-async function exchangeBrokerTokens(accessToken: string) {
-  const { data, error } = await supabase.functions.invoke("exchange-oauth-token", {
-    body: { access_token: accessToken },
-  });
+function extractCallbackError(url: URL) {
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
 
-  if (error) {
-    throw error;
-  }
-
-  if (!data?.hashed_token) {
-    throw new Error(data?.error || "Unable to complete sign-in.");
-  }
-
-  const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-    token_hash: data.hashed_token,
-    type: "magiclink",
-  });
-
-  if (verifyError) {
-    throw verifyError;
-  }
-
-  if (!verifyData.session) {
-    throw new Error("Unable to complete sign-in.");
-  }
-
-  return verifyData.session;
+  return (
+    url.searchParams.get("error_description") ??
+    url.searchParams.get("error") ??
+    hashParams.get("error_description") ??
+    hashParams.get("error")
+  );
 }
 
 export async function handleOAuthCallback(): Promise<boolean> {
-  const url = new URL(window.location.href);
-  const tokens = extractTokens();
+  const currentUrl = new URL(window.location.href);
+  const storedPayload = consumeStoredAuthCallbackPayload();
+  const callbackUrl = buildCallbackUrl(storedPayload);
+  const tokens = extractTokens(callbackUrl);
+  const code = callbackUrl.searchParams.get("code");
+  const callbackError = extractCallbackError(callbackUrl);
 
-  if (!tokens) {
+  if (!code && !callbackError && !tokens) {
     return false;
   }
 
   try {
+    if (callbackError) {
+      throw new Error(callbackError);
+    }
+
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session) {
+        throw new Error("Unable to complete sign-in.");
+      }
+
+      return true;
+    }
+
+    if (!tokens) {
+      return false;
+    }
+
+    clearPersistedSession();
+
     if (isBrokerSignedJwt(tokens.access_token)) {
-      await exchangeBrokerTokens(tokens.access_token);
+      const { data, error } = await supabase.auth.refreshSession({
+        refresh_token: tokens.refresh_token,
+      } as Parameters<typeof supabase.auth.refreshSession>[0]);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session || isBrokerSignedJwt(data.session.access_token)) {
+        throw new Error("Unable to complete sign-in.");
+      }
     } else {
       const { data, error } = await supabase.auth.setSession(tokens);
 
@@ -167,14 +192,17 @@ export async function handleOAuthCallback(): Promise<boolean> {
       if (!data.session) {
         throw new Error("Unable to complete sign-in.");
       }
+
+      if (isBrokerSignedJwt(data.session.access_token)) {
+        throw new Error("Unable to complete sign-in.");
+      }
     }
 
-    cleanupOAuthUrl(url);
     return true;
   } catch (error) {
     console.error("[oauth] callback session setup failed:", error);
     clearPostAuthRedirect();
-    cleanupOAuthUrl(url);
+    clearPersistedSession();
 
     try {
       sessionStorage.setItem(AUTH_ERROR_STORAGE_KEY, getReadableAuthError(error));
@@ -182,7 +210,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
       // ignore
     }
 
-    redirectToLogin(url);
+    redirectToLogin(currentUrl);
     return true;
   }
 }

@@ -7,21 +7,45 @@ export interface StoredAuthCallbackPayload {
 
 const AUTH_CALLBACK_STORAGE_KEY = "eh_auth_callback_payload";
 const STORED_CALLBACK_MAX_AGE_MS = 10 * 60 * 1000;
+const AUTH_ERROR_PARAM_NAMES = new Set(["error", "error_description"]);
+const AUTH_TOKEN_PARAM_NAMES = new Set([
+  "access_token",
+  "code",
+  "expires_at",
+  "expires_in",
+  "provider_refresh_token",
+  "provider_token",
+  "refresh_token",
+  "state",
+  "token_type",
+]);
 
 let inMemoryPayload: StoredAuthCallbackPayload | null = null;
 
 function hasAuthCallbackPayload(url: URL) {
   const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-
-  return Boolean(
-    hashParams.get("access_token") ||
-      hashParams.get("refresh_token") ||
-      url.searchParams.get("access_token") ||
-      url.searchParams.get("refresh_token") ||
-      url.searchParams.get("code") ||
-      url.searchParams.get("error") ||
-      url.searchParams.get("error_description")
+  const hasTokenPayload = [...AUTH_TOKEN_PARAM_NAMES].some(
+    (paramName) => hashParams.has(paramName) || url.searchParams.has(paramName)
   );
+  const hasAuthRoutePayload =
+    url.pathname === "/auth/callback" &&
+    ([...AUTH_ERROR_PARAM_NAMES].some(
+      (paramName) => hashParams.has(paramName) || url.searchParams.has(paramName)
+    ) || url.searchParams.has("next"));
+
+  return hasTokenPayload || hasAuthRoutePayload;
+}
+
+function preserveNonAuthParams(params: URLSearchParams) {
+  const nextParams = new URLSearchParams();
+
+  params.forEach((value, key) => {
+    if (!AUTH_TOKEN_PARAM_NAMES.has(key) && !AUTH_ERROR_PARAM_NAMES.has(key)) {
+      nextParams.append(key, value);
+    }
+  });
+
+  return nextParams;
 }
 
 export function clearStoredAuthCallbackPayload() {
@@ -38,7 +62,7 @@ export function stashAuthCallbackPayloadFromUrl() {
   if (typeof window === "undefined") return;
 
   const url = new URL(window.location.href);
-  if (url.pathname !== "/auth/callback" || !hasAuthCallbackPayload(url)) return;
+  if (!hasAuthCallbackPayload(url)) return;
 
   const payload: StoredAuthCallbackPayload = {
     hash: url.hash,
@@ -55,12 +79,14 @@ export function stashAuthCallbackPayloadFromUrl() {
     // ignore
   }
 
-  const next = url.searchParams.get("next");
   const cleanUrl = new URL(url.pathname, window.location.origin);
+  const preservedSearch = preserveNonAuthParams(url.searchParams);
+  const preservedHash = preserveNonAuthParams(new URLSearchParams(url.hash.replace(/^#/, "")));
+  const search = preservedSearch.toString();
+  const hash = preservedHash.toString();
 
-  if (next?.startsWith("/")) {
-    cleanUrl.searchParams.set("next", next);
-  }
+  cleanUrl.search = search ? `?${search}` : "";
+  cleanUrl.hash = hash ? `#${hash}` : "";
 
   window.history.replaceState({}, "", cleanUrl.toString());
 }
