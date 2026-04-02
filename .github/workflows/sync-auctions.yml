@@ -21,35 +21,64 @@ jobs:
     steps:
       - name: Check if cleanup is still running
         run: |
+          HEALTH_URL="${{ env.PROJECT_SUPABASE_URL }}/rest/v1/auctions?select=domain_name&limit=1"
           HEADERS=$(mktemp)
-          STATUS=$(curl -sS -o /dev/null -D "$HEADERS" -w "%{http_code}" --retry 3 --retry-delay 2 \
-            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/auctions?select=domain_name&limit=1" \
-            -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-            -H "Prefer: count=planned" \
-            -H "Range: 0-0" || echo "error")
+          BODY=$(mktemp)
+          STATUS=""
+          CONTENT_RANGE=""
+          COUNT=""
+          CURL_EXIT=0
 
-          CONTENT_RANGE=$(grep -i '^content-range:' "$HEADERS" | tail -n 1 | tr -d '\r')
-          COUNT=$(echo "$CONTENT_RANGE" | sed -E 's#.*\/([0-9]+)$#\1#')
-          rm -f "$HEADERS"
+          for attempt in 1 2 3; do
+            : > "$HEADERS"
+            : > "$BODY"
 
-          echo "Health status: $STATUS"
+            if STATUS=$(curl -sS -o "$BODY" -D "$HEADERS" -w "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time 20 \
+              "$HEALTH_URL" \
+              -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
+              -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
+              -H "Prefer: count=planned" \
+              -H "Range: 0-0"); then
+              CURL_EXIT=0
+            else
+              CURL_EXIT=$?
+            fi
+
+            CONTENT_RANGE=$(grep -i '^content-range:' "$HEADERS" | tail -n 1 | tr -d '\r')
+            COUNT=$(echo "$CONTENT_RANGE" | sed -En 's#.*\/([0-9]+)$#\1#p')
+
+            if [ "$CURL_EXIT" -eq 0 ] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+              break
+            fi
+
+            echo "⚠️ Health probe attempt $attempt failed (curl exit: $CURL_EXIT, status: ${STATUS:-none})"
+            if [ -s "$BODY" ]; then
+              sed -n '1,5p' "$BODY"
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep 5
+            fi
+          done
+
+          echo "Health status: ${STATUS:-missing}"
           echo "Estimated auction count header: ${CONTENT_RANGE:-missing}"
 
-          HEALTHY=true
+          rm -f "$HEADERS" "$BODY"
 
-          if [ "$STATUS" = "error" ] || [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            HEALTHY=false
-          elif [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
-            HEALTHY=false
+          if [ "$CURL_EXIT" -eq 0 ] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            if [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
+              echo "❌ Database health check failed, stopping sync"
+              exit 1
+            fi
+
+            echo "✅ Database healthy, proceeding with sync"
+            exit 0
           fi
 
-          if [ "$HEALTHY" = "false" ]; then
-            echo "❌ Database health check failed, stopping sync"
-            exit 1
-          fi
-
-          echo "✅ Database healthy, proceeding with sync"
+          echo "⚠️ Health probe unavailable, continuing with sequential sync chain to avoid false skips"
 
   validate-sync-config:
     needs: [check-db-health]
