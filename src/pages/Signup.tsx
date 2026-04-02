@@ -20,6 +20,7 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const navigate = useNavigate();
+  const oauthRedirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
   const { user } = useAuth();
 
   // Redirect to dashboard if already authenticated (e.g. after OAuth return)
@@ -206,7 +207,7 @@ export default function Signup() {
             onClick={async () => {
               toast.info("Connecting to Google…", { duration: 5000 });
               const result = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (result.error) toast.error(`Google sign-up failed: ${result.error.message}`);
             }}
@@ -221,7 +222,7 @@ export default function Signup() {
             className="w-full"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("apple", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (error) toast.error(`Apple sign-up failed: ${error.message}`);
             }}

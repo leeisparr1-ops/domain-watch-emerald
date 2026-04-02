@@ -28,6 +28,7 @@ export default function Login() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   const navigate = useNavigate();
+  const oauthRedirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
   const { user, loading: authLoading } = useAuth();
 
   const isTransientAuthError = (message: string) => {
@@ -258,7 +259,7 @@ export default function Login() {
             onClick={async () => {
               toast.info("Connecting to Google…", { duration: 5000 });
               const result = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (result.error) toast.error(`Google sign-in failed: ${result.error.message}`);
             }}
@@ -274,7 +275,7 @@ export default function Login() {
             onClick={async () => {
               toast.info("Connecting to Apple…", { duration: 5000 });
               const { error } = await lovable.auth.signInWithOAuth("apple", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (error) toast.error(`Apple sign-in failed: ${error.message}`);
             }}
