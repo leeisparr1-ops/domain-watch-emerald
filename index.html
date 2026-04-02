@@ -92,6 +92,30 @@
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Self-healing: if the page stays blank for 4s, nuke SW cache and reload -->
+    <script>
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                names.forEach(function(n) { caches.delete(n); });
+              });
+            }
+          }
+          if (!sessionStorage.getItem('eh_blank_reload')) {
+            sessionStorage.setItem('eh_blank_reload', '1');
+            location.reload();
+          }
+        } else {
+          sessionStorage.removeItem('eh_blank_reload');
+        }
+      }, 4000);
+    </script>
     <!-- Service Worker Registration - defer to not block initial render -->
     <script>
       if ('serviceWorker' in navigator) {
