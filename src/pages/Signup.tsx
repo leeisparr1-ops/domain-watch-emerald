@@ -10,7 +10,6 @@ import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
-import { clearStoredAuthCallbackPayload } from "@/lib/authCallbackBootstrap";
 import { clearPostAuthRedirect, stashPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 export default function Signup() {
@@ -100,7 +99,6 @@ export default function Signup() {
   ).toString();
 
   const prepareSocialSignIn = () => {
-    clearStoredAuthCallbackPayload();
     stashPostAuthRedirect("/dashboard");
     sessionStorage.removeItem("eh_non_persistent_session");
   };
@@ -136,6 +134,7 @@ export default function Signup() {
       }
 
       if (!result.redirected) {
+        clearPostAuthRedirect();
         setSocialLoading(null);
       }
     } catch (error) {
@@ -158,6 +157,12 @@ export default function Signup() {
         clearPostAuthRedirect();
         setSocialLoading(null);
         toast.error(getSocialErrorMessage("Apple", result.error.message));
+        return;
+      }
+
+      if (!result.redirected) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
       }
     } catch (error) {
       clearPostAuthRedirect();

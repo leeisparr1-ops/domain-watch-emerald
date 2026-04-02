@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { CloudflareTurnstile } from "@/components/CloudflareTurnstile";
-import { clearStoredAuthCallbackPayload } from "@/lib/authCallbackBootstrap";
 import { clearPostAuthRedirect, stashPostAuthRedirect } from "@/lib/postAuthRedirect";
 
 export default function Login() {
@@ -181,7 +180,6 @@ export default function Login() {
   ).toString();
 
   const prepareSocialSignIn = () => {
-    clearStoredAuthCallbackPayload();
     stashPostAuthRedirect("/dashboard");
 
     try {
@@ -228,6 +226,7 @@ export default function Login() {
       }
 
       if (!result.redirected) {
+        clearPostAuthRedirect();
         setSocialLoading(null);
       }
     } catch (error) {
@@ -250,6 +249,12 @@ export default function Login() {
         clearPostAuthRedirect();
         setSocialLoading(null);
         toast.error(getSocialErrorMessage("Apple", result.error.message));
+        return;
+      }
+
+      if (!result.redirected) {
+        clearPostAuthRedirect();
+        setSocialLoading(null);
       }
     } catch (error) {
       clearPostAuthRedirect();
