@@ -165,7 +165,7 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     toast.info("Connecting to Google…", { duration: 5000 });
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth/callback?next=/dashboard`,
     });
     if (result.error) {
       toast.error(`Google sign-in failed: ${result.error.message}`);
@@ -177,7 +177,7 @@ export default function Login() {
   const handleAppleSignIn = async () => {
     toast.info("Connecting to Apple…", { duration: 5000 });
     const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth/callback?next=/dashboard`,
     });
     if (result.error) {
       toast.error(`Apple sign-in failed: ${result.error.message}`);

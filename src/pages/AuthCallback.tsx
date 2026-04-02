@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,16 +35,34 @@ function isBrokerSignedJwt(jwt: string): boolean {
 }
 
 export default function AuthCallback() {
-  const navigate = useNavigate();
   const [message, setMessage] = useState("Finishing sign-in…");
 
   useEffect(() => {
     let mounted = true;
 
+    const redirect = (path: string) => {
+      window.location.replace(path);
+    };
+
+    const clearPersistedSession = () => {
+      const key = getSupabaseAuthTokenStorageKey();
+      if (key) localStorage.removeItem(key);
+    };
+
+    const finalizeRedirect = (path: string, isNonPersistent: boolean) => {
+      if (isNonPersistent) {
+        clearPersistedSession();
+      }
+
+      if (!mounted) return;
+      redirect(path);
+    };
+
     const run = async () => {
       try {
         const url = new URL(window.location.href);
-        const next = url.searchParams.get("next") || "/dashboard";
+        const nextParam = url.searchParams.get("next");
+        const next = nextParam?.startsWith("/") ? nextParam : "/dashboard";
         const code = url.searchParams.get("code");
 
         // If the user chose a non-persistent session, ensure we keep localStorage cleared.
@@ -54,69 +71,69 @@ export default function AuthCallback() {
         // If we already have a valid session, just continue.
         const existing = await supabase.auth.getSession();
         if (existing.data.session && !isBrokerSignedJwt(existing.data.session.access_token)) {
-          if (isNonPersistent) {
-            const key = getSupabaseAuthTokenStorageKey();
-            if (key) localStorage.removeItem(key);
-          }
-          if (!mounted) return;
-          navigate(next, { replace: true });
+          finalizeRedirect(next, isNonPersistent);
           return;
         }
 
         // Newer confirmation / recovery links use PKCE ?code=...
         if (code) {
           setMessage("Verifying link…");
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
 
-          if (isNonPersistent) {
-            const key = getSupabaseAuthTokenStorageKey();
-            if (key) localStorage.removeItem(key);
+          const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
+          if (!establishedSession) {
+            throw new Error("Unable to create a session from this link");
           }
 
-          if (!mounted) return;
-          navigate(next, { replace: true });
+          finalizeRedirect(next, isNonPersistent);
           return;
         }
 
-        // Check for hash tokens (#access_token / #refresh_token)
+        // Check for callback tokens in either the hash or query string.
         const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const access_token = hash.get("access_token") || undefined;
-        const refresh_token = hash.get("refresh_token") || undefined;
+        const access_token = hash.get("access_token") ?? url.searchParams.get("access_token") ?? undefined;
+        const refresh_token = hash.get("refresh_token") ?? url.searchParams.get("refresh_token") ?? undefined;
 
         if (access_token && refresh_token) {
-          // If these are broker-signed tokens, DON'T try to set them directly —
-          // GoTrue will reject them. Redirect to home and let the managed
-          // @lovable.dev/cloud-auth-js library handle the token exchange.
           if (isBrokerSignedJwt(access_token)) {
-            console.warn("[AuthCallback] Broker-signed tokens detected — redirecting to home for managed exchange");
-            // Clean the URL and redirect to home so the managed library can process
-            window.location.replace(
-              `${window.location.origin}/#access_token=${access_token}&refresh_token=${refresh_token}`
-            );
+            setMessage("Starting secure session…");
+            clearPersistedSession();
+
+            const { data, error } = await supabase.auth.refreshSession({
+              refresh_token,
+            });
+
+            if (error) throw error;
+
+            const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
+            if (!establishedSession || isBrokerSignedJwt(establishedSession.access_token)) {
+              throw new Error("Unable to establish a valid session");
+            }
+
+            finalizeRedirect(next, isNonPersistent);
             return;
           }
 
           setMessage("Starting session…");
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) throw error;
 
-          if (isNonPersistent) {
-            const key = getSupabaseAuthTokenStorageKey();
-            if (key) localStorage.removeItem(key);
+          const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
+          if (!establishedSession) {
+            throw new Error("Unable to establish a session");
           }
 
-          if (!mounted) return;
-          navigate(next, { replace: true });
+          finalizeRedirect(next, isNonPersistent);
           return;
         }
 
         // Nothing usable in the URL — just go to the target (session may have been set by the managed library already)
         const freshSession = await supabase.auth.getSession();
-        if (freshSession.data.session) {
-          navigate(next, { replace: true });
+        if (freshSession.data.session && !isBrokerSignedJwt(freshSession.data.session.access_token)) {
+          finalizeRedirect(next, isNonPersistent);
         } else {
-          navigate("/login", { replace: true });
+          redirect("/login");
         }
       } catch (err) {
         console.error("AuthCallback error:", err);
@@ -124,10 +141,11 @@ export default function AuthCallback() {
         // Don't show broker JWT errors to users — they're internal
         if (errMsg.includes("unrecognized JWT kid") || errMsg.includes("bad_jwt")) {
           console.warn("[AuthCallback] Suppressing broker JWT error, redirecting to login");
+          clearPersistedSession();
         } else {
           toast.error(errMsg || "Unable to complete authentication");
         }
-        navigate("/login", { replace: true });
+        redirect("/login");
       }
     };
 
@@ -136,7 +154,7 @@ export default function AuthCallback() {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
