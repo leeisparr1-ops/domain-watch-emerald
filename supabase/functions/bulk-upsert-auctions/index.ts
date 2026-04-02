@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
     console.error("Error processing request:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
