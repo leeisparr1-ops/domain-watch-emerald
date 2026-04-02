@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import {
+  consumeStoredAuthCallbackPayload,
+  type StoredAuthCallbackPayload,
+} from "@/lib/authCallbackBootstrap";
 
 function getSupabaseAuthTokenStorageKey(): string | null {
   try {
@@ -34,8 +37,57 @@ function isBrokerSignedJwt(jwt: string): boolean {
   return false;
 }
 
+function mergeCallbackParams(url: URL, storedPayload: StoredAuthCallbackPayload | null) {
+  const searchParams = new URLSearchParams(storedPayload?.search ?? "");
+  url.searchParams.forEach((value, key) => {
+    if (!searchParams.has(key)) {
+      searchParams.set(key, value);
+    }
+  });
+
+  const hashParams = new URLSearchParams((storedPayload?.hash ?? "").replace(/^#/, ""));
+  const currentHashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  currentHashParams.forEach((value, key) => {
+    if (!hashParams.has(key)) {
+      hashParams.set(key, value);
+    }
+  });
+
+  return { hashParams, searchParams };
+}
+
+function getReadableAuthError(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : "";
+  const normalized = message.toLowerCase();
+
+  if (!message || message === "{}" || normalized === "[object object]") {
+    return "Sign-in failed. Please try again.";
+  }
+
+  if (normalized.includes("cancel")) {
+    return "Sign-in was cancelled.";
+  }
+
+  if (
+    normalized.includes("unrecognized jwt kid") ||
+    normalized.includes("bad_jwt") ||
+    normalized.includes("invalid jwt") ||
+    normalized.includes("unable to establish")
+  ) {
+    return "Sign-in failed. Please try again.";
+  }
+
+  return message;
+}
+
 export default function AuthCallback() {
-  const [message, setMessage] = useState("Finishing sign-in…");
+  const [showStatus, setShowStatus] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setShowStatus(true), 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -49,11 +101,7 @@ export default function AuthCallback() {
       if (key) localStorage.removeItem(key);
     };
 
-    const finalizeRedirect = (path: string, isNonPersistent: boolean) => {
-      if (isNonPersistent) {
-        clearPersistedSession();
-      }
-
+    const finalizeRedirect = (path: string) => {
       if (!mounted) return;
       redirect(path);
     };
@@ -61,90 +109,78 @@ export default function AuthCallback() {
     const run = async () => {
       try {
         const url = new URL(window.location.href);
-        const nextParam = url.searchParams.get("next");
+        const storedPayload = consumeStoredAuthCallbackPayload();
+        const { hashParams, searchParams } = mergeCallbackParams(url, storedPayload);
+        const nextParam = url.searchParams.get("next") ?? searchParams.get("next");
         const next = nextParam?.startsWith("/") ? nextParam : "/dashboard";
-        const code = url.searchParams.get("code");
+        const code = searchParams.get("code");
+        const callbackError =
+          searchParams.get("error_description") ??
+          searchParams.get("error") ??
+          hashParams.get("error_description") ??
+          hashParams.get("error");
 
-        // If the user chose a non-persistent session, ensure we keep localStorage cleared.
-        const isNonPersistent = sessionStorage.getItem("eh_non_persistent_session") === "1";
-
-        // If we already have a valid session, just continue.
-        const existing = await supabase.auth.getSession();
-        if (existing.data.session && !isBrokerSignedJwt(existing.data.session.access_token)) {
-          finalizeRedirect(next, isNonPersistent);
-          return;
+        if (callbackError) {
+          throw new Error(callbackError);
         }
 
         // Newer confirmation / recovery links use PKCE ?code=...
         if (code) {
-          setMessage("Verifying link…");
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
 
-          const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
-          if (!establishedSession) {
-            throw new Error("Unable to create a session from this link");
+          if (!data.session) {
+            throw new Error("Unable to complete sign-in.");
           }
 
-          finalizeRedirect(next, isNonPersistent);
+          finalizeRedirect(next);
           return;
         }
 
         // Check for callback tokens in either the hash or query string.
-        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const access_token = hash.get("access_token") ?? url.searchParams.get("access_token") ?? undefined;
-        const refresh_token = hash.get("refresh_token") ?? url.searchParams.get("refresh_token") ?? undefined;
+        const access_token = hashParams.get("access_token") ?? searchParams.get("access_token") ?? undefined;
+        const refresh_token = hashParams.get("refresh_token") ?? searchParams.get("refresh_token") ?? undefined;
 
         if (access_token && refresh_token) {
-          if (isBrokerSignedJwt(access_token)) {
-            setMessage("Starting secure session…");
-            clearPersistedSession();
+          clearPersistedSession();
 
+          if (isBrokerSignedJwt(access_token)) {
             const { data, error } = await supabase.auth.refreshSession({
               refresh_token,
-            });
+            } as Parameters<typeof supabase.auth.refreshSession>[0]);
 
             if (error) throw error;
 
-            const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
-            if (!establishedSession || isBrokerSignedJwt(establishedSession.access_token)) {
-              throw new Error("Unable to establish a valid session");
+            if (!data.session || isBrokerSignedJwt(data.session.access_token)) {
+              throw new Error("Unable to complete sign-in.");
             }
 
-            finalizeRedirect(next, isNonPersistent);
+            finalizeRedirect(next);
             return;
           }
 
-          setMessage("Starting session…");
           const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) throw error;
 
-          const establishedSession = data.session ?? (await supabase.auth.getSession()).data.session;
-          if (!establishedSession) {
-            throw new Error("Unable to establish a session");
+          if (!data.session) {
+            throw new Error("Unable to complete sign-in.");
           }
 
-          finalizeRedirect(next, isNonPersistent);
+          finalizeRedirect(next);
           return;
         }
 
         // Nothing usable in the URL — just go to the target (session may have been set by the managed library already)
         const freshSession = await supabase.auth.getSession();
         if (freshSession.data.session && !isBrokerSignedJwt(freshSession.data.session.access_token)) {
-          finalizeRedirect(next, isNonPersistent);
+          finalizeRedirect(next);
         } else {
           redirect("/login");
         }
       } catch (err) {
         console.error("AuthCallback error:", err);
-        const errMsg = err instanceof Error ? err.message : "";
-        // Don't show broker JWT errors to users — they're internal
-        if (errMsg.includes("unrecognized JWT kid") || errMsg.includes("bad_jwt")) {
-          console.warn("[AuthCallback] Suppressing broker JWT error, redirecting to login");
-          clearPersistedSession();
-        } else {
-          toast.error(errMsg || "Unable to complete authentication");
-        }
+        clearPersistedSession();
+        sessionStorage.setItem("eh_auth_error", getReadableAuthError(err));
         redirect("/login");
       }
     };
@@ -158,10 +194,14 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <span className="text-sm">{message}</span>
-      </div>
+      {showStatus ? (
+        <div className="flex items-center gap-3 text-muted-foreground" aria-live="polite">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Signing you in…</span>
+        </div>
+      ) : (
+        <span className="sr-only">Signing you in…</span>
+      )}
     </div>
   );
 }
