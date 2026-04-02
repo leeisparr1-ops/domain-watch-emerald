@@ -92,8 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then get initial session and VALIDATE it
     void (async () => {
       try {
-        // Flush any OAuth diagnostic messages now that React is mounted
-        flushDiagnostics();
 
         const hydrationVersion = authEventVersionRef.current;
         let result: { data: { session: Session | null }; error: any } | null = null;
