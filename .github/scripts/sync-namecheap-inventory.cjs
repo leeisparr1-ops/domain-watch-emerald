@@ -24,10 +24,12 @@ if (typeof fetch !== 'function') {
 // Direct CloudFront URL for the Namecheap CSV export (public, no auth required)
 const CSV_URL = 'https://d3ry1h4w5036x1.cloudfront.net/reports/Namecheap_Market_Sales.csv';
 
-// SAFE Configuration - Serial processing to prevent DB saturation
+// SAFE Configuration - keep sync serial, but avoid excessive idle time between requests.
 const BATCH_SIZE = 500;
 const PARALLEL_REQUESTS = 1;
-const BATCH_DELAY_MS = 1500;
+const BATCH_DELAY_MS = 250;
+const COOLDOWN_EVERY_BATCHES = 40;
+const COOLDOWN_DELAY_MS = 1500;
 const REQUEST_TIMEOUT_MS = 120000;
 const MAX_BATCH_RETRIES = 3;
 const TEMP_DIR = join(process.cwd(), '.temp-inventory');
@@ -319,7 +321,11 @@ async function upsertAuctionsViaEdgeFunction(auctions, inventorySource) {
     }
 
     if (i < batches.length - 1) {
-      await sleep(BATCH_DELAY_MS);
+      const processedBatches = i + 1;
+      const delayMs = processedBatches % COOLDOWN_EVERY_BATCHES === 0
+        ? COOLDOWN_DELAY_MS
+        : BATCH_DELAY_MS;
+      await sleep(delayMs);
     }
   }
 
