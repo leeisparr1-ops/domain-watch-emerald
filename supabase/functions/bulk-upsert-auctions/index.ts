@@ -183,21 +183,28 @@ Deno.serve(async (req) => {
 
     console.log(`Received ${dedupedAuctions.length} auctions for ${inventory_source}`);
 
-    const { data: existingRows, error: existingRowsError } = await supabase
-      .from("auctions")
-      .select("domain_name, price, bid_count, traffic_count, end_time, inventory_source, tld, auction_type, valuation, domain_age")
-      .in("domain_name", dedupedAuctions.map((auction) => auction.domain_name));
+    // Fetch existing rows in chunks of 100 to avoid URL-length limits on .in()
+    const LOOKUP_CHUNK = 100;
+    const existingByDomain = new Map<string, AuctionData>();
 
-    if (existingRowsError) {
-      throw existingRowsError;
-    }
+    for (let i = 0; i < dedupedAuctions.length; i += LOOKUP_CHUNK) {
+      const chunk = dedupedAuctions.slice(i, i + LOOKUP_CHUNK);
+      const { data: existingRows, error: existingRowsError } = await supabase
+        .from("auctions")
+        .select("domain_name, price, bid_count, traffic_count, end_time, inventory_source, tld, auction_type, valuation, domain_age")
+        .in("domain_name", chunk.map((a) => a.domain_name));
 
-    const existingByDomain = new Map(
-      ((existingRows || []) as ExistingAuctionData[]).map((row) => {
+      if (existingRowsError) {
+        console.error(`Lookup chunk error (offset=${i}): ${JSON.stringify(existingRowsError)}`);
+        // Continue without skip-unchanged optimisation for this chunk
+        continue;
+      }
+
+      for (const row of (existingRows || []) as ExistingAuctionData[]) {
         const normalized = toComparableAuction(row);
-        return [normalized.domain_name, normalized] as const;
-      }),
-    );
+        existingByDomain.set(normalized.domain_name, normalized);
+      }
+    }
 
     const auctionsToUpsert = dedupedAuctions.filter(
       (auction) => !auctionsMatch(auction, existingByDomain.get(auction.domain_name)),
@@ -333,7 +340,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
     console.error("Error processing request:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
