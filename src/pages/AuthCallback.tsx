@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { consumePostAuthRedirect } from "@/lib/postAuthRedirect";
+
+const AUTH_ERROR_STORAGE_KEY = "eh_auth_error";
 
 function getReadableAuthError(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : "";
@@ -26,6 +29,77 @@ function getReadableAuthError(error: unknown) {
   return message;
 }
 
+function isBrokerSignedJwt(jwt: string | undefined): boolean {
+  if (!jwt) return false;
+
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) return false;
+
+    const header = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
+    return Boolean(header.kid && header.kid.includes("-") && header.kid.length > 30);
+  } catch {
+    return false;
+  }
+}
+
+function getSupabaseAuthTokenStorageKey(): string | null {
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) return key;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+function clearPersistedSession() {
+  const storageKey = getSupabaseAuthTokenStorageKey();
+  if (storageKey) {
+    localStorage.removeItem(storageKey);
+  }
+}
+
+async function exchangeBrokerTokenForSession(accessToken: string) {
+  const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke(
+    "exchange-oauth-token",
+    {
+      body: { access_token: accessToken },
+    }
+  );
+
+  if (exchangeError) {
+    throw exchangeError;
+  }
+
+  if (!exchangeData?.hashed_token) {
+    throw new Error(exchangeData?.error || "Token exchange returned no session");
+  }
+
+  const { error: otpError } = await supabase.auth.verifyOtp({
+    token_hash: exchangeData.hashed_token,
+    type: "magiclink",
+  });
+
+  if (otpError) {
+    throw otpError;
+  }
+}
+
+function getSafeRedirectPath(url: URL) {
+  const nextParam = url.searchParams.get("next");
+
+  if (nextParam?.startsWith("/")) {
+    return nextParam;
+  }
+
+  return consumePostAuthRedirect() ?? "/dashboard";
+}
+
 export default function AuthCallback() {
   const [showStatus, setShowStatus] = useState(false);
 
@@ -39,7 +113,15 @@ export default function AuthCallback() {
     let mounted = true;
 
     const redirect = (path: string) => {
-      window.location.replace(path);
+      const currentUrl = new URL(window.location.href);
+      const destinationUrl = new URL(path, currentUrl.origin);
+      const previewToken = currentUrl.searchParams.get("__lovable_token");
+
+      if (previewToken && !destinationUrl.searchParams.has("__lovable_token")) {
+        destinationUrl.searchParams.set("__lovable_token", previewToken);
+      }
+
+      window.location.replace(destinationUrl.toString());
     };
 
     const finalizeRedirect = (path: string) => {
@@ -51,8 +133,7 @@ export default function AuthCallback() {
       try {
         const url = new URL(window.location.href);
         const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-        const nextParam = url.searchParams.get("next");
-        const next = nextParam?.startsWith("/") ? nextParam : "/dashboard";
+        const next = getSafeRedirectPath(url);
         const code = url.searchParams.get("code");
         const callbackError =
           url.searchParams.get("error_description") ??
@@ -66,6 +147,8 @@ export default function AuthCallback() {
 
         // Newer confirmation / recovery links use PKCE ?code=...
         if (code) {
+          clearPersistedSession();
+
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
 
@@ -77,16 +160,24 @@ export default function AuthCallback() {
           return;
         }
 
-        // Check for tokens in hash (legacy flows)
-        const access_token = hashParams.get("access_token") ?? undefined;
-        const refresh_token = hashParams.get("refresh_token") ?? undefined;
+        // Redirect-based social auth can return tokens in either the hash or query string.
+        const access_token =
+          hashParams.get("access_token") ?? url.searchParams.get("access_token") ?? undefined;
+        const refresh_token =
+          hashParams.get("refresh_token") ?? url.searchParams.get("refresh_token") ?? undefined;
 
         if (access_token && refresh_token) {
-          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
-          if (error) throw error;
+          clearPersistedSession();
 
-          if (!data.session) {
-            throw new Error("Unable to complete sign-in.");
+          if (isBrokerSignedJwt(access_token)) {
+            await exchangeBrokerTokenForSession(access_token);
+          } else {
+            const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (error) throw error;
+
+            if (!data.session) {
+              throw new Error("Unable to complete sign-in.");
+            }
           }
 
           finalizeRedirect(next);
@@ -102,7 +193,8 @@ export default function AuthCallback() {
         }
       } catch (err) {
         console.error("AuthCallback error:", err);
-        sessionStorage.setItem("eh_auth_error", getReadableAuthError(err));
+        clearPersistedSession();
+        sessionStorage.setItem(AUTH_ERROR_STORAGE_KEY, getReadableAuthError(err));
         redirect("/login");
       }
     };

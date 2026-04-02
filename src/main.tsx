@@ -43,12 +43,7 @@ async function cleanupServiceWorkerInPreview() {
 cleanupServiceWorkerInPreview();
 
 async function bootstrap() {
-  // Import the lovable auth module early so it can detect OAuth callback tokens
-  // on redirect return before the app renders
-  const [, { default: App }] = await Promise.all([
-    import("@/integrations/lovable/index"),
-    import("./App.tsx"),
-  ]);
+  const { default: App } = await import("./App.tsx");
 
   createRoot(document.getElementById("root")!).render(<App />);
 }

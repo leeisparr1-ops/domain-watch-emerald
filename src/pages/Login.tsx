@@ -175,7 +175,10 @@ export default function Login() {
     }
   };
 
-  const oauthRedirectUri = window.location.origin;
+  const oauthRedirectUri = new URL(
+    "/auth/callback?next=/dashboard",
+    window.location.origin
+  ).toString();
 
   const prepareSocialSignIn = () => {
     clearStoredAuthCallbackPayload();
