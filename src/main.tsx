@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
-const APP_SHELL_VERSION = "2026-04-02-auth-cache-fix-1";
+const APP_SHELL_VERSION = "2026-04-02-oauth-redirect-fix-2";
 const PREVIEW_RELOAD_KEY = "sw-preview-reloaded";
 const VERSION_STORAGE_KEY = "eh_app_shell_version";
 const VERSION_RELOAD_KEY = "eh_app_shell_version_reload";

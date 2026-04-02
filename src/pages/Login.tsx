@@ -174,10 +174,7 @@ export default function Login() {
     }
   };
 
-  const oauthRedirectUri = new URL(
-    "/auth/callback?next=/dashboard",
-    window.location.origin
-  ).toString();
+  const oauthRedirectUri = window.location.origin;
 
   const prepareSocialSignIn = () => {
     stashPostAuthRedirect("/dashboard");
