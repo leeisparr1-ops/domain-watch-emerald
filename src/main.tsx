@@ -1,10 +1,6 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
-
-// Eagerly initialize the Lovable Cloud auth library so it can process
-// OAuth callback tokens on ANY page the user lands on after redirect.
-import "@/integrations/lovable/index";
+import { stashAuthCallbackPayloadFromUrl } from "@/lib/authCallbackBootstrap";
 
 // Service worker is registered via index.html for PWABuilder detection
 // No duplicate registration needed here
@@ -47,6 +43,12 @@ async function cleanupServiceWorkerInPreview() {
 
 cleanupServiceWorkerInPreview();
 
-// The Lovable Cloud auth library (imported above) handles OAuth callbacks
-// automatically — no legacy handler needed.
-createRoot(document.getElementById("root")!).render(<App />);
+stashAuthCallbackPayloadFromUrl();
+
+async function bootstrap() {
+  const { default: App } = await import("./App.tsx");
+
+  createRoot(document.getElementById("root")!).render(<App />);
+}
+
+void bootstrap();
