@@ -66,45 +66,28 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Try to create user first; if they already exist, look them up by email
-    let user: any;
+    // Check if user exists, create if not
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    let user = existingUsers?.users?.find((u) => u.email === email);
 
-    console.log(`[exchange-oauth-token] Attempting to create/find user for ${email}`);
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        full_name: payload.user_metadata?.full_name || payload.name || "",
-        avatar_url: payload.user_metadata?.avatar_url || payload.picture || "",
-        provider: "google",
-      },
-    });
-
-    if (createError) {
-      // User already exists — look them up by email (paginated, filtered)
-      if (createError.message?.includes("already been registered") || createError.status === 422) {
-        console.log(`[exchange-oauth-token] User exists, looking up by email`);
-        const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-          page: 1,
-          perPage: 1,
-          filter: email,
-        } as any);
-        if (listError || !existingUsers?.users?.length) {
-          console.error(`[exchange-oauth-token] Could not find existing user:`, listError);
-          return new Response(
-            JSON.stringify({ error: "Could not find existing user" }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        user = existingUsers.users[0];
-      } else {
+    if (!user) {
+      console.log(`[exchange-oauth-token] Creating new user for ${email}`);
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: payload.user_metadata?.full_name || payload.name || "",
+          avatar_url: payload.user_metadata?.avatar_url || payload.picture || "",
+          provider: "google",
+        },
+      });
+      if (createError) {
         console.error(`[exchange-oauth-token] Create user error:`, createError);
         return new Response(
           JSON.stringify({ error: `Could not create user: ${createError.message}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } else {
       user = newUser.user;
     }
 

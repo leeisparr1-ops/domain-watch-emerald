@@ -24,26 +24,19 @@ jobs:
       - name: Check if cleanup is still running
         id: check
         run: |
-          HEADERS=$(mktemp)
-          STATUS=$(curl -sS -o /dev/null -D "$HEADERS" -w "%{http_code}" --retry 3 --retry-delay 2 \
-            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/auctions?select=domain_name&limit=1" \
+          RESPONSE=$(curl -sfL --retry 3 --retry-delay 2 \
+            "${{ env.PROJECT_SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
             -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-            -H "Prefer: count=planned" \
-            -H "Range: 0-0" || echo "error")
+            -H "Content-Type: application/json" \
+            -d '{}' || echo "error")
 
-          CONTENT_RANGE=$(grep -i '^content-range:' "$HEADERS" | tail -n 1 | tr -d '\r')
-          COUNT=$(echo "$CONTENT_RANGE" | sed -E 's#.*\/([0-9]+)$#\1#')
-          rm -f "$HEADERS"
+          echo "Estimated auction count: $RESPONSE"
 
-          echo "Health status: $STATUS"
-          echo "Estimated auction count header: ${CONTENT_RANGE:-missing}"
-
+          COUNT=$(echo "$RESPONSE" | tr -d '\"[:space:]')
           HEALTHY=true
 
-          if [ "$STATUS" = "error" ] || [ "$STATUS" -ge 500 ]; then
-            HEALTHY=false
-          elif [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
+          if [ "$RESPONSE" = "error" ] || ! [[ "$COUNT" =~ ^[0-9]+$ ]] || [ "$COUNT" -gt 5000000 ]; then
             HEALTHY=false
           fi
 
@@ -60,9 +53,15 @@ jobs:
     steps:
       - name: Validate required GitHub secrets
         env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: |
           missing=0
+
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Missing GitHub secret: SUPABASE_SERVICE_ROLE_KEY"
+            missing=1
+          fi
 
           if [ -z "$SYNC_SECRET" ]; then
             echo "::error::Missing GitHub secret: SYNC_SECRET"
@@ -88,6 +87,7 @@ jobs:
       - name: Run Namecheap sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
@@ -104,6 +104,7 @@ jobs:
       - name: Run Sedo auction sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-sedo-inventory.cjs
 
@@ -116,9 +117,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install @supabase/supabase-js node-fetch adm-zip
+      - run: npm install @supabase/supabase-js node-fetch
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
