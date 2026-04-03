@@ -6,10 +6,7 @@
  * Currency: $US, EUR, &#163; (GBP)
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SYNC_SECRET = process.env.SYNC_SECRET;
 
 const SEDO_FEED_URL = 'https://sedo.com/txt/auctions_us.txt';
