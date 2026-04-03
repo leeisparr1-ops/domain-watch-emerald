@@ -69,7 +69,6 @@ jobs:
       - name: Run Sedo auction sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-sedo-inventory.cjs
 
