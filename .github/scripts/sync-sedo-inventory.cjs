@@ -75,7 +75,7 @@ async function upsertBatch(auctions) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'x-sync-secret': SYNC_SECRET,
     },
     body: JSON.stringify({
       auctions,
