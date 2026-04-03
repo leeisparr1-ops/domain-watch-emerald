@@ -410,7 +410,6 @@ export function DomainTable({
             <TableBody>
               {domains.map((d, idx) => {
                 const isBuyNow = d.auctionType === 'buy-now' || d.inventorySource === 'namecheap';
-                const isSedo = d.inventorySource === 'sedo';
                 const timeInfo = isBuyNow 
                   ? { text: "Buy Now", urgent: false, ended: false, urgency: "normal" as UrgencyLevel }
                   : formatTimeRemaining(d.auctionEndTime);
@@ -648,8 +647,6 @@ export function DomainTable({
                           href={
                             d.inventorySource === 'namecheap'
                               ? `https://www.namecheap.com/domains/marketplace/result/?query=${encodeURIComponent(d.domain.replace(/\.[^.]+$/, ''))}`
-                              : d.inventorySource === 'sedo'
-                              ? `https://sedo.com/search/details/?domain=${encodeURIComponent(d.domain)}`
                               : `https://auctions.godaddy.com/trpItemListing.aspx?domain=${encodeURIComponent(d.domain)}`
                           }
                           target="_blank"

@@ -11,114 +11,37 @@ concurrency:
   group: sync-auctions
   cancel-in-progress: false
 
-env:
-  PROJECT_SUPABASE_URL: https://zzigibfdsitbvczozlsg.supabase.co
-  PROJECT_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6aWdpYmZkc2l0YnZjem96bHNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNDA3NTIsImV4cCI6MjA4NTYxNjc1Mn0.BRewTYU_AwowwuupwH9cNGBKqjtb01RelkLlqLunCmM
-
 jobs:
   check-db-health:
     runs-on: ubuntu-latest
+    outputs:
+      healthy: ${{ steps.check.outputs.healthy }}
     steps:
       - name: Check if cleanup is still running
+        id: check
         run: |
-          HEALTH_URL="${{ env.PROJECT_SUPABASE_URL }}/rest/v1/auctions?select=domain_name&limit=1"
-          HEADERS=$(mktemp)
-          BODY=$(mktemp)
-          STATUS=""
-          CONTENT_RANGE=""
-          COUNT=""
-          CURL_EXIT=0
-
-          for attempt in 1 2 3; do
-            : > "$HEADERS"
-            : > "$BODY"
-
-            if STATUS=$(curl -sS -o "$BODY" -D "$HEADERS" -w "%{http_code}" \
-              --connect-timeout 10 \
-              --max-time 20 \
-              "$HEALTH_URL" \
-              -H "apikey: ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-              -H "Authorization: Bearer ${{ env.PROJECT_SUPABASE_ANON_KEY }}" \
-              -H "Prefer: count=planned" \
-              -H "Range: 0-0"); then
-              CURL_EXIT=0
-            else
-              CURL_EXIT=$?
-            fi
-
-            CONTENT_RANGE=$(grep -i '^content-range:' "$HEADERS" | tail -n 1 | tr -d '\r')
-            COUNT=$(echo "$CONTENT_RANGE" | sed -En 's#.*\/([0-9]+)$#\1#p')
-
-            if [ "$CURL_EXIT" -eq 0 ] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-              break
-            fi
-
-            echo "⚠️ Health probe attempt $attempt failed (curl exit: $CURL_EXIT, status: ${STATUS:-none})"
-            if [ -s "$BODY" ]; then
-              sed -n '1,5p' "$BODY"
-            fi
-
-            if [ "$attempt" -lt 3 ]; then
-              sleep 5
-            fi
-          done
-
-          echo "Health status: ${STATUS:-missing}"
-          echo "Estimated auction count header: ${CONTENT_RANGE:-missing}"
-
-          rm -f "$HEADERS" "$BODY"
-
-          if [ "$CURL_EXIT" -eq 0 ] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-            if [[ "$COUNT" =~ ^[0-9]+$ ]] && [ "$COUNT" -gt 5000000 ]; then
-              echo "❌ Database health check failed, stopping sync"
-              exit 1
-            fi
-
+          # Query the estimated auction count via Supabase REST
+          RESPONSE=$(curl -sf \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' || echo "error")
+          
+          echo "Estimated auction count: $RESPONSE"
+          
+          # If count > 2M, skip sync to let cleanup finish
+          if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 2500000 ] 2>/dev/null; then
+            echo "healthy=false" >> $GITHUB_OUTPUT
+            echo "⏸️ Database still recovering, skipping sync"
+          else
+            echo "healthy=true" >> $GITHUB_OUTPUT
             echo "✅ Database healthy, proceeding with sync"
-            exit 0
           fi
-
-          echo "⚠️ Health probe unavailable, continuing with sequential sync chain to avoid false skips"
-
-  validate-sync-config:
-    needs: [check-db-health]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate required GitHub secrets
-        env:
-          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: |
-          missing=0
-
-          if [ -z "$SYNC_SECRET" ]; then
-            echo "::error::Missing GitHub secret: SYNC_SECRET"
-            missing=1
-          fi
-
-          if [ "$missing" -eq 1 ]; then
-            exit 1
-          fi
-
-          echo "✅ Required sync secrets are present"
-
-  sync-large-inventory:
-    name: sync-godaddy
-    needs: [validate-sync-config]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm install @supabase/supabase-js node-fetch adm-zip
-      - name: Run large inventory sync
-        env:
-          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
-          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: node .github/scripts/sync-large-inventory.cjs
 
   sync-namecheap:
-    needs: [sync-large-inventory]
+    needs: check-db-health
+    if: needs.check-db-health.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -128,12 +51,14 @@ jobs:
       - run: npm install @supabase/supabase-js node-fetch
       - name: Run Namecheap sync
         env:
-          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
-  sync-sedo:
-    needs: [sync-namecheap]
+  sync-large-inventory:
+    needs: check-db-health
+    if: needs.check-db-health.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,66 +66,9 @@ jobs:
         with:
           node-version: '20'
       - run: npm install @supabase/supabase-js node-fetch
-      - name: Run Sedo auction sync
+      - name: Run large inventory sync
         env:
-          SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
-        run: node .github/scripts/sync-sedo-inventory.cjs
-
-  post-sync-cleanup:
-    name: cleanup-stale-inventory
-    needs: [sync-sedo]
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Cleanup ended auctions
-        run: |
-          echo "🧹 Cleaning up ended auctions..."
-          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
-            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            -H "Content-Type: application/json")
-          STATUS=$(echo "$RESP" | tail -1)
-          BODY=$(echo "$RESP" | sed '$d')
-          echo "Status: $STATUS"
-          echo "$BODY" | head -5
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-            echo "✅ Ended auctions cleanup complete"
-          else
-            echo "⚠️ Ended auctions cleanup returned $STATUS (non-fatal)"
-          fi
-
-      - name: Cleanup stale Namecheap auctions
-        run: |
-          echo "🧹 Cleaning up stale Namecheap auctions..."
-          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
-            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=3&maxBatches=500" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            -H "Content-Type: application/json")
-          STATUS=$(echo "$RESP" | tail -1)
-          BODY=$(echo "$RESP" | sed '$d')
-          echo "Status: $STATUS"
-          echo "$BODY" | head -5
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-            echo "✅ Namecheap stale cleanup complete"
-          else
-            echo "⚠️ Namecheap cleanup returned $STATUS (non-fatal)"
-          fi
-
-      - name: Cleanup backlog (junk + gibberish via batch RPC)
-        run: |
-          echo "🧹 Running backlog cleanup..."
-          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
-            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/backlog-cleanup?older_than_hours=0&batch_size=1000&max_seconds=120" \
-            -X POST \
-            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
-            -H "Content-Type: application/json")
-          STATUS=$(echo "$RESP" | tail -1)
-          BODY=$(echo "$RESP" | sed '$d')
-          echo "Status: $STATUS"
-          echo "$BODY" | head -5
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-            echo "✅ Backlog cleanup complete"
-          else
-            echo "⚠️ Backlog cleanup returned $STATUS (non-fatal)"
-          fi
+        run: node .github/scripts/sync-large-inventory.cjs

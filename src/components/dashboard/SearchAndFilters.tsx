@@ -63,7 +63,6 @@ const SOURCE_OPTIONS = [
   { value: "all", label: "All Sources" },
   { value: "godaddy", label: "GoDaddy" },
   { value: "namecheap", label: "Namecheap" },
-  { value: "sedo", label: "Sedo" },
 ];
 
 const PRICE_PRESETS = [

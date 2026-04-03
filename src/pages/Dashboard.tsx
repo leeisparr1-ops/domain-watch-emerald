@@ -305,7 +305,6 @@ export default function Dashboard() {
       if (filters.auctionType === "bid") query = query.in('auction_type', ['Bid', 'auction']);
       else if (filters.auctionType === "buynow") query = query.in('auction_type', ['BuyNow', 'buy-now']);
       if (filters.inventorySource === "namecheap") query = query.eq('inventory_source', 'namecheap');
-      else if (filters.inventorySource === "sedo") query = query.eq('inventory_source', 'sedo');
       else if (filters.inventorySource === "godaddy") query = query.in('inventory_source', [...GODADDY_SOURCES]);
       query = query.order(currentSort.column, { ascending: currentSort.ascending });
       query = query.range(from, to).abortSignal(signal);
@@ -384,9 +383,6 @@ export default function Dashboard() {
     const applyInventorySourceFilter = (query: any) => {
       if (filters.inventorySource === "namecheap") {
         return query.eq('inventory_source', 'namecheap');
-      }
-      if (filters.inventorySource === "sedo") {
-        return query.eq('inventory_source', 'sedo');
       }
       if (filters.inventorySource === "godaddy") {
         return query
