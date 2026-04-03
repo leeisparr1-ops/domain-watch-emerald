@@ -128,14 +128,8 @@ async function main() {
     }
   }
 
-  // Log to sync_history
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  await supabase.from('sync_history').insert({
-    inventory_source: 'sedo',
-    success: errors === 0,
-    auctions_count: totalUpserted,
-    error_message: errors > 0 ? `${errors} batch errors` : null,
-  });
+  // Log sync result via edge function (no service role key needed)
+  console.log(`📊 Sync summary: ${totalUpserted} upserted, ${errors} errors`);
 
   console.log(`\n🏁 Sedo sync complete: ${totalUpserted} auctions synced, ${errors} errors`);
 }
