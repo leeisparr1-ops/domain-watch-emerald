@@ -30,7 +30,7 @@ jobs:
           
           echo "Estimated auction count: $RESPONSE"
           
-          # If count > 2M, skip sync to let cleanup finish
+          # If count > 5M, skip sync to let cleanup finish
           if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 5000000 ] 2>/dev/null; then
             echo "healthy=false" >> $GITHUB_OUTPUT
             echo "⏸️ Database still recovering, skipping sync"
@@ -39,8 +39,31 @@ jobs:
             echo "✅ Database healthy, proceeding with sync"
           fi
 
+  validate-sync-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required GitHub secrets
+        run: |
+          missing=0
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "::error::Missing GitHub secret: SUPABASE_URL"
+            missing=1
+          fi
+          if [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::Missing GitHub secret: SUPABASE_ANON_KEY"
+            missing=1
+          fi
+          if [ -z "${{ secrets.SYNC_SECRET }}" ]; then
+            echo "::error::Missing GitHub secret: SYNC_SECRET"
+            missing=1
+          fi
+          if [ $missing -ne 0 ]; then
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
   sync-namecheap:
-    needs: check-db-health
+    needs: [check-db-health, validate-sync-config]
     if: needs.check-db-health.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -52,12 +75,11 @@ jobs:
       - name: Run Namecheap sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
   sync-sedo:
-    needs: check-db-health
+    needs: [check-db-health, validate-sync-config]
     if: needs.check-db-health.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +95,7 @@ jobs:
         run: node .github/scripts/sync-sedo-inventory.cjs
 
   sync-large-inventory:
-    needs: check-db-health
+    needs: [check-db-health, validate-sync-config]
     if: needs.check-db-health.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -85,6 +107,5 @@ jobs:
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
