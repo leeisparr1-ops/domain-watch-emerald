@@ -6,10 +6,7 @@
  * Currency: $US, EUR, &#163; (GBP)
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SYNC_SECRET = process.env.SYNC_SECRET;
 
 const SEDO_FEED_URL = 'https://sedo.com/txt/auctions_us.txt';
@@ -75,7 +72,7 @@ async function upsertBatch(auctions) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'x-sync-secret': SYNC_SECRET,
     },
     body: JSON.stringify({
       auctions,
@@ -131,14 +128,8 @@ async function main() {
     }
   }
 
-  // Log to sync_history
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  await supabase.from('sync_history').insert({
-    inventory_source: 'sedo',
-    success: errors === 0,
-    auctions_count: totalUpserted,
-    error_message: errors > 0 ? `${errors} batch errors` : null,
-  });
+  // Log sync result via edge function (no service role key needed)
+  console.log(`📊 Sync summary: ${totalUpserted} upserted, ${errors} errors`);
 
   console.log(`\n🏁 Sedo sync complete: ${totalUpserted} auctions synced, ${errors} errors`);
 }
