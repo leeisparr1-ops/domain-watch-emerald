@@ -146,3 +146,61 @@ jobs:
           SUPABASE_URL: ${{ env.PROJECT_SUPABASE_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-sedo-inventory.cjs
+
+  post-sync-cleanup:
+    name: cleanup-stale-inventory
+    needs: [sync-sedo]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup ended auctions
+        run: |
+          echo "🧹 Cleaning up ended auctions..."
+          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
+            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?days=0&maxBatches=500" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json")
+          STATUS=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Status: $STATUS"
+          echo "$BODY" | head -5
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "✅ Ended auctions cleanup complete"
+          else
+            echo "⚠️ Ended auctions cleanup returned $STATUS (non-fatal)"
+          fi
+
+      - name: Cleanup stale Namecheap auctions
+        run: |
+          echo "🧹 Cleaning up stale Namecheap auctions..."
+          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
+            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/cleanup-expired-auctions?source=namecheap&staleDays=3&maxBatches=500" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json")
+          STATUS=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Status: $STATUS"
+          echo "$BODY" | head -5
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "✅ Namecheap stale cleanup complete"
+          else
+            echo "⚠️ Namecheap cleanup returned $STATUS (non-fatal)"
+          fi
+
+      - name: Cleanup backlog (junk + gibberish via batch RPC)
+        run: |
+          echo "🧹 Running backlog cleanup..."
+          RESP=$(curl -sS -w "\n%{http_code}" --max-time 300 \
+            "${{ env.PROJECT_SUPABASE_URL }}/functions/v1/backlog-cleanup?older_than_hours=0&batch_size=1000&max_seconds=120" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json")
+          STATUS=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Status: $STATUS"
+          echo "$BODY" | head -5
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "✅ Backlog cleanup complete"
+          else
+            echo "⚠️ Backlog cleanup returned $STATUS (non-fatal)"
+          fi
