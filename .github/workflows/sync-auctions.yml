@@ -12,12 +12,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pre-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Clean up expired auctions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node .github/scripts/cleanup-expired-auctions.cjs
+
   check-db-health:
+    needs: pre-cleanup
     runs-on: ubuntu-latest
     outputs:
       healthy: ${{ steps.check.outputs.healthy }}
     steps:
-      - name: Check if cleanup is still running
+      - name: Check auction count is under threshold
         id: check
         run: |
           # Query the estimated auction count via Supabase REST
@@ -30,7 +45,7 @@ jobs:
           
           echo "Estimated auction count: $RESPONSE"
           
-          # If count > 2M, skip sync to let cleanup finish
+          # If count > 2.5M, skip sync to let cleanup finish
           if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 2500000 ] 2>/dev/null; then
             echo "healthy=false" >> $GITHUB_OUTPUT
             echo "⏸️ Database still recovering, skipping sync"
@@ -65,7 +80,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install @supabase/supabase-js node-fetch
+      - run: npm install @supabase/supabase-js node-fetch adm-zip
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
