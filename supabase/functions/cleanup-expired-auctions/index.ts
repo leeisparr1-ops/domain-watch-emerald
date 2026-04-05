@@ -167,6 +167,14 @@ Deno.serve(async (req) => {
       }
 
       const durationMs = Date.now() - startTime;
+      const { count: auctionCountEstimate, error: countError } = await supabase
+        .from("auctions")
+        .select("id", { count: "estimated", head: true });
+
+      if (countError) {
+        console.error("Error estimating remaining auction count:", countError);
+      }
+
       const result = {
         success: true,
         deleted: totalDeleted,
@@ -175,6 +183,7 @@ Deno.serve(async (req) => {
         durationMs,
         source,
         staleDays,
+        auctionCountEstimate: auctionCountEstimate ?? null,
         message: `Harvested ${harvestedCount} top sales, deleted ${totalDeleted} stale '${source}' auctions`,
       };
       console.log("Source cleanup complete:", result);
@@ -283,6 +292,13 @@ Deno.serve(async (req) => {
     }
 
     const durationMs = Date.now() - startTime;
+    const { count: auctionCountEstimate, error: countError } = await supabase
+      .from("auctions")
+      .select("id", { count: "estimated", head: true });
+
+    if (countError) {
+      console.error("Error estimating remaining auction count:", countError);
+    }
 
     const result = {
       success: true,
@@ -291,6 +307,7 @@ Deno.serve(async (req) => {
       batches: batchCount,
       durationMs,
       cutoffDate: cutoffISO,
+      auctionCountEstimate: auctionCountEstimate ?? null,
       message: `Harvested ${harvestedCount} top sales, deleted ${totalDeleted} expired auctions`,
     };
 

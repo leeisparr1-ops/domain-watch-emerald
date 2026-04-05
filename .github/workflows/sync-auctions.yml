@@ -2,9 +2,9 @@ name: Sync Auctions
 
 on:
   schedule:
-    - cron: '0 3 * * *'    # 3 AM UTC daily
-    - cron: '0 16 * * *'   # 4 PM UTC daily
-    - cron: '0 19 * * *'   # 7 PM UTC daily
+    - cron: '0 3 * * *'
+    - cron: '0 16 * * *'
+    - cron: '0 19 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -15,48 +15,24 @@ jobs:
   pre-cleanup:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      healthy: ${{ steps.cleanup.outputs.healthy }}
+      auction_count_estimate: ${{ steps.cleanup.outputs.auction_count_estimate }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Clean up expired auctions
+        id: cleanup
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/cleanup-expired-auctions.cjs
 
-  check-db-health:
-    needs: pre-cleanup
-    runs-on: ubuntu-latest
-    outputs:
-      healthy: ${{ steps.check.outputs.healthy }}
-    steps:
-      - name: Check auction count is under threshold
-        id: check
-        run: |
-          # Query the estimated auction count via Supabase REST
-          RESPONSE=$(curl -sf \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{}' || echo "error")
-          
-          echo "Estimated auction count: $RESPONSE"
-          
-          # If count > 2.5M, skip sync to let cleanup finish
-          if [ "$RESPONSE" = "error" ] || [ "$(echo "$RESPONSE" | tr -d '\"')" -gt 2500000 ] 2>/dev/null; then
-            echo "healthy=false" >> $GITHUB_OUTPUT
-            echo "⏸️ Database still recovering, skipping sync"
-          else
-            echo "healthy=true" >> $GITHUB_OUTPUT
-            echo "✅ Database healthy, proceeding with sync"
-          fi
-
   sync-namecheap:
-    needs: check-db-health
-    if: needs.check-db-health.outputs.healthy == 'true'
+    needs: pre-cleanup
+    if: needs.pre-cleanup.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,13 +43,12 @@ jobs:
       - name: Run Namecheap sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-namecheap-inventory.cjs
 
   sync-large-inventory:
-    needs: check-db-health
-    if: needs.check-db-health.outputs.healthy == 'true'
+    needs: pre-cleanup
+    if: needs.pre-cleanup.outputs.healthy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +59,5 @@ jobs:
       - name: Run large inventory sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
         run: node .github/scripts/sync-large-inventory.cjs
