@@ -2,90 +2,132 @@
 
 /**
  * GitHub Actions script to clean up expired auctions before syncing.
- * Calls the delete_ended_auctions_batch RPC in a loop until count is under the threshold.
+ * Calls the existing cleanup-expired-auctions backend function using SYNC_SECRET
+ * and loops until the database is back under the safe threshold.
  *
  * Required secrets:
  * - SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY as fallback)
+ * - SYNC_SECRET
  */
 
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
-const API_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+const { appendFileSync } = require('fs');
 
-if (!SUPABASE_URL || !API_KEY) {
-  console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
+const SYNC_SECRET = (process.env.SYNC_SECRET || '').trim();
+
+if (!SUPABASE_URL || !SYNC_SECRET) {
+  console.error('❌ Missing SUPABASE_URL or SYNC_SECRET');
   process.exit(1);
 }
 
-const BATCH_SIZE = 5000;
-const MAX_ITERATIONS = 300; // safety cap: 300 × 5000 = 1.5M max
-const DELAY_MS = 1000;
-const TARGET_COUNT = 2_200_000; // aim well below the 2.5M gate
+const TARGET_COUNT = 2_200_000;
+const DAYS_OLD = 1;
+const MAX_BATCHES_PER_RUN = 500;
+const MAX_RUNS = 10;
+const DELAY_MS = 1500;
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function rpc(fnName, args = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
-    method: 'POST',
-    headers: {
-      apikey: API_KEY,
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(args),
-  });
-  if (!res.ok) throw new Error(`RPC ${fnName} failed: ${res.status} ${await res.text()}`);
-  return res.json();
+function setGithubOutput(name, value) {
+  const outputPath = process.env.GITHUB_OUTPUT;
+  if (!outputPath) return;
+  appendFileSync(outputPath, `${name}=${value}\n`);
+}
+
+async function invokeCleanup(runNumber) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/cleanup-expired-auctions?days=${DAYS_OLD}&maxBatches=${MAX_BATCHES_PER_RUN}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${SYNC_SECRET}`,
+        },
+        signal: controller.signal,
+      }
+    );
+
+    const text = await response.text();
+    let payload = {};
+
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { raw: text };
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(`Cleanup run ${runNumber} failed: ${response.status} ${text}`);
+    }
+
+    return payload;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 (async () => {
-  console.log('🧹 Pre-sync cleanup: removing expired auctions...');
+  console.log('🧹 Pre-sync cleanup: removing expired auctions via backend function...');
   const startTime = Date.now();
   let totalDeleted = 0;
+  let totalHarvested = 0;
+  let latestEstimate = null;
+  let healthy = false;
 
-  // First check current count
-  const currentCount = await rpc('get_auction_count');
-  console.log(`   Current auction count estimate: ${Number(currentCount).toLocaleString()}`);
+  for (let run = 1; run <= MAX_RUNS; run++) {
+    const result = await invokeCleanup(run);
+    const deleted = Number(result.deleted || 0);
+    const harvested = Number(result.harvested || 0);
+    const estimate = typeof result.auctionCountEstimate === 'number'
+      ? result.auctionCountEstimate
+      : null;
 
-  if (Number(currentCount) <= TARGET_COUNT) {
-    console.log('   ✅ Already under target, no cleanup needed.');
-    process.exit(0);
-  }
+    totalDeleted += deleted;
+    totalHarvested += harvested;
+    latestEstimate = estimate;
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    try {
-      const result = await rpc('delete_ended_auctions_batch', {
-        batch_limit: BATCH_SIZE,
-        older_than_hours: 24,
-      });
+    console.log(
+      `   Run ${run}: deleted ${deleted.toLocaleString()}, harvested ${harvested.toLocaleString()}, estimated count: ${estimate === null ? 'unknown' : estimate.toLocaleString()}`
+    );
 
-      const row = Array.isArray(result) ? result[0] : result;
-      const deleted = row?.deleted_count || 0;
-      totalDeleted += deleted;
+    if (estimate !== null && estimate <= TARGET_COUNT) {
+      healthy = true;
+      console.log(`   ✅ Database is under target (${TARGET_COUNT.toLocaleString()}).`);
+      break;
+    }
 
-      if (deleted === 0) {
-        console.log(`   No more expired auctions to delete.`);
-        break;
-      }
+    if (deleted === 0) {
+      console.log('   No more expired auctions were deleted in this pass.');
+      break;
+    }
 
-      if ((i + 1) % 10 === 0) {
-        console.log(`   Batch ${i + 1}: deleted ${deleted}, total so far: ${totalDeleted.toLocaleString()}`);
-        // Re-check count periodically
-        const count = await rpc('get_auction_count');
-        console.log(`   Estimated count: ${Number(count).toLocaleString()}`);
-        if (Number(count) <= TARGET_COUNT) {
-          console.log(`   ✅ Under target (${TARGET_COUNT.toLocaleString()}), stopping.`);
-          break;
-        }
-      }
-
+    if (run < MAX_RUNS) {
       await sleep(DELAY_MS);
-    } catch (err) {
-      console.error(`   ⚠️ Batch ${i + 1} error: ${err.message}`);
-      await sleep(3000); // longer pause on error
     }
   }
 
+  setGithubOutput('healthy', healthy ? 'true' : 'false');
+  if (latestEstimate !== null) {
+    setGithubOutput('auction_count_estimate', String(latestEstimate));
+  }
+
   const elapsed = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
-  console.log(`\n✅ Cleanup complete: deleted ${totalDeleted.toLocaleString()} expired auctions in ${elapsed} minutes`);
-})();
+  console.log(
+    `\n✅ Cleanup complete: deleted ${totalDeleted.toLocaleString()} expired auctions, harvested ${totalHarvested.toLocaleString()} sales in ${elapsed} minutes`
+  );
+
+  if (!healthy) {
+    console.log('⏸️ Database is still above target; sync jobs will be skipped until the next run.');
+  }
+})().catch((error) => {
+  setGithubOutput('healthy', 'false');
+  console.error(`❌ Pre-sync cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+});
