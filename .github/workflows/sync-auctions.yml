@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       - name: Clean up expired auctions
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       - run: npm install @supabase/supabase-js node-fetch
       - name: Run Namecheap sync
         env:
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       - run: npm install @supabase/supabase-js node-fetch adm-zip
       - name: Run large inventory sync
         env:
