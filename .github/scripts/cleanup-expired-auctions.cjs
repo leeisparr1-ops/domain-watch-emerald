@@ -6,14 +6,14 @@
  *
  * Required secrets:
  * - SUPABASE_URL
- * - SUPABASE_ANON_KEY
+ * - SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY as fallback)
  */
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
-const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY || '').trim();
+const API_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('❌ Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+if (!SUPABASE_URL || !API_KEY) {
+  console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
