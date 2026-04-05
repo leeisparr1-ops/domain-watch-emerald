@@ -38,8 +38,8 @@ jobs:
           # Query the estimated auction count via Supabase REST
           RESPONSE=$(curl -sf \
             "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_auction_count" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{}' || echo "error")
           
