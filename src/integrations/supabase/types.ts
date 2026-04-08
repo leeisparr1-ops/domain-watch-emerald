@@ -856,6 +856,13 @@ export type Database = {
           remaining_estimate: number
         }[]
       }
+      delete_long_gibberish_batch: {
+        Args: { batch_limit?: number }
+        Returns: {
+          deleted_count: number
+          remaining_estimate: number
+        }[]
+      }
       delete_namecheap_batch: { Args: { batch_size?: number }; Returns: number }
       find_hidden_gems: {
         Args: {
