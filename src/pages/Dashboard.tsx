@@ -426,8 +426,8 @@ export default function Dashboard() {
 
       // Critical optimization: always split ALL sources into two indexed queries (no OR scan)
       if (filters.inventorySource === "all") {
-        const mergeProbeFloor = isMobile ? itemsPerPage * 2 : Math.ceil(itemsPerPage * 2.5);
-        const mergeProbeCap = isMobile ? 220 : 380;
+        const mergeProbeFloor = isMobile ? itemsPerPage : Math.ceil(itemsPerPage * 2);
+        const mergeProbeCap = isMobile ? 150 : 300;
         const mergeProbeSize = Math.min(Math.max((to + 1) * 2, mergeProbeFloor), mergeProbeCap);
 
         const namecheapQuery = applyCommonFilters(
