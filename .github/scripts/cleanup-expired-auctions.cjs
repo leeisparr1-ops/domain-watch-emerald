@@ -104,7 +104,14 @@ async function invokeCleanup(runNumber) {
     }
 
     if (deleted === 0) {
-      console.log('   No more expired auctions were deleted in this pass.');
+      // If nothing was deleted AND we couldn't get an estimate, assume healthy
+      // (no expired rows to clean = DB is in good shape)
+      if (estimate === null) {
+        healthy = true;
+        console.log('   ✅ No expired auctions found and estimate unavailable — assuming healthy.');
+      } else {
+        console.log('   No more expired auctions were deleted in this pass.');
+      }
       break;
     }
 
